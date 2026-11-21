@@ -82,6 +82,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: the retention purge counts each sign-in once: a removed member whose claims were not yet cleared is
+  handled by the removal pass and skipped by the claim pass, so a dry run's count matches what a live run deletes.
+  Source: review (cross-family, round 1 on removed members' sign-ins). Verified: a dry run with one cleared and one
+  not-yet-cleared removed sign-in counted 3 before the fix and counts 2 after, as the live run deletes 2; 362
+  functions and rules tests pass.
 - docs(limits): the retention line names removed members' sign-ins, found through the drill's removal records. Source:
   review (claims check).
 - functions: the retention purge also deletes the sign-ins of members command removed from the drill. Removal clears

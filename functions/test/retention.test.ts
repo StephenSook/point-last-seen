@@ -441,11 +441,15 @@ describe("deleteEndedDrills: members command removed", () => {
     expect(await userExists(person)).toBe(true);
     expect(r.users).toBe(1);
   });
-  it("a dry run counts the removed member's sign-in and deletes nothing", async () => {
+  it("a dry run counts each removed sign-in once and deletes nothing, also one whose claims were not yet cleared", async () => {
     await drill("OLD", closed(31));
     const idle = await removedAccount("OLD", null);
-    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW, { dryRun: true } as never);
+    const notCleared = await removedAccount("OLD", { inc: "OLD", role: "searcher", team: "T1" });
+    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW, { dryRun: true });
     expect(await userExists(idle)).toBe(true);
-    expect(r.users).toBeGreaterThanOrEqual(1);
+    expect(await userExists(notCleared)).toBe(true);
+    expect(r.users).toBe(2);
+    const live = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW);
+    expect(live.users).toBe(2);
   });
 });
