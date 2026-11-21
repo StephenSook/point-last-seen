@@ -82,6 +82,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS: the iPhone's Leave this search line no longer says command removes a member; the app has no way yet for
+  command to remove a member from a search. Source: review. Verified: no member-removal path exists (membership is the
+  join function's claims; teams are admin-written); no other doc claims one (git grep).
 - docs: the Kennesaw seed record gains its prior version 3 reseed (temperate mountain terrain, set before the drill,
   with the commands, the terrain note and the read-back), and README's extras line names the Downhill and level ground
   prior layer instead of saying the prior has no elevation term. Source: review. Verified: read back from Firestore
