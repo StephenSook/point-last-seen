@@ -102,8 +102,14 @@ describe("a camera rebuild keeps the elevation layer, measured from the camera's
     expect(w.segments.map((s) => s.data.priorPoa)).toEqual(direct.segments.map((s) => s.priorPoa));
   });
 
-  it("refuses when the layer is on and the site's elevations are missing, so nothing is written", () => {
-    expect(() => cameraPriorWrites(SEGS, withElevation, cam, null)).toThrow(/elevation/);
+  it("never blocks a confirmation: with no elevations, or a new start outside every segment, it rebuilds with the layer off", () => {
+    const noFile = cameraPriorWrites(SEGS, withElevation, cam, null);
+    expect(noFile.incident.priorLayers).toMatchObject({ elevation: false });
+    const outside = buildCameraSighting({ ...clip, camera: { lat: IPP.lat + 0.5, lon: IPP.lon } }, writer);
+    const w = cameraPriorWrites(SEGS, { ...withElevation, elevationM }, outside, null);
+    expect(w.incident.priorLayers).toMatchObject({ elevation: false });
+    const ring = buildPrior(gridFromDocs(SEGS, "synthetic", "a"), { lat: IPP.lat + 0.5, lon: IPP.lon }, "temperate_flat", { linear: false, wedge: false }, null, DEFAULT_PARAMS);
+    expect(w.segments.map((s) => s.data.priorPoa)).toEqual(ring.segments.map((s) => s.priorPoa));
   });
 });
 

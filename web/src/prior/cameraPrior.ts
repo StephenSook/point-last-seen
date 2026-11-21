@@ -7,7 +7,7 @@ import { buildCameraSighting, cameraReading, cameraStartPatch, type ClipFacts } 
 import { buildConfirmation, type CommandWriter } from "../data/sightings";
 import type { SegmentDoc } from "../data/incident";
 import type { LatLon } from "../map/geo";
-import { priorWrites, rebuildPrior, type PriorWrites } from "./rebuild";
+import { priorWrites, rebuildPrior, usableLayers, type PriorWrites } from "./rebuild";
 
 export type CameraPriorIncident = {
   gridId: string;
@@ -28,7 +28,8 @@ export function cameraPriorWrites(segments: readonly SegmentDoc[], incident: Cam
   const stored = incident.priorLayers ?? { linear: false, wedge: false };
   // The newest camera sighting decides the direction: with none, the wedge goes off (a stored
   // wedge with no bearing would make the rebuild refuse).
-  const layers = { ...stored, wedge: bearingDeg !== null };
+  // The elevation layer measures from the new start; where it cannot, the rebuild drops it rather than refusing.
+  const layers = usableLayers({ ...stored, wedge: bearingDeg !== null }, segments, ipp, incident.elevationM);
   const terrain = incident.terrain ?? "temperate_flat";
   const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp, terrain, elevationM: incident.elevationM }, layers, bearingDeg, incident.engineParams);
   const w = priorWrites(rebuilt, incident, layers, terrain);

@@ -43,6 +43,18 @@ export function segmentElevations(segments: readonly SegmentDoc[], ipp: { lat: n
   return { startM, bySegment: elevationM };
 }
 
+/**
+ * The layers a rebuild can use here: the elevation layer stays on only when this site's elevations are loaded and the
+ * start point is inside a segment that has one. A confirmation that moves the start outside the mapped area, or one
+ * made while the file is missing, rebuilds with the layer off (and saves it off) rather than being refused.
+ */
+export function usableLayers(layers: PriorLayers, segments: readonly SegmentDoc[], ipp: { lat: number; lon: number },
+  elevationM: Readonly<Record<string, number>> | undefined): PriorLayers {
+  if (!layers.elevation) return layers;
+  const start = elevationM ? segmentContaining(ipp, segments) : null;
+  return start !== null && elevationM?.[start] !== undefined ? layers : { ...layers, elevation: false };
+}
+
 export function rebuildPrior(
   segments: readonly SegmentDoc[],
   site: {

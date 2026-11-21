@@ -1,7 +1,7 @@
 import { buildPrior, DEFAULT_PARAMS } from "@pls/engine";
 import { describe, expect, it } from "vitest";
 import type { SegmentDoc } from "../data/incident";
-import { gridFromDocs, priorWrites, rebuildPrior } from "./rebuild";
+import { gridFromDocs, priorWrites, rebuildPrior, usableLayers } from "./rebuild";
 
 // A synthetic 3 x 3 grid of 125 m cells around a made-up start point.
 const IPP = { lat: 33.78, lon: -84.38 };
@@ -90,6 +90,23 @@ describe("rebuilding with the elevation layer (Koester, Lost Person Behavior, de
     const layers = { linear: false, wedge: false, elevation: true };
     expect(() => rebuildPrior(SEGS, { ...site, elevationM: undefined }, layers, null)).toThrow(/elevation/);
     expect(() => rebuildPrior(SEGS, { ...site, ipp: { lat: 34.5, lon: -84.38 } }, layers, null)).toThrow(/start point/);
+  });
+});
+
+describe("usableLayers: the elevation layer stays on only where it can measure the start", () => {
+  const elevationM = Object.fromEntries(SEGS.map((s) => [s.segmentId, 100]));
+  const on = { linear: true, wedge: false, elevation: true };
+  it("keeps it on with the site's elevations and the start inside a segment that has one", () => {
+    expect(usableLayers(on, SEGS, IPP, elevationM)).toEqual(on);
+  });
+  it("turns only it off without the file, with the start outside, or with the start's segment missing", () => {
+    expect(usableLayers(on, SEGS, IPP, undefined)).toEqual({ ...on, elevation: false });
+    expect(usableLayers(on, SEGS, { lat: 34.5, lon: -84.38 }, elevationM)).toEqual({ ...on, elevation: false });
+    const { BB: _bb, ...noStart } = elevationM;
+    expect(usableLayers(on, SEGS, IPP, noStart)).toEqual({ ...on, elevation: false });
+  });
+  it("leaves layers without elevation untouched", () => {
+    expect(usableLayers({ linear: false, wedge: true }, SEGS, IPP, undefined)).toEqual({ linear: false, wedge: true });
   });
 });
 
