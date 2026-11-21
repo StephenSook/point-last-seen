@@ -2186,6 +2186,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: on-device evidence (`docs/evidence/web/2026-11-21-note-read-chrome.json`: a page's first note read took 27,900 ms on a fast Mac, within 7% of the 30 s limit).
 - Verified: a new unit test (the limit is more than twice the slowest measured note read, and CommandPost passes it) and a new harness check in `e2e/harness/sighting.spec.ts` (the waiting line shows during a slow read and goes after) failed first, then passed; the old "30 seconds" test now says the note and photo limits match at 90 s; typecheck, web unit suite (1049), the test matrix check and the hygiene guard pass.
 
+### test(config): the web's Remote Config defaults equal the published template's
+- What: a unit test in `web/src/config/rc.test.ts` checks that every key in `RC_DEFAULTS` has the same value as that key's default in `remoteconfig.template.json`. A browser whose fetch is refused or that is offline runs on the built-in defaults, so they must be the published values.
+- Why: Remote Config allows 60 fetch requests a minute per project per caller (the project's quota, read from Service Usage); for a web client the caller is its IP. The project's own request counts (Cloud Monitoring, last 24 h) show 90 to 200 fetches an hour from our test runs, with 2 to 34 refused with 429 only in the busiest hours. A judge's browser fetches about twice in 12 hours (the SDK's default minimum fetch interval, which the web keeps), so it should never meet the limit; if one is ever refused, it now provably runs the same configuration.
+- Source: review (the 429 seen in live checks).
+- Verified: the test passes, and it failed when a default was changed (`kill_cloud: true`), then passed again restored; web unit suite and the hygiene guard pass.
+
 ### fix(command): wait up to 60 s for a plan's wording, and say why
 - What: CommandPost's `suggest` waits `WORDING_WAIT_MS` (60 s, in `web/src/ai/replanWording.ts`) for the wording before it uses the fixed wording; it waited the cloud request's 15 s. A cloud request keeps its own 15 s limit on the SDK request, so a cloud fallback is no slower. While a plan is worded the plan card says "Wording the plan. The first time on this laptop can take up to a minute."
 - Source: on-device evidence (a page's first wording on Chrome's built-in model took 19,773 ms on a fast Mac, so the first plan fell back to fixed wording).
