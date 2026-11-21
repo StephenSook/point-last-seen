@@ -77,6 +77,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- README, judges paragraph: the judge page's Measured block and where its numbers come from
+  (scripts/measured_export.py, route records and AI Logic token counts, web/public/evidence/measured.json); no number
+  is typed in the README. Source: review. Verified: scripts/test_readme_run_label.py still passes.
 - web/public/evidence/measured.json, written by scripts/measured_export.py on 2026-11-21 from production: 52 stored
   report reads, 31 plan wordings, and cloud spend since 2026-11-13. Source: review. Verified: measured_export.py
   --check passes; the numbers are the script's output, not typed.
