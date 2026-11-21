@@ -2180,3 +2180,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Found: code accepted 6 of 6 (2 of 6 before), all on device, no Google request; the first wording in a new page took 19,773 ms, over the command post's 15 s wording limit, the rest 2.1 to 3.2 s.
 - Source: on-device evidence runs for the judge.
 - Verified: the test matrix check and the hygiene guard pass; run in the desktop Chrome on this Mac.
+
+### fix(command): wait up to 60 s for a plan's wording, and say why
+- What: CommandPost's `suggest` waits `WORDING_WAIT_MS` (60 s, in `web/src/ai/replanWording.ts`) for the wording before it uses the fixed wording; it waited the cloud request's 15 s. A cloud request keeps its own 15 s limit on the SDK request, so a cloud fallback is no slower. While a plan is worded the plan card says "Wording the plan. The first time on this laptop can take up to a minute."
+- Source: on-device evidence (a page's first wording on Chrome's built-in model took 19,773 ms on a fast Mac, so the first plan fell back to fixed wording).
+- Verified: a new unit test (the wait is more than twice the slowest wording in both evidence files, the cloud request stays at 15 s, and CommandPost passes the wait) and a new harness check in `e2e/harness/plan.spec.ts` (the waiting line shows while the plan is worded and goes after) failed first, then passed; typecheck, web unit suite, the test matrix check and the hygiene guard pass.

@@ -98,6 +98,11 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
           <button type="button" className="btn" onClick={suggest} disabled={busy !== null || limit !== null}>
             {busy === "suggest" ? "Suggesting" : "Suggest plan"}
           </button>
+          {busy === "suggest" && (
+            <p role="status" className="muted">
+              Wording the plan. The first time on this laptop can take up to a minute.
+            </p>
+          )}
         </>
       )}
       {suggested && (
