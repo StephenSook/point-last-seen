@@ -27,7 +27,8 @@ function where(r: EventDoc): string {
   return ids.length > 0 ? ` in ${ids.join(", ")}` : "";
 }
 
-const clock = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+// To the second, so a row matches a Problem report that names it (two reports can share a minute).
+const clock = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 
 export function ReportsPanel({ cards, teams, onRetract }: { cards: readonly ReportCard[]; teams: readonly Team[]; onRetract: (c: ReportCard) => Promise<void> }) {
   const [asking, setAsking] = useState<string | null>(null);

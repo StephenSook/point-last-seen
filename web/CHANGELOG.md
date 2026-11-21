@@ -2406,3 +2406,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: two reports from one segment in the same minute were both named "a report from 14:03 in segment AE", so with no note command still could not tell which was flagged; the command post now names a flagged report to the second ("14:03:07"). A report time outside the date range now falls back to "a report" instead of "a report from Invalid Date".
 - Source: review (Codex, second round: same-minute reports get identical labels; an out-of-range time renders as Invalid Date).
 - Verified: a new unit test in `contentReports.test.ts` (an out-of-range time gives the plain words) failed first, then passed with the file (8); typecheck and the hygiene guard pass.
+
+### fix(command): each report's time shows its seconds
+- What: a Problem report names a flagged report to the second ("a report from 14:03:42 in segment AE"), but the Reports rows showed only hours and minutes, so two reports from one segment in the same minute still could not be matched to the flag. Report rows now show seconds too.
+- Source: review (Codex, third round: command still cannot match a flag to the right report).
+- Verified: a new harness check in `e2e/harness/reports.spec.ts` failed first, then passed with the whole harness (219); the existing report checks match on the time's start and still pass; typecheck and the hygiene guard pass.
