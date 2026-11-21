@@ -2037,3 +2037,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: while the post reconnects to the incident its link names (a reload or a reopened tab), it shows "Opening practice search" (a practice search, `judge-...`) or "Opening incident <id>" instead of a disabled join form; without a linked incident the join form shows as before, and a link that needs a code still reaches the join form once the sign-in answers. The wording is `web/src/command/connecting.ts`.
 - Source: UI review (a reload of a practice search showed the join form for 2 to 3 seconds).
 - Verified: new `src/command/connecting.test.ts` (practice, other incident, none) failed first (no module), then passed; the live practice check now reloads the practice search and requires that the join form never appears and the opening line does, which failed on the live site (the join form showed) and runs again after the deploy; the no-backend set (42), web unit suite (987), typecheck, CI's Python gates and the hygiene guard pass.
+
+### feat(judge): the Android link opens the latest published judge release
+- What: `ANDROID_RELEASE_URL` is GitHub's `/releases/latest` instead of a fixed tag, so a new judge build (android-judge-2 and later) needs no code change. A new browser check asks GitHub for that URL signed out and requires a 200, a final address on an `android-judge` or `android-judge-N` tag, and a `point-last-seen-family-<sha>.apk` asset on the page.
+- Source: review (android-judge-2 was published; the link should follow the newest build).
+- Verified: the unit test for the URL failed first, then passes; 1000 web unit tests, typecheck, the build and 43 no-backend browser checks pass (the new check resolved /releases/latest to android-judge-2).

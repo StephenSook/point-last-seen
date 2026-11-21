@@ -14,8 +14,11 @@ export const ADVICE_LINE =
 
 const REPO = "https://github.com/StephenSook/point-last-seen";
 
-/** The Android family app's published release; null until the release is public, so no dead link ships. */
-export const ANDROID_RELEASE_URL: string | null = `${REPO}/releases/tag/android-judge`;
+/**
+ * The Android family app: GitHub's latest published release, the newest judge build, so a new build needs no code
+ * change (a browser check fails if it is not a published android-judge release). Null would hide the link.
+ */
+export const ANDROID_RELEASE_URL: string | null = `${REPO}/releases/latest`;
 /** The iPhone app's TestFlight public link; null until Apple clears review. */
 export const TESTFLIGHT_URL: string | null = null;
 
