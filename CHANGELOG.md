@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- LIMITS, Search model: the drill areas are small next to the search rings (practice about 1.0 by 1.6 km, Kennesaw
+  about 2.2 by 3.9 km, rings to 12.8 km), so most of the probability sits beyond the drill area; the grid is not
+  extended before the deadline, since one-batch prior rebuilds cap a 125 m grid near 490 segments (about half the
+  probability still beyond it) and a new grid would need a new iPhone build and App Store review. Source: review.
+  Verified against shared/constants/engine-params.json, the two grid files and web/src/prior/write.ts.
 - Hosting: `/privacy` and `/support` rewrite to `/privacy.html` and `/support.html` ahead of the app shell, so each
   URL answers with its own page. Source: the App Store submission needs public privacy and support pages.
   Verified: a new check in `scripts/test_firebase_config.py` (each path has one rewrite to its page, before the app
