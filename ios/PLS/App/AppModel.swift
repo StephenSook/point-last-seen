@@ -912,6 +912,8 @@ final class AppModel {
     /// Reads the report, builds the one event and journals it. The Firestore write is never
     /// awaited. Returns true once the event is in the journal.
     private func send(_ text: String, inputMethod: InputMethod) async -> Bool {
+        // Each send starts with no message, so an earlier one never stands for this attempt's outcome.
+        problem = nil
         guard let pending = mission, let screen, let identity, let store else { problem = "No pack loaded."; return false }
         if !pending.isPractice { await trySignIn() }
         // Sign-in can reload the mission under the new session (kept), or move the phone to another incident, team or

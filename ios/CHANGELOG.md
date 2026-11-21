@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): each send starts with no message, so an old one never holds words for review
+- What: a typed send clears the on-screen message before it starts. Before, a send that failed without a message of
+  its own (its task cancelled, or the journal swapped) kept the previous "Your team changed..." message, and the
+  edited words were then wrongly held for review.
+- Source: review.
+- Verified: a test (a team change, then edited words whose read is cancelled) failed (the words were held) before the
+  change and passes after; the app suite passes.
+
 ### fix(ios): words kept after a team change are sent again only once reviewed
 - What: when a typed report is not sent because the team changed meanwhile, the message now says "Your team changed
   while this was sending. Check your new task, then send again if it still applies.", and the kept words are held:

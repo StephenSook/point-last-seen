@@ -445,6 +445,43 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(reads.n == 1 && store.entries.first?.doc.teamId == "T2" && model.heldForReview == nil)
     }
 
+    /// An old "team changed" message never holds words that failed for another reason: each send starts with no message.
+    @Test func anOldTeamChangeMessageDoesNotHoldWordsThatFailedForAnotherReason() async throws {
+        final class State: @unchecked Sendable { var signed = false; var switched = false; var cancel = false }
+        let state = State()
+        let box = ModelBox()
+        var newTeam = try quietMission()
+        newTeam.teamId = "T2"
+        let model = AppModel(signIn: SignIn(isSignedIn: { state.signed }, attempt: {
+                                 if !state.switched {
+                                     state.switched = true
+                                     await box.model?.dropMissionNow()
+                                     await box.model?.load(newTeam)
+                                 }
+                                 state.signed = true
+                                 return true
+                             }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readReport: { text, _, _, _ in
+                                 if state.cancel { withUnsafeCurrentTask { $0?.cancel() } }
+                                 let route = RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "none",
+                                                         reason: .onDeviceDefault, latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+                                 return ReadOutcome(reading: .unclear(quote: text), route: route, validation: .ok)
+                             }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("stale-msg-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        _ = await model.submit("Cleared AC", inputMethod: .typed)
+        #expect(model.problem == AppModel.teamChanged)
+        // Edited words that fail for another reason (the read's task is cancelled) are not held for review.
+        state.cancel = true
+        let edited = "Cleared AC, nothing found"
+        _ = await Task { await model.submit(edited, inputMethod: .typed) }.value
+        #expect(model.heldForReview == nil)
+    }
+
     /// The same mission loaded again while the photo is read (a refresh, a new plan) keeps the report.
     @Test func aPhotoReadKeepsItsReportWhenTheSameMissionReloads() async throws {
         let box = ModelBox()
