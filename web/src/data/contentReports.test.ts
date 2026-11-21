@@ -21,11 +21,10 @@ describe("content reports for command", () => {
     expect(flagLine(reportFromDoc("r1", doc({ target: "task", targetId: "p1", reason: "abusive" }))!, "Team 2 searcher")).toBe("Team 2 searcher flagged their task: abusive or offensive.");
     expect(flagLine(reportFromDoc("r1", doc({ reason: "other" }))!, "Team 1 searcher")).toBe("Team 1 searcher flagged a report: other.");
   });
-  it("lists the newest first; one still being saved (no server time) comes first", () => {
+  it("lists the newest first", () => {
     const a = reportFromDoc("a", doc({ createdAt: { toMillis: () => 1 } }))!;
     const b = reportFromDoc("b", doc({ createdAt: { toMillis: () => 3 } }))!;
-    const c = reportFromDoc("c", doc({ createdAt: null }))!;
-    expect(sortNewestFirst([a, b, c]).map((r) => r.reportId)).toEqual(["c", "b", "a"]);
+    expect(sortNewestFirst([a, b]).map((r) => r.reportId)).toEqual(["b", "a"]);
   });
 });
 
@@ -33,5 +32,11 @@ describe("content reports, after review", () => {
   it("never shows a phone number from a note", () => {
     const f = reportFromDoc("r1", doc({ note: "Wrong: call (404) 555-0142 for her" }))!;
     expect(f.note).toBe("Wrong: call [number removed] for her");
+  });
+  it("puts a report with no stored time last (command writes none, so none is ever pending)", () => {
+    const a = reportFromDoc("a", doc({ createdAt: { toMillis: () => 1 } }))!;
+    const b = reportFromDoc("b", doc({ createdAt: undefined }))!;
+    const c = reportFromDoc("c", doc({ createdAt: { toMillis: () => 3 } }))!;
+    expect(sortNewestFirst([a, b, c]).map((r) => r.reportId)).toEqual(["c", "a", "b"]);
   });
 });

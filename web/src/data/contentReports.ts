@@ -55,9 +55,9 @@ export function flagLine(f: Flag, who: string): string {
   return `${who} flagged ${TARGET_WORDS[f.target]}: ${REASON_WORDS[f.reason].toLowerCase()}.`;
 }
 
-/** Newest first; one still being saved (no server time yet) comes first. */
+/** Newest first. A report with no stored time sorts last: command writes none, so none is ever still being saved. */
 export function sortNewestFirst(flags: readonly Flag[]): Flag[] {
-  return [...flags].sort((a, b) => (b.createdAtMs ?? Infinity) - (a.createdAtMs ?? Infinity));
+  return [...flags].sort((a, b) => (b.createdAtMs ?? -Infinity) - (a.createdAtMs ?? -Infinity));
 }
 
 /** Command's live view of the flags; a refused read (rules not yet deployed) reads as none. */

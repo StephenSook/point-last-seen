@@ -2371,3 +2371,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the reporter's app removes phone numbers before it stores a note, but the rules only check the note's type and length, so a note could carry one and the panel showed it verbatim. `reportFromDoc` now runs `removePhoneNumbers` (the same remover the sighting notes use) on every note before it is shown.
 - Source: review (Codex: private details in notes are shown verbatim).
 - Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
+
+### fix(data): a Problem report with no stored time sorts last, not first
+- What: a flag with no server time was sorted first as if it were still being saved, but command writes no flags, so on the command post a missing time only means a malformed document; it now sorts last. The test that assumed the old order now checks plain newest-first order.
+- Source: review (Codex, low: a malformed timestamp can move an old flag to the top).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
