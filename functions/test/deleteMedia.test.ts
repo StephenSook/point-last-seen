@@ -80,21 +80,25 @@ describe("deleteIncidentMediaNow", () => {
     await expect(handleDeleteMedia(admin.db, bucket, null, { incidentId: "I1" })).rejects.toMatchObject({ code: "unauthenticated" });
     expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(true);
   });
-  it("like the security rules, a sandbox still being set up, or one with no timestamp expiry, refuses its command", async () => {
+  it("like the security rules, a sandbox still being set up, with no setup flag, or with no timestamp expiry, refuses its command", async () => {
     const live = { name: "Live sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3_600_000) };
     await admin.db.doc("incidents/I1").set({ ...live, setupReady: false });
     await expect(handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
-    await admin.db.doc("incidents/I1").set({ name: "No expiry", mode: "judge", status: "open" });
+    await admin.db.doc("incidents/I1").set(live);
+    await expect(handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
+    await admin.db.doc("incidents/I1").set({ name: "No expiry", mode: "judge", status: "open", setupReady: true });
     await expect(handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
     await admin.db.doc("incidents/I1").set({ ...live, setupReady: true });
     await expect(handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).resolves.toMatchObject({ deleted: expect.any(Number) });
   });
   it("like the security rules, a missing or ended incident refuses even its command (review: stale claims)", async () => {
-    await admin.db.doc("incidents/I1").set({ name: "Ended sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000) });
+    await admin.db.doc("incidents/I1").set({ name: "Ended sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() - 60_000),
+      setupReady: true });
     await expect(handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).rejects.toMatchObject({ code: "permission-denied" });
     await expect(handleDeleteMedia(admin.db, bucket, command("I7"), { incidentId: "I7" })).rejects.toMatchObject({ code: "permission-denied" });
     expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(true);
-    await admin.db.doc("incidents/I1").set({ name: "Live sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3_600_000) });
+    await admin.db.doc("incidents/I1").set({ name: "Live sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3_600_000),
+      setupReady: true });
     // Two files, two readings and the photo's consent record.
     expect((await handleDeleteMedia(admin.db, bucket, command(), { incidentId: "I1" })).deleted).toBe(5);
   });
