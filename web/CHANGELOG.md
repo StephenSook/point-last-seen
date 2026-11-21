@@ -1977,3 +1977,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `/privacy` publishes the approved privacy policy word for word (`web/legal/privacy-policy.md` is its source; "Last updated: November 20, 2026" is the only fill), and `/support` carries its approved lines: what the app is, that every drill uses made-up information, how to ask for help or a data request on GitHub issues without posting personal details, and a link to the policy. The DRAFT lines are gone.
 - Source: the approved texts for the App Store submission.
 - Verified: new `src/legalPages.test.ts` checks that the privacy page's main text equals the policy file and that the support page's text is exactly its approved lines; it failed 3 of 3 on the DRAFT pages, then passed. The browser checks in `e2e/publicPages.spec.ts` follow the new headings and links; the no-backend set (41) passes against a fresh build, with the web unit suite (938), CI's Python gates and the hygiene guard.
+
+### test(command): the live What changed check knows the confirmed-sighting banners
+- What: `e2e/change.spec.ts` also accepts "New last known point: ..." (a confirmed sighting with a place that rebuilt the map) and the clue line with "It was not seen after the current last known point, so it counts as a clue." added, on screen and in the spoken line, with each banner form named once.
+- Source: a confirmed sighting on the test drill now shows these banners, which the check refused.
+- Verified: the check failed on the live site with the older-sighting banner, then passed live; the patterns accept each banner form and refuse a truncated one.
