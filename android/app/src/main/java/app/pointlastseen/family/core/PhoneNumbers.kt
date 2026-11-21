@@ -325,11 +325,13 @@ object PhoneNumbers {
     /**
      * What may sit between the parts of one number, read after [flat] (so a line break with its indent counts as one,
      * and an accent or joiner adds nothing). A gap never holds a letter or a digit, since those are parts, so every
-     * space, punctuation mark or symbol joins (a middle dot, a bullet, an underscore, a star, a bar or brackets as much
-     * as a dash), except ":", "%" and "°", which mark a time, a percent and a degree and keep their numbers apart. A
-     * wider gap still joins: a cap would let "404-555 -  0142" split into two short runs.
+     * space, punctuation mark or symbol joins (a middle dot, a bullet, an underscore, a star or brackets as much as a
+     * dash), except seven marks that keep their numbers apart: ":", "%" and "°" mark a time, a percent and a degree,
+     * and ";", "|", "!" and "?" end a field or a clause ("GPS 33.7490; -84.3880", "Radio 155.160 | 154.205"); none of
+     * them is ever inside a phone number. A wider gap still joins: a cap would let "404-555 -  0142" split into two
+     * short runs.
      */
-    private fun onlySeparators(s: String): Boolean = flat(s).none { it in ":%°" }
+    private fun onlySeparators(s: String): Boolean = flat(s).none { it in ":%°;|!?" }
 
     /**
      * A gap as read: combining marks (spacing ones too) and format characters dropped (NFKC turns a spacing accent such as ´ into a

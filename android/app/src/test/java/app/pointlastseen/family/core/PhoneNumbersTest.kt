@@ -9,10 +9,20 @@ class PhoneNumbersTest {
         assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404\u00B7555\u00B70142 tonight"))
         assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404\u2022555\u20220142 tonight"))
         assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404_555_0142 tonight"))
-        assertEquals("Call [number removed] tonight", PhoneNumbers.remove("Call 404 | 555 | 0142 tonight"))
         assertEquals("POA 45% 30% 15% 10%", PhoneNumbers.remove("POA 45% 30% 15% 10%"))
         assertEquals("Seen 14:03 14:30", PhoneNumbers.remove("Seen 14:03 14:30"))
         assertEquals("GPS 33.7490\u00B0, -84.3880\u00B0", PhoneNumbers.remove("GPS 33.7490\u00B0, -84.3880\u00B0"))
+    }
+
+    /** ";", "|", "!" and "?" end a field or a clause and are never inside a phone number, so they keep numbers apart. */
+    @Test fun aClauseOrFieldMarkKeepsNumbersApart() {
+        for (note in listOf(
+            "GPS 33.7490; -84.3880",
+            "Seen 2026-11-19; 3 searchers",
+            "Radio 155.160 | 154.205",
+            "Check-ins 08:30; 11:45; 14:03",
+            "Call 404 | 555 | 0142 tonight",
+        )) assertEquals(note, PhoneNumbers.remove(note))
     }
 
     /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */
