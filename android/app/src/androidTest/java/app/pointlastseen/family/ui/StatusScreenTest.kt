@@ -2,6 +2,7 @@ package app.pointlastseen.family.ui
 
 import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -9,6 +10,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.pointlastseen.family.ui.theme.PaperTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -31,6 +33,15 @@ class StatusScreenTest {
     }
 
     /** A profile save that failed on this phone is said on the status screen, even when the earlier profile was shared. */
+    /** The search actions lead, a sighting first; the profile, About and Leave come after them, quieter. */
+    @Test fun theSearchActionsLeadAndTheRestFollow() {
+        rule.setContent { PaperTheme { StatusScreen(status = "open", mode = null, killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}) } }
+        fun top(text: String) = rule.onNodeWithText(text).getBoundsInRoot().top
+        val order = listOf("Someone saw them", "I remembered something", "Share a camera clip", "Add recent photos", "Edit profile", "Leave this search")
+        order.zipWithNext().forEach { (a, b) -> assertTrue("$a should be above $b", top(a) < top(b)) }
+        assertEquals(top("Edit profile"), top("About this phone"))
+    }
+
     @Test fun aProfileSaveThatFailedOnThisPhoneIsSaid() {
         rule.setContent { PaperTheme { StatusScreen(status = "open", mode = null, killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}, unsaved = true) } }
         rule.onNodeWithText("Your last profile changes did not save on this phone, so they were not sent. Open the profile and save again.")
