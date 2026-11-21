@@ -77,6 +77,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- test-vectors README: the phone rule's separator sentence now describes the shared rule (any spaces, punctuation or
+  symbols join digit groups, except : % and the degree sign; a gap never holds a letter or a digit). Source: review.
+  Verified: read against web/src/data/phoneNumbers.ts and the 103 cases.
 - test-vectors: phone-numbers.json grows from 58 to 103 cases (59 remove, 35 keep, 9 exact) for the shared separator
   rule (any mark between digit groups joins them except : % and the degree sign) and its coordinate and
   radio-frequency spans, with scripts/test_phone_vectors.py's required lists and LIMITS (pass counts 103/103/103; the
