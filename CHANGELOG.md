@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Phone vectors README: the list of search information that can sit inside a digit run no longer names "a number with a
+  unit"; no platform's rule keeps one there (a short quantity glued to a unit, `5km`, stays because it never reaches
+  seven digits). Source: review (the iPhone port's notes). Verified: the hygiene guard passes.
 - Phone vectors: the 12 run-of-times cases are no longer pending on the iPhone, whose port is merged (main 20391d1f);
   `docs/LIMITS.md` counts every platform at 116 of 116. Source: the iPhone port merged. Verified:
   `scripts/test_phone_vectors.py` passes; the iPhone port matched the web rule on every row of the generated corpora

@@ -154,7 +154,7 @@ a time, a percent and a degree and so never join (a CRLF, or a line break with i
 a joiner
 inside a gap counts as nothing; a gap never holds a letter or a digit, since those are parts of their own). Search
 information made of digits can sit inside such a run (a written date, a time, a coordinate pair, a
-ZIP+4 code after a state, a month-name date, a number with a unit); it stays only
+ZIP+4 code after a state, a month-name date); it stays only
 when the rest of the run is nothing or whole numbers of seven or more digits, and when any other piece of 1 to 6
 digits is left beside it the whole run is removed. A number with an ordinal ending stays apart only when a street word
 follows it (`67th Ave`, `142nd St`: St, Ave, Rd, Blvd, Dr, Ln, Way, Pl, Ct, Pkwy, Hwy or their full forms); otherwise
