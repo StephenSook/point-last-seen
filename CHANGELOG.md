@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Limits: a browser's sign-in holds one search and one role at a time, so a practice search or a join in another tab
+  moves it; a command post still open for the first drill then says so and asks to be reopened with its command code
+  (`docs/LIMITS.md`, Sign-in and joining). Source: review (a command who opens a practice search loses command).
+  Verified: the hygiene guard passes.
 - Test matrix: a web row for the sighting-note read on the deployed command post with the browser tab offline (build
   1b7d3571, the test drill, Chrome 157.0.8103.80): two reads ran on this laptop as the SDK reported, the second in 2,361
   ms from the click, and every request in the read windows was refused offline with none to an AI host. Evidence:
