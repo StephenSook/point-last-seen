@@ -138,8 +138,9 @@ public enum PhotoClue {
         return #"\b\p{L}+(?:['’]s|s['’])(?=(?:\s+(?:"# + modifiers + #"))*\s+(?:"# + nouns + #")\b)"#
     }()
 
-    static let gearNames = #"\b(neck|chest|wrist|hand|face|knee|ear|head|arm|leg|toe|foot|elbow)\s+"#
-        + #"(gaiter|pack|watch|warmer|warmers|mask|brace|muffs|lamp|band|light|strap|wrap|guard|pad|pads|sleeve|sleeves|bag|rest)\b"#
+    /// Gear named after a body part, with a space or hyphen between and in the plural too ("neck-gaiter", "wrist watches").
+    static let gearNames = #"\b(neck|chest|wrist|hand|face|knee|ear|head|arm|leg|toe|foot|elbow)[\s\-‐‑]+"#
+        + #"(gaiter|pack|watch|warmer|mask|brace|muff|lamp|band|light|strap|wrap|guard|pad|sleeve|bag|rest)(?:es|s)?\b"#
 
     /// A word and its singular forms: bodies -> body, mujeres -> mujer, niños -> niño.
     static func forms(_ w: String) -> [String] {

@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios-core): gear names count with a hyphen or in the plural
+- What: gear named after a body part is recognised with a space or a hyphen between the words and in the plural
+  ("neck-gaiter", "wrist watches", "hand-warmers", "knee braces", "head lamps"), so a clean read of ordinary gear is no
+  longer discarded as a person.
+- Source: review.
+- Verified: tests of each form failed (seven discarded) before the change and pass after; all 416 core tests pass.
+
 ### fix(ios-core): a possessive is an owner only when a clothing or gear word follows it
 - What: a photo caption's possessive ("men's", "girls'") is dropped before the person check only when, after any color,
   style or gear words, a clothing or gear noun follows ("men's red knit cap", "men's face mask"). Otherwise the "'s"
