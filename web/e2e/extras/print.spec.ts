@@ -204,3 +204,40 @@ test("each radio card prints the person's names only when the same box is ticked
   }
 });
 
+
+// The paper debrief: one sheet per segment of the plan (the harness plan gives alfa AA) plus two blank sheets.
+test("debrief sheets print one per segment of the plan plus two blank, each on exactly one page", async ({ page }) => {
+  await page.goto(harness);
+  await openExtra(page, "Print debrief sheets");
+  const sheets = page.locator(".extras-debrief-sheet");
+  await expect(sheets).toHaveCount(3);
+  await expect(sheets.nth(0).locator('[data-field="team"]')).toContainText("Alfa");
+  await expect(sheets.nth(0).locator('[data-field="segment"]')).toContainText("AA");
+  await expect(sheets.nth(2).locator('[data-field="segment"]')).not.toContainText(/[A-Z]{2}/);
+  expect(pdfPages(await page.pdf({ format: "Letter", printBackground: true }))).toBe(3);
+});
+
+test("every debrief sheet starts with the drill line, ticks coverage, and asks for no name or phone number", async ({ page }) => {
+  await page.goto(harness);
+  await openExtra(page, "Print debrief sheets");
+  await page.emulateMedia({ media: "print" });
+  for (const sheet of await page.locator(".extras-debrief-sheet").all()) {
+    expect((await sheet.innerText()).trimStart().startsWith(drillLine)).toBe(true);
+    await expect(sheet.locator('[data-field="coverage"] .extras-tick')).toHaveText(["25%", "50%", "75%", "100%"]);
+    for (const label of await sheet.locator(".extras-debrief-label").allInnerTexts()) expect(label).not.toMatch(/name|phone/i);
+  }
+});
+
+test("a filled SAMPLE sheet is added only when its box is ticked, and says SAMPLE on its face", async ({ page }) => {
+  await page.goto(harness);
+  await openExtra(page, "Print debrief sheets");
+  await expect(page.locator(".extras-debrief-sheet")).toHaveCount(3);
+  await expect(page.locator('.extras-debrief-sheet[data-sample="true"]')).toHaveCount(0);
+  await page.getByLabel("Add a filled SAMPLE sheet for practice").check();
+  const sample = page.locator('.extras-debrief-sheet[data-sample="true"]');
+  await expect(sample).toHaveCount(1);
+  await expect(sample.locator(".extras-debrief-sample-mark")).toHaveText("SAMPLE");
+  await expect(sample.locator('[data-field="minutes"]')).toContainText("45");
+  await expect(sample.locator('[data-field="coverage"] .extras-tick[data-ticked="true"]')).toHaveText("75%");
+  expect(pdfPages(await page.pdf({ format: "Letter", printBackground: true }))).toBe(4);
+});
