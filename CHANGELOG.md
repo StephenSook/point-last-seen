@@ -87,6 +87,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   (photoTemplateGenerator in web/src/ai/client.ts, used by CommandPost's readPhotoCloud since 65ee825a), so SECURITY
   row 6, the call-table intro and the photo row say so. Source: review. Verified against
   web/src/command/CommandPost.tsx:455.
+- SECURITY row 12: the cloudGuard log's path field reads direct for every call, template calls included, because AI
+  Logic hands the trigger a template call already expanded (the template's system instruction and output schema, no
+  template name), so the trigger cannot tell them apart; template use is shown by the apps' code. Source: review.
+  Verified in Cloud Logging on 2026-11-20: the web sighting note (22:26:29Z), the Android clip read (22:10:53Z) and
+  the iPhone voice (21:03:15Z), all template calls in the apps' code, each logged path direct, template null, with
+  systemInstruction and _responseJsonSchema present on the two text templates; functions/src/cloudGuard.ts sets path
+  from data.template alone.
 - Judge page links: the judge page now links the iPhone's recorded runs (docs/evidence/ios) and the test matrix
   (docs/TEST-MATRIX.md) on GitHub, beside the command post and the source; the links come from judgeLinks in
   web/src/judge/judge.ts, where the Android release and the TestFlight link are null until each is public, so no dead
