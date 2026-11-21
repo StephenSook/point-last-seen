@@ -2514,3 +2514,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: every read sends one timing record with its route (path, reason, platform, stage and latency; `web/src/telemetry/trace.ts`, disclosed in `docs/SECURITY.md`), so "Sent: nothing left this laptop." and, for fixed wording, "Sent: nothing." overclaimed. They now read "Sent: no text or image left this laptop." and "Sent: no text or image.".
 - Source: review (the receipt claimed more than the code does).
 - Verified: the receipt and whatRan unit tests failed first, then passed; the plan and debrief-paper harness checks pass with the new line; web unit suite and typecheck pass.
+
+### feat(ai): the receipt gives the time each read took
+- What: a read that ran on this laptop or in the cloud now shows "Took: 2.6 s." under where it ran, from the route record's latency (the time the SDK call took), so the hybrid path's speed is visible in the receipt; under 0.1 s reads "under 0.1 s", and a route with no time (not reported, fixed wording, or a missing or negative latency) shows no line.
+- Source: review (the Android app already shows the time of a cloud read).
+- Verified: a new receipt unit test failed first, then passed (formats, both routes, and every case with no line); the existing receipt tests gain the line; the web unit suite and typecheck pass.

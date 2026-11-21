@@ -9,6 +9,7 @@ describe("receiptLines", () => {
     expect(receiptLines({ asked: "this laptop first", route: r({}), sentBytes: 1204, what: "plan text" })).toEqual([
       "Asked for: this laptop first.",
       "Ran: in the cloud (reported by the SDK).",
+      "Took: 0.9 s.",
       "Model: gemini-3.5-flash-lite.",
       "Sent: 1,204 bytes of plan text.",
     ]);
@@ -17,6 +18,7 @@ describe("receiptLines", () => {
     expect(receiptLines({ asked: "this laptop first", route: r({ path: "on_device", model: "chrome-built-in", reason: "sdk_prefer_on_device" }), sentBytes: 1204, what: "plan text" })).toEqual([
       "Asked for: this laptop first.",
       "Ran: on this laptop (reported by the SDK).",
+      "Took: 0.9 s.",
       "Model: chrome-built-in.",
       "Sent: no text or image left this laptop.",
     ]);
@@ -33,5 +35,15 @@ describe("receiptLines", () => {
       "No model was asked: fixed wording from code.",
       "Sent: no text or image.",
     ]);
+  });
+  it("gives the time a read took, in seconds, only for a route that ran on this laptop or in the cloud", () => {
+    const took = (over: Partial<RouteRecord>) => receiptLines({ asked: "x", route: r(over), sentBytes: 1, what: "plan text" }).find((l) => l.startsWith("Took:"));
+    expect(took({ latencyMs: 2600 })).toBe("Took: 2.6 s.");
+    expect(took({ path: "on_device", latencyMs: 27_900 })).toBe("Took: 27.9 s.");
+    expect(took({ latencyMs: 40 })).toBe("Took: under 0.1 s.");
+    expect(took({ path: "unknown", latencyMs: 2600 })).toBeUndefined();
+    expect(took({ path: "rules", latencyMs: 2600 })).toBeUndefined();
+    expect(took({ latencyMs: Number.NaN })).toBeUndefined();
+    expect(took({ latencyMs: -5 })).toBeUndefined();
   });
 });
