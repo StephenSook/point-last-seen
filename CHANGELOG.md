@@ -70,6 +70,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- drill-day, section 2: a new step 4 says to tap Allow when iOS asks to allow Live Activities on the first start of a
+  drill, while there is still signal, so the lock screen shows the team's status; the later steps and section 5's
+  reference move by one. Source: review (the prompt was seen on a physical iPhone, 2026-11-20). Verified: the
+  three lock-screen lines against ios/PLSWidgets/TaskLiveActivity.swift and
+  ios/PLSCore/Sources/PLSCore/TaskStatus.swift.
 - Drill retention: starting a purge clears both done and stale marks, so a drill once marked stale that later becomes
   due is retried by the next run when its purge fails partway. Source: review (second-model, fourth round). Verified:
   a new test (a stale record, the drill due, sign-in deletes failing after the root is gone, then the next run) failed
