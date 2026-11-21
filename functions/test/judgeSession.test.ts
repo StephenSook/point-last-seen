@@ -60,7 +60,8 @@ describe("startJudgeSession", () => {
     expect((await inc(incidentId).collection("profile").doc("command").get()).exists).toBe(false);
     expect(await size(incidentId, "events")).toBe(0);
     expect(await claims(uid)).toEqual({ inc: incidentId, role: "command", team: null });
-    expect((await counterAt(NOW).get()).data()).toEqual({ count: 1 });
+    // The cap it enforces rides with the count, so the quota probe reads the deployed cap, not a checkout's.
+    expect((await counterAt(NOW).get()).data()).toEqual({ count: 1, cap: 3 });
   });
   it("a visitor who comes back while the sandbox is live gets the same one, and nothing more is counted", async () => {
     const uid = await freshUid();
@@ -103,6 +104,11 @@ describe("startJudgeSession", () => {
     expect(second).not.toBe(first);
     expect((await inc(second).get()).get("status")).toBe("open");
     expect(await claims(uid)).toEqual({ inc: second, role: "command", team: null });
+  });
+  it("the day's counter, which anyone may read, holds only the count and the cap, start after start", async () => {
+    await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, cfg);
+    await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW + 60_000, cfg);
+    expect((await counterAt(NOW).get()).data()).toEqual({ count: 2, cap: 3 });
   });
   it("the daily cap holds per UTC day, each day on its own counter (review: a late call could reset a new day)", async () => {
     await counterAt(NOW).set({ count: 3 });
