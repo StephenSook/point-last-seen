@@ -5,6 +5,27 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): the route check runs only in the practice drill
+- What: the route check said "practice incidents only" but ran in any drill or judge incident; its cloud
+  route sends the reader's tools, the subject's description included, so a live drill (such as Kennesaw)
+  could send its drill subject's description. It now runs only in the practice drill. The code change
+  went out in 8fb0c3b with the live gate fix, because both edits were in AppModel.swift; this commit adds
+  its tests.
+- Source: review (lane audit of the route check).
+- Verified: a test that a live drill is never route checked failed before the change and passes after; the
+  route check test now uses a practice drill; a real search is still never checked; 205 app tests pass.
+
+### fix(ios): on iOS 26 the live gate keeps the cloud off too
+- What: the reader turned the cloud off on iOS 26 for its first decision, but the live gate the read checks
+  at every cloud dispatch and reroute was built from the kill switch alone. After Apple's model failed as
+  unavailable, a reroute could pick the cloud, the runner refused it, and the read recorded the cloud
+  transport as used though nothing was sent. The live gate now keeps the cloud off when this phone has no
+  cloud route, so a reroute reads by rules.
+- Source: review (lane audit of the iOS 26 path).
+- Verified: a test that the live gate keeps the cloud off without the cloud route failed to compile before
+  the change and passes after; a core test pins that a closed live gate keeps a reroute off the cloud with
+  no cloud transport recorded, and that an open one would go; all app tests pass.
+
 ### docs: the eval notes record the clue line that was tried and not shipped
 - What: docs/evidence/eval/README.md now says that Apple's model reads a report of a found object as the
   person found, that two prompt lines were measured against it, and why neither shipped (one moved the
