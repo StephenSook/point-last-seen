@@ -66,6 +66,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- README, judges line: the published run is described in the judge card's own words again (the run file's label:
+  Piedmont Park, Atlanta: the build's own test reports and plans, 2026-11-18 to 19), not a separate count. Source:
+  review (the README and the judge card must say the same thing). Verified: the README contains the label text of the
+  live /evidence/published-run.json.
 - LIMITS: Apple's Foundation Models acceptable-use terms, quoted (no official use in connection with law enforcement
   or criminal justice; no decisions without human supervision with a material impact on individual rights in high-risk
   domains); the iPhone reads with a model only in drill and judge incidents (ReadPlan.swift) and command approves
@@ -77,9 +81,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   newer release APK is published. Source: review. Verified: /releases/latest answers 200 and resolves to
   releases/tag/android-judge for a signed-out request.
 - README, judges line: the judge page names the cloud model and says whether the laptop's built-in model is ready (it
-  does not name an on-device model), and the published run is described as it is: 24 sightings from the build's own
-  tests (15 entered at the command post, 9 from the family app) and 18 plans. Source: review. Verified against
-  web/src/judge/judge.ts and the live /evidence/published-run.json.
+  does not name an on-device model). Source: review. Verified against web/src/judge/judge.ts.
 - SECURITY row 1b: App Attest PASSED on a physical iPhone (2026-11-20, Ad Hoc Release build, App Attest production:
   attestation and assertion exchanges 200, Firestore reads VALID before enforcement); it said PENDING. Source: review.
   Verified: Cloud Monitoring reads at 21:22Z and 21:28Z on 2026-11-20; docs/TEST-MATRIX.md build 8 rows.
