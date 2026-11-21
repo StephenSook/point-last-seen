@@ -2306,3 +2306,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/e2e/auth.setup.ts` waits for the Remote Config and Performance Monitoring caches before saving the session, but only the joined command post starts either. Run without the drill fixture (no join), the step always failed with "Remote Config's fetch was never stored in this browser". It now waits for them only when it joined, and saves the session at once otherwise.
 - Source: a post-deploy dry run (its sign-in step ran without the drill fixture).
 - Verified: run against the live site, the sign-in step without the fixture failed before the change and passes after it; with the fixture (drill-test-1) it still waits for both caches and passes; typecheck and the hygiene guard pass.
+
+### feat(data): command reads the "Report a problem" flags
+- What: `web/src/data/contentReports.ts` holds `ContentReport` (the TypeScript mirror of `shared/schemas/content-report.schema.json`), reads a stored report as a flag (refusing any document not of that shape), words it in one line ("Team 1 searcher flagged a report: personal information that should not be shared."), lists the newest first, and listens to `incidents/{id}/contentReports` for command; a refused read reads as none.
+- Source: review (a command-side list of "Report a problem" flags).
+- Verified: new unit tests in `contentReports.test.ts` failed first, then passed; with the schema from the branch that adds it, the schema parity gate reports `ContentReport` ok (7 fields, enum values equal); typecheck, web unit suite and the hygiene guard pass.
