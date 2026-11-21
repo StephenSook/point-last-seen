@@ -31,7 +31,7 @@ import { appendEventWith, firestoreWriteDeps, retryEventWith, type WriteState } 
 import { guardLeave, unansweredIds, writeNotice } from "../data/pendingWrites";
 import { useOnline } from "../data/useOnline";
 import { makeSeq } from "../data/seq";
-import { buildConfirmation, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
+import { buildConfirmation, buildRetraction, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
 import { beatDistances, type LatLon, segmentChoices, segmentContaining } from "../map/geo";
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
@@ -51,6 +51,8 @@ import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
 import { PoaRank } from "./PoaRank";
 import { TeamsRail } from "./TeamsRail";
+import { ReportsPanel } from "./ReportsPanel";
+import { reportCards } from "./reportCards";
 import { FirstReportCard, type FirstReportState } from "./FirstReportCard";
 import { FIRST_REPORT_LINE, firstReportInput, offerFirstReport } from "./firstReport";
 import { lastReportChange, viewState } from "./viewState";
@@ -59,11 +61,11 @@ import { perfSink } from "../telemetry/perf";
 import { recordInference } from "../telemetry/trace";
 import { LayerSwitches } from "./LayerSwitches";
 import { PriorSwitch, WALKER_SENTENCE, type PriorChoice } from "./PriorSwitch";
-import { loadRouteGraph, runAgainstVersion, walkerPriorWrites, type GraphLoad } from "../prior/walkerPrior";
+import { graphFor, loadRouteGraph, runAgainstVersion, walkerPriorWrites, type GraphLoad } from "../prior/walkerPrior";
 import { runWalkersInWorker } from "../workers/runWalkers";
 import { walkerTracksToLngLat } from "../motion/walkerTracks";
 import type { Track } from "../motion/walkerCanvas";
-import { priorWrites, rebuildPrior, usableLayers } from "../prior/rebuild";
+import { assertCurrentGrid, priorWrites, rebuildPrior, usableLayers } from "../prior/rebuild";
 import { elevationFor, loadElevationM } from "../prior/elevation";
 import { writePrior } from "../prior/write";
 import { ExtrasDock } from "../extras/ExtrasDock";
@@ -598,7 +600,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const formProfile: FamilyProfile = useMemo(() => profileFromDocs(profile?.shared, profile?.command), [profile]);
   const [profileError, setProfileError] = useState<string | null>(null);
   // The site's route graph for the walker prior, beside its basemap.
-  const [graph, setGraph] = useState<GraphLoad | null>(null);
+  // The route graph, bound to the grid it was loaded for, so a site change never runs walkers on the old site's routes.
+  const [graphLoaded, setGraphLoaded] = useState<{ gridId: string; load: GraphLoad } | null>(null);
+  const graph = graphFor(incident?.gridId, graphLoaded);
   const [flow, setFlow] = useState<{ key: string; tracks: Track[] } | null>(null);
   // Each segment's elevation, from the site's elevation file: the elevation layer's input. Bound to the grid it was
   // loaded for, so a grid change never uses another site's heights.
@@ -607,7 +611,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   useEffect(() => {
     if (!incident?.gridId) return;
     let live = true;
-    void loadRouteGraph(`/tiles/${incident.gridId}.graph.json`).then((g) => live && setGraph(g));
+    const graphGrid = incident.gridId;
+    void loadRouteGraph(`/tiles/${graphGrid}.graph.json`).then((g) => live && setGraphLoaded({ gridId: graphGrid, load: g }));
     const gridId = incident.gridId;
     setElevationLoaded(null);
     void loadElevationM(gridId).then((m) => live && setElevationLoaded({ gridId, m }));
@@ -623,12 +628,14 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     const terrain = incident.terrain ?? "temperate_flat";
     if (choice.model === "rings") {
       const layers = usableLayers(incident.priorLayers ?? { linear: false, wedge: false }, segments, incident.ipp, elevationM);
-      const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
+      const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM, priorVersion: incident.priorVersion }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
       const w = priorWrites(rebuilt, incident, layers, terrain);
       const out = { ...w, incident: { ...w.incident, priorModel: "rings" as const } };
       return { version: out.incident.priorVersion, ack: writePrior(pls.db, incidentId, out), run: null };
     }
     if (graph?.state !== "ok") throw new Error("Walkers need this site's route graph.");
+    // Walkers write every segment too, so they run only on the whole current grid.
+    assertCurrentGrid(segments, incident.priorVersion);
     const g = graph.graph;
     if (!g.projection) throw new Error("This site's route graph has no projection.");
     const start = nearestWalkerStation(g, projectWalkerPoint(g.projection, incident.ipp));
@@ -648,7 +655,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // A layer or terrain change rebuilds the prior for every seat; the write is not awaited.
   const applyPrior = (layers: PriorLayers, terrain: Terrain): { version: number; ack: Promise<void> } => {
     if (!incident?.ipp || !incident.gridId) throw new Error("This incident has no start point or grid yet.");
-    const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
+    const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp: incident.ipp, terrain, elevationM, priorVersion: incident.priorVersion }, layers, bearing, incident.engineParams ?? DEFAULT_PARAMS);
     const w = priorWrites(rebuilt, incident, layers, terrain);
     return { version: w.incident.priorVersion, ack: writePrior(pls.db, incidentId, w) };
   };
@@ -804,7 +811,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <FirstReportCard line={FIRST_REPORT_LINE} state={firstReport} onAdd={addFirstReport} />
           )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
-          <WhatChanged draft={draft} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
+          <WhatChanged draft={draft} current={latestPlan?.assignments ?? null} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} reach={reachLine((incident?.engineParams ?? DEFAULT_PARAMS).rings[incident?.terrain ?? "temperate_flat"], segments)} />
           {profile?.shared && <ApproachCard shared={profile.shared} photoOld={commandWarnings(formProfile, now).includes("photo_old")} />}
@@ -888,6 +895,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               <span className="label">Details</span>
               {summary !== "Details" && <span className="muted">{summary.slice("Details".length)}</span>}
             </summary>
+            {/* Every report, each one command can take back: a retraction event the map stops counting on every device. */}
+            <ReportsPanel
+              cards={reportCards(events as unknown as EventDoc[], incident?.priorInputEventIds ?? [])}
+              teams={teams}
+              onRetract={async (c) => write(buildRetraction(c.report, writer()))}
+            />
             {incident && conditions && (
               <ConditionsForm conditions={conditions} open={incident.status !== "closed"} onSave={(c) => setConditions(pls.db, incidentId, c)} />
             )}

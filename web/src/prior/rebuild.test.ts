@@ -1,7 +1,7 @@
 import { buildPrior, DEFAULT_PARAMS } from "@pls/engine";
 import { describe, expect, it } from "vitest";
 import type { SegmentDoc } from "../data/incident";
-import { gridFromDocs, priorWrites, rebuildPrior, usableLayers } from "./rebuild";
+import { assertCurrentGrid, gridFromDocs, priorWrites, rebuildPrior, usableLayers } from "./rebuild";
 
 // Each case builds a whole prior; on a loaded machine or a CI runner one can pass vitest's 5 s default.
 const SLOW = { timeout: 30_000 };
@@ -128,6 +128,34 @@ describe("a rebuild needs the map's segments", SLOW, () => {
     expect(() => rebuildPrior(linked.slice(0, 8), site, layers, null)).toThrow(partial);
     expect(() => rebuildPrior(SEGS.map((x, i) => (i === 0 ? { ...x, upstream: ["ZZ"] } : x)), site, layers, null)).toThrow(partial);
     expect(() => rebuildPrior(SEGS.map((x, i) => (i === 0 ? { ...x, downstream: ["ZZ"] } : x)), site, layers, null)).toThrow(partial);
+  });
+});
+
+describe("a rebuild needs the incident's current grid", SLOW, () => {
+  const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const, priorVersion: 3 };
+  const layers = { linear: false, wedge: false };
+  it("rebuilds when every segment was written at the incident's prior version", () => {
+    expect(() => rebuildPrior(SEGS.map((x) => ({ ...x, priorVersion: 3 })), site, layers, null)).not.toThrow();
+  });
+  it("rebuilds when a segment is newer than the incident (a copy taken mid-rebuild), so such an incident is never stuck", () => {
+    expect(() => rebuildPrior(SEGS.map((x, i) => ({ ...x, priorVersion: i === 4 ? 4 : 3 })), site, layers, null)).not.toThrow();
+  });
+  it("refuses a segment from an older prior (a cached grid after a reseed) or with no version", () => {
+    const stale = SEGS.map((x, i) => ({ ...x, priorVersion: i === 4 ? 2 : 3 }));
+    expect(() => rebuildPrior(stale, site, layers, null)).toThrow("The map's segments have not all loaded yet.");
+    const unversioned = SEGS.map((x, i) => (i === 4 ? x : { ...x, priorVersion: 3 }));
+    expect(() => rebuildPrior(unversioned, site, layers, null)).toThrow("The map's segments have not all loaded yet.");
+  });
+});
+
+describe("assertCurrentGrid: the check every rebuild and walker run makes first", SLOW, () => {
+  it("passes a complete grid at the incident's version, and refuses an empty, partial or older one", () => {
+    const at3 = SEGS.map((x) => ({ ...x, priorVersion: 3 }));
+    expect(() => assertCurrentGrid(at3, 3)).not.toThrow();
+    expect(() => assertCurrentGrid([], 3)).toThrow("The map's segments have not loaded yet.");
+    const linked = at3.map((x, i) => ({ ...x, neighbors: [at3[(i + 1) % 9]!.segmentId] }));
+    expect(() => assertCurrentGrid(linked.slice(0, 8), 3)).toThrow("The map's segments have not all loaded yet.");
+    expect(() => assertCurrentGrid(at3, 4)).toThrow("The map's segments have not all loaded yet.");
   });
 });
 

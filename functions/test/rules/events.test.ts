@@ -1,5 +1,6 @@
 import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc, type Firestore } from "firebase/firestore";
 import placementDocs from "./placement-event.json";
+import retractionDocs from "./retraction-event.json";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { commandEvent, eventIdFor, validEvent } from "../fixtures";
 import {
@@ -246,3 +247,27 @@ describe("a command placement of a family sighting", () => {
     await assertFails(put(dbAs(S, searcherClaims), placement(S)));
   });
 });
+
+// The command post's "Retract report": the exact document web/src/data/sightings.ts buildRetraction writes
+// (web/src/data/retraction.test.ts pins the builder to this fixture), retracting a searcher's clue.
+describe("a command retraction in the command post's exact shape", () => {
+  const targetId = eventIdFor("I1", S, retractionDocs.target.seq);
+  beforeEach(async () => {
+    await admin.db.doc(path(targetId)).set({ ...retractionDocs.target, incidentId: "I1", eventId: targetId, deviceId: S, authorUid: S });
+  });
+  const retraction = (uid: string, over: Record<string, unknown> = {}) => {
+    const seq = retractionDocs.retraction.seq;
+    return { ...retractionDocs.retraction, incidentId: "I1", deviceId: uid, authorUid: uid, eventId: eventIdFor("I1", uid, seq),
+      targetEventId: targetId, serverTime: serverTimestamp(), ...over };
+  };
+  it("is accepted from command for another author's report (25 fields)", async () => {
+    expect(Object.keys(retractionDocs.retraction)).toHaveLength(25);
+    await assertSucceeds(put(dbAs(C, commandClaims), retraction(C)));
+  });
+  it("is refused from a searcher or family seat, as command's shape or as their own retraction of someone else's report", async () => {
+    await assertFails(put(dbAs(S2, searcherClaims), retraction(S2)));
+    await assertFails(put(dbAs(F, familyClaims), retraction(F)));
+    await assertFails(put(dbAs(S2, searcherClaims), validEvent(S2, { seq: 3, type: "retraction", targetEventId: targetId })));
+  });
+});
+

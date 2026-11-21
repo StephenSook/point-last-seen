@@ -5,6 +5,9 @@ import { buildConfirmation, buildSightingEvent, type SightingInput } from "../da
 import { gridFromDocs } from "./rebuild";
 import { sightingBearingDeg, sightingConfirmWrites, sightingNewLkp, sightingSeenBeforeStart } from "./sightingPrior";
 
+// Each case builds a whole prior; on a loaded machine or a CI runner one can pass vitest's 5 s default.
+const SLOW = { timeout: 30_000 };
+
 // A synthetic 3 x 3 grid of 125 m cells around a made-up start point.
 const IPP = { lat: 33.78, lon: -84.38 };
 const D_LAT = 125 / 111_320;
@@ -16,7 +19,7 @@ const SEGS: SegmentDoc[] = Array.from({ length: 9 }, (_, i) => {
     segmentId: String.fromCharCode(65 + r + 1) + String.fromCharCode(65 + c + 1),
     geometry: { type: "Polygon", coordinates: [[[w, s], [w + D_LON, s], [w + D_LON, s + D_LAT], [w, s + D_LAT], [w, s]]] },
     centroid: { lat: s + D_LAT / 2, lon: w + D_LON / 2 },
-    areaM2: 125 * 125, priorPoa: 0.05, neighbors: [], upstream: [], downstream: [],
+    areaM2: 125 * 125, priorPoa: 0.05, neighbors: [], upstream: [], downstream: [], priorVersion: 7,
   };
 });
 // The north-east corner cell, CC: far from the start point at BB.
@@ -32,7 +35,7 @@ const input = (over: Partial<SightingInput>): SightingInput => ({
 // The prior's one input so far: a sighting seen an hour before T0, loaded with the incident's events.
 const PREV = { ...buildSightingEvent(input({ observedAtMs: T0 - 60 * 60_000 }), writer), eventId: "x" };
 
-describe("sightingConfirmWrites: a confirmed sighting with a place is the new last known point", () => {
+describe("sightingConfirmWrites: a confirmed sighting with a place is the new last known point", SLOW, () => {
   it("rebuilds the ring prior from the sighting, adds it to the prior's inputs and raises the version", () => {
     const s = buildSightingEvent(input({}), writer);
     const { events, prior } = sightingConfirmWrites(s, { ...writer, seq: 4 }, SEGS, incident, [PREV]);
@@ -67,7 +70,7 @@ describe("sightingConfirmWrites: a confirmed sighting with a place is the new la
   });
 });
 
-describe("sightingNewLkp: which confirmed sightings move the start point", () => {
+describe("sightingNewLkp: which confirmed sightings move the start point", SLOW, () => {
   it("needs a place, a time seen and not already being a prior input", () => {
     const s = buildSightingEvent(input({}), writer);
     expect(sightingNewLkp(s, ["x"], [PREV])).toBe(true);

@@ -37,6 +37,8 @@ export type SegmentDoc = MapSegment & {
   /** Share of the cell within 71 m of a road, trail, stream or water edge (the linear layer reads it; absent: 0). */
   nearFrac?: number;
   featureClasses?: GridSegment["featureClasses"];
+  /** The prior version this segment was last written at; every prior write stamps it on every segment and ROW. */
+  priorVersion?: number;
 };
 
 const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
@@ -58,6 +60,19 @@ export type IncidentView = {
 export function incidentFromDoc(data: Record<string, unknown>): IncidentDoc {
   const d = data as IncidentDoc;
   return { ...d, engineParams: withEngineDefaults(d.engineParams) };
+}
+
+/** A stored segment document as the command post reads it; null when its geometry cannot be read. */
+export function segmentFromDoc(segmentId: string, data: Record<string, unknown>): SegmentDoc | null {
+  const geometry = parseGeometry(data["geometryJson"]);
+  if (!geometry) return null;
+  return {
+    segmentId, geometry, centroid: data["centroid"], areaM2: data["areaM2"], priorPoa: data["priorPoa"],
+    neighbors: ids(data["neighbors"]), upstream: ids(data["upstream"]), downstream: ids(data["downstream"]),
+    nearFrac: typeof data["nearFrac"] === "number" ? data["nearFrac"] : 0,
+    featureClasses: ids(data["featureClasses"]) as SegmentDoc["featureClasses"],
+    ...(typeof data["priorVersion"] === "number" ? { priorVersion: data["priorVersion"] } : {}),
+  } as SegmentDoc;
 }
 
 function parseGeometry(json: unknown): MapSegment["geometry"] | null {
@@ -90,18 +105,8 @@ export function subscribeIncident(
       view.rowPrior = typeof row === "number" ? row : null;
       view.segments = s.docs.flatMap((d) => {
         if (d.id === "ROW") return [];
-        const data = d.data();
-        const geometry = parseGeometry(data["geometryJson"]);
-        return geometry
-          ? [
-              {
-                segmentId: d.id, geometry, centroid: data["centroid"], areaM2: data["areaM2"], priorPoa: data["priorPoa"],
-                neighbors: ids(data["neighbors"]), upstream: ids(data["upstream"]), downstream: ids(data["downstream"]),
-                nearFrac: typeof data["nearFrac"] === "number" ? data["nearFrac"] : 0,
-                featureClasses: ids(data["featureClasses"]) as SegmentDoc["featureClasses"],
-              } as SegmentDoc,
-            ]
-          : [];
+        const seg = segmentFromDoc(d.id, d.data());
+        return seg ? [seg] : [];
       });
       emit();
     }, onError),
