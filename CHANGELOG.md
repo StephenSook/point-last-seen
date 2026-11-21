@@ -82,6 +82,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: startJudgeSession writes the daily cap it enforces into the day's counter (ops/judgeSessions-<day>.cap)
+  with the count, so the quota probe reads the deployed cap rather than a checkout's. Source: review (cross-family,
+  round 1 on the judge quota probe). Verified: the first-start case now expects { count: 1, cap: 3 } and failed first,
+  then passes; all functions tests pass.
 - ci: judge-quota.yml runs the judge quota probe hourly (minute 41) through judging, with the CI App Check debug
   token; a failed run emails the repo owner. Source: review (judge quota probe, approved). Verified: the gates
   (workflow paths, ci-local mirror) pass.

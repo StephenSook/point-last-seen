@@ -157,7 +157,8 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     if (!seed!.exists) throw noSeed();
     const used = typeof count!.get("count") === "number" ? (count!.get("count") as number) : 0;
     if (used >= cfg.perDay) throw refuse("resource-exhausted", "Practice searches are full for today. Try again tomorrow.", "daily_limit");
-    tx.set(counter, { count: used + 1 });
+    // The cap enforced rides with the count, so the quota probe reads the deployed cap (scripts/judge_quota_probe.py).
+    tx.set(counter, { count: used + 1, cap: cfg.perDay });
     const createdAt = Timestamp.fromMillis(nowMs);
     tx.set(attemptRef, attempt(seed!.data()!, createdAt, Timestamp.fromMillis(nowMs + DAY_MS)));
     tx.set(userRef, { incidentId: attemptId, createdAt });

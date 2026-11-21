@@ -60,7 +60,8 @@ describe("startJudgeSession", () => {
     expect((await inc(incidentId).collection("profile").doc("command").get()).exists).toBe(false);
     expect(await size(incidentId, "events")).toBe(0);
     expect(await claims(uid)).toEqual({ inc: incidentId, role: "command", team: null });
-    expect((await counterAt(NOW).get()).data()).toEqual({ count: 1 });
+    // The cap it enforces rides with the count, so the quota probe reads the deployed cap, not a checkout's.
+    expect((await counterAt(NOW).get()).data()).toEqual({ count: 1, cap: 3 });
   });
   it("a visitor who comes back while the sandbox is live gets the same one, and nothing more is counted", async () => {
     const uid = await freshUid();
