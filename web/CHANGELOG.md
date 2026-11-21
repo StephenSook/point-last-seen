@@ -2301,3 +2301,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: with no segments loaded, the map said "No segments yet. Build the prior to draw the map.", jargon that pointed at no control on the screen. It now says "Waiting for the search area." The map harness gains `?empty` to draw the map with no segments.
 - Source: UI review (too many words on the working screen).
 - Verified: a new harness check in `e2e/harness/map.spec.ts` failed on the old line first, then passed with the whole harness (207); typecheck, web unit suite and the hygiene guard pass.
+
+### test(web): the live suite's sign-in step no longer waits for caches the join page never writes
+- What: `web/e2e/auth.setup.ts` waits for the Remote Config and Performance Monitoring caches before saving the session, but only the joined command post starts either. Run without the drill fixture (no join), the step always failed with "Remote Config's fetch was never stored in this browser". It now waits for them only when it joined, and saves the session at once otherwise.
+- Source: a post-deploy dry run (its sign-in step ran without the drill fixture).
+- Verified: run against the live site, the sign-in step without the fixture failed before the change and passes after it; with the fixture (drill-test-1) it still waits for both caches and passes; typecheck and the hygiene guard pass.
