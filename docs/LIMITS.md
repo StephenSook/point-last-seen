@@ -34,11 +34,13 @@ each line says what the limit is and why.
   (`JOIN_ATTEMPTS_PER_HOUR`, `functions/src/join.ts`); the 11th is refused with "Too many join attempts. Try
   again in an hour." A device that mistypes a code several times waits for the window to end, so read codes
   carefully.
-- "Leave this search" on the iPhone changes only the phone: it leaves the team's push topic, drops the mission and
-  signs the anonymous account out, so the next join is a new user. The old user's claims stay on the server, and
-  command still lists that member: the app has no way yet for command to remove a member from a search. It waits
-  until every report from the phone is settled with the server, since a report still in that user's write queue
-  would otherwise be stranded.
+- "Leave this search" on the iPhone first asks the server to delete the phone's anonymous account (the
+  `deleteMyAccount` callable), then leaves the team's push topic, drops the mission and signs out, so the next join
+  is a new user. Leaving needs signal: it waits until every report from the phone is settled with the server, since
+  a report still in that user's write queue would otherwise be stranded, and when the delete fails it changes nothing
+  and asks to try again in signal. An account already gone (a delete whose reply was lost) counts as deleted.
+  Reports already sent stay in the incident until its data is deleted, and command still lists that member: the app
+  has no way yet for command to remove a member from a search.
 
 - The iPhone acts on a mission only within the account session it was read in: the user Auth last reported
   plus a count of account changes, where every change of user starts a new session. A join signs in first,

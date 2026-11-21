@@ -82,6 +82,68 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: rotateJoinCode reads the incident inside its transaction, so a search command ends at the same moment
+  cannot get a new code. Source: review (cross-family, round 1 on join code rotation). Verified: the closed, practice
+  and expired refusals still pass; 346 functions and rules tests pass.
+- functions: joinIncident's last step (commitJoin) runs in ONE transaction that re-reads the code (it still exists and
+  admits this role to this incident), the incident (still open and unexpired), the removal record, and a limited
+  invite's use count, then counts the use and writes the members record. A code rotated away, a search ended or an
+  account removed while a join is in flight now refuses that join instead of admitting it, and the separate use-count
+  transaction is gone. Source: review (cross-family, round 1 on join code rotation). Verified: commitJoin cases
+  (admits with a live code; refuses after a rotation, a close or a removal; a single-use invite counted once and
+  refused the second time) failed first (no export), then pass; all functions and rules tests pass.
+- functions: rotateJoinCode (callable, App Check enforced): command gives its incident's searchers or family a new
+  join code. In one transaction it creates the new code's doc (its incident, its one role, createdAt, rotatedBy) and
+  deletes every code of that role for the incident, the seeded one and any extra (a reviewer's or judges'), so a
+  removed person cannot rejoin with a new sign-in and an old code. It returns the code once, with the number of codes
+  replaced; only its hash is stored. The caller must be command now (its current claims, authz.ts); command's own
+  code, a practice sandbox, a closed search, and a missing or expired incident are refused. Source: review (App Review
+  guideline 1.2 blocking, approved). Verified: rotateJoinCode.test.ts (7 cases) failed first (no module), then passes;
+  343 functions and rules tests, the typecheck and the gates pass.
+- docs: the App Review drill's seed record (drill-review-1): what it holds, the three commands that seeded it, and the
+  checks (read-back of mode drill, the segment contract at prior version 1, 8-character codes kept in the Keychain
+  only, and a live searcher join that then deleted its own sign-in). Source: review (App Review needs a dedicated
+  drill). Verified: each check run on 2026-11-21 against the live project.
+- schemas: the content report's Android type is checked for parity (no longer pending), now that
+  android/.../family/data/ContentReport.kt is on main. Source: review (content reports). Verified:
+  check_schema_parity.py reports "ok content-report # android: 7 fields" and 0 failures across 14 schemas; the web and
+  iPhone types stay pending until they land.
+- rules: a content report's note limit counts characters (Unicode code points), as its schema's maxLength does: the
+  generated check is a regex bound read from the schema instead of size(), which counts UTF-16 units and refused a
+  500-character note holding an emoji. Source: review (cross-family, round 1 on content reports). Verified: a new case
+  (499 letters plus an emoji, and a note with newlines, accepted; 500 letters plus an emoji, and 501 emoji, refused)
+  failed first, then passes; all 163 rules tests pass; the generator's --check is current.
+- rules test: a member command removed cannot file a content report, while another member still can (the report rule
+  goes through isMember, which checks the removal record). Source: review (content reports after member removal
+  landed). Verified: the case passes, and fails when the create rule checks the token's incident instead of isMember;
+  all rules tests pass.
+- rules: incidents/{id}/contentReports/{reportId}. A searcher or family member files its own report, once (create
+  only, a 32-hex id, its own uid and role, the server's time, the target id fitting the target: an event id for an
+  event, none for the family's description); command reads every report, the author only its own; nobody updates or
+  deletes one. The shape check is generated from content-report.schema.json (schema_ContentReport, createdAt ==
+  request.time). Source: review (App Review guideline 1.2, approved design). Verified: rules/contentReports.test.ts (5
+  cases) failed first on create and read, then passes; all 154 rules tests pass; the generator's --check is current.
+- schemas: content-report.schema.json, the shape of incidents/{id}/contentReports/{reportId}: a searcher or family
+  member flags the team's task, the family's description or one event, with a reason (abusive, personal_information,
+  wrong_or_misleading, other), an optional note of 500 characters or less and a server timestamp (App Review guideline
+  1.2). Platform types are pending in x-parity for the web, the iPhone and Android. Source: review (approved design; a
+  collection of its own, since event docs pin 25 keys). Verified: scripts/check_schema_parity.py ok (14 schemas).
+- functions: deleteMyAccount refuses a command account (failed-precondition, reason command_account), which keeps its
+  sign-in: command never leaves this way, and its ID token would keep command's rule access for up to an hour after a
+  delete. An account with no claims (never joined, or removed by command) is deleted as before, and an account already
+  gone still gets { ok: true }. Source: review (cross-family, round 2 on deleteMyAccount). Verified: the command case
+  failed first, then passes; the no-claims case passes; 325 functions and rules tests and the typecheck pass.
+- functions: a test pins that a deleted account's ID token, still valid for up to an hour, grants no command action:
+  after a command deletes its own sign-in, removeMember and deleteIncidentMediaNow refuse its old token, because both
+  check the caller's current account (authz.ts). Source: review (cross-family, round 1 on deleteMyAccount). Verified:
+  the test passes, and fails with the deleted-account branch of the current-claims check removed; all functions and
+  rules tests pass.
+- functions: deleteMyAccount (callable, App Check enforced): the caller deletes its own Firebase Auth user, and only
+  its own, for example when it leaves a search; its reports stay until the drill's retention. Idempotent: a caller
+  whose user is already gone gets { ok: true }, so a delete whose reply was lost never traps the phone. Source: review
+  (App Review account deletion, approved). Verified: deleteMyAccount.test.ts (deletes the caller and keeps its
+  reports; ok when already gone; leaves another user; refuses an unsigned caller) failed first (no module), then
+  passes; all functions tests and the typecheck pass.
 - functions: removeMember revokes the member's refresh tokens before clearing its claims, so a failed revocation is
   redone when command removes again (the claims still name the incident), and joinIncident refuses a removed account
   before it can use up a limited invite. Source: review (cross-family, round 2). Verified: a revocation that fails
@@ -3242,3 +3304,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - e909409: schemas, constants, shared test vectors (148 cases) and the schema parity check.
 - 0ff9f27: iOS model builders move to ModelSessionFactory.swift and AIClient.swift in the rules gate.
 - 861ec6a: a command confirmation outranks a later family one (two new vectors).
+
+### feat(rules): command ends a search with one of three reasons
+- What: the incident update rule takes an optional `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`. Command could already close an incident; it now says why. A searcher or the family still cannot write the incident, and a closed incident still takes no edits, so its reason stays as written.
+- Source: review (an "End this search" control for command).
+- Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the rules gate and its tests, the gates and the hygiene guard pass.
+
+### fix(rules): a closedReason copied onto an open incident never blocks its edits
+- What: the closedReason clause now applies only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open" (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused. Setting a reason still needs status "closed" and one of the three values.
+- Source: review (Codex: closing the seed drill would make every new practice search refuse ordinary edits).
+- Verified: a new rules test (an open incident carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first; all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
+
+### chore(schemas): the content-report schema's web type is built
+- What: `shared/schemas/content-report.schema.json` named its TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops "pending:" and the schema parity gate checks it on every run.
+- Source: review (the content-report schema's owner asked for "pending:" to go in whichever PR merged second).
+- Verified: the schema parity gate reports "ok content-report # ts: 7 fields" and 0 failures; the hygiene guard passes.

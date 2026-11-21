@@ -11,6 +11,8 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
     func callJoin(_ payload: [String: String]) async throws -> JSONValue { throw JoinCallError.refused }
     func refreshClaims() async throws -> [String: JSONValue] { throw JoinCallError.refused }
     func currentClaims(forceRefresh: Bool) async -> [String: JSONValue]? { nil }
+    /// The server deletes the account, so a test's Leave goes through.
+    func deleteMyAccount() async -> Bool { true }
 }
 
 @MainActor

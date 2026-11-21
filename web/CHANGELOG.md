@@ -2306,3 +2306,188 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/e2e/auth.setup.ts` waits for the Remote Config and Performance Monitoring caches before saving the session, but only the joined command post starts either. Run without the drill fixture (no join), the step always failed with "Remote Config's fetch was never stored in this browser". It now waits for them only when it joined, and saves the session at once otherwise.
 - Source: a post-deploy dry run (its sign-in step ran without the drill fixture).
 - Verified: run against the live site, the sign-in step without the fixture failed before the change and passes after it; with the fixture (drill-test-1) it still waits for both caches and passes; typecheck and the hygiene guard pass.
+
+### feat(data): the write and the line for ending a search
+- What: `web/src/data/endSearch.ts` holds the three reasons command can give (person found, search suspended, training ended), the write (`status: "closed"` with `closedReason`), and the line every seat shows once a search has ended ("Search ended: training ended. No new reports are taken.").
+- Source: review (an "End this search" control for command).
+- Verified: new unit tests in `endSearch.test.ts` (the write's shape; the reasons equal the list in `firestore.rules`, read from the file; the line for each reason, for no reason or an unknown one, and none while open) failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): an End this search control with an inline confirm
+- What: `web/src/command/EndSearch.tsx` is one button, "End this search", that opens an inline confirm asking why (person found, search suspended, training ended). End search stays disabled until a reason is picked, shows "Ending the search..." while the write is out, and on a refused write says "Could not end the search. Check the connection and try again." with the confirm still open. Cancel closes it and writes nothing. A new harness page (`web/harness/end-search.html`) renders it with a stand-in write.
+- Source: review (an "End this search" control for command).
+- Verified: three new harness checks in `e2e/harness/endSearch.spec.ts` (Cancel writes nothing; a picked reason is written once, with the button held while it is out; a refused write keeps the confirm open) failed before the component existed, then passed with the whole harness (211); typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): command ends the search from the post, and the post shows it ended
+- What: the command post puts End this search at the foot of Details. Once the incident is closed, a line under the header says "Search ended: <reason>. No new reports are taken.", the control goes, and Add sighting, Add camera clip and the phone bar's Add sighting are disabled (the rules take no new reports on a closed incident). `IncidentDoc` gains `closedReason`.
+- Source: review (an "End this search" control for command).
+- Verified: a new deployed check, `e2e/endSearch.spec.ts` (ends a fresh practice copy with Training ended, then checks the line, the disabled buttons, the control gone, and the line after a reload), failed on the live site at the missing control before this change; it runs after deploy, because the join needs the hosting origin. Typecheck, web unit suite (1151), the whole harness (211), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): the post says a search ended only once the server has the close
+- What: Firestore shows this browser's own pending write to the incident listener at once, so the post said "Search ended" (and dropped the confirm) before the server had accepted the close, and offline it said so while the server still took reports. The incident listener now reads metadata changes and reports `incidentPending`; `endedLine` takes whether the server has the close, and the post shows the ended line only then. Until the server acknowledges, the confirm stays up saying it is ending.
+- Source: review (Codex: the post shows a search as ended before the server accepts the close).
+- Verified: a new unit test in `endSearch.test.ts` (no ended line for a close the server does not have yet) failed first, then passed; typecheck, web unit suite (1152), the whole harness (212), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): ending a search closes any open report form and the first-report card
+- What: the add buttons were disabled once a search ended, but a sighting form or camera clip panel already open (or opened in another tab before the close) still offered Save and Confirm, and a practice search ended before its first report still offered "Add and confirm this report". Once the server has the close, the post now closes both forms and hides the first-report card.
+- Source: review (Codex: the closed post still offers writes).
+- Verified: the deployed check `e2e/endSearch.spec.ts` now opens Add sighting before ending the search and expects the form gone after; it runs after deploy. Typecheck, web unit suite, the whole harness, the build and every no-backend check pass, with the hygiene guard.
+
+### fix(command): the End search confirm stays held after the close, and focus follows it
+- What: after the server took the close, the confirm briefly offered End search again until the post removed it; it now stays held with "Ending the search..." until then. Opening the confirm puts the focus on the first reason, and Cancel puts it back on End this search.
+- Source: review (Codex: a resubmission gap, and keyboard focus dropped on open and on Cancel).
+- Verified: two harness checks in `e2e/harness/endSearch.spec.ts` (the button stays disabled after the server has it; focus on open and on Cancel) failed first, then passed with the whole harness; typecheck and the hygiene guard pass.
+
+### fix(command): a pending edit never makes an ended search look open again
+- What: the ended line waited for the incident doc to have no pending write, so after a confirmed close any later offline edit to the incident (a prior rebuild, say, which the rules then refuse) marked the doc pending and brought back the add buttons and End this search until the server answered. The incident listener now keeps `serverStatus`, the status the server last confirmed (`confirmedStatus` in `web/src/data/endSearch.ts`: a snapshot holding this browser's pending write leaves it as it was), and the post shows the search ended from that.
+- Source: review (Codex, second round: a pending prior edit makes a closed search look open again).
+- Verified: a new unit test in `endSearch.test.ts` failed first, then passed; typecheck, web unit suite (1153), the whole harness, the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): a close queued on this browser offers no second close
+- What: a close written offline stays queued across a reload, but the reloaded post offered End this search again, so command could queue a second close. While this browser holds a close the server has not confirmed, End this search now shows only "Ending the search..." and offers nothing more; it stays mounted, so if the server refuses the close the confirm comes back with the error.
+- Source: review (Codex, second round, low: reloading during a pending close allows a second submission).
+- Verified: a new harness check (`?queued=1`) failed first, then passed with the whole harness (213); typecheck and the hygiene guard pass.
+
+### fix(command): the post offers no new reports while this browser holds a close
+- What: the add buttons and open forms followed the server-confirmed close only, so after a reload with a cached close plus another pending edit (say, a rebuild queued offline), the post showed "Ending the search..." and still offered Add sighting until that edit cleared, though the server had the search closed. `writesOpen` in `web/src/data/endSearch.ts` is false once either the server or this browser has the search closed; the add buttons, the open forms and the first-report card follow it. The ended line still follows the server.
+- Source: review (Codex, third round: reloading can make a confirmed closure look pending).
+- Verified: a new unit test in `endSearch.test.ts` failed first, then passed; typecheck, web unit suite, the whole harness, the build and every no-backend check pass, with the hygiene guard.
+
+### feat(data): the call and the words for removing a member
+- What: `web/src/data/members.ts` calls the `removeMember` callable (incident id and the member's uid) and turns a failure into one sentence: the server's own reason when it gives one (yourself, another command, not command, no longer a member), "Refused by App Check. Try a normal browser window." for a refused token, "No connection. Try again when the link is back." offline, and "Could not remove them. Try again." otherwise.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: new unit tests in `members.test.ts` failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(data): the list of people command can remove
+- What: `memberRows` in `web/src/data/members.ts` joins the server's members records with the authors of the incident's events (an account that joined before the records existed is known only by what it wrote). Command is never listed; a members record wins over an event for role and team; searchers read "<team> searcher" and family "Family member"; two people with one label are told apart by the last four characters of their id; removed members come last, marked removed.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: four new unit tests in `members.test.ts` failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): a People panel where command removes someone from the drill
+- What: `web/src/command/MembersPanel.tsx` lists each searcher and family member with "Remove from this drill". Pressing it asks inline ("Remove <who>? They lose access at once and cannot join again.") with Remove and Cancel; a refused removal gives the server's reason under the row with the confirm still open; a removed person shows "Removed" and no action. A harness page (`web/harness/members.html`) renders it with synthetic members and a stand-in call.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: four new harness checks in `e2e/harness/members.spec.ts` (never lists command; Cancel removes nothing and Remove marks the person removed; a refusal says why; someone already removed has no action) failed with the component moved aside, then passed with the whole harness; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): the People panel on the command post
+- What: the command post lists, under Details, everyone command can remove (the server's members records and the authors of the incident's reports), with Remove from this drill calling the `removeMember` callable; removal records mark a person Removed. `subscribeMembers` in `web/src/data/members.ts` reads both collections, and a refused read (before the rules that let command read them are deployed) reads as empty, so the list falls back to report authors. `memberRows` now takes plain event records.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: a new deployed check, `e2e/removeMember.spec.ts` (on a fresh practice copy: the People panel lists the copied reports' authors, never command, and removing one reaches the server and is refused as not a member of that copy, which removes no one), failed on the live site at the missing panel before this change; it runs after deploy. Typecheck, web unit suite (1154), the whole harness (212), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(data): the People list never offers the caller or any account seen as command
+- What: `memberRows` kept the first role it saw for an account, so a searcher who later joined as command (or the caller's own earlier reports) still got Remove from this drill while the members records were loading or refused. It now leaves out the caller (the command post passes its own uid) and any account with a command members record or any command event, whichever came first.
+- Source: review (Codex: the panel can offer to remove the caller or another command account).
+- Verified: a new unit test in `members.test.ts` (the caller, an account with a later command event, and an account with a command record are all left out) failed first, then passed; typecheck and the hygiene guard pass.
+
+### fix(data): two people in the People list never share a label
+- What: people with the same label were told apart by the last four characters of their id, so two ids ending alike gave two identical rows (and confirms) that removed different people. The ending now grows, two characters at a time, until every label in the group is distinct.
+- Source: review (Codex: two people can have identical labels and confirmations).
+- Verified: a new unit test in `members.test.ts` (two ids with the same last four characters get distinct labels) failed first, then passed with the whole file (8); the hygiene guard passes.
+
+### fix(command): a removal shows Removed at once, so it cannot be sent twice
+- What: the callable can answer before the removal record reaches the listener, and in that gap the row offered Remove from this drill again for the same person. The People panel now marks a person Removed as soon as the call succeeds on this seat. Each row also carries `data-member` (the account id) so a check can find one person's row.
+- Source: review (Codex: a successful removal can be submitted again).
+- Verified: a new harness check (`?noecho=1`, where no removal record arrives) failed first, then passed with the People checks (5); typecheck and the hygiene guard pass.
+
+### fix(data): a refused sign-in no longer reads as an App Check refusal on removal
+- What: the callable answers "unauthenticated" for a rejected sign-in token as well as for a refused App Check token, so "Refused by App Check. Try a normal browser window." could send command the wrong way. It now reads "Refused: sign-in or App Check. Reload the page and try again."
+- Source: review (Codex, low: a rejected sign-in token is reported as an App Check failure).
+- Verified: the unit test's expected sentence was changed first and failed, then passed with the whole file (8).
+
+### fix(data): a refused read of the members or removal records keeps what was shown
+- What: when the removal records' listener was refused after a good read, it replaced them with an empty set, so a removed person with an old report got Remove from this drill again. A refused read now changes nothing: the lists start empty before any read succeeds, and keep what they showed after one.
+- Source: review (Codex: a failed removal listener makes removed people appear eligible again).
+- Verified: a new unit test, `membersListen.test.ts` (Firestore's listener mocked: a good read, then a refusal on each collection), failed first, then passed with the members tests (9); typecheck and the hygiene guard pass.
+
+### test(web): the deployed removal check removes a member it made, on the test drill
+- What: the deployed check ran on a practice copy, but practice copies carry no reports, so the People panel there had no one to list. It now runs on the test drill: a fresh family member joins over the public APIs (as the family app does, `freshFamilyMember` in `e2e/familyConsent.ts`), command finds that account's row by `data-member` and removes it, and then that account's read of the incident is refused (403) and it cannot join again (403). The member the check makes is the one it removes.
+- Source: review (Codex: the end-to-end test cannot reach the callable with practice setup).
+- Verified: the check and its fixture compile (`playwright test --list`); it runs after deploy and needs the members records the join function now writes. It was not run against the current site, where it would leave its fresh member unremoved.
+
+### fix(data): a members record decides who is listed, over an old command event
+- What: the People list left out any account with a command event, so a command account that later rejoined the same drill as family (its members record then says family, and the server allows its removal) could not be removed. A members record now decides an account's role and team; only an account with no record is kept off the list by a command event of it.
+- Source: review (Codex, second round: an old command event hides a member the server can remove).
+- Verified: a new unit test in `members.test.ts` (a family record with an earlier command event is listed) failed first, then passed with the file; the hygiene guard passes.
+
+### fix(command): once a People read is refused, the panel says the list may be out of date
+- What: Firestore stops a listener after it refuses it, and the members and removal lists then kept their last read with no sign it had stopped, so a person another command seat had removed could still be offered for removal. `subscribeMembers` now reports a refusal; the panel then says "This list may be out of date. Reload the page before removing anyone." and offers no removal, while the last good lists stay shown.
+- Source: review (Codex, second round: a refused listener leaves People silently stale).
+- Verified: the listener unit test (`membersListen.test.ts`, mocked) now also expects the refusal to be reported, and failed first; a new harness check (`?stale=1`) failed on the panel without the change and passes with it (6 People checks); typecheck and the hygiene guard pass.
+
+### test(web): the removal check cleans up after itself and proves the sessions were revoked
+- What: if the deployed removal check failed before removing its fresh family member (the row never showing, say), or the fixture failed after the join, the account stayed joined to the test drill. Both now remove that account through `removeMember` as a command session of their own (`removeAsCommand` in `e2e/familyConsent.ts`). The check also expects the removed account's session refresh to be refused (400), since the removal record alone already refuses reads and rejoins, and only the refresh shows the sessions were revoked.
+- Source: review (Codex, second round: a failed test can leave the fresh account active; the test can pass while revocation failed).
+- Verified: the check and the fixtures that share `familyConsent.ts` compile (`playwright test --list`, 5 tests); it runs after deploy.
+
+### test(web): the removal check's cleanup fails loudly and waits for the revocation
+- What: the cleanup returned removeMember's status and its callers dropped it, so a failed cleanup left the family account joined without a word; it now throws unless the server removed the account. The fixture records the account just before the join is sent, so a join that went through with its answer lost is still cleaned up (an account the server says never joined counts as clean). The check waits for the removed account's session refresh to fail with `TOKEN_EXPIRED` (the server writes the removal record before it revokes the sessions, and any malformed token also gives a 400), and until it has seen that, a failure removes the account again, which retries the revocation. The cleanup's own command account stays joined, since command cannot remove itself; it holds no reports.
+- Source: review (Codex, third round: cleanup ignores failed removals, checks revocation too early, accepts any 400, and misses a lost join answer).
+- Verified: the check and the fixtures that share `familyConsent.ts` compile (`playwright test --list`, 5 tests); it runs after deploy.
+
+### fix(command): a refused People read with no one listed still says so
+- What: with no one to list the People panel showed nothing, so when a read was refused before any rows loaded, command saw neither the list nor the warning. The panel now shows its heading and "This list may be out of date. Reload the page before removing anyone." whenever a read was refused, even with no rows.
+- Source: review (Codex, third round, low: a first-load refusal can hide the stale warning).
+- Verified: a new harness check (`?stale=1&empty=1`) failed first, then passed with the People checks (7); typecheck passes.
+
+### feat(data): command reads the "Report a problem" flags
+- What: `web/src/data/contentReports.ts` holds `ContentReport` (the TypeScript mirror of `shared/schemas/content-report.schema.json`), reads a stored report as a flag (refusing any document not of that shape), words it in one line ("Team 1 searcher flagged a report: personal information that should not be shared."), lists the newest first, and listens to `incidents/{id}/contentReports` for command; a refused read reads as none.
+- Source: review (a command-side list of "Report a problem" flags).
+- Verified: new unit tests in `contentReports.test.ts` failed first, then passed; with the schema from the branch that adds it, the schema parity gate reports `ContentReport` ok (7 fields, enum values equal); typecheck, web unit suite and the hygiene guard pass.
+
+### feat(command): a Problem reports panel for command
+- What: `web/src/command/FlagsPanel.tsx` lists the "Report a problem" flags newest first, one line each ("Family member flagged the family's description: wrong or misleading."), with the time and the reporter's note in quotes. With no flags there is no panel. A harness page (`web/harness/flags.html`) renders it with synthetic flags.
+- Source: review (a command-side list of "Report a problem" flags).
+- Verified: two new harness checks in `e2e/harness/flags.spec.ts` failed with the component moved aside, then passed with the whole harness; web unit suite and the hygiene guard pass.
+
+### feat(command): the command post shows Problem reports at the top of its right rail
+- What: the command post listens to the incident's "Report a problem" flags and shows the Problem reports panel first in the right rail whenever there is one (a flag can be about personal information, so it is not tucked under Details). A searcher is named by the team its reports carry ("Team 1 searcher", or "A searcher" before it has sent one); family reads "Family member"; times are local hours and minutes.
+- Source: review (a command-side list of "Report a problem" flags).
+- Verified: typecheck, web unit suite (1151), the whole harness (210), the build and every no-backend check (45) pass, with the hygiene guard. No deployed check: command cannot create a flag, and the family's channel is not exercised on the live drill, so the panel's lines are covered by the harness.
+
+### fix(data): a Problem report's note never shows a phone number
+- What: the reporter's app removes phone numbers before it stores a note, but the rules only check the note's type and length, so a note could carry one and the panel showed it verbatim. `reportFromDoc` now runs `removePhoneNumbers` (the same remover the sighting notes use) on every note before it is shown.
+- Source: review (Codex: private details in notes are shown verbatim).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
+
+### fix(data): a Problem report with no stored time sorts last, not first
+- What: a flag with no server time was sorted first as if it were still being saved, but command writes no flags, so on the command post a missing time only means a malformed document; it now sorts last. The test that assumed the old order now checks plain newest-first order.
+- Source: review (Codex, low: a malformed timestamp can move an old flag to the top).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
+
+### fix(data): a refused Problem reports read keeps the flags and says so
+- What: the flags listener replaced the list with nothing on a refusal, so command saw the same screen as with no reports, and Firestore does not restart a listener it has refused. `subscribeFlags` now keeps what was shown and reports the refusal, so the page can say the list may be out of date.
+- Source: review (Codex: a failed listener silently removes the panel).
+- Verified: a new unit test, `contentReportsListen.test.ts` (Firestore's listener mocked: a good read, then a refusal), failed first, then passed; typecheck passes.
+
+### feat(data): a Problem report names the report or task it flags
+- What: a flag read only "flagged a report" or "flagged their task", so with no note command could not tell which of several sightings to open. `flagTarget` in `web/src/data/contentReports.ts` names it when it is on hand: "a report from 04:21 in segment AE" (the report's time and first segment) or "their task in plan v3" (the plan the flagged task came from); otherwise the plain words stay. `flagLine` takes it.
+- Source: review (Codex: command cannot identify the flagged report or task).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed; typecheck passes.
+
+### fix(command): Problem reports names what was flagged, shows three, and says when it is out of date
+- What: the panel now names each flagged item ("a report from 04:21 in segment AE", "their task in plan v3") with `flagTarget`; shows the newest three with "Show all N problem reports", so a run of flags never pushes the working rail out of view; lets a long unbroken note wrap instead of pushing the page sideways; marks its list as a list for screen readers; and, once a read is refused, says "These reports may be out of date. Reload the page." (even with no flags shown). The command post passes the incident's reports and plans for the names and the refusal from `subscribeFlags`.
+- Source: review (Codex: command cannot identify the flagged item; the list can push working controls out of view; a long note overflows; a refused read hides the panel; Safari can drop list semantics).
+- Verified: three new harness checks in `e2e/harness/flags.spec.ts` (the named report; three shown then Show all, with no sideways overflow; the out-of-date line with no flags) failed first, then passed with the flags checks (5); the first check now expects the named report. Typecheck, web unit suite (1161), the whole harness (218), the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): a flagging searcher is named by the team of its latest report
+- What: the flag's author label took the team of the first event the account wrote, so a searcher who rejoined on another team was named by the old one ("Team 1 searcher flagged their task" for a Team 2 task). It now takes the team of the account's latest report.
+- Source: review (Codex: a flag can name the wrong team).
+- Verified: typecheck passes; the label's lookup is a two-line change in `CommandPost.tsx`, which no harness renders, so it rests on the review and the deployed post.
+
+### fix(data): a flagging searcher's team comes from its latest report by server time
+- What: the author label picked the report with the largest phone time, so a phone clock set back between a Team 1 report and a newer Team 2 report kept the old team, and a report with no time stopped every later match. `latestTeamOf` in `web/src/data/contentReports.ts` orders by server time, then the report's own time, and skips reports with neither; the command post uses it.
+- Source: review (Codex, second round: the team lookup can keep the old team after a rejoin).
+- Verified: a new unit test in `contentReports.test.ts` (a skewed phone clock and a report with no time) failed first, then passed; typecheck and the hygiene guard pass.
+
+### fix(command): a flagged report is named to the second, and never as "Invalid Date"
+- What: two reports from one segment in the same minute were both named "a report from 14:03 in segment AE", so with no note command still could not tell which was flagged; the command post now names a flagged report to the second ("14:03:07"). A report time outside the date range now falls back to "a report" instead of "a report from Invalid Date".
+- Source: review (Codex, second round: same-minute reports get identical labels; an out-of-range time renders as Invalid Date).
+- Verified: a new unit test in `contentReports.test.ts` (an out-of-range time gives the plain words) failed first, then passed with the file (8); typecheck and the hygiene guard pass.
+
+### fix(command): each report's time shows its seconds
+- What: a Problem report names a flagged report to the second ("a report from 14:03:42 in segment AE"), but the Reports rows showed only hours and minutes, so two reports from one segment in the same minute still could not be matched to the flag. Report rows now show seconds too.
+- Source: review (Codex, third round: command still cannot match a flag to the right report).
+- Verified: a new harness check in `e2e/harness/reports.spec.ts` failed first, then passed with the whole harness (219); the existing report checks match on the time's start and still pass; typecheck and the hygiene guard pass.
+
+### fix(data): a report the server timed outranks one it did not, for the flagger's team
+- What: `latestTeamOf` compared a report with no server time by its phone time against one the server timed, so a phone set ahead could still pin an old team. Any report with a server time now outranks one without (only older stored reports can lack it; the rules now require it), and within each kind the later wins.
+- Source: review (Codex, third round: the team lookup still lets a skewed phone clock win when one report lacks server time).
+- Verified: a new unit test in `contentReports.test.ts` failed first, then passed with the file (9); typecheck and the hygiene guard pass.

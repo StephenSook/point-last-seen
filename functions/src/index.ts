@@ -8,6 +8,8 @@ import { onCall } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onObjectDeleted } from "firebase-functions/v2/storage";
+import { handleDeleteMyAccount } from "./account.js";
+import { handleRotateJoinCode } from "./codes.js";
 import { guardLogLine, guardRequest } from "./cloudGuard.js";
 import { handleJoin, type JoinRequest } from "./join.js";
 import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_SESSION_TIMEOUT_S } from "./judgeSession.js";
@@ -69,6 +71,21 @@ export const deleteIncidentMediaNow = onCall<{ incidentId?: unknown }>(
 export const removeMember = onCall<{ incidentId?: unknown; uid?: unknown }>(
   { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
   request => handleRemoveMember(getFirestore(), getAuth(), request.auth ? { uid: request.auth.uid, token: request.auth.token } : null, request.data),
+);
+
+/**
+ * deleteMyAccount (callable): the caller deletes its own sign-in (account.ts), for example when it leaves a search;
+ * idempotent. App Check enforced.
+ */
+export const deleteMyAccount = onCall(
+  { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
+  request => handleDeleteMyAccount(getAuth(), request.auth?.uid ?? null),
+);
+
+/** Command gives its incident's searchers or family a new join code; every old code of that role stops working (codes.ts). */
+export const rotateJoinCode = onCall<{ incidentId?: unknown; role?: unknown }>(
+  { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
+  request => handleRotateJoinCode(getFirestore(), getAuth(), request.auth ? { uid: request.auth.uid, token: request.auth.token } : null, request.data),
 );
 
 /**
