@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS, Search model: a command-confirmed sighting with a place and a time becomes the new last known point (the
+  ring prior is rebuilt from it, with the wedge from its direction); the rings have no time term, so the command post
+  states the sighting's age instead; a sighting with no place, or confirmed only by the family, still moves the map
+  only as a clue; the map before the rebuild is not kept. Source: review. Verified against
+  web/src/prior/sightingPrior.ts and the camera path it reuses.
 - Judge page links: the judge page now links the iPhone's recorded runs (docs/evidence/ios) and the test matrix
   (docs/TEST-MATRIX.md) on GitHub, beside the command post and the source; the links come from judgeLinks in
   web/src/judge/judge.ts, where the Android release and the TestFlight link are null until each is public, so no dead
