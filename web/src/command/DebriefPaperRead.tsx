@@ -51,6 +51,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   const [checked, setChecked] = useState(NONE_CHECKED);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const live = useRef(true);
@@ -86,6 +87,20 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
     stopCamera();
     onClose();
   }
+
+  // The command post's rail can close the Details that holds this read: the camera stops, and a read on screen stays.
+  useEffect(() => {
+    const details = root.current?.closest("details");
+    if (!details) return;
+    const onToggle = () => {
+      if (details.open || stream.current === null) return;
+      attempt.current++;
+      stopCamera();
+      setPhase((p) => (p === "camera" ? "pick" : p));
+    };
+    details.addEventListener("toggle", onToggle);
+    return () => details.removeEventListener("toggle", onToggle);
+  }, []);
 
   async function openCamera() {
     const mine = ++attempt.current;
@@ -199,7 +214,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
 
   if (phase === "confirm" && values && sheet && route) {
     return (
-      <div className="debrief-form">
+      <div ref={root} className="debrief-form">
         <p className="small">Read on this laptop. Check each box against the paper; change any the read got wrong.</p>
         {receiptLines({ asked: "this laptop only", route, sentBytes: 0, what: "the photo of the sheet" }).map((l) => (
           <p key={l} className="muted small">
@@ -264,7 +279,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   }
 
   return (
-    <div className="debrief-form">
+    <div ref={root} className="debrief-form">
       <p className="small">Read the team's paper sheet on this laptop. The photo is not kept.</p>
       {phase === "pick" && (
         <>

@@ -201,3 +201,19 @@ test("a photo cancelled before it is read never reaches the model", async ({ pag
   await expect(page.getByTestId("read-count")).toHaveText("0");
   await expect(row.getByRole("button", { name: "Read the paper sheet" })).toBeVisible();
 });
+
+test("closing the Details that holds the section stops every camera track", async ({ page }) => {
+  await fakeCamera(page);
+  await page.goto("/harness/debrief.html?paper=sample&details=1");
+  const row = page.getByTestId("debrief-AA");
+  await row.getByRole("button", { name: "Read the paper sheet" }).click();
+  await row.getByRole("button", { name: "Use the laptop camera" }).click();
+  await expect(row.getByRole("button", { name: "Take the photo" })).toBeEnabled();
+  expect(await cam(page)).toMatchObject({ calls: 1, tracks: 1, ended: false });
+  await page.locator("summary", { hasText: "Details" }).click();
+  await expect.poll(() => cam(page)).toMatchObject({ calls: 1, tracks: 1, ended: true });
+  // Opened again, the read offers a photo or the camera; the camera is not running.
+  await page.locator("summary", { hasText: "Details" }).click();
+  await expect(row.getByRole("button", { name: "Use the laptop camera" })).toBeVisible();
+  await expect(row.getByRole("button", { name: "Take the photo" })).toHaveCount(0);
+});
