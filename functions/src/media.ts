@@ -1,6 +1,8 @@
 import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
 import type { getStorage } from "firebase-admin/storage";
 import { HttpsError } from "firebase-functions/v2/https";
+import type { Auth } from "firebase-admin/auth";
+import { assertCurrentCommand } from "./authz.js";
 
 type Bucket = ReturnType<ReturnType<typeof getStorage>["bucket"]>;
 const MEDIA_PREFIXES = ["clips", "photos", "packs"] as const;
@@ -91,7 +93,7 @@ export async function deleteClipForReading(bucket: Pick<Bucket, "file">, inciden
  * 30-day lifecycle. The caller's claims must name this incident and the command role. Returns the number of
  * files and documents removed.
  */
-export async function handleDeleteMedia(db: Firestore, bucket: Pick<Bucket, "getFiles">,
+export async function handleDeleteMedia(db: Firestore, users: Pick<Auth, "getUser">, bucket: Pick<Bucket, "getFiles">,
   auth: { uid: string; token: Record<string, unknown> } | null, data: { incidentId?: unknown } | null): Promise<{ deleted: number }> {
   const incidentId = data && typeof data === "object" ? data.incidentId : undefined;
   if (typeof incidentId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(incidentId)) {
@@ -101,6 +103,8 @@ export async function handleDeleteMedia(db: Firestore, bucket: Pick<Bucket, "get
   if (auth.token.inc !== incidentId || auth.token.role !== "command") {
     throw new HttpsError("permission-denied", "Only the incident's command can delete its media.", { reason: "not_command" });
   }
+  // The token can carry an older command role for up to an hour: the current claims and the removal records decide.
+  await assertCurrentCommand(db, users, auth.uid, incidentId, "Only the incident's command can delete its media.");
   // As in the security rules (notExpired): claims outlive an incident, so the incident must exist and must not
   // have ended. An ended judge sandbox is swept by deleteIncidentMedia instead.
   // A judge sandbox also needs a timestamp expiry and an explicitly finished setup (setupReady === true), as liveFor

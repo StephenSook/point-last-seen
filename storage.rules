@@ -31,8 +31,15 @@ service firebase.storage {
         && c.expiresAt is timestamp && c.expiresAt >= request.time + duration.value(31, 'd')
         && c.consent.personInClip != null && c.consent.footageOwner != null && c.consent.cloudProcessing != null;
     }
-    function isMember(incidentId) {
+    // Storage rules may make at most two Firestore lookups per request. isMember uses two: the incident and the removal
+    // record (functions/src/members.ts writes it before clearing the claims, so a token that still carries them is
+    // refused at once).
+    function claimsMember(incidentId) {
       return request.auth != null && request.auth.token.inc == incidentId && notExpired(incidentId);
+    }
+    function isMember(incidentId) {
+      return claimsMember(incidentId)
+        && !firestore.exists(/databases/(default)/documents/incidents/$(incidentId)/removed/$(request.auth.uid));
     }
     function isCommandOrFamily(incidentId) {
       return isMember(incidentId) && request.auth.token.role in ['command', 'family'];
@@ -44,7 +51,9 @@ service firebase.storage {
     // hash the bytes; the reader checks the SHA-256 of what it reads against the name.
     match /clips/{incidentId}/{file} {
       allow read: if isMember(incidentId);
-      allow create: if isCommandOrFamily(incidentId)
+      // Two lookups here are the incident and the clip's consent record, so no removal lookup: a removed account
+      // cannot create the consent record (Firestore refuses its writes), so it cannot start a new clip.
+      allow create: if claimsMember(incidentId) && request.auth.token.role in ['command', 'family']
         && resource == null
         && file.matches('^[0-9a-f]{64}[.]mp4$')
         && clipReadingReady(incidentId, file)

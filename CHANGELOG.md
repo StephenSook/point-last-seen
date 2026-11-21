@@ -82,6 +82,43 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: removeMember revokes the member's refresh tokens before clearing its claims, so a failed revocation is
+  redone when command removes again (the claims still name the incident), and joinIncident refuses a removed account
+  before it can use up a limited invite. Source: review (cross-family, round 2). Verified: a revocation that fails
+  once is retried and the claims then go; a removed account leaves a single-use invite unused; both failed first, then
+  pass; 318 functions and rules tests pass.
+- rules: command reads incidents/{id}/members/{uid} and no client writes one; Storage keeps within its two Firestore
+  lookups per request: a photo upload and every read check the incident and the removal record, and a clip upload
+  checks the incident and its consent record (a removed account cannot create one, since Firestore refuses its
+  writes). Source: review (cross-family, approved fixes). Verified: rules tests for the members records and for a
+  removed member's photo upload and clip read failed first, then pass; an active member's clip upload passes; all
+  rules and Storage tests pass. The emulator does not enforce the lookup limit, so that part rests on the documented
+  limit.
+- functions: removal decides from a server-owned membership record, and privileged callers are checked by their
+  current claims. joinIncident writes incidents/{id}/members/{uid} (role, team, joinedAt) in one transaction with its
+  check of the removal records; removeMember reads that record (or, for an account that joined before it existed, its
+  current claims) and records the removal in a transaction, so a member who has since joined another incident can
+  still be removed and a join racing a removal is serialized. removeMember and deleteIncidentMediaNow require the
+  caller's current claims to name the incident as command and the caller not to be removed (authz.ts), not only its
+  token. Cleanup clears the claims and revokes refresh tokens only while the claims still name this incident; only a
+  missing account counts as done, and any other failure is reported (calling again finishes it). Source: review
+  (cross-family, approved fixes). Verified: new tests failed first, then pass (the members record at join; removal of
+  a moved member, whose new claims stay; a command members record; a stale command token refused on both callables; a
+  removed command refused; a cleanup failure reported after the record; a gone account); the media checks failed with
+  the check removed; 316 functions and rules tests and the typecheck pass.
+- rules: a removed account is refused at once. Firestore's isMember and the event create check, and Storage's
+  isMember, require that incidents/{id}/removed/{uid} does not exist, so a member command removed can neither read nor
+  write the incident, nor upload, while its ID token still carries the claims; command reads the removal records and
+  no client writes one. Source: review (App Review guideline 1.2, approved design). Verified: rules/removed.test.ts (5
+  cases) and the storage case failed first, then pass; all 154 Firestore rules tests and 15 Storage tests pass.
+- functions: removeMember (callable, App Check enforced): command removes a searcher or family member of its own
+  incident. It records incidents/{id}/removed/{uid} first, then clears the member's claims and revokes its refresh
+  tokens (an ID token already issued stays valid up to an hour, so the record is what the rules check). Command cannot
+  remove itself or another command; a second removal is ok. joinIncident refuses a removed account with the usual join
+  failure. Source: review (App Review guideline 1.2, approved design). Verified: removeMember.test.ts (7 cases: the
+  removal and its order, family, a second removal, refused callers, refused targets, malformed input, the rejoin
+  refused and a new account still joining) failed first (no module), then passes; 305 functions tests and the
+  typecheck pass.
 - LIMITS: the iPhone's Leave this search line no longer says command removes a member; the app has no way yet for
   command to remove a member from a search. Source: review. Verified: no member-removal path exists (membership is the
   join function's claims; teams are admin-written); no other doc claims one (git grep).
