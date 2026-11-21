@@ -3,6 +3,7 @@ package app.pointlastseen.family.ui
 import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -45,6 +46,15 @@ class NoteScreenTest {
         rule.onNodeWithText("Or sort it yourself, on this phone:").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Send to the cloud").performScrollTo().performClick()
         assertEquals("old mill" to true, sent)
+    }
+
+    /** The family's job comes first: the note field and Sort it, then the model's line and its offer. */
+    @Test fun theNoteFieldComesBeforeTheModelOffer() {
+        rule.setContent { PaperTheme { NoteScreen(null, false, NoteUi.Idle, onSort = { _, _ -> }, onAdd = {}, onBack = {}, model = ModelState(DeviceModelStatus.DOWNLOADABLE)) } }
+        fun top(text: String) = rule.onNodeWithText(text).getBoundsInRoot().top
+        assertTrue(top("What did you remember?") < top("Sort it"))
+        assertTrue(top("Sort it") < top("An on-device model can be downloaded to this phone."))
+        assertTrue(top("An on-device model can be downloaded to this phone.") < top("Get the on-device model"))
     }
 
     @Test fun theNoteScreenSaysWhenTheModelIsReadyOnThisPhone() {

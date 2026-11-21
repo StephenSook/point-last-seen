@@ -65,7 +65,13 @@ fun NoteScreen(
                 val focus = remember { FocusRequester() }
                 LaunchedEffect(Unit) { focus.requestFocus() }
                 Sentence("I remembered something.")
-                // Ready, downloading, or offered (with its button); nothing for a phone without a model.
+                OutlinedTextField(
+                    text, { text = it.take(FamilyNote.MAX_NOTE) }, label = { Text("What did you remember?") },
+                    minLines = 3, modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                )
+                MainAction("Sort it", enabled = ui == NoteUi.Idle && text.isNotBlank()) { onSort(text.trim(), false) }
+                // After the family's job: the model is ready, downloading, or offered (with its button); nothing for a
+                // phone without a model.
                 when (model.status) {
                     DeviceModelStatus.AVAILABLE, DeviceModelStatus.DOWNLOADING -> Note(Copy.model(model))
                     DeviceModelStatus.DOWNLOADABLE -> {
@@ -76,11 +82,6 @@ fun NoteScreen(
                 }
                 // Whatever the status says after it (unknown, say), a failed download is shown.
                 if (model.downloadFailed) Note(Copy.MODEL_FAILED)
-                OutlinedTextField(
-                    text, { text = it.take(FamilyNote.MAX_NOTE) }, label = { Text("What did you remember?") },
-                    minLines = 3, modifier = Modifier.fillMaxWidth().focusRequester(focus),
-                )
-                MainAction("Sort it", enabled = ui == NoteUi.Idle && text.isNotBlank()) { onSort(text.trim(), false) }
             }
             is NoteUi.Done -> when (val o = ui.outcome) {
                 NoteOutcome.NeedsConsent -> {
