@@ -70,6 +70,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- LIMITS, Drill data retention: a reused id's record is dropped, the last join-code sweep, sign-ins used after the
+  close are kept, and the 2026-11-21 audit (no drill had a closedAt before the rules made it the server's). Source:
+  review. Verified against functions/src/retention.ts and a read of every production drill.
 - Drill retention, second review round: a purge record keeps the drill's close time and resumes only while its
   incident is gone; a record whose id is in use again is dropped without deleting anything; a sign-in is deleted only
   if nobody used it since the drill closed (a person joining anything refreshes their token first); a last join-code
