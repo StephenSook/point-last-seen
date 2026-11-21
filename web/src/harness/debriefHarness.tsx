@@ -45,9 +45,11 @@ function Harness() {
   const [saved, setSaved] = useState<string>("");
   const [stored, setStored] = useState(initial);
   const [jpeg, setJpeg] = useState("");
+  const [reads, setReads] = useState(0);
   const paperRead: PaperRead | undefined = paper
     ? async (jpegBase64, segmentId) => {
         setJpeg(jpegBase64.slice(0, 12));
+        setReads((n) => n + 1);
         const r = await readDebriefSheetOnDevice(jpegBase64, { segmentId, segmentIds: ["AA", "AB"], teams }, {
           available: async () => paper !== "refuse",
           generate: async () => ({ text: JSON.stringify(reply), inferenceSource: "on_device" }),
@@ -72,6 +74,7 @@ function Harness() {
       />
       <pre data-testid="saved">{saved}</pre>
       <pre data-testid="read-jpeg">{jpeg}</pre>
+      <pre data-testid="read-count">{reads}</pre>
     </main>
   );
 }

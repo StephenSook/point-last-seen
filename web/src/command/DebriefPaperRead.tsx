@@ -54,6 +54,10 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const live = useRef(true);
+  // Every new step (asking for the camera, reading a photo, closing) starts a new attempt. A camera or a read that
+  // answers for an older attempt is stopped or dropped, so it can never take over the screen or fill the form.
+  const attempt = useRef(0);
+  const current = (mine: number) => live.current && mine === attempt.current;
 
   useEffect(() => {
     live.current = true;
@@ -78,21 +82,23 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   }
 
   function close() {
+    attempt.current++;
     stopCamera();
     onClose();
   }
 
   async function openCamera() {
+    const mine = ++attempt.current;
     setMessage(null);
     setOpening(true);
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-      // Closed while the browser asked: stop it at once.
-      if (!live.current) return s.getTracks().forEach((t) => t.stop());
+      // Closed, or a photo chosen, while the browser asked: stop it at once.
+      if (!current(mine)) return s.getTracks().forEach((t) => t.stop());
       stream.current = s;
       setPhase("camera");
     } catch {
-      if (live.current) setMessage(SAY.camera);
+      if (current(mine)) setMessage(SAY.camera);
     } finally {
       if (live.current) setOpening(false);
     }
@@ -101,6 +107,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   async function takePhoto() {
     const v = video.current;
     if (!v || v.videoWidth === 0) return;
+    const mine = attempt.current;
     const c = document.createElement("canvas");
     c.width = v.videoWidth;
     c.height = v.videoHeight;
@@ -109,6 +116,8 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
     const photo = await new Promise<Blob | null>((resolve) => c.toBlob(resolve, "image/jpeg", 0.92));
     c.width = 0;
     c.height = 0;
+    // Cancelled while the photo was taken: nothing is read.
+    if (!current(mine)) return;
     if (!photo) {
       setPhase("pick");
       setMessage(SAY.photo);
@@ -118,29 +127,33 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   }
 
   async function readPhoto(photo: Blob) {
+    const mine = ++attempt.current;
+    stopCamera();
     setPhase("reading");
     setMessage(null);
     let jpeg: string;
     try {
       jpeg = bytesToBase64(await toStandardJpeg(photo));
     } catch {
-      if (live.current) {
+      if (current(mine)) {
         setPhase("pick");
         setMessage(SAY.photo);
       }
       return;
     }
+    // Cancelled while the photo was prepared: the model is never asked.
+    if (!current(mine)) return;
     let r: PaperReadResult;
     try {
       r = await read(jpeg, segmentId);
     } catch {
-      if (live.current) {
+      if (current(mine)) {
         setPhase("pick");
         setMessage(SAY.failed);
       }
       return;
     }
-    if (!live.current) return;
+    if (!current(mine)) return;
     if ("refused" in r) {
       setPhase("pick");
       setMessage(SAY[r.refused]);
