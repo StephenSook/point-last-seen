@@ -140,3 +140,15 @@ describe("a member command removed", () => {
   });
 });
 
+describe("a closed incident takes no new media; what it holds stays readable", () => {
+  it("a clip or photo upload is refused once command ended the search, while reads still work", async () => {
+    const fam = storageAs("family-uid", familyClaims), cmd = storageAs("command-uid", commandClaims);
+    await assertSucceeds(uploadBytes(ref(cmd, `photos/I1/${SHA}.jpg`), bytes(1000), { contentType: "image/jpeg" }));
+    await admin.db.doc("incidents/I1").update({ status: "closed", closedReason: "training_ended" });
+    await assertFails(uploadBytes(ref(fam, `clips/I1/${SHA}.mp4`), bytes(1000), { contentType: "video/mp4" }));
+    const other = "b".repeat(64);
+    await assertFails(uploadBytes(ref(cmd, `photos/I1/${other}.jpg`), bytes(1000), { contentType: "image/jpeg" }));
+    await assertSucceeds(getMetadata(ref(cmd, `photos/I1/${SHA}.jpg`)));
+  });
+});
+

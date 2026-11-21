@@ -37,8 +37,9 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/incidents/$(incidentId)/removed/$(request.auth.uid));
     }
     // A closed incident stays readable to its members but takes no new events or plans.
+    // A missing status counts as open, as the apps and the Storage rules read it.
     function isOpen(incidentId) {
-      return incidentData(incidentId).status != 'closed';
+      return incidentData(incidentId).get('status', 'open') != 'closed';
     }
     function role() {
       return request.auth.token.role;
@@ -230,12 +231,13 @@ service cloud.firestore {
       // reading (ruling I9); only the record's current owner adds the reading, once, leaving the consents untouched.
       match /clipReadings/{sha256} {
         allow read: if isMember(incidentId);
-        allow create: if isCommandOrFamily(incidentId) && validNewClipReading(incidentId, sha256, request.resource.data);
+        // An ended search (closed) takes no new reading and no change to an open one: "no new reports are taken".
+        allow create: if isCommandOrFamily(incidentId) && isOpen(incidentId) && validNewClipReading(incidentId, sha256, request.resource.data);
         // The reading is a valid sighting or a typed no-sighting result (a could-not-read result completes the
         // record, so it is cached), with a valid route. While no reading exists, any command or family member
         // takes the record over with their own consent and expiry (the creator renewing is the same case), so a
         // stalled record never blocks a second seat or a new sign-in; the clip's path never changes.
-        allow update: if isCommandOrFamily(incidentId)
+        allow update: if isCommandOrFamily(incidentId) && isOpen(incidentId)
           && resource.data.reading == null
           && ((resource.data.createdByUid == request.auth.uid
                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reading', 'route'])
