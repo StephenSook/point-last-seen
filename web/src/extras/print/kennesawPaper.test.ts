@@ -35,7 +35,7 @@ it("prints one assignment sheet with T1, T2 and T3, their segments, and the trai
 });
 
 it("prints one radio card per team, each with the training line, its segments and plan v1", () => {
-  const cards = radioCards(model(), { sayLines: false });
+  const cards = radioCards(model(), { timeZone: "America/New_York", sayLines: false });
   expect(cards.map((c) => c.teamName)).toEqual(["T1", "T2", "T3"]);
   for (const card of cards) {
     expect(card.drillLine).toBe("Training drill. Nobody is missing.");

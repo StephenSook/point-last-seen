@@ -68,7 +68,7 @@ export function PrintSession({ session, plans, matchCode, reportCount, onClose, 
   }
   if (kind === "cards") {
     // The say-it-like-this lines wait for a command report flow; the person lines print only when ticked.
-    const cards = radioCards(model, { sayLines: false, personLines: cardsPerson ? approachLines : [] });
+    const cards = radioCards(model, { sayLines: false, personLines: cardsPerson ? approachLines : [], timeZone });
     const cardControls = cards.length === 0 ? undefined : (
       <label className="extras-note-option">
         <input type="checkbox" checked={cardsPerson} onChange={(event) => setCardsPerson(event.target.checked)} />
