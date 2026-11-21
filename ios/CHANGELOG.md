@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios-core): a photo of something found becomes a clue, decided in code
+- What: PhotoClue turns what Apple's model says about a photo (person visible, object, color, kind) into a clue
+  report in code. A photo that shows any part of a person is not kept. The object is compared with the family's
+  described items only (clothing, appearance, mobility aids): the same kind in the same color, or a described item
+  with no color, is consistent and named on the receipt; anything else is unknown, never marked down. The report's
+  words are written by code ("Photo: black baseball cap."), and the object is lower-cased, letters only, at most 40
+  characters.
+- Source: the photo clue feature. On the simulator, Apple's model shown the family's description matched a black
+  cap and a green knit hat to "red baseball cap"; shown nothing, it described both correctly, so code compares.
+- Verified: 12 tests (person and body words discard, state words such as "walking stick" kept, kind and color
+  matching with the family's color names, unknown color never confirms, the quote is in the text, cleaning) failed
+  to compile before the change and pass after; all core tests pass.
+
 ### docs: the iPhone Live Activity on a real phone's lock screen (build 9)
 - What: evidence folder docs/evidence/ios/iphone-2026-11-20-build9-live-activity with the Live Activity as
   it showed on an iPhone 17 Pro's lock screen during a training drill ("Training drill. Nobody is missing." /
