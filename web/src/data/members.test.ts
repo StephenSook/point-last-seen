@@ -17,3 +17,37 @@ describe("removeErrorMessage: why a removal failed, in the words command needs",
     expect(removeErrorMessage(null)).toBe("Could not remove them. Try again.");
   });
 });
+
+describe("memberRows: who command can remove", () => {
+  const teams = [{ teamId: "T1", name: "Team 1" }, { teamId: "T2", name: "Team 2" }];
+  const ev = (authorUid: string, role: string, teamId: string | null) => ({ authorUid, role, teamId });
+  it("joins members records with event authors, never lists command, and labels by team", async () => {
+    const { memberRows } = await import("./members");
+    const rows = memberRows(
+      { u1: { role: "searcher", team: "T1" }, f1: { role: "family", team: null }, c1: { role: "command", team: null } },
+      [ev("u2", "searcher", "T2"), ev("c1", "command", null), ev("u1", "searcher", "T1"), ev("c2", "command", null)],
+      new Set(),
+      teams,
+    );
+    expect(rows.map((r) => [r.uid, r.label, r.removed])).toEqual([
+      ["f1", "Family member", false],
+      ["u1", "Team 1 searcher", false],
+      ["u2", "Team 2 searcher", false],
+    ]);
+  });
+  it("a members record wins over an event's role and team", async () => {
+    const { memberRows } = await import("./members");
+    const rows = memberRows({ u1: { role: "searcher", team: "T2" } }, [ev("u1", "searcher", "T1")], new Set(), teams);
+    expect(rows.map((r) => r.label)).toEqual(["Team 2 searcher"]);
+  });
+  it("two searchers on one team are told apart by the end of their id", async () => {
+    const { memberRows } = await import("./members");
+    const rows = memberRows({ "aaaa1111": { role: "searcher", team: "T1" }, "bbbb2222": { role: "searcher", team: "T1" } }, [], new Set(), teams);
+    expect(rows.map((r) => r.label)).toEqual(["Team 1 searcher (1111)", "Team 1 searcher (2222)"]);
+  });
+  it("removed members come last and say so; a team not in the list is named by its id", async () => {
+    const { memberRows } = await import("./members");
+    const rows = memberRows({ u1: { role: "searcher", team: "T9" } }, [ev("f1", "family", null)], new Set(["f1"]), teams);
+    expect(rows.map((r) => [r.label, r.removed])).toEqual([["T9 searcher", false], ["Family member", true]]);
+  });
+});

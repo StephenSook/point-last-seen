@@ -2311,3 +2311,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/src/data/members.ts` calls the `removeMember` callable (incident id and the member's uid) and turns a failure into one sentence: the server's own reason when it gives one (yourself, another command, not command, no longer a member), "Refused by App Check. Try a normal browser window." for a refused token, "No connection. Try again when the link is back." offline, and "Could not remove them. Try again." otherwise.
 - Source: review (command removes a searcher or family member from a drill).
 - Verified: new unit tests in `members.test.ts` failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
+
+### feat(data): the list of people command can remove
+- What: `memberRows` in `web/src/data/members.ts` joins the server's members records with the authors of the incident's events (an account that joined before the records existed is known only by what it wrote). Command is never listed; a members record wins over an event for role and team; searchers read "<team> searcher" and family "Family member"; two people with one label are told apart by the last four characters of their id; removed members come last, marked removed.
+- Source: review (command removes a searcher or family member from a drill).
+- Verified: four new unit tests in `members.test.ts` failed first, then passed; typecheck, web unit suite and the hygiene guard pass.
