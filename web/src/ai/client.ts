@@ -5,6 +5,7 @@ import type { FirebaseApp } from "firebase/app";
 import { getAI, getGenerativeModel, getTemplateGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel, type InferenceSource, type TemplateRequest } from "firebase/ai";
 import { REPLY_TIMEOUT_MS, wordingParams, type WordingDeps } from "./replanWording";
 import { photoParams, type PhotoDeps } from "./photoCues";
+import { debriefSheetParams, type SheetDeps } from "./debriefSheetRead";
 import { sightingTextParams, type SightingTextDeps } from "./sightingText";
 import { clipCloudParams, clipParts, type ClipWindow } from "./clipRead";
 import { frameCheckParams } from "./frameCheck";
@@ -80,6 +81,21 @@ export function photoGeneratorFor(model: ImageModel): PhotoDeps["generate"] {
 /** One family photo read on this laptop (ONLY_ON_DEVICE). Call it only after the gate says yes. */
 export function photoGenerator(ai: AI): PhotoDeps["generate"] {
   return photoGeneratorFor(getGenerativeModel(ai, photoParams(), PRIVATE_REQUEST_OPTIONS));
+}
+
+export function debriefSheetGeneratorFor(model: ImageModel): SheetDeps["generate"] {
+  return async (jpegBase64) => {
+    const r = await model.generateContent([
+      { type: "text", text: "Read this debrief sheet." },
+      { type: "inlineData", inlineData: { mimeType: "image/jpeg", data: jpegBase64 } },
+    ]);
+    return { text: r.response.text(), inferenceSource: r.response.inferenceSource };
+  };
+}
+
+/** One paper debrief sheet read on this laptop (ONLY_ON_DEVICE); there is no cloud read of a sheet. Call it only after the gate says yes. */
+export function debriefSheetGenerator(ai: AI): SheetDeps["generate"] {
+  return debriefSheetGeneratorFor(getGenerativeModel(ai, debriefSheetParams(), PRIVATE_REQUEST_OPTIONS));
 }
 
 /** The consented cloud read of one photo through its server template: only the id and the JPEG leave the laptop. */

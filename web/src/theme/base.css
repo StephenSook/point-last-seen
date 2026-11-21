@@ -57,7 +57,7 @@ button, input, select { font: inherit; color: inherit; }
 .plate { background: var(--bg-0); color: var(--fg-1); padding: 2px 6px; font: 600 12px/1.2 var(--ui); font-variant-numeric: tabular-nums; pointer-events: none; }
 .new-build { position: fixed; left: 16px; bottom: 16px; z-index: 50; margin: 0; padding: 8px 12px; background: var(--bg-2); color: var(--fg-1); border: 1px solid var(--fg-4); }
 /* A cell whose labels would cover a more likely cell's labels hides them (labelDensity.ts); its dot stays. */
-.plate.crowded, .seg-code.crowded, .plate.unfit, .seg-code.unfit { visibility: hidden; }
+.plate.crowded, .seg-code.crowded, .plate.unfit, .seg-code.unfit, .plate.under-chip, .seg-code.under-chip { visibility: hidden; }
 .seg-code { background: var(--bg-0); color: var(--fg-2); padding: 1px 3px; font: 600 10px/1.2 var(--ui); letter-spacing: 0.02em; pointer-events: none; }
 
 .teams { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -184,12 +184,19 @@ button, input, select { font: inherit; color: inherit; }
 .layer select { background: var(--bg-0); border: 1px solid var(--fg-4); padding: 6px 8px; color: var(--fg-1); }
 .layer label { display: grid; gap: 4px; color: var(--fg-2); }
 .layer label.check { display: flex; gap: 6px; align-items: center; }
+.debrief-paper-field { display: grid; gap: 4px; padding-top: 8px; border-top: 1px solid var(--fg-4); }
+.debrief-camera { width: 100%; background: var(--bg-0); }
 .report-pin { width: 14px; height: 14px; border-radius: 50%; background: var(--fg-1); border: 3px solid var(--bg-0); box-shadow: 0 0 0 2px var(--fg-1); }
 .beat-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .beat-overlay path { fill: none; stroke: var(--fg-1); stroke-width: 2; opacity: 0; }
 .walker-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity 350ms; }
 @media (prefers-reduced-motion: reduce) { .walker-canvas { transition: none; } }
 .map-note { position: absolute; left: 8px; bottom: 6px; margin: 0; max-width: calc(100% - 320px); font-size: 12px; color: var(--fg-2); background: var(--bg-0); padding: 2px 6px; }
+/* On a phone the sentence spans the foot of the map, above the credit line, instead of a narrow column. (After the
+   rule above, which it overrides.) */
+@media (max-width: 900px) {
+  .map-note { right: 8px; max-width: none; bottom: 24px; }
+}
 .wordmark { margin: 0 0 4px; font: 600 12px/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); }
 /* A pressed choice (Rings or Walkers) is filled, so the chosen one reads at a glance. */
 .btn.ghost[aria-pressed="true"] { background: var(--fg-1); color: var(--bg-0); border-color: var(--fg-1); }
