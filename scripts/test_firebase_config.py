@@ -36,6 +36,19 @@ def test_the_app_shell_rewrite_never_answers_for_tiles_or_evidence():
         assert [r.get("source") for r in shell] == ["!/@(tiles|evidence)/**"], shell
 
 
+def test_privacy_and_support_are_served_from_their_static_pages_before_the_app_shell():
+    # Apple's reviewer fetches these URLs: each must answer with its own HTML, not the app shell.
+    for site in hosting_sites():
+        rewrites = site.get("rewrites", [])
+        shell = next(i for i, r in enumerate(rewrites) if r.get("destination") == "/index.html")
+        for path in ("/privacy", "/support"):
+            found = [i for i, r in enumerate(rewrites) if r.get("source") == path]
+            assert len(found) == 1, f"{path} needs exactly one rewrite"
+            assert rewrites[found[0]] == {"source": path, "destination": f"{path}.html"}
+            assert found[0] < shell, f"{path} must come before the app shell rewrite"
+            assert (ROOT / "web" / f"{path.lstrip('/')}.html").is_file(), f"web{path}.html is missing"
+
+
 # Firebase Hosting serves every file with max-age=3600 when firebase.json sets no header, so a judge could keep
 # the old app for an hour after a deploy. Pages, version.json and the service worker must be revalidated every
 # time; Vite's hashed assets never change under one name, so they can be kept for a year.

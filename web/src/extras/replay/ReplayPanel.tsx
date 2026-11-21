@@ -25,14 +25,18 @@ function useReducedMotion(): boolean {
   return reduced;
 }
 
-/** The replay of one incident: its map at the chosen time, the sightings trail and the time ruler. */
-export function ReplayPanel({ data }: { data: ReplayData }): JSX.Element {
+/**
+ * The replay of one incident: its map at the chosen time, the sightings trail and the time ruler. It prints the drill
+ * line itself unless the page around it already does (`drillLine={false}`, the judge page, which shows it above its
+ * heading).
+ */
+export function ReplayPanel({ data, drillLine = true }: { data: ReplayData; drillLine?: boolean }): JSX.Element {
   const w = useMemo(() => replayWindow(data), [data]);
   if (w === null) return <p>No report has arrived yet, so there is nothing to replay.</p>;
-  return <ReplayBody data={data} w={w} />;
+  return <ReplayBody data={data} w={w} drillLine={drillLine} />;
 }
 
-function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
+function ReplayBody({ data, w, drillLine }: { data: ReplayData; w: ReplayWindow; drillLine: boolean }) {
   const [timeZone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
   const reduced = useReducedMotion();
   const stops = useMemo(() => playStops(data, w), [data, w]);
@@ -80,7 +84,7 @@ function ReplayBody({ data, w }: { data: ReplayData; w: ReplayWindow }) {
 
   return (
     <div className="extras-replay" data-phase={frame.phase}>
-      {data.drillLabel && <p className="drill extras-drill-line">{data.drillLabel}</p>}
+      {drillLine && data.drillLabel && <p className="drill extras-drill-line">{data.drillLabel}</p>}
       {/* The scrubber sits right under the map, as a weather map's time bar does; Play is at its left. */}
       <div className="extras-replay-stage">
         {/* data-frame: each segment's percent and place as handed to the map, so a check can pair them. */}

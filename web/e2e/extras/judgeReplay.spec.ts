@@ -40,7 +40,8 @@ test("the published run replays on the judge page and its last frame matches the
   const f = await frames(page);
   expect(f.replay).toEqual(f.live);
   await expect(section.getByRole("slider", { name: "Replay time" })).toBeVisible();
-  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toBeVisible();
+  // The judge page carries the drill line above its heading, so the replay card does not repeat it.
+  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -75,7 +76,7 @@ test("a run whose shapes trade places keeps the code and the plates' text but no
   expect(f.replay).not.toEqual(f.live);
 });
 
-test("the drill line shows once whether or not the run's label carries it", async ({ page }) => {
+test("the replay card never repeats the drill line, whether or not the run's label carries it", async ({ page }) => {
   const once = async () => {
     const section = page.getByRole("region", { name: "Watch the drill replay" });
     await expect(section.getByTestId("replay-code")).toBeVisible();
@@ -83,10 +84,10 @@ test("the drill line shows once whether or not the run's label carries it", asyn
     return text.split("Training drill. Nobody is missing.").length - 1;
   };
   await page.goto(`${harness}?run=labelledDrill`);
-  expect(await once()).toBe(1);
+  expect(await once()).toBe(0);
   await expect(page.getByTestId("run-label")).toHaveText("Development drill, Piedmont Park, Atlanta, 2026-11-18 to 19.");
   await page.goto(`${harness}?run=labelled`);
-  expect(await once()).toBe(1);
+  expect(await once()).toBe(0);
   await expect(page.getByTestId("run-label")).toHaveText("REAL DRILL, Kennesaw Mountain, 2026-11-22");
 });
 
@@ -94,7 +95,7 @@ test("a run with a label of its own shows it under the replay heading; a label t
   await page.goto(`${harness}?run=labelled`);
   const section = page.getByRole("region", { name: "Watch the drill replay" });
   await expect(section.getByTestId("run-label")).toHaveText("REAL DRILL, Kennesaw Mountain, 2026-11-22");
-  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toBeVisible();
+  await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toHaveCount(0);
   await page.goto(harness);
   await expect(page.getByRole("region", { name: "Watch the drill replay" }).getByTestId("replay-code")).toBeVisible();
   await expect(page.getByTestId("run-label")).toHaveCount(0);

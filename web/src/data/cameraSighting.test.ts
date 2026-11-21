@@ -61,6 +61,19 @@ describe("travelBearingFromInputs", () => {
     const b = cam(2, 90, "right");
     expect(travelBearingFromInputs([b, a], [a.eventId, b.eventId])).toBe(180);
   });
+  // A confirmed sighting with a place is a prior input too: its "Going" direction is the travel bearing.
+  const seen = (id: string, direction: string): EventDoc =>
+    ({ ...cam(9, 90, "left"), eventId: id, type: "sighting", reading: { kind: "sighting", direction } } as unknown as EventDoc);
+  it("comes from a sighting that is the newest prior input, by its compass direction", () => {
+    const a = cam(1, 90, "right");
+    expect(travelBearingFromInputs([a, seen("s1", "n")], [a.eventId, "s1"])).toBe(0);
+    expect(travelBearingFromInputs([a, seen("s1", "sw")], [a.eventId, "s1"])).toBe(225);
+  });
+  it("is null when the newest input is a sighting with no compass direction, even after a camera with one", () => {
+    const a = cam(1, 90, "right");
+    expect(travelBearingFromInputs([a, seen("s1", "unknown")], [a.eventId, "s1"])).toBeNull();
+    expect(travelBearingFromInputs([a, seen("s1", "downstream")], [a.eventId, "s1"])).toBeNull();
+  });
 });
 
 describe("cameraStartPatch", () => {

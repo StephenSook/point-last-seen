@@ -7,6 +7,7 @@
 
 import { bearingFromExit, lastSeenMs, type CameraSighting, type CameraSightingInput, type CameraSightingReading, type EventDoc, type RouteRecord } from "@pls/engine";
 import type { LatLon } from "../map/geo";
+import { readingBearingDeg } from "./direction";
 import { commandEventBase, type CommandWriter } from "./sightings";
 
 export type ClipFacts = {
@@ -56,12 +57,19 @@ export function cameraReading(e: { type?: unknown; reading?: unknown }): CameraS
   return e.type === "camera_sighting" && e.reading && typeof e.reading === "object" && "sighting" in e.reading ? (e.reading as CameraSightingReading) : null;
 }
 
-/** The bearing from the latest camera sighting among the prior's inputs, or null. */
+/**
+ * The bearing from the newest sighting among the prior's inputs, or null: a camera sighting's facing plus its exit
+ * edge, or a confirmed sighting's compass direction. The newest one decides, so a later sighting with no direction
+ * turns the wedge off, as the rebuild from it did.
+ */
 export function travelBearingFromInputs(events: readonly { eventId: string; type?: unknown; reading?: unknown }[], priorInputEventIds: readonly string[]): number | null {
   const byId = new Map(events.map((e) => [e.eventId, e]));
   for (const id of [...priorInputEventIds].reverse()) {
-    const r = byId.get(id) && cameraReading(byId.get(id)!);
+    const e = byId.get(id);
+    if (!e) continue;
+    const r = cameraReading(e);
     if (r) return bearingFromExit(r.cameraFacingDeg, r.sighting.exitEdge);
+    if (e.type === "sighting") return readingBearingDeg(e);
   }
   return null;
 }
