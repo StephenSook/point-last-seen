@@ -153,3 +153,25 @@ test("the judge page never requests a GPS track or a GPX file; at most the passe
   expect(urls.filter((u) => /track|\.gpx/i.test(u))).toEqual([]);
   expect(urls.filter((u) => u.includes("/extras/passes/")).map((u) => new URL(u).pathname)).toEqual(["/extras/passes/drill-dev-1-2026-11-19.passes.json"]);
 });
+
+test("the Measured block shows the served file's numbers, says where they come from, and refuses an old file", { tag: "@no-backend" }, async ({ page, request }) => {
+  const res = await request.get("/evidence/measured.json");
+  expect(res.status()).toBe(200);
+  const file = (await res.json()) as { reads: { reads: number }; wording: { reads: number }; spend: { days: number } };
+  await page.goto("/judge");
+  const block = page.getByRole("region", { name: "Measured" });
+  await expect(block.getByRole("heading", { name: "Stored on our servers" })).toBeVisible();
+  await expect(block).toContainText(`Report reads, `);
+  await expect(block).toContainText(`: ${file.reads.reads}.`);
+  await expect(block).toContainText(`: ${file.wording.reads} plans.`);
+  await expect(block).toContainText(`over ${file.spend.days} days`);
+  await expect(block).toContainText("scripts/measured_export.py");
+  await expect(block.getByTestId("measured-source")).toContainText("no real search has used the app yet.");
+  // A file older than the limit shows no numbers.
+  await page.route("**/evidence/measured.json", (route) => route.fulfill({ status: 200, contentType: "application/json",
+    body: JSON.stringify({ ...file, generatedAt: "2020-01-01T00:00:00Z" }) }));
+  await page.reload();
+  await expect(page.getByTestId("measured-refused")).toHaveText("The measured numbers are more than 30 days old, so none are shown.");
+  await expect(page.getByRole("region", { name: "Measured" })).not.toContainText("Report reads");
+});
+

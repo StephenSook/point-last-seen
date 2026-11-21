@@ -92,8 +92,99 @@ object PhoneNumbers {
     // A spoken repeat before a digit counts the extra digits it stands for: "triple five" is three digits.
     private val REPEATS = mapOf("double" to 1, "triple" to 2)
 
+    // A run made only of clock times: two or more h:mm in ASCII digits (hour 0 to 23, minutes 00 to 59) separated by
+    // commas or spaces, with no number after it through anything but letters. The same check before it is
+    // [noNumberBefore]: Java takes no unbounded lookbehind.
+    private val TIMES_RUN = Regex("""(?:[01]?\d|2[0-3]):[0-5]\d(?:[ ,]+(?:[01]?\d|2[0-3]):[0-5]\d)+(?![^\p{L}\p{N}]*\p{N})""")
+    private val CLOCK_TIME = Regex("""(\d+):(\d+)""")
+    // Before a run of times, two more words cue a number (Text 21:25 5:50 1:42; Reach me at 4:04 5:55 6:42).
+    private val TIME_CUES = PHONE_CUES + setOf("text", "reach")
+    // How many words before a run of times are read for a cue.
+    private const val CUE_WINDOW = 3
+
+    /** Whether no number sits before [at] through anything but letters (the web app's lookbehind on its run of times). */
+    private fun noNumberBefore(s: String, at: Int): Boolean {
+        var i = at
+        while (i > 0) {
+            val cp = s.codePointBefore(i)
+            if (Character.isLetter(cp)) return true
+            val type = Character.getType(cp)
+            if (type == Character.DECIMAL_DIGIT_NUMBER.toInt() || type == Character.LETTER_NUMBER.toInt() || type == Character.OTHER_NUMBER.toInt()) return false
+            i -= Character.charCount(cp)
+        }
+        return true
+    }
+
+    /** The runs of times in [s], as the web app's TIMES_RUN finds them: after a refused start, the next character is tried. */
+    private fun timesRuns(s: String): List<MatchResult> {
+        val runs = mutableListOf<MatchResult>()
+        var from = 0
+        while (from < s.length) {
+            val m = TIMES_RUN.find(s, from) ?: break
+            if (noNumberBefore(s, m.range.first)) {
+                runs += m
+                from = m.range.last + 1
+            } else {
+                from = m.range.first + 1
+            }
+        }
+        return runs
+    }
+
+    /** Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it, or a "#". */
+    private fun cuedRun(s: String, parts: List<Part>, first: Int): Boolean {
+        // A part carrying digits (written, spoken, or a counted double or triple) is read past and is not one of the
+        // three words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued.
+        var j = first - 1
+        var words = 0
+        while (j >= 0 && words < CUE_WINDOW) {
+            if (parts[j].digits > 0) {
+                j--
+                continue
+            }
+            if (word(s, parts[j]) in TIME_CUES) return true
+            words++
+            j--
+        }
+        return s.substring(if (j >= 0) parts[j].end else 0, parts[first].start).contains('#')
+    }
+
+    /**
+     * A run of times the rule reads as its own group (no digit, written or spoken, joined to it on either side) is
+     * decided whole. In clock order (each time no earlier than the one before) with no phone cue before it, it is search
+     * information and stays (The possible times are 14:03, 14:10, 14:17.). Out of order or after a cue it could be a
+     * number written as times (Call 21:25 5:50 1:42, 12:12 5:55 01:42), and the whole run goes: when in doubt, remove.
+     * The text between such runs follows the rule unchanged, and so does every note that NFKC changes, since folding can
+     * turn other characters into the ASCII digits a run is made of.
+     */
     fun remove(text: String): String {
         val folded = Normalizer.normalize(text, Normalizer.Form.NFKC)
+        if (folded != text) return removeByRule(folded)
+        val parts = ruleParts(folded)
+        val startsAt = parts.withIndex().associate { (i, p) -> p.start to i }
+        val endsAt = parts.withIndex().associate { (i, p) -> p.end to i }
+        val out = StringBuilder()
+        var from = 0
+        for (m in timesRuns(folded)) {
+            val first = startsAt[m.range.first] ?: continue
+            val last = endsAt[m.range.last + 1] ?: continue
+            val joined = (first > 0 && joins(folded, parts[first - 1], parts[first])) ||
+                (last + 1 < parts.size && joins(folded, parts[last], parts[last + 1]))
+            // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which
+            // changes how the rule groups the digits around it, so such a run stays with the text around it.
+            fun month(i: Int) = i in parts.indices && !parts[i].written && word(folded, parts[i]) in MONTHS
+            if (joined || month(first - 1) || month(last + 1)) continue
+            val minutes = CLOCK_TIME.findAll(m.value).map { it.groupValues[1].toInt() * 60 + it.groupValues[2].toInt() }.toList()
+            val inOrder = minutes.zipWithNext().all { (a, b) -> b >= a }
+            out.append(removeByRule(folded.substring(from, m.range.first)))
+            out.append(if (inOrder && !cuedRun(folded, parts, first)) m.value else REPLACEMENT)
+            from = m.range.last + 1
+        }
+        return out.append(removeByRule(folded.substring(from))).toString()
+    }
+
+    /** The parts of [folded] as the rule reads them: a spoken repeat counted, and a street name's number set apart. */
+    private fun ruleParts(folded: String): List<Part> {
         val parts = parts(folded)
         for (i in 0 until parts.size - 1) {
             val repeat = REPEATS[word(folded, parts[i])] ?: continue
@@ -109,6 +200,12 @@ object PhoneNumbers {
                 parts[i].alone = true
             }
         }
+        return parts
+    }
+
+    private fun removeByRule(text: String): String {
+        val folded = Normalizer.normalize(text, Normalizer.Form.NFKC)
+        val parts = ruleParts(folded)
         val (found, kept, glued) = searchSpans(folded, parts)
         // Walk back from the end, so replacing one number never moves the ones before it.
         val out = StringBuilder(folded)

@@ -14,9 +14,10 @@ const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
 // Seed fields a practice incident must not inherit; everything else (grid, IPP, terrain, prior and engine settings)
 // is copied so the practice search runs the real engine on the real grid.
+// The seed's own end of search (closedReason, closedAt) is never copied: a copy starts open.
 const NOT_COPIED = new Set(["createdAt", "expiresAt", "name", "mode", "drillLabel", "status", "priorInputEventIds",
   "joinCodeHash", "commandJoinCodeHash", "mediaDeletedAt", "mediaSweepEmpty", "mediaRevokedAt",
-  "setupReady", "setupId", "setupStartedAtMs"]);
+  "setupReady", "setupId", "setupStartedAtMs", "closedReason", "closedAt"]);
 /** startJudgeSession's timeout (index.ts). A 2nd gen function can keep running after it, so it is not a kill switch. */
 export const JUDGE_SESSION_TIMEOUT_S = 120;
 /**
@@ -40,7 +41,7 @@ type Config = { seedIncidentId: string; perDay: number; copy?: (copy: () => Prom
 
 /**
  * Gives the command role on a practice search, but only while it is still the visitor's attempt (judgeUsers/{uid}),
- * ready and not ended, read right before the role is written. A start that paused and finds a newer winner leaves
+ * ready, not closed and not expired, read right before the role is written. A start that paused and finds a newer winner leaves
  * that winner's role alone. (A pause between this read and the write itself is the gap left; docs/LIMITS.md.)
  */
 async function giveCommand(db: Firestore, auth: Auth, uid: string, incidentId: string, nowMs: number,
@@ -49,7 +50,7 @@ async function giveCommand(db: Firestore, auth: Auth, uid: string, incidentId: s
   const [user, sandbox] = await db.getAll(db.doc(`judgeUsers/${uid}`), db.doc(`incidents/${incidentId}`));
   const exp = sandbox!.get("expiresAt");
   const current = user!.get("incidentId") === incidentId && sandbox!.get("setupReady") === true
-    && exp instanceof Timestamp && exp.toMillis() > Math.max(nowMs, Date.now());
+    && sandbox!.get("status") !== "closed" && exp instanceof Timestamp && exp.toMillis() > Math.max(nowMs, Date.now());
   if (!current) throw stillSettingUp();
   await auth.setCustomUserClaims(uid, { inc: incidentId, role: "command", team: null });
   return { incidentId, role: "command" };
@@ -133,7 +134,8 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     const currentId: string | null = user!.exists ? (user!.get("incidentId") as string) : legacy!.exists ? legacyId : null;
     const current = currentId === null ? null : currentId === legacyId ? legacy! : await tx.get(db.doc(`incidents/${currentId}`));
     const exp = current?.get("expiresAt");
-    if (current?.exists && exp instanceof Timestamp && exp.toMillis() > nowMs) {
+    // A sandbox the visitor ended (closed) counts as ended, like an expired one: the next start is a new session.
+    if (current?.exists && exp instanceof Timestamp && exp.toMillis() > nowMs && current.get("status") !== "closed") {
       if (current.get("setupReady") === true) {
         if (!user!.exists) tx.set(userRef, { incidentId: current.id, createdAt: current.get("createdAt") });
         return { kind: "ready", id: current.id };
@@ -155,7 +157,8 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     if (!seed!.exists) throw noSeed();
     const used = typeof count!.get("count") === "number" ? (count!.get("count") as number) : 0;
     if (used >= cfg.perDay) throw refuse("resource-exhausted", "Practice searches are full for today. Try again tomorrow.", "daily_limit");
-    tx.set(counter, { count: used + 1 });
+    // The cap enforced rides with the count, so the quota probe reads the deployed cap (scripts/judge_quota_probe.py).
+    tx.set(counter, { count: used + 1, cap: cfg.perDay });
     const createdAt = Timestamp.fromMillis(nowMs);
     tx.set(attemptRef, attempt(seed!.data()!, createdAt, Timestamp.fromMillis(nowMs + DAY_MS)));
     tx.set(userRef, { incidentId: attemptId, createdAt });

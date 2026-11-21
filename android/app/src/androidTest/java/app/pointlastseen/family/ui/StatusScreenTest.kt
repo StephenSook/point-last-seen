@@ -69,6 +69,13 @@ class StatusScreenTest {
         rule.onNodeWithText("I remembered something").assertDoesNotExist()
     }
 
+    /** A search that has ended takes nothing again: refused items are counted, with no "Try again". */
+    @Test fun anEndedSearchOffersNoTryAgain() {
+        rule.setContent { PaperTheme { StatusScreen(status = "closed", mode = null, killCloud = false, pending = 0, rejected = 1, onOpen = {}, onRetry = {}, onLeave = {}, closedReason = "found") } }
+        rule.onNodeWithText("1 item was not accepted.").assertIsDisplayed()
+        rule.onNodeWithText("Try again").assertDoesNotExist()
+    }
+
     /** The fixed line: news about the missing person comes from the search lead by phone, never from the app. */
     @Test fun theStatusSaysNewsComesFromTheSearchLeadByPhone() {
         rule.setContent { PaperTheme { StatusScreen(status = "open", mode = "drill", killCloud = false, pending = 0, rejected = 0, onOpen = {}, onRetry = {}, onLeave = {}, subjectName = "Mae") } }

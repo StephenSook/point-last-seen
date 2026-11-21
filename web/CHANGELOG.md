@@ -2048,6 +2048,15 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: the live run after the reopening change.
 - Verified: the check failed live with the saved session, then passed live (3) as a fresh visitor, and passes in the no-backend run.
 
+### feat(judge): a Measured block with the stored numbers, refusing an old file
+- What: the judge page reads `/evidence/measured.json` (`web/src/judge/measured.ts` `loadMeasured`, `measuredLines`) and shows, under "Stored on our servers", where stored report reads and plan wording ran (on the device, by the cloud model, by fixed rules) with each route's median time, and the cloud model's spend per day. Beside an on-device count of none, a line says why (an iPhone's practice drill keeps its reads on the phone; a plan is worded on the laptop only with Chrome's built-in model). No number is typed in the page; a file older than 30 days or one it cannot read shows a line and no numbers.
+- Source: review (a measured block on a judged surface).
+- Verified: 6 new unit tests failed first (no module), then pass; a new no-backend browser check reads the served file's counts on the page and refuses a 2020 file; 1010 web unit tests, typecheck, the build and 44 no-backend browser checks pass.
+
+### fix(judge): the Measured block counts reads with no route recorded
+- What: when the file counts reads with no route recorded, the block says "n with no route recorded", so the parts add up to the total; a non-integer unknown count makes the file unreadable.
+- Source: review (the parts should add up to the total).
+- Verified: a new unit test failed first, then passes (7).
 ### feat(command): on a phone a bottom bar keeps Add sighting and Plan in reach
 - What: at phone width the post has a bar fixed to the bottom ("Quick actions") with Add sighting, which opens the sighting form and brings it into view, and Plan, which brings the plan into view; the page leaves room for it so it never covers the end of the rail. It is not shown on a laptop, where the rail holds both.
 - Source: UI review (on a 390 px phone Add sighting sat about 1,030 px down the page).
@@ -2491,6 +2500,35 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `latestTeamOf` compared a report with no server time by its phone time against one the server timed, so a phone set ahead could still pin an old team. Any report with a server time now outranks one without (only older stored reports can lack it; the rules now require it), and within each kind the later wins.
 - Source: review (Codex, third round: the team lookup still lets a skewed phone clock win when one report lacks server time).
 - Verified: a new unit test in `contentReports.test.ts` failed first, then passed with the file (9); typecheck and the hygiene guard pass.
+
+### feat(judge): the Measured block says every count is from our own test runs
+- What: under "Stored on our servers", one line says "All counts come from our own test runs and practice drills (<first day> to <file day>); no real search has used the app yet.", with the days taken from the file; the on-device report row says it was measured in our own iPhone test runs. No number is typed in the page.
+- Source: review (every judge-facing number says where it came from).
+- Verified: `src/judge/measured.test.ts` (the source line and the iPhone row) failed first, then passed (7); `e2e/judgeRun.spec.ts` now checks the served line; typecheck, 225 and 72 no-backend browser checks and the build pass.
+### test(e2e): checks never spend the judges' practice searches
+- What: the live browser run skips any check tagged `@quota` unless `PLS_ALLOW_QUOTA=1` is set, and the two checks that start a real practice search (judge.spec's first practice start and endSearch.spec) are tagged, so a deploy check spends at most two of the judges' 50 a UTC day and only when asked to. A new guard, `src/practiceQuota.test.ts`, scans every file under `web/e2e`, the workflows and the scripts: a press of the "Try a practice search" button, the button held in a variable, a request to `/startJudgeSession` or a `startJudgeSession` callable must sit in a `@quota` test or behind a `page.route` stub whose every `continue()` is behind a POST check. It proves itself on six planted samples (an untagged start, a tagged one, two good stubs, a stub that lets the start through, a held button, a helper's request) and refuses to pass on a scan of fewer than 80 browser-check files or 40 others.
+- Source: review (the day's 50 practice searches ran out at about 20:40 UTC, used by checks; no check may draw from the judges' quota).
+- Verified: the guard failed first (no @quota tag; the live config did not skip them), then passed (3 tests); the web unit suite, typecheck and the hygiene guard pass.
+
+### fix(command): Problem reports follow the rail's lead instead of preceding it
+- What: the Problem reports panel sat first in the right rail, so once the test drill had a flag, the rail no longer led with what changed, the plan and the top segments (the agreed rail order). It now comes straight after the top segments, before the rest of the rail, so the working view stays first and a flag is still above Details.
+- Source: live suite after the Problem reports deploy (`e2e/railOrder.spec.ts` failed with a flag present on the test drill).
+- Verified: the rail-order check failed on the live site with the panel first; it runs after deploy. Typecheck, web unit suite and the hygiene guard pass.
+
+### fix(ai): the receipt says no text or image left the laptop, not that nothing did
+- What: every read sends one timing record with its route (path, reason, platform, stage and latency; `web/src/telemetry/trace.ts`, disclosed in `docs/SECURITY.md`), so "Sent: nothing left this laptop." and, for fixed wording, "Sent: nothing." overclaimed. They now read "Sent: no text or image left this laptop." and "Sent: no text or image.".
+- Source: review (the receipt claimed more than the code does).
+- Verified: the receipt and whatRan unit tests failed first, then passed; the plan and debrief-paper harness checks pass with the new line; web unit suite and typecheck pass.
+
+### feat(ai): the receipt gives the time each read took
+- What: a read that ran on this laptop or in the cloud now shows "Took: 2.6 s." under where it ran, from the route record's latency (the time the SDK call took), so the hybrid path's speed is visible in the receipt; under 0.1 s reads "under 0.1 s", and a route with no time (not reported, fixed wording, or a missing or negative latency) shows no line.
+- Source: review (the Android app already shows the time of a cloud read).
+- Verified: a new receipt unit test failed first, then passed (formats, both routes, and every case with no line); the existing receipt tests gain the line; the web unit suite and typecheck pass.
+
+### test(web): the live clip check makes a clip no earlier run has made
+- What: the check made each run's clip "fresh" from a random height (0 to 199), but neighbouring heights encode to the same bytes, so only 100 distinct clips exist, and 24 of them already had a stored reading on the test drill: about one run in four read a stored answer and called no model, failing "read once in the cloud". `make-moving-box.sh` takes the square's colour as a third argument (default red, so the harness clips are unchanged), and the check picks one of 512 colours (each channel in steps of 32; adjacent colours also encode alike) as well as the height, about 51,000 clips.
+- Source: live suite (the clip check failed twice in three runs after the rules deploy).
+- Verified: the 200 heights give 100 distinct SHA-256s and 24 match stored readings on drill-test-1 (read-only); 18 colours in steps of 32 give 18 distinct clips; the harness clip, frames and triage checks pass (28); the live check passed twice in a row.
 
 ### test(web): the removal check signs in fresh and joins the test drill itself
 - What: in the full live suite the removal check used the run's shared signed-in account, which by then could hold a practice search's claims (the judge checks start practice searches on it). Its cached token still showed command of the test drill, so the post offered Remove, but `removeMember` checks the caller's current claims and refused with "Only command can remove someone." The check now starts from an empty browser and joins the test drill as command itself. (Its cleanup removed the fresh member it had made, as designed.)

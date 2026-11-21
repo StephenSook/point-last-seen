@@ -72,7 +72,7 @@ test("the receipt for a plan worded on this laptop says nothing left it", async 
   await page.getByRole("button", { name: "Suggest plan" }).click();
   const receipt = page.getByTestId("suggested-plan").getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
   await receipt.getByText("What ran", { exact: true }).click();
-  await expect(receipt).toContainText("Sent: nothing left this laptop.");
+  await expect(receipt).toContainText("Sent: no text or image left this laptop.");
 });
 
 test("a fallback plan shows only the fixed-wording mark; why the cloud was not used is in What ran", async ({ page }) => {
