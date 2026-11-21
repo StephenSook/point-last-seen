@@ -141,3 +141,13 @@ test("every link on the judge page is drawn in fg-2 and underlined, never the br
     expect(l.line, l.text ?? "").toContain("underline");
   }
 });
+
+test("the judge page never requests a GPS track or a GPX file; at most the passes file beside its run", { tag: "@no-backend" }, async ({ page }) => {
+  const urls: string[] = [];
+  page.on("request", (r) => urls.push(r.url()));
+  await page.goto("/judge");
+  await expect(page.getByRole("region", { name: "Watch the drill replay" }).getByTestId("replay-code")).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  expect(urls.filter((u) => /track|\.gpx/i.test(u))).toEqual([]);
+  expect(urls.filter((u) => u.includes("/extras/passes/")).map((u) => new URL(u).pathname)).toEqual(["/extras/passes/drill-dev-1-2026-11-19.passes.json"]);
+});
