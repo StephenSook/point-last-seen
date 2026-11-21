@@ -5,6 +5,12 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### docs: the test matrix's iOS 26 row cites its call's new line
+- What: the iOS 26 row cited `!cloudRouteAvailable` at ReportReader.swift:73; the found-kind change moved it to
+  line 77, and the matrix check reads the cited line. The row now cites line 77.
+- Source: the matrix check (scripts/test_test_matrix.py).
+- Verified: the matrix check passes.
+
 ### feat(ios): the reader checks a model's found with the subject's names, and the receipt says so
 - What: the reader loads the found-kind rule from the bundled word lists and passes the subject's names from
   the shared profile (they stay in code and never reach a model). A report whose "found" was read as a clue
