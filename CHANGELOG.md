@@ -82,6 +82,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- rules: command's update of the incident doc names only the fields the command post writes (traced in web/src/data
+  and web/src/prior; the iPhone and Android apps never update the incident): conditions, searchState, status,
+  closedReason, and the prior's priorVersion, priorInputEventIds, ipp, ippSource, priorLayers, terrain, priorModel,
+  priorSeed and priorBuiltAt. Every other field (mode, expiry, the grid, the name and labels, engineParams, codes,
+  media and setup state, closedAt) is admin-owned, replacing the deny list. The prior's one-step version rule and the
+  end-search rules are unchanged. Source: review (approved incident update whitelist). Verified:
+  rules/incidentUpdate.test.ts (each written field accepted; 15 other fields refused alone and riding along with an
+  allowed one; engineParams refused even with a version step; the version moves exactly one step) failed first on the
+  refused fields, then passes; two older cases that edited the name now edit searchState and assert a name edit is
+  refused; all 172 rules tests pass.
 - schemas: the content report's Android type is checked for parity (no longer pending), now that
   android/.../family/data/ContentReport.kt is on main. Source: review (content reports). Verified:
   check_schema_parity.py reports "ok content-report # android: 7 fields" and 0 failures across 14 schemas; the web and

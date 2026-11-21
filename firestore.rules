@@ -68,11 +68,16 @@ service cloud.firestore {
 
     match /incidents/{incidentId} {
       allow read: if isMember(incidentId);
-      // Incidents are created by admin tools only. Command may edit an open incident, but mode,
-      // expiresAt and closedAt are server-owned (a sandbox cannot be extended, a drill's retention cannot be moved)
-      // and closing is final.
+      // Incidents are created by admin tools only. Command may edit an open incident, and closing is final.
+      // Command's update names only the fields the command post writes (web/src/data, web/src/prior): the urgency
+      // conditions, what the family is told, ending the search, and the prior's fields with their version step.
+      // Everything else (mode, expiry, the grid, the name and labels, engine parameters, codes, media and setup
+      // state, closedAt) is admin-owned: a sandbox cannot be extended, a drill's retention cannot be moved.
       allow create: if false;
       allow update: if isCommand(incidentId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['conditions', 'searchState', 'status',
+              'closedReason', 'priorVersion', 'priorInputEventIds', 'ipp', 'ippSource', 'priorLayers', 'terrain',
+              'priorModel', 'priorSeed', 'priorBuiltAt'])
         && resource.data.get('status', 'open') != 'closed'
         && request.resource.data.status in ['open', 'found', 'closed']
         // What the family may be told about the search: only that teams are searching or that it is paused.
@@ -82,13 +87,10 @@ service cloud.firestore {
         // reason changes, so a value copied onto an open incident (from an ended seed) never blocks its edits.
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['closedReason'])
             || (request.resource.data.status == 'closed' && request.resource.data.closedReason in ['found', 'suspended', 'training_ended']))
-        && !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(['mode', 'expiresAt', 'joinCodeHash', 'commandJoinCodeHash', 'mediaDeletedAt', 'mediaSweepEmpty', 'mediaRevokedAt',
-                'setupReady', 'setupId', 'setupStartedAtMs', 'closedAt'])
         // The prior moves one version at a time, and its inputs change only with that step, so two seats
         // rebuilding from the same version cannot both land.
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['priorVersion', 'priorInputEventIds', 'ipp',
-              'ippSource', 'priorLayers', 'terrain', 'priorModel', 'priorSeed', 'engineParams', 'priorBuiltAt'])
+              'ippSource', 'priorLayers', 'terrain', 'priorModel', 'priorSeed', 'priorBuiltAt'])
             || request.resource.data.priorVersion == resource.data.get('priorVersion', 0) + 1)
         // When the current prior was built, for the replay: the server's time of the write that built it.
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['priorBuiltAt'])
