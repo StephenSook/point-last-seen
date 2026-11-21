@@ -139,6 +139,30 @@ import Testing
         #expect((try? BundledConstants.grounding()) != nil)
     }
 
+    /// The reader loads the found-kind rule and passes the subject's names: a found object from Apple's model is a
+    /// clue with its reason, and a word of a name keeps found.
+    @Test func theReaderChecksAModelsFoundAgainstTheNote() async throws {
+        struct Found: ReadModelRunner {
+            func guided(_ text: String, path: RoutePath) async -> Result<ReportReading, ReadFailure> {
+                var r = ReportReading.unclear(quote: text)
+                r.kind = .found
+                return .success(r)
+            }
+            func permissive(_ text: String) async -> Result<String, ReadFailure> { .failure(.other) }
+        }
+        var r = ReportReader(ai: AIClient.make(useLimitedUseTokens: true), config: .defaults, screen: try BundledConstants.evidenceScreen(),
+                             estimateTokens: { _, _ in 100 })
+        r.makeRunner = { _, _, _ in Found() }
+        r.deviceStatus = { OnDeviceStatus(available: true, localeSupported: true, contextSize: 4096, variant: "test") }
+        var s = situation(mode: "drill")
+        let note = "Found a blue coat by the creek in AC"
+        let o = await r.read(note, situation: s)
+        #expect(o.reading.kind == .clue && o.reading.item == "blue coat" && o.foundKindReason == FoundKind.reason)
+        s.subjectNames = ["Bea Creek"]
+        let named = await r.read(note, situation: s)
+        #expect(named.reading.kind == .found && named.foundKindReason == nil)
+    }
+
     @Test func remoteConfigDefaultsMatchTheSpec() {
         let d = RemoteConfigValues.defaults
         #expect(d.cloudModelIOS == "gemini-3.5-flash-lite")
