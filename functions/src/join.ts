@@ -113,6 +113,8 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
     ? !live || incident.get("setupReady") !== true
     : expiresAt != null && !live;
   if (!incident.exists || incident.get("status") !== "open" || expired) denied();
+  // Command removed this account from the incident (members.ts): it cannot join it again.
+  if ((await db.doc(`incidents/${id}/removed/${uid}`).get()).exists) denied();
   let team: string | null = null;
   if (role === "searcher") {
     const t = await db.doc(`incidents/${id}/teams/${teamId}`).get();

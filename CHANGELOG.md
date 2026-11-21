@@ -82,6 +82,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: removeMember (callable, App Check enforced): command removes a searcher or family member of its own
+  incident. It records incidents/{id}/removed/{uid} first, then clears the member's claims and revokes its refresh
+  tokens (an ID token already issued stays valid up to an hour, so the record is what the rules check). Command cannot
+  remove itself or another command; a second removal is ok. joinIncident refuses a removed account with the usual join
+  failure. Source: review (App Review guideline 1.2, approved design). Verified: removeMember.test.ts (7 cases: the
+  removal and its order, family, a second removal, refused callers, refused targets, malformed input, the rejoin
+  refused and a new account still joining) failed first (no module), then passes; 305 functions tests and the
+  typecheck pass.
 - LIMITS: the iPhone's Leave this search line no longer says command removes a member; the app has no way yet for
   command to remove a member from a search. Source: review. Verified: no member-removal path exists (membership is the
   join function's claims; teams are admin-written); no other doc claims one (git grep).
