@@ -16,6 +16,7 @@ function Harness() {
     <div style={{ padding: 16, background: "var(--bg-1)", maxWidth: 340 }}>
       <p className="small">Synthetic control, not drill data.</p>
       <EndSearch
+        queued={q.get("queued") === "1"}
         onEnd={(reason) =>
           new Promise<void>((resolve, reject) => {
             if (q.get("fail") === "1") return reject(new Error("refused"));

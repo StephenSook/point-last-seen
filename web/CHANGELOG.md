@@ -2341,3 +2341,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the ended line waited for the incident doc to have no pending write, so after a confirmed close any later offline edit to the incident (a prior rebuild, say, which the rules then refuse) marked the doc pending and brought back the add buttons and End this search until the server answered. The incident listener now keeps `serverStatus`, the status the server last confirmed (`confirmedStatus` in `web/src/data/endSearch.ts`: a snapshot holding this browser's pending write leaves it as it was), and the post shows the search ended from that.
 - Source: review (Codex, second round: a pending prior edit makes a closed search look open again).
 - Verified: a new unit test in `endSearch.test.ts` failed first, then passed; typecheck, web unit suite (1153), the whole harness, the build and every no-backend check (45) pass, with the hygiene guard.
+
+### fix(command): a close queued on this browser offers no second close
+- What: a close written offline stays queued across a reload, but the reloaded post offered End this search again, so command could queue a second close. While this browser holds a close the server has not confirmed, End this search now shows only "Ending the search..." and offers nothing more; it stays mounted, so if the server refuses the close the confirm comes back with the error.
+- Source: review (Codex, second round, low: reloading during a pending close allows a second submission).
+- Verified: a new harness check (`?queued=1`) failed first, then passed with the whole harness (213); typecheck and the hygiene guard pass.

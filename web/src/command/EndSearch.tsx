@@ -5,7 +5,12 @@
 import { useEffect, useRef, useState } from "react";
 import { END_REASONS, type EndReason } from "../data/endSearch";
 
-export function EndSearch({ onEnd }: { onEnd: (reason: EndReason) => Promise<void> }) {
+/**
+ * queued: this browser has written a close the server has not confirmed yet (also after a reload while offline). It
+ * shows only "Ending the search..." and offers no second close, but stays mounted, so if the server refuses the close
+ * the confirm comes back with the error.
+ */
+export function EndSearch({ onEnd, queued = false }: { onEnd: (reason: EndReason) => Promise<void>; queued?: boolean }) {
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState<EndReason | null>(null);
   const [busy, setBusy] = useState(false);
@@ -19,6 +24,8 @@ export function EndSearch({ onEnd }: { onEnd: (reason: EndReason) => Promise<voi
     else if (opened.current) trigger.current?.focus();
     opened.current = asking;
   }, [asking]);
+
+  if (queued) return <p role="status">Ending the search...</p>;
 
   if (!asking) {
     return (

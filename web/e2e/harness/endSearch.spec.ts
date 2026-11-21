@@ -43,3 +43,9 @@ test("a refused write says so and keeps the confirm open to try again", async ({
   await expect(page.getByRole("button", { name: "End search", exact: true })).toBeEnabled();
   await expect(page.getByTestId("ended")).toHaveText("open");
 });
+
+test("a close already queued on this browser (say, after a reload offline) offers no second close", async ({ page }) => {
+  await page.goto("/harness/end-search.html?queued=1");
+  await expect(page.getByRole("status")).toHaveText("Ending the search...");
+  await expect(page.getByRole("button", { name: "End this search" })).toHaveCount(0);
+});

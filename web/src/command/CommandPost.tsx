@@ -1021,7 +1021,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               paperRead={readSheetHere}
             />
             <MergeLanes lanes={lanes} />
-            {incident && !ended && <EndSearch onEnd={(reason) => endSearch(pls.db, incidentId, reason)} />}
+            {/* queued: a close this browser has written that the server has not confirmed (also after a reload offline). */}
+            {incident && !ended && <EndSearch queued={incident.status === "closed"} onEnd={(reason) => endSearch(pls.db, incidentId, reason)} />}
           </details>
         </aside>
       </div>
