@@ -1,0 +1,8 @@
+/* The static privacy and support pages: one readable column in the app's own type and colours. */
+.doc { width: min(680px, calc(100% - 32px)); margin: 6vh auto; display: grid; gap: 16px; }
+.doc h1 { margin: 0; font-size: 28px; }
+.doc h2 { margin: 8px 0 0; }
+.doc p { margin: 0; max-width: 64ch; line-height: 1.5; }
+.doc a { color: var(--fg-1); }
+.doc-links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.draft { border-left: 3px solid var(--fg-1); background: var(--bg-2); padding: 6px 10px; font-weight: 700; }
