@@ -7,8 +7,9 @@ priorLayers, gridAttribution, priorVersion, engineParams.rings.<terrain> from th
 created before its terrain existed can build that prior, and priorBuiltAt at the server's time). The incident update is the last write, so the incident never
 points at a grid whose segments are not there yet. Then it reads the segments back and checks the count.
 
-Usage: python3 -I tools/seed/seed_segments.py <project> <incidentId> <segments.json> --prior-version N
+Usage: python3 -I tools/seed/seed_segments.py <project> <incidentId> <segments.json> --prior-version N [--i-know-judging-is-open]
 """
+import datetime as dt
 import json
 import math
 import re
@@ -19,6 +20,11 @@ import urllib.request
 from pathlib import Path
 
 ENGINE_PARAMS = Path(__file__).resolve().parents[2] / "shared/constants/engine-params.json"
+# The drill every judge practice search is copied from, and the judging window: a practice copy taken while that seed is
+# reseeded could mix two sites, so the seed tool refuses to reseed it then unless the operator says so.
+JUDGE_SEED = Path(__file__).resolve().parents[2] / "shared/constants/judge-seed.json"
+JUDGING_FROM, JUDGING_TO = dt.date(2026, 11, 30), dt.date(2026, 12, 17)
+JUDGING_FLAG = "--i-know-judging-is-open"
 
 COMMIT_MAX = 500
 ID = re.compile(r"^[A-Z]{2}$")
@@ -173,11 +179,35 @@ def version_problem(existing_ids: set[str], stored_version: int | None, new_vers
     return None
 
 
+def judging_problem(incident_id: str, today: dt.date, judging_flag: bool) -> str | None:
+    """Why the seed may not write today, or None: the practice seed is not reseeded while judging is open unless the
+    operator passes the flag (a practice copy taken during the reseed could mix two sites)."""
+    if judging_flag or incident_id != json.loads(JUDGE_SEED.read_text())["incidentId"]:
+        return None
+    if JUDGING_FROM <= today <= JUDGING_TO:
+        return (f"{incident_id} is the practice seed and judging is open ({JUDGING_FROM} to {JUDGING_TO}); a practice copy "
+                f"taken during the reseed could mix two sites. Pass {JUDGING_FLAG} to reseed anyway")
+    return None
+
+
+def parse_args(argv: list[str]) -> tuple[str, str, str, int, bool] | None:
+    """(project, incident id, segments file, prior version, judging flag), or None when the command line is wrong."""
+    flag = argv[5:] == [JUDGING_FLAG]
+    if len(argv) not in (5, 6) or argv[3] != "--prior-version" or (len(argv) == 6 and not flag) or not argv[4].isdigit():
+        return None
+    return argv[0], argv[1], argv[2], int(argv[4]), flag
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) != 5 or argv[3] != "--prior-version":
+    args = parse_args(argv)
+    if args is None:
         print(__doc__.strip().splitlines()[-1], file=sys.stderr)
         return 2
-    project, incident_id, path, _, version = argv
+    project, incident_id, path, version, judging_flag = args
+    why = judging_problem(incident_id, dt.datetime.now(dt.timezone.utc).date(), judging_flag)
+    if why:
+        print(f"seed_segments: REFUSED: {why}", file=sys.stderr)
+        return 1
     p = json.load(open(path))
     validate(p)
     token = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True, check=True).stdout.strip()

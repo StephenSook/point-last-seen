@@ -150,3 +150,24 @@ def test_the_incident_is_read_before_the_segments_are_listed():
     body = src[src.index("def main("):]
     assert body.index("read_incident(project, incident_id, token") < body.index("segment_ids(project, incident_id, token)")
 
+
+def test_the_practice_seed_is_never_reseeded_while_judging_is_open_without_saying_so():
+    # Ruling: a judge's practice copy taken while the seed is reseeded could mix two sites, so the seed tool refuses to
+    # reseed the practice seed from 2026-11-30 to 2026-12-17 (judging) unless the operator passes the flag.
+    import datetime as dt
+    seed_id = json.loads((Path(seed.__file__).resolve().parents[2] / "shared/constants/judge-seed.json").read_text())["incidentId"]
+    assert seed.judging_problem(seed_id, dt.date(2026, 11, 29), False) is None
+    assert "--i-know-judging-is-open" in seed.judging_problem(seed_id, dt.date(2026, 11, 30), False)
+    assert "--i-know-judging-is-open" in seed.judging_problem(seed_id, dt.date(2026, 12, 17), False)
+    assert seed.judging_problem(seed_id, dt.date(2026, 12, 18), False) is None
+    assert seed.judging_problem(seed_id, dt.date(2026, 12, 1), True) is None
+    assert seed.judging_problem("drill-test-1", dt.date(2026, 12, 1), False) is None
+
+
+def test_the_command_line_takes_the_judging_flag_only_at_the_end():
+    base = ["proj", "drill-x", "segs.json", "--prior-version", "3"]
+    assert seed.parse_args(base) == ("proj", "drill-x", "segs.json", 3, False)
+    assert seed.parse_args([*base, "--i-know-judging-is-open"]) == ("proj", "drill-x", "segs.json", 3, True)
+    assert seed.parse_args(base[:4]) is None
+    assert seed.parse_args([*base, "--force"]) is None
+

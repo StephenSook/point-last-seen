@@ -77,6 +77,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- tools/seed: seed_segments.py refuses to reseed the practice seed (shared/constants/judge-seed.json) from 2026-11-30
+  to 2026-12-17, while judging is open, unless --i-know-judging-is-open is passed (judging_problem; parse_args takes
+  the flag only at the end). A judge's practice copy taken during such a reseed could mix two sites. README's seed
+  step says so, with the reseed's higher --prior-version. Source: review (ruling). Verified:
+  test_the_practice_seed_is_never_reseeded_while_judging_is_open_without_saying_so (both sides of 2026-11-30 and
+  2026-12-17, the flag, another incident) and test_the_command_line_takes_the_judging_flag_only_at_the_end failed
+  first, then pass; 44 seed tests pass.
 - tools/seed: the incident is read before the segments are listed, so the commit's updateTime precondition fails a run
   that a concurrent seed overtook between the reads, before any write; listed first, the stale list passed with the
   newer updateTime and left a mixed grid. Source: review (cross-family). Verified:
