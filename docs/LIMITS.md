@@ -172,13 +172,15 @@ each line says what the limit is and why.
 - A pair of decimals that starts with "+" is removed on every platform, since a phone number can be written that
   way ("Call +44.2071, -23.4567"); so a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too.
   Without the "+" a pair stays.
-- Of the 109 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 103, the iPhone
-  103 and the web 109. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). Six are
-  pending on Android and the iPhone: a run of times kept whole, the same run beside a separate number, and four numbers
-  written as times that must go whole (`scripts/test_phone_vectors.py` checks these counts against the file).
+- Of the 113 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 103, the iPhone
+  103 and the web 113. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). Ten are
+  pending on Android and the iPhone: a run of times kept whole, the same run beside a separate number, seven numbers
+  written as times that must go whole, and a spoken digit joined to a run of times
+  (`scripts/test_phone_vectors.py` checks these counts against the file).
 - A run of times in clock order with no phone cue before it is kept as search information, so a phone number written
-  as rising times (`2:12 5:55 6:42`) is not removed. Out of order (`12:12 5:55 01:42`) or right after a cue (`Call 21:25
-  5:50 1:42`) it is.
+  as rising times (`2:12 5:55 6:42`) is not removed. Out of order (`12:12 5:55 01:42`) or with a cue among the three
+  words before it (`Call 21:25 5:50 1:42`, `Reach me at 4:04 5:55 06:42`) it is. A note that NFKC changes (superscript
+  or full-width digits, for example) skips this step, so the shared rule may leave the first hour of such a run.
 
 ## Photo clues (iPhone)
 

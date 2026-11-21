@@ -52,7 +52,8 @@ REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one fo
                    "33.12345678, 33.87654321", "55.12345678, 55.87654321", "33.12345678, -103.3496",
                    "33.12345678 / -81.12345678", "33.1234, -84.5678",
                    # A run of times right after a phone cue, or out of clock order, is a number written as times.
-                   "21:25 5:50 1:42", "21:25, 5:50, 1:42", "12:12 5:55 01:42", "4:04 5:55 01:42"]
+                   "21:25 5:50 1:42", "21:25, 5:50, 1:42", "12:12 5:55 01:42", "4:04 5:55 01:42",
+                  "4:04 5:55 16:42", "4:04 5:55 06:42", "4:04 5:55 16:43"]
 # A date in a note is search information, not a phone number, so every platform keeps it; so are coordinates
 # (without a leading +), a ZIP+4 code, a grouped count under seven digits, a street number and a number with a unit.
 REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "2026-11-19", "11/19", "Nov 19",
@@ -76,6 +77,8 @@ REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "202
 REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number removed]"),
                   # A run of times, then a number apart from it: the times stay, the number goes.
                   ("Times 14:03, 14:10, 14:17. Call 404 555 0142", "Times 14:03, 14:10, 14:17. Call [number removed]"),
+                  # A spoken digit joined to a run of times makes it part of a number: the shared rule decides it.
+                  ("Call four 4:04 5:55 6:42", "Call [number removed]"),
                   # A date stays when the rest of its run is a whole number: when someone was seen is search
                   # information, and keeping it leaks nothing once the number beside it is gone.
                   ("Seen 11/19/2026 404-555-0142", "Seen 11/19/2026 [number removed]"),

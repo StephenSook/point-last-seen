@@ -197,3 +197,25 @@ describe("removePhoneNumbers: a Mexican number in dot form is not a coordinate p
   });
 });
 
+
+describe("removePhoneNumbers: a run made only of clock times", () => {
+  it("a phone cue with a tab, a line break or a bracket before the run still removes it whole", () => {
+    for (const t of ["Call\t4:04 5:55 16:42", "Call\r\n4:04 5:55 16:42", "Call (4:04 5:55 16:42)"]) noDigit(t);
+  });
+  it("a cue a few words back still counts (Reach me at 4:04 5:55 06:42)", () => {
+    noDigit("Reach me at 4:04 5:55 06:42");
+    noDigit("Text her on 4:04 5:55 06:42");
+  });
+  it("a spoken digit or a Chinese numeral joined to the run leaves it to the shared rule", () => {
+    expect(removePhoneNumbers("Call four 4:04 5:55 6:42")).toBe(`Call ${REPLACEMENT}`);
+    gone("Call 4:04 5:55 01:42 five 0142", ["five", "0142", "5:55"]);
+    gone("Seen 四 4:04 5:55 6:42", ["5:55", "6:42"]);
+  });
+  it("a private-use character typed in the note stays where it was and moves no time", () => {
+    const t = "Seen . Times 4:04 5:55 6:42.";
+    expect(removePhoneNumbers(t)).toBe(t);
+  });
+  it("digits that NFKC turns into ASCII never count as a run of times", () => {
+    gone("⁴:⁰⁴ ⁵:⁵⁵ ⁶:⁴²", ["04", "5:55", "6:42"]);
+  });
+});

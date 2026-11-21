@@ -81,48 +81,55 @@ function range(first: number, last: number): number[] {
 }
 
 // A run made only of clock times: two or more h:mm in ASCII digits (hour 0 to 23, minutes 00 to 59) separated by
-// commas or spaces, with no other digit joined to it on either side (only letters may stand between). Anything else
-// is left to the rule below.
+// commas or spaces, with no digit before or after it through anything but letters.
 const TIMES_RUN = /(?<!\p{N}[^\p{L}\p{N}]*)(?:[01]?\d|2[0-3]):[0-5]\d(?:[ ,]+(?:[01]?\d|2[0-3]):[0-5]\d)+(?![^\p{L}\p{N}]*\p{N})/gu;
-// Before a run of times, two more words cue a number (Text 21:25 5:50 1:42; Reach 4:04 5:55 6:42).
+// Before a run of times, two more words cue a number (Text 21:25 5:50 1:42; Reach me at 4:04 5:55 6:42).
 const TIME_CUES = new Set([...PHONE_CUES, "text", "reach"]);
-// Kept runs stand in as a mark with no digits while the rule runs, then come back.
-const KEPT_MARK = "";
+// How many words before a run of times are read for a cue.
+const CUE_WINDOW = 3;
 
-/** Whether the text just before a run cues a number: a "#", or a cue word right before it, or with one connector. */
-function cueBeforeRun(before: string): boolean {
-  if (/#[^\p{L}\p{N}]*$/u.test(before)) return true;
-  const words = [...before.matchAll(/\p{L}+/gu)].map((m) => ({ w: m[0].toLowerCase(), start: m.index, end: m.index + m[0].length }));
-  const near = (from: number, to: number) => /^[ \n:]*$/.test(before.substring(from, to));
-  const last = words.at(-1);
-  if (!last || !near(last.end, before.length)) return false;
-  if (TIME_CUES.has(last.w)) return true;
-  const prev = words.at(-2);
-  return !!prev && CUE_CONNECTORS.has(last.w) && near(prev.end, last.start) && TIME_CUES.has(prev.w);
+/** Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it, or a "#". */
+function cuedRun(s: string, parts: Part[], first: number): boolean {
+  let j = first - 1;
+  for (let n = 0; n < CUE_WINDOW && j >= 0 && parts[j]!.digits === 0; n++, j--) {
+    if (TIME_CUES.has(word(s, parts[j]!))) return true;
+  }
+  return s.substring(j >= 0 ? parts[j]!.end : 0, parts[first]!.start).includes("#");
 }
 
 /**
- * A run of times is search information when it reads in clock order (each time no earlier than the one before) with no
- * phone cue before it: it stays whole (The possible times are 14:03, 14:10, 14:17.). Out of order or after a cue it
- * could be a number written as times (Call 21:25 5:50 1:42, 12:12 5:55 01:42), and the whole run goes: when in doubt,
- * remove. Every other run follows the rule below unchanged.
+ * A run of times the shared rule reads as its own group (no digit, written or spoken, joined to it on either side) is
+ * decided whole. In clock order (each time no earlier than the one before) with no phone cue before it, it is search
+ * information and stays (The possible times are 14:03, 14:10, 14:17.). Out of order or after a cue it could be a
+ * number written as times (Call 21:25 5:50 1:42, 12:12 5:55 01:42), and the whole run goes: when in doubt, remove.
+ * The text between such runs follows the shared rule unchanged, and so does every note that NFKC changes, since
+ * folding can turn other characters into the ASCII digits a run is made of.
  */
 export function removePhoneNumbers(text: string): string {
   const folded = text.normalize("NFKC");
-  const kept: string[] = [];
-  const marked = folded.replace(TIMES_RUN, (run: string, at: number) => {
-    const minutes = [...run.matchAll(/(\d+):(\d+)/g)].map((m) => Number(m[1]) * 60 + Number(m[2]));
-    const inOrder = minutes.every((m, i) => i === 0 || m >= minutes[i - 1]!);
-    if (!inOrder || cueBeforeRun(folded.substring(0, at))) return REPLACEMENT;
-    kept.push(run);
-    return KEPT_MARK;
-  });
-  let k = 0;
-  return removeByRule(marked).replace(new RegExp(KEPT_MARK, "g"), () => kept[k++] ?? "");
+  if (folded !== text) return removeByRule(folded);
+  const parts = ruleParts(folded);
+  const startsAt = new Map(parts.map((p, i) => [p.start, i] as const));
+  const endsAt = new Map(parts.map((p, i) => [p.end, i] as const));
+  let out = "";
+  let from = 0;
+  for (const m of folded.matchAll(TIMES_RUN)) {
+    const first = startsAt.get(m.index);
+    const last = endsAt.get(m.index + m[0].length);
+    if (first === undefined || last === undefined) continue;
+    const joined = (first > 0 && joins(folded, parts[first - 1]!, parts[first]!))
+      || (last + 1 < parts.length && joins(folded, parts[last]!, parts[last + 1]!));
+    if (joined) continue;
+    const minutes = [...m[0].matchAll(/(\d+):(\d+)/g)].map((t) => Number(t[1]) * 60 + Number(t[2]));
+    const inOrder = minutes.every((v, i) => i === 0 || v >= minutes[i - 1]!);
+    out += removeByRule(folded.substring(from, m.index)) + (inOrder && !cuedRun(folded, parts, first) ? m[0] : REPLACEMENT);
+    from = m.index + m[0].length;
+  }
+  return out + removeByRule(folded.substring(from));
 }
 
-function removeByRule(text: string): string {
-  const folded = text.normalize("NFKC");
+/** The parts of s as the shared rule reads them: a spoken repeat counted, and a street name's number set apart. */
+function ruleParts(folded: string): Part[] {
   const parts = partsOf(folded);
   for (let i = 0; i < parts.length - 1; i++) {
     const repeat = REPEATS[word(folded, parts[i]!)];
@@ -137,6 +144,12 @@ function removeByRule(text: string): string {
       if (between.length > 0 && isBlank(between)) p.alone = true;
     }
   }
+  return parts;
+}
+
+function removeByRule(text: string): string {
+  const folded = text.normalize("NFKC");
+  const parts = ruleParts(folded);
   const { found, kept, glued } = searchSpans(folded, parts);
   // Walk back from the end, so replacing one number never moves the ones before it.
   let out = folded;

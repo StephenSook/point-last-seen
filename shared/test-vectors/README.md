@@ -170,14 +170,19 @@ digits before its hour, or after a ZIP+4 code, it goes with the run (`Call 1 404
 `Call GA 40455-5014 2:30`).
 
 A run made only of clock times is decided first, as a whole. Such a run is two or more times written in ASCII digits
-(`h:mm` or `hh:mm`, hour 0 to 23, minutes 00 to 59) separated by commas or spaces, with no other digit joined to it on
-either side (only a letter may stand between). It stays whole when it reads in clock order (each time no earlier than
-the one before) and no phone cue stands right before it (`The possible times are 14:03, 14:10, 14:17.`). Out of order
-(`Try 12:12 5:55 01:42`) or right after a phone cue (the cue words above plus `text` and `reach`, with at most one
-connector word between, or a `#`: `Call 21:25 5:50 1:42`), it could be a number written as times, and the whole run
-is replaced by one `[number removed]`: when in doubt, remove. Any other run, a run of times joined to other digits
-among them, follows the rule above unchanged. A number written as rising times with no cue (`2:12 5:55 6:42`) stays;
-`docs/LIMITS.md` says so.
+(`h:mm` or `hh:mm`, hour 0 to 23, minutes 00 to 59) separated by commas or spaces. It is decided only when the rule
+above would read it as its own group: no digit stands before or after it through anything but letters, and no digit
+part of the rule above (a written digit, a spoken digit such as `four`, a Chinese numeral, or a counted `double` or
+`triple`) joins its first or last part. A run that fails this goes to the rule above unchanged
+(`Call four 4:04 5:55 6:42` gives `Call [number removed]`). A decided run stays whole when it reads in clock order
+(each time no earlier than the one before) with no phone cue before it (`The possible times are 14:03, 14:10, 14:17.`).
+Out of order (`Try 12:12 5:55 01:42`) or with a cue before it, it could be a number written as times, and the whole run
+is replaced by one `[number removed]`: when in doubt, remove. A cue here is one of the cue words above, or `text` or
+`reach`, among the three words just before the run (`Reach me at 4:04 5:55 06:42`), or a `#` between the run and the
+part before those words; spaces, tabs, line breaks and brackets between do not matter (`Call (4:04 5:55 16:43)`). The
+text between decided runs follows the rule above unchanged. A note that NFKC changes skips this step entirely, since
+folding can turn other characters (superscript or full-width digits) into the ASCII digits a run is made of. A number
+written as rising times with no cue (`2:12 5:55 6:42`) stays; `docs/LIMITS.md` says so.
 
 ## language.json (hand-written)
 
