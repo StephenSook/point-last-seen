@@ -98,6 +98,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   scripts/ai_spend.py since 2026-11-13); --check validates the committed file in CI. Source: review (a measured block
   on a judged surface). Verified: 8 tests (dedupe, medians, shares, window, the file's own check) failed first, then
   pass.
+- functions: the retention purge counts each sign-in once: a removed member whose claims were not yet cleared is
+  handled by the removal pass and skipped by the claim pass, so a dry run's count matches what a live run deletes.
+  Source: review (cross-family, round 1 on removed members' sign-ins). Verified: a dry run with one cleared and one
+  not-yet-cleared removed sign-in counted 3 before the fix and counts 2 after, as the live run deletes 2; 362
+  functions and rules tests pass.
+- docs(limits): the retention line names removed members' sign-ins, found through the drill's removal records. Source:
+  review (claims check).
+- functions: the retention purge also deletes the sign-ins of members command removed from the drill. Removal clears
+  their claims, so the scan by claim missed them; they are read from the drill's removal records, before the drill is
+  deleted, and deleted only while still anonymous, holding no claims or this drill's, and unused since the close.
+  Source: review (claims check of the privacy policy and LIMITS against retention). Verified: new cases (an idle
+  removed sign-in deleted; one that joined another drill, one used after the close and a person's kept; a dry run
+  counts and deletes nothing) failed first, then pass; 362 functions and rules tests and the typecheck pass.
 - scripts: the judge quota probe counts the lower of the cap stored with the count and the checkout's, so a cap
   lowered today alarms before the next start stores it. Source: review (cross-family, round 2 on the judge quota
   probe). Verified: a same-day reduction case (40 used, stored cap 50, checkout 40) failed first, then passes; all 8

@@ -415,3 +415,41 @@ describe("deleteEndedDrills: 30 days after the close", () => {
     expect((await purge("OLD").get()).exists).toBe(false);
   });
 });
+
+describe("deleteEndedDrills: members command removed", () => {
+  // Removal clears the account's claims, so the scan by claim cannot find it; the drill's removal records name it.
+  async function removedAccount(incidentId: string, claims: Record<string, unknown> | null, anonymous = true, lastUsedMs = Date.UTC(2026, 9, 1)): Promise<string> {
+    const uid = `r${uidN++}-${Math.random().toString(36).slice(2, 8)}`;
+    const used = new Date(lastUsedMs).toUTCString();
+    const r = await admin.auth.importUsers([{ uid, ...(anonymous ? {} : { email: `${uid}@example.com` }),
+      ...(claims ? { customClaims: claims } : {}), metadata: { creationTime: used, lastSignInTime: used } }]);
+    if (r.failureCount) throw new Error(`importUsers failed: ${r.errors[0]?.error.message}`);
+    await inc(incidentId).collection("removed").doc(uid).set({ removedAt: Timestamp.fromMillis(lastUsedMs), removedBy: "c", role: "searcher" });
+    return uid;
+  }
+  it("deletes a removed member's idle anonymous sign-in with the drill, and keeps one that moved on, was used after the close, or is a person's", async () => {
+    await drill("OLD", closed(31));
+    const idle = await removedAccount("OLD", null);
+    const moved = await removedAccount("OLD", { inc: "OTHER", role: "searcher", team: "T1" });
+    const usedSince = await removedAccount("OLD", null, true, NOW - DAY);
+    const person = await removedAccount("OLD", null, false);
+    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW);
+    expect(r.deleted).toEqual(["OLD"]);
+    expect(await userExists(idle)).toBe(false);
+    expect(await userExists(moved)).toBe(true);
+    expect(await userExists(usedSince)).toBe(true);
+    expect(await userExists(person)).toBe(true);
+    expect(r.users).toBe(1);
+  });
+  it("a dry run counts each removed sign-in once and deletes nothing, also one whose claims were not yet cleared", async () => {
+    await drill("OLD", closed(31));
+    const idle = await removedAccount("OLD", null);
+    const notCleared = await removedAccount("OLD", { inc: "OLD", role: "searcher", team: "T1" });
+    const r = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW, { dryRun: true });
+    expect(await userExists(idle)).toBe(true);
+    expect(await userExists(notCleared)).toBe(true);
+    expect(r.users).toBe(2);
+    const live = await deleteEndedDrills(admin.db, bucket, admin.auth, NOW);
+    expect(live.users).toBe(2);
+  });
+});
