@@ -89,3 +89,21 @@ export function subscribeFlags(db: Firestore, incidentId: string, cb: (flags: Fl
     () => onRefused(),
   );
 }
+
+/**
+ * The team of the account's latest report, by server time (a phone's clock can be wrong), then its own time; reports
+ * with neither are skipped. Null when it has sent none. A rejoin can move a searcher to another team.
+ */
+export function latestTeamOf(uid: string, events: readonly Readonly<Record<string, unknown>>[]): string | null {
+  const when = (e: Readonly<Record<string, unknown>>) => {
+    const t = typeof e["serverTimeMs"] === "number" ? e["serverTimeMs"] : e["clientTimeMs"];
+    return typeof t === "number" && Number.isFinite(t) ? t : null;
+  };
+  let best: { at: number; team: string } | null = null;
+  for (const e of events) {
+    const at = when(e), team = e["teamId"];
+    if (e["authorUid"] !== uid || at === null || typeof team !== "string") continue;
+    if (!best || at > best.at) best = { at, team };
+  }
+  return best?.team ?? null;
+}

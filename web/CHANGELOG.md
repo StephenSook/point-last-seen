@@ -2396,3 +2396,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the flag's author label took the team of the first event the account wrote, so a searcher who rejoined on another team was named by the old one ("Team 1 searcher flagged their task" for a Team 2 task). It now takes the team of the account's latest report.
 - Source: review (Codex: a flag can name the wrong team).
 - Verified: typecheck passes; the label's lookup is a two-line change in `CommandPost.tsx`, which no harness renders, so it rests on the review and the deployed post.
+
+### fix(data): a flagging searcher's team comes from its latest report by server time
+- What: the author label picked the report with the largest phone time, so a phone clock set back between a Team 1 report and a newer Team 2 report kept the old team, and a report with no time stopped every later match. `latestTeamOf` in `web/src/data/contentReports.ts` orders by server time, then the report's own time, and skips reports with neither; the command post uses it.
+- Source: review (Codex, second round: the team lookup can keep the old team after a rejoin).
+- Verified: a new unit test in `contentReports.test.ts` (a skewed phone clock and a report with no time) failed first, then passed; typecheck and the hygiene guard pass.

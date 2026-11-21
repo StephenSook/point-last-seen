@@ -51,3 +51,17 @@ describe("content reports, after review", () => {
     expect(flagTarget(reportFromDoc("r", doc({ target: "family_description", targetId: null }))!, [], [], at)).toBe("the family's description");
   });
 });
+
+describe("content reports, second round", () => {
+  it("names the team of the account's latest report by server time, skipping reports with no time", async () => {
+    const { latestTeamOf } = await import("./contentReports");
+    const events = [
+      { authorUid: "u1", teamId: "T9", clientTimeMs: undefined, serverTimeMs: null },
+      { authorUid: "u1", teamId: "T1", clientTimeMs: 5_000, serverTimeMs: 1_000 },
+      { authorUid: "u1", teamId: "T2", clientTimeMs: 1_000, serverTimeMs: 2_000 },
+      { authorUid: "u2", teamId: "T3", clientTimeMs: 9_000, serverTimeMs: 9_000 },
+    ];
+    expect(latestTeamOf("u1", events)).toBe("T2");
+    expect(latestTeamOf("nobody", events)).toBeNull();
+  });
+});

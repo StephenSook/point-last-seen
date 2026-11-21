@@ -45,7 +45,7 @@ import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
 import { subscribeIncident } from "../data/incident";
-import { flagTarget, subscribeFlags, type Flag } from "../data/contentReports";
+import { flagTarget, latestTeamOf, subscribeFlags, type Flag } from "../data/contentReports";
 import { FlagsPanel } from "./FlagsPanel";
 import { endedLine, endSearch, writesOpen } from "../data/endSearch";
 import { EndSearch } from "./EndSearch";
@@ -417,9 +417,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const flagClock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   const flagAuthor = (uid: string, role: Flag["role"]) => {
     if (role === "family") return "Family member";
-    let latest: (typeof events)[number] | undefined;
-    for (const e of events) if (e["authorUid"] === uid && (!latest || Number(e["clientTimeMs"]) > Number(latest["clientTimeMs"]))) latest = e;
-    const teamId = latest?.["teamId"];
+    const teamId = latestTeamOf(uid, events);
     const team = teams.find((t) => t.teamId === teamId)?.name;
     return team ? `${team} searcher` : "A searcher";
   };
