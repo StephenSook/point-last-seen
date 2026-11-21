@@ -2,6 +2,8 @@ package app.pointlastseen.family.ui
 
 import app.pointlastseen.family.ai.DeviceModelStatus
 import app.pointlastseen.family.ai.ModelState
+import app.pointlastseen.family.data.RouteRecord
+import java.util.Locale
 
 /** Fixed app copy, in one place so tests pin it. */
 object Copy {
@@ -42,6 +44,21 @@ object Copy {
         DeviceModelStatus.DOWNLOADING -> m.percent?.let { "The on-device model is downloading: $it%." } ?: "The on-device model is downloading."
         DeviceModelStatus.UNAVAILABLE -> "This phone has no on-device model."
         DeviceModelStatus.UNKNOWN -> "This phone could not report its on-device model."
+    }
+
+    /** Where a read ran and how long it took; for a cloud read, why it did not run on this phone. */
+    fun readWhere(route: RouteRecord, status: DeviceModelStatus): String {
+        val took = String.format(Locale.US, "%.1f s", route.latencyMs / 1000.0)
+        if (route.path == "on_device") return "Read on this phone in $took."
+        val why = when {
+            route.reason == "sdk_fallback" -> "The on-device model could not read it."
+            route.reason != "on_device_unavailable" -> null
+            status == DeviceModelStatus.UNAVAILABLE -> "This phone has no on-device model."
+            status == DeviceModelStatus.DOWNLOADABLE -> "The on-device model is not downloaded yet."
+            status == DeviceModelStatus.DOWNLOADING -> "The on-device model is still downloading."
+            else -> "This phone could not report its on-device model."
+        }
+        return "Read in the cloud in $took." + (why?.let { " $it" } ?: "")
     }
 
     const val GET_MODEL = "Get the on-device model"

@@ -96,7 +96,7 @@ fun NoteScreen(
                 is NoteOutcome.Read -> {
                     var label by remember(o) { mutableStateOf(o.reading.label) }
                     Sentence("Suggested: ${KIND_LABEL[o.reading.kind] ?: o.reading.kind}")
-                    Note(if (o.route.path == "on_device") "Read on this phone" else "Read in the cloud")
+                    Note(Copy.readWhere(o.route, o.modelStatus))
                     OutlinedTextField(label, { label = it.take(FamilyNote.MAX_LABEL) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     MainAction("Add to profile", enabled = label.isNotBlank()) { onAdd(o.reading.copy(label = label.trim())) }
                 }

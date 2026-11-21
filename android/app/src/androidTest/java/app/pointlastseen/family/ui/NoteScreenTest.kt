@@ -69,13 +69,20 @@ class NoteScreenTest {
 
     @Test fun aSuggestionIsLabelledEditableAndShowsWhereItWasRead() {
         var added: FamilyNoteReading? = null
-        val read = NoteOutcome.Read(FamilyNoteReading("place", "The old mill", "s", "old mill"), route, "old mill")
+        val read = NoteOutcome.Read(FamilyNoteReading("place", "The old mill", "s", "old mill"), route, "old mill", DeviceModelStatus.UNAVAILABLE)
         rule.setContent { PaperTheme { NoteScreen(null, false, NoteUi.Done(read, "old mill"), onSort = { _, _ -> }, onAdd = { added = it }, onBack = {}) } }
         rule.onNodeWithText("Suggested: a place they like to go").assertIsDisplayed()
-        rule.onNodeWithText("Read in the cloud").assertIsDisplayed()
+        rule.onNodeWithText("Read in the cloud in 0.9 s. This phone has no on-device model.").assertIsDisplayed()
         rule.onNodeWithText("The old mill").performTextReplacement("Old mill on Route 9")
         rule.onNodeWithText("Add to profile").performScrollTo().performClick()
         assertEquals(FamilyNoteReading("place", "Old mill on Route 9", "s", "old mill"), added)
+    }
+
+    @Test fun aReadOnThisPhoneSaysSoWithItsTime() {
+        val local = RouteRecord("android", "on_device", "sdk", "gemini-nano (ML Kit Prompt API)", "on_device_default", 1234, true, null, 1)
+        val read = NoteOutcome.Read(FamilyNoteReading("place", "The old mill", "s", "old mill"), local, "old mill", DeviceModelStatus.AVAILABLE)
+        rule.setContent { PaperTheme { NoteScreen(null, false, NoteUi.Done(read, "old mill"), onSort = { _, _ -> }, onAdd = {}, onBack = {}) } }
+        rule.onNodeWithText("Read on this phone in 1.2 s.").assertIsDisplayed()
     }
 
     @Test fun possibleEvidenceShowsTheProtocolAndNoModelResult() {
