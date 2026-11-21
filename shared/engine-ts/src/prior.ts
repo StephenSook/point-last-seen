@@ -5,7 +5,7 @@ import { difference } from "@turf/difference";
 import { featureCollection, point, polygon } from "@turf/helpers";
 import { intersect } from "@turf/intersect";
 import type { Feature, MultiPolygon, Polygon } from "geojson";
-import { DEFAULT_PARAMS } from "./params";
+import { DEFAULT_PARAMS, ELEVATION_PARAMS } from "./params";
 import type { EngineParams, Grid, LatLon, SegmentPrior, Terrain } from "./types";
 
 const RING_STEPS = 128;
@@ -15,6 +15,14 @@ export interface PriorLayers {
   linear: boolean;
   /** ISRID dispersion: 75% within 66 degrees of the travel direction. Needs a travel bearing. */
   wedge: boolean;
+  /** ISRID elevation change from the IPP (p.164): 19% uphill, 39% level, 42% downhill. Needs segment elevations. */
+  elevation?: boolean;
+}
+
+/** Each segment's elevation in metres and the start's, for the elevation layer (from the site's elevation file). */
+export interface SegmentElevations {
+  startM: number;
+  bySegment: Readonly<Record<string, number>>;
 }
 
 export interface PriorResult {
@@ -42,6 +50,28 @@ export function linearWeights(mass: number[], nearFrac: number[], nearShare: num
   return nearFrac.map(f => (nearShare * f) / near + (farShare * (1 - f)) / (1 - near));
 }
 
+/**
+ * Elevation weights (Koester, Lost Person Behavior, dementia p.164): each segment classed uphill (more than levelBandM
+ * above the start), level (within levelBandM) or downhill, then weighted so the classes hold their shares of the
+ * classified mass. A class with no mass gives its share back pro rata; a segment with no elevation (null) keeps
+ * weight 1; with no mass or one class only, nothing changes. levelBandM is ours: the source defines no band.
+ */
+export function elevationWeights(mass: number[], relativeM: (number | null)[], shares: { up: number; level: number; down: number },
+  levelBandM: number): number[] {
+  if ([shares.up, shares.level, shares.down].some(v => !Number.isFinite(v) || v < 0)) {
+    throw new Error("The elevation shares must be finite and not negative");
+  }
+  const cls = relativeM.map(r => (r === null ? null : r > levelBandM ? "up" : r < -levelBandM ? "down" : "level"));
+  const classMass = { up: 0, level: 0, down: 0 };
+  cls.forEach((c, j) => { if (c) classMass[c] += mass[j]!; });
+  const total = classMass.up + classMass.level + classMass.down;
+  const present = (["up", "level", "down"] as const).filter(c => classMass[c] > 0);
+  const shareSum = present.reduce((n, c) => n + shares[c], 0);
+  // No mass, one class only, or no share for any class that has mass: nothing to move toward, so nothing changes.
+  if (total <= 0 || present.length <= 1 || shareSum <= 0) return mass.map(() => 1);
+  return cls.map(c => (c === null || classMass[c] <= 0 ? 1 : ((shares[c] / shareSum) * total) / classMass[c]));
+}
+
 function rescale(values: number[], targetSum: number): number[] {
   const s = values.reduce((n, v) => n + v, 0);
   return s > 0 ? values.map(v => (v * targetSum) / s) : values;
@@ -52,12 +82,18 @@ function rescale(values: number[], targetSum: number): number[] {
  * annulus, the ring mass times the share of the annulus area that the segment covers; ROW is the rest
  * (0.05 beyond the last ring plus whatever falls outside the grid). Then, when switched on, the linear
  * layer moves the grid's mass so that 75% sits near features, and the wedge layer weights segments by
- * direction (2.045 inside 66 degrees of the travel bearing, 0.395 outside); both keep the grid's mass.
+ * direction (2.045 inside 66 degrees of the travel bearing, 0.395 outside); both keep the grid's mass. Last, the
+ * elevation layer, when on, sets the grid's uphill, level and downhill shares (it needs segment elevations and
+ * refuses urban terrain, which the source gives no split for); it keeps the grid's mass too.
  */
 export function buildPrior(
   grid: Grid, ipp: LatLon, terrain: Terrain, layers: PriorLayers, travelBearingDeg: number | null,
-  params: EngineParams = DEFAULT_PARAMS,
+  params: EngineParams = DEFAULT_PARAMS, elevations?: SegmentElevations,
 ): PriorResult {
+  if (layers.elevation) {
+    if (terrain === "urban") throw new Error("The elevation layer has no urban split in its source, so it is not used on urban terrain");
+    if (!elevations) throw new Error("The elevation layer needs this site's segment elevations");
+  }
   const radiiKm = params.rings[terrain];
   const masses = params.rings.masses;
   // Each ring's share of the mass: at least one, each finite and not negative, adding up to more than 0 and at most 1
@@ -101,6 +137,16 @@ export function buildPrior(
       const b = (bearing(center, point([c.lon, c.lat])) + 360) % 360;
       return v * (angleBetween(b, travelBearingDeg) <= halfAngleDeg ? inside : outside);
     }), gridMass);
+  }
+
+  if (layers.elevation && elevations) {
+    const { levelBandM, temperate } = ELEVATION_PARAMS;
+    const rel = grid.segments.map(s => {
+      const m = elevations.bySegment[s.segmentId];
+      return typeof m === "number" && Number.isFinite(m) ? m - elevations.startM : null;
+    });
+    const w = elevationWeights(mass, rel, temperate, levelBandM);
+    if (w.some(x => x !== 1)) mass = rescale(mass.map((v, j) => v * w[j]!), gridMass);
   }
 
   const segments = grid.segments.map((s, j) => ({ segmentId: s.segmentId, priorPoa: mass[j]! }));
