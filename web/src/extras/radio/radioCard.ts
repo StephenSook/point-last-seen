@@ -1,3 +1,4 @@
+import { localDateTime } from "../print/localTime";
 import type { PrintModel } from "../print/printModel";
 import { CROCKFORD, PHONETIC } from "./radioCode";
 
@@ -25,10 +26,10 @@ export const SAY_LINES: readonly string[] = [
 
 export const MATCH_MEANING = "Same code means the same prior version and the same reports.";
 
-export function radioCards(model: PrintModel, opts: { sayLines: boolean; personLines?: readonly string[] }): RadioCardModel[] {
-  const approved = model.planApprovedAtMs === null
-    ? ""
-    : ` | ${new Date(model.planApprovedAtMs).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+/** `timeZone` is the laptop's own, as the ICS 204 printed with the cards uses: one local time on both papers. */
+export function radioCards(model: PrintModel, opts: { sayLines: boolean; personLines?: readonly string[]; timeZone: string }): RadioCardModel[] {
+  const at = model.planApprovedAtMs === null ? null : localDateTime(model.planApprovedAtMs, opts.timeZone);
+  const approved = at === null ? "" : ` | ${at.date} ${at.time}`;
   const planLine = model.planVersion === null ? "No approved plan." : `Plan v${model.planVersion}${approved}`;
   return model.teams.map(({ name, segmentIds, taskText }) => ({
     drillLine: model.drillLabel,
