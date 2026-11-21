@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): the incident listener hears the server confirm a cached state
+- What: the incident listener now asks for metadata changes, so when the server confirms a state the phone first saw
+  from its cache (only isFromCache changes), the listener still calls back and a real close is not missed.
+- Source: second review of the ended-search change.
+- Verified: by reading the listener and Firestore's listener options (includeMetadataChanges); the Firestore
+  listener has no test fake, so no unit test covers this line. 255 app tests pass.
+
 ### fix(ios): words cut off because the mission was dropped wait for review
 - What: when the mission is dropped while a typed report is being read (the search ended, the token moved), the
   words are not journaled, as before, and now they also wait for review: the phone shows "Your team changed while
