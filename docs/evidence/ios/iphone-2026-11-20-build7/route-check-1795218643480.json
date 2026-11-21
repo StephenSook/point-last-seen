@@ -1,0 +1,52 @@
+{
+  "appVersion" : "0.1.0",
+  "build" : "7",
+  "commit" : "a158b6fee1c4a906193b295f34f2ef807454caac",
+  "device" : "iPhone iOS 27.2.1",
+  "ranAtMs" : 1795218643480.2131,
+  "routes" : [
+    {
+      "kind" : "cleared",
+      "notes" : [
+
+      ],
+      "record" : {
+        "blocked" : null,
+        "decidedAtMs" : 1795218638782.826,
+        "latencyMs" : 1875.958984375,
+        "model" : "AFM 3 Core Advanced",
+        "path" : "on_device",
+        "platform" : "ios",
+        "reason" : "no_network",
+        "sdkReported" : false,
+        "stage" : "guided"
+      },
+      "route" : "on_device",
+      "segmentIds" : [
+        "BO"
+      ]
+    },
+    {
+      "kind" : "cleared",
+      "notes" : [
+
+      ],
+      "record" : {
+        "blocked" : null,
+        "decidedAtMs" : 1795218640730.232,
+        "latencyMs" : 2749.34619140625,
+        "model" : "gemini-3.5-flash-lite",
+        "path" : "cloud",
+        "platform" : "ios",
+        "reason" : "on_device_unavailable",
+        "sdkReported" : false,
+        "stage" : "guided"
+      },
+      "route" : "cloud",
+      "segmentIds" : [
+        "BO"
+      ]
+    }
+  ],
+  "sentence" : "Cleared segment BO, nothing found."
+}

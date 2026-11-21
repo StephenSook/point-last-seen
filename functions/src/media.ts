@@ -103,11 +103,12 @@ export async function handleDeleteMedia(db: Firestore, bucket: Pick<Bucket, "get
   }
   // As in the security rules (notExpired): claims outlive an incident, so the incident must exist and must not
   // have ended. An ended judge sandbox is swept by deleteIncidentMedia instead.
-  // A judge sandbox also needs a timestamp expiry and a finished setup, as liveFor requires.
+  // A judge sandbox also needs a timestamp expiry and an explicitly finished setup (setupReady === true), as liveFor
+  // requires.
   const incident = await db.doc(`incidents/${incidentId}`).get();
   const exp = incident.get("expiresAt");
   const unexpired = exp instanceof Timestamp && exp.toMillis() > Date.now();
-  const live = incident.get("mode") === "judge" ? unexpired && incident.get("setupReady") !== false : exp == null || unexpired;
+  const live = incident.get("mode") === "judge" ? unexpired && incident.get("setupReady") === true : exp == null || unexpired;
   if (!incident.exists || !live) {
     throw new HttpsError("permission-denied", "Only the incident's command can delete its media.", { reason: "not_command" });
   }

@@ -17,12 +17,12 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/incidents/$(incidentId)).data;
     }
     // A judge sandbox must carry a timestamp expiry in the future and have finished its setup (a returning judge's
-    // claims still name the sandbox while it is rebuilt; a sandbox made before setup was tracked has no flag and
-    // counts as ready). Any other incident may have no expiry.
+    // claims still name the sandbox while it is rebuilt). Only an explicit setupReady == true counts as ready; a
+    // sandbox with no flag is not live. Any other incident may have no expiry.
     function liveFor(i) {
       let exp = i.get('expiresAt', null);
       return i.get('mode', '') == 'judge'
-        ? (exp is timestamp && request.time < exp && i.get('setupReady', true) == true)
+        ? (exp is timestamp && request.time < exp && i.get('setupReady', false) == true)
         : (exp == null || (exp is timestamp && request.time < exp));
     }
     function notExpired(incidentId) {

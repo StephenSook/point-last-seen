@@ -1903,3 +1903,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `src/ai/client.ts` exports `ReplySource` (`InferenceSource | undefined`, from `firebase/ai`) and types the text and template models' `inferenceSource` with it instead of any string, so a branch on a misspelt source ("on-device") no longer compiles.
 - Source: review finding (the inference source was a plain string).
 - Verified: a type test in `src/ai/clientTypes.test.ts` (`@ts-expect-error` on "on-device") failed the typecheck first with the plain string ("Unused '@ts-expect-error'"), then passed with the SDK type; the 141 AI tests and the web unit suite pass; typecheck clean.
+
+### fix(ai): a note read keeps only what the note supports
+- What: `checked` in `src/ai/sightingText.ts` passes each validated reading through `groundReading` (`@pls/engine`) before the form sees it, for the laptop read and the consented cloud read alike: a colour, direction, footwear or carried item the note does not support (filled from the missing person's profile, say) is blanked. `InferenceMode.ONLY_ON_DEVICE` stays on line 44, the line `docs/TEST-MATRIX.md` cites.
+- Source: the shared grounding rule (a reading's colour, direction, footwear and carried value must come from its note).
+- Verified: two new tests in `src/ai/sightingText.test.ts` (a reply claiming "red" for a note that says "blue coat" comes back with the top colour blanked and the direction kept, on the laptop and in the cloud) failed first, then passed (19/19); web unit suite and CI's Python gates (the test-matrix check among them) pass; typecheck clean.
