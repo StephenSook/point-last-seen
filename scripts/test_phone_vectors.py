@@ -81,6 +81,8 @@ REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number remove
                   # A spoken digit joined to a run of times makes it part of a number: the shared rule decides it.
                   # A written digit between a cue and a run of times does not hide the cue.
                   ("Call 5 at 4:04 5:55 06:44 tonight", "Call 5 at [number removed] tonight"),
+                  # A month name beside a run of times reads its hour as a day: the shared rule decides the run.
+                  ("1.4045, -55.0142 14 May 6:00 7:00", "[number removed] May 6:00 7:00"),
                   ("Call four 4:04 5:55 6:42", "Call [number removed]"),
                   # A date stays when the rest of its run is a whole number: when someone was seen is search
                   # information, and keeping it leaks nothing once the number beside it is gone.

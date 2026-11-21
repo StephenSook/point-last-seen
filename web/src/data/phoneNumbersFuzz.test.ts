@@ -20,6 +20,7 @@ const CHINESE = "〇零一二三四五六七八九";
 const CUE_WORDS = ["call", "tel", "phone", "cell", "mobile", "number", "llame", "llamar", "teléfono", "telefono", "celular", "número", "numero", "text", "reach"];
 const CUES = new Set(CUE_WORDS);
 const REPEAT_WORDS = new Set(["double", "triple"]);
+const MONTHS = new Set(["jan", "january", "feb", "february", "mar", "march", "apr", "april", "may", "jun", "june", "jul", "july", "aug", "august", "sep", "sept", "september", "oct", "october", "nov", "november", "dec", "december"]);
 
 type Token = { text: string; start: number; end: number; digitish: boolean };
 
@@ -61,8 +62,10 @@ function decide(s: string, ts: Token[], start: number, end: number, run: string,
   const before = ts.filter((t) => t.end <= start);
   const after = ts.filter((t) => t.start >= end);
   const prev = before.at(-1);
-  if (!loose && prev && !breaks(s.slice(prev.end, start)) && (prev.digitish || REPEAT_WORDS.has(prev.text.toLowerCase()))) return "rule";
   const next = after[0];
+  // A month name right beside the run reads its hour or minutes as a day, so the shared rule keeps the run.
+  if ([prev, next].some((t) => t && MONTHS.has(t.text.toLowerCase()))) return "rule";
+  if (!loose && prev && !breaks(s.slice(prev.end, start)) && (prev.digitish || REPEAT_WORDS.has(prev.text.toLowerCase()))) return "rule";
   if (!loose && next && !breaks(s.slice(end, next.start))) {
     if (next.digitish) return "rule";
     const then = after[1];
@@ -91,20 +94,33 @@ function decide(s: string, ts: Token[], start: number, end: number, run: string,
 
 /** The README's output for a note, in pieces, each kept run marked; loose ignores what joins a run (a wrong README). */
 function expected(x: string, loose = false): { text: string; kept: boolean }[] {
+  return split(x, loose).pieces;
+}
+
+/**
+ * The note cut at each run the README decides. pieces is the README's output; alone is the shared rule run on each
+ * stretch and each decided run on its own, which equals the shared rule on the whole note exactly when it reads every
+ * decided run as a group of its own: the claim that cutting there changes nothing else.
+ */
+function split(x: string, loose = false): { pieces: { text: string; kept: boolean }[]; alone: string } {
   const folded = x.normalize("NFKC");
-  if (folded !== x) return [{ text: removeByRule(folded), kept: false }];
+  if (folded !== x) return { pieces: [{ text: removeByRule(folded), kept: false }], alone: removeByRule(folded) };
   const ts = tokens(x);
-  const out: { text: string; kept: boolean }[] = [];
+  const pieces: { text: string; kept: boolean }[] = [];
+  let alone = "";
   let from = 0;
   for (const m of x.matchAll(RUN)) {
     const verdict = decide(x, ts, m.index, m.index + m[0].length, m[0], loose);
     if (verdict === "rule") continue;
-    out.push({ text: removeByRule(x.slice(from, m.index)), kept: false });
-    out.push(verdict === "keep" ? { text: m[0], kept: true } : { text: REPLACEMENT, kept: false });
+    const stretch = removeByRule(x.slice(from, m.index));
+    pieces.push({ text: stretch, kept: false });
+    pieces.push(verdict === "keep" ? { text: m[0], kept: true } : { text: REPLACEMENT, kept: false });
+    alone += stretch + removeByRule(m[0]);
     from = m.index + m[0].length;
   }
-  out.push({ text: removeByRule(x.slice(from)), kept: false });
-  return out;
+  const rest = removeByRule(x.slice(from));
+  pieces.push({ text: rest, kept: false });
+  return { pieces, alone: alone + rest };
 }
 
 /** Every digit in the text, in order: ASCII digits, Chinese numerals and spoken digit words (other scripts as "?"). */
@@ -136,7 +152,7 @@ const time = () => `${rnd(30)}:${String(rnd(70)).padStart(2, "0")}`;
 const group = () => String(rnd(10 ** (1 + rnd(4))));
 const NOISE = ["Call ", "call ", "Reach ", "me ", "at ", "Seen ", "Text ", "four ", "five ", "oh ", "double ", "triple ", "四", "一二", "#", "(", ")",
   "\t", "\n", "\r\n", " ", ", ", ",", "-", ".", "/", ":", "%", "°", "", "​", "GA ", "11/19/2026 ", "Nov ", "tonight", "a ", "67th Ave ",
-  "４", "⁴", "٤", "४", " "];
+  "４", "⁴", "٤", "४", " ", "May ", "14 May ", " May 2026 ", "1.4045, -55.0142 ", "404 555 01 "];
 const noise = (len: number) => {
   let y = "";
   for (let k = 0; k < len; k++) {
@@ -201,12 +217,12 @@ const cue = () => {
   return `${rnd(2) ? word[0]!.toUpperCase() + word.slice(1) : word}${between}`;
 };
 
-type Counts = { differs: number; planted: number; withRun: number; kept: number; marked: number };
+type Counts = { differs: number; planted: number; isolation: number; withRun: number; kept: number; marked: number };
 
 /** Runs both properties over n generated notes with a fixed seed, for the step or a stand-in for it. */
 function check(step: (t: string) => string, n: number, loose = false): Counts {
   seed = 20261121;
-  const c: Counts = { differs: 0, planted: 0, withRun: 0, kept: 0, marked: 0 };
+  const c: Counts = { differs: 0, planted: 0, isolation: 0, withRun: 0, kept: 0, marked: 0 };
   for (let i = 0; i < n; i++) {
     let x: string;
     let secret: { text: string; digits: string } | null = null;
@@ -216,7 +232,9 @@ function check(step: (t: string) => string, n: number, loose = false): Counts {
       secret = planted();
       x = noise(rnd(3)) + cue() + secret.text + (rnd(2) ? " tonight" : "") + noise(rnd(3));
     }
-    const pieces = expected(x, loose);
+    const cut = split(x, loose);
+    const pieces = cut.pieces;
+    if (cut.alone !== removeByRule(x)) c.isolation++;
     if (step(x) !== pieces.map((p) => p.text).join("")) c.differs++;
     if (x.normalize("NFKC") === x && RUN.test(x)) c.withRun++;
     RUN.lastIndex = 0;
@@ -237,7 +255,7 @@ describe("removePhoneNumbers: the run-of-times step against the README, written 
     expect(c.withRun).toBeGreaterThan(24_000);
     expect(c.kept).toBeGreaterThan(4_000);
     expect(c.marked).toBeGreaterThan(4_000);
-    expect(c).toEqual({ differs: 0, planted: 0, withRun: c.withRun, kept: c.kept, marked: c.marked });
+    expect(c).toEqual({ differs: 0, planted: 0, isolation: 0, withRun: c.withRun, kept: c.kept, marked: c.marked });
   }, 60_000);
 
   it("flags a stand-in that keeps every note as written", () => {
@@ -262,8 +280,18 @@ describe("removePhoneNumbers: the run-of-times step against the README, written 
   }, 60_000);
 
   it("the planted-number check flags a looser README that ignores what joins a run", () => {
-    expect(check((t) => expected(t, true).map((p) => p.text).join(""), 30_000, true).planted).toBeGreaterThan(0);
+    const c = check((t) => expected(t, true).map((p) => p.text).join(""), 30_000, true);
+    expect(c.planted).toBeGreaterThan(0);
+    expect(c.isolation).toBeGreaterThan(0);
   }, 60_000);
+
+  it("the isolation check flags a README that cuts beside a month name", () => {
+    // The fourth review's case: a month name reads the hour after it as its day, so cutting there moves the day.
+    const x = "1.4045, -55.0142 14 May 6:00 7:00";
+    const naive = removeByRule("1.4045, -55.0142 14 May ") + removeByRule("6:00 7:00");
+    expect(naive).not.toBe(removeByRule(x));
+    expect(split(x).alone).toBe(removeByRule(x));
+  });
 
   it("the replacement carries no digit, so blanking a kept run hides nothing", () => {
     expect(digitStream(REPLACEMENT)).toBe("");

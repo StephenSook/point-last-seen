@@ -123,7 +123,10 @@ export function removePhoneNumbers(text: string): string {
     if (first === undefined || last === undefined) continue;
     const joined = (first > 0 && joins(folded, parts[first - 1]!, parts[first]!))
       || (last + 1 < parts.length && joins(folded, parts[last]!, parts[last + 1]!));
-    if (joined) continue;
+    // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which changes
+    // how the shared rule groups the digits around it, so such a run stays with the text around it.
+    const month = (i: number) => i >= 0 && i < parts.length && !parts[i]!.written && MONTHS.has(word(folded, parts[i]!));
+    if (joined || month(first - 1) || month(last + 1)) continue;
     const minutes = [...m[0].matchAll(/(\d+):(\d+)/g)].map((t) => Number(t[1]) * 60 + Number(t[2]));
     const inOrder = minutes.every((v, i) => i === 0 || v >= minutes[i - 1]!);
     out += removeByRule(folded.substring(from, m.index)) + (inOrder && !cuedRun(folded, parts, first) ? m[0] : REPLACEMENT);

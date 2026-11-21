@@ -847,6 +847,12 @@
       "pendingOn": ["ios", "android"]
     },
     {
+      "name": "month_name_beside_a_run_of_times",
+      "input": "1.4045, -55.0142 14 May 6:00 7:00",
+      "output": "[number removed] May 6:00 7:00",
+      "pendingOn": ["android"]
+    },
+    {
       "name": "spoken_digit_joined_to_a_run_of_times",
       "input": "Call four 4:04 5:55 6:42",
       "output": "Call [number removed]",

@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Phone rule: a run of times with a month name right before or after it goes to the shared rule. A month name reads the
+  hour or minutes beside it as a day, so cutting the note at such a run changed how the shared rule grouped the digits
+  around it: `1.4045, -55.0142 14 May 6:00 7:00` kept a whole number the shared rule alone removes. One exact case
+  (pending on Android), the README rule text and `docs/LIMITS.md` (116 cases; a number spread across rising times is
+  part of the accepted gap) follow. Source: review (Codex, fourth round on the phone rule: one high, one medium).
+  Verified: the web unit test failed first, then passed (163 phone tests); the fuzz agrees on all 90,000 notes and gains
+  a check that the shared rule on the whole note equals it on each stretch and each decided run, which a looser README
+  fails; `scripts/test_phone_vectors.py` passes.
 - Phone rule: the run-of-times step reads past a digit, written or spoken, when it looks for a cue among the three words
   before a run, so `Call one: 4:04 5:55 6:42` and `Call 5 at 4:04 5:55 06:44` are removed whole instead of kept; the
   shared rule alone already removed most of both. A mustRemove case and an exact case (both pending on the iPhone and
