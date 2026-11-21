@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### build(ios): the release check runs the privacy label check on every exported build
+- What: ios/scripts/archive_release.sh now runs scripts/check_privacy_label.py on the exported app, so a release
+  build fails its checks when any bundled privacy manifest collects data the App Store label does not list.
+- Source: review (App Store submission prep).
+- Verified: the script's syntax checks; the same command fails on build 8's exported app (its manifest lacked
+  five types) and the committed manifest passes the check's own tests; the next archive from main runs it for
+  real.
+
 ### ci: the gates run the privacy label check's tests
 - What: the gates job (and its local mirror) runs scripts/test_check_privacy_label.py with the other script
   tests, so the committed privacy manifest and label must keep agreeing.

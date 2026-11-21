@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Archives a Release build of the iPhone app and exports the .ipa for App Store Connect into a local
 # folder. It uploads nothing. Then it checks the exported app: release push and App Attest
-# entitlements, the icon, the privacy manifest, the encryption answer, the build number and commit,
+# entitlements, the icon, the privacy manifest and label, the encryption answer, the build number and commit,
 # and that the debug-only eval screen is not in it.
 #
 # Usage: bash ios/scripts/archive_release.sh <build-number> <out-dir>
@@ -59,6 +59,8 @@ info() { /usr/libexec/PlistBuddy -c "Print :$1" "$app/Info.plist" 2>/dev/null ||
 [ "$(info ITSAppUsesNonExemptEncryption)" = "false" ] && echo "archive_release: ok encryption answer" || { echo "archive_release: FAIL encryption answer"; fail=1; }
 [ "$(info CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName)" = "AppIcon" ] && echo "archive_release: ok icon" || { echo "archive_release: FAIL icon"; fail=1; }
 [ -f "$app/PrivacyInfo.xcprivacy" ] && echo "archive_release: ok privacy manifest" || { echo "archive_release: FAIL privacy manifest"; fail=1; }
+# Every manifest the build bundles (the app's and each SDK's) must be on the App Store privacy label.
+python3 -I scripts/check_privacy_label.py "$app" ios/app-privacy-label.json || fail=1
 if strings "$app/PLS" | grep -q "Report-reading eval"; then echo "archive_release: FAIL the debug eval screen is in the release"; fail=1
 else echo "archive_release: ok no debug eval screen"; fi
 codesign --verify --deep --strict "$app" && echo "archive_release: ok signature" || { echo "archive_release: FAIL signature"; fail=1; }
