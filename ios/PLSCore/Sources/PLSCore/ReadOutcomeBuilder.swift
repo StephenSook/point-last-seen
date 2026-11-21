@@ -332,9 +332,13 @@ public enum PhoneNumbers {
         func degrees(_ whole: Int, _ frac: Int, _ max: Double) -> Bool {
             guard written(whole), written(frac), gap(whole, frac) == ".", len(whole) <= 3, (4...8).contains(len(frac)),
                   Int(text(whole)) != nil, Int(text(frac)) != nil, let v = Double("\(text(whole)).\(text(frac))") else { return false }
+            // Whole degrees never start with a zero (0.1276 is fine; 020.79460958 is a London number).
+            if len(whole) > 1, text(whole).hasPrefix("0") { return false }
             return v <= max
         }
         var kept = Set<Int>()
+        // Radio frequency candidates (146.520), each as its whole part's index; kept below only in a run of frequencies.
+        var frequencies: [Int] = []
         // Written dates found below, each as its three parts; two that share a part cancel each other.
         var dates: [ClosedRange<Int>] = []
         // Month-name dates' digits, and times (hour, minutes).
@@ -375,11 +379,33 @@ public enum PhoneNumbers {
             if !plus, degrees(i, i + 1, 90), degrees(i + 2, i + 3, 180), coordinateGap(gap(i + 1, i + 2)) {
                 kept.formUnion(i...(i + 3))
             }
+            // A radio frequency candidate (146.520, 155.160): 25 to 999 MHz with no leading zero, a full stop, exactly 3
+            // digits, not part of a dotted chain (404.555.0142) and not after a "+".
+            if !plus, written(i + 1), gap(i, i + 1) == ".", len(i) <= 3, len(i + 1) == 3, let mhz = value(i), value(i + 1) != nil,
+               !text(i).hasPrefix("0"), (25...999).contains(mhz),
+               !(i > 0 && parts[i - 1].digits > 0 && gap(i - 1, i) == "."), !(written(i + 2) && gap(i + 1, i + 2) == ".") {
+                frequencies.append(i)
+            }
             if len(i) == 5, written(i + 1), gap(i, i + 1) == "-", len(i + 1) == 4, i > 0, !parts[i - 1].written,
                states.contains(String(text(i - 1))), gap(i - 1, i) == " " {
                 kept.formUnion([i, i + 1])
             }
         }
+        // A frequency is search information only in a run made of nothing but frequencies: joined anywhere in its run to
+        // other digits (404.555-0142 #123) it could be part of a phone number, so it goes with the run. Candidates with a
+        // joined neighbour outside the set drop out until none does.
+        var liveFrequencies = frequencies
+        while true {
+            let inFrequency = Set(liveFrequencies.flatMap { [$0, $0 + 1] })
+            func alone(_ inside: Int, _ outside: Int) -> Bool {
+                outside < 0 || outside >= parts.count || inFrequency.contains(outside)
+                    || !joins(s, parts[min(inside, outside)], parts[max(inside, outside)])
+            }
+            let next = liveFrequencies.filter { alone($0, $0 - 1) && alone($0 + 1, $0 + 2) }
+            if next.count == liveFrequencies.count { break }
+            liveFrequencies = next
+        }
+        for i in liveFrequencies { kept.formUnion([i, i + 1]) }
         var inDates = monthDates
         for d in dates where !dates.contains(where: { $0 != d && $0.overlaps(d) }) { inDates.formUnion(d) }
         let found = kept.union(inDates).union(times.flatMap { Array($0) })
@@ -454,8 +480,10 @@ public enum PhoneNumbers {
     static func isComma(_ c: Character) -> Bool { c == "," }
 
     /// A coordinate pair's middle: at most two spaces, then a comma (at most two spaces and an optional
-    /// minus after it), or one or two spaces then a minus. A bare minus between two decimals
-    /// (44.2071-23.4567) is a dotted number, not a pair.
+    /// minus after it); or a semicolon, bullet, middle dot, bar or slash with at most two spaces around it and a
+    /// minus after it (two decimals across one of those with no minus can be two phone numbers: 020.79460958 /
+    /// 020.79460959); or one or two spaces then a minus. A bare minus between two decimals (44.2071-23.4567) is a
+    /// dotted number, not a pair.
     static func coordinateGap(_ gap: Substring) -> Bool {
         var rest = gap[...]
         var n = 0
@@ -465,6 +493,12 @@ public enum PhoneNumbers {
             n = 0
             while n < 2, let c = rest.first, c.isWhitespace { rest = rest.dropFirst(); n += 1 }
             if rest.first == "-" { rest = rest.dropFirst() }
+        } else if let c = rest.first, coordinateMarks.contains(c) {
+            rest = rest.dropFirst()
+            n = 0
+            while n < 2, let c = rest.first, c.isWhitespace { rest = rest.dropFirst(); n += 1 }
+            guard rest.first == "-" else { return false }
+            rest = rest.dropFirst()
         } else if rest.first == "-", n >= 1 {
             rest = rest.dropFirst()
         } else {
@@ -485,8 +519,17 @@ public enum PhoneNumbers {
         return rest.isEmpty
     }
 
-    /// What may sit between the parts of one number: at most three spaces or - . , ( ) / or dashes; a line
-    /// break (CRLF, LF or CR) with any indentation after it counts as one, as a pasted number split across lines.
+    static let coordinateMarks: Set<Character> = [";", "\u{2022}", "\u{00B7}", "|", "/"]
+
+    /// The marks that never join a number: a time (14:03), a percent (45%) and a degree (33.7490°) are search
+    /// information. Every other mark joins, so 404|555|0142 and 404;555;0142 are removed; a coordinate pair or a radio
+    /// frequency between such marks stays through its own span (searchSpans).
+    static let notASeparator: Set<Unicode.Scalar> = [":", "%", "\u{00B0}"]
+
+    /// What may sit between the parts of one number: at most three characters of anything but a mark in
+    /// `notASeparator` (a gap holds no letter or digit, since those are parts, so every space, punctuation mark and
+    /// symbol joins); a line break (CRLF, LF or CR) with any indentation after it counts as one, as a pasted number
+    /// split across lines.
     static func onlySeparators(_ s: Substring) -> Bool {
         var gap: [Character] = []
         var i = s.startIndex
@@ -500,7 +543,7 @@ public enum PhoneNumbers {
                 gap.append(c)
             }
         }
-        return gap.count <= 3 && gap.allSatisfy { $0.isWhitespace || "-.,()/".contains($0) || dashes.contains($0) }
+        return gap.count <= 4 && !gap.contains { $0.unicodeScalars.contains(where: notASeparator.contains) }
     }
 }
 

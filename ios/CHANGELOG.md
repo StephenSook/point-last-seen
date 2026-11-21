@@ -3,6 +3,22 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-21
+
+### fix(ios-core): any mark but a time, percent or degree joins a phone number's groups
+- What: the iPhone's phone-number rule now joins a number's groups across any mark except ":" "%" and "°" (a time, a
+  percent and a degree stay search information), so a number split by a middle dot, hyphenation point, bullet,
+  underscore, star, bar, semicolon or bracket is removed ("Call 404·555·0142"). A gap may hold up to four characters
+  (was three), so "020.79460958 | -0.1276" is one run. A coordinate pair may sit across ";", "|", "/", a bullet or a
+  middle dot only with a minus after the mark; whole degrees never start with a zero (020.79460958 is a London
+  number). A radio frequency (25 to 999, a full stop, exactly three digits, not in a dotted chain or after a "+") is
+  search information only in a run of nothing but frequencies ("Radio 155.160 | 154.205"); joined to other digits it
+  goes with the run.
+- Source: the shared phone-number rule (web and Android ports), a privacy gap found in review.
+- Verified: the 94 cases of the pending shared vector file, run locally, failed before the change (30 issues) and pass
+  after; new unit tests for the marks, coordinate pairs and frequencies pass; all 401 core tests pass on the current
+  vectors.
+
 ## 2026-11-20
 
 ### docs: the iPhone Live Activity on a real phone's lock screen (build 9)

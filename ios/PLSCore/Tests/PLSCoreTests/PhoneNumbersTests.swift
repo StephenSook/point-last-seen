@@ -57,6 +57,27 @@ import Testing
         #expect(PhoneNumbers.scrub("call FOUR OH FOUR FIVE FIVE FIVE OH ONE FOUR TWO") == "call [number removed]")
     }
 
+    /// Any mark but ":" "%" "°" joins a number's groups: a middle dot, bar, underscore, star or bracket.
+    @Test func anyMarkButATimePercentOrDegreeJoinsANumber() {
+        for text in ["Call 404·555·0142", "Call 404|555|0142", "Call 404_555_0142", "Call 404*555*0142", "Call 404 [555] 0142", "Call 404;555;0142"] {
+            #expect(PhoneNumbers.scrub(text) == "Call [number removed]", "\(text)")
+        }
+        #expect(PhoneNumbers.scrub("Seen at 14:03, 45% coverage") == "Seen at 14:03, 45% coverage")
+    }
+
+    /// A coordinate pair across ";" "|" "/" or a bullet needs a minus after the mark; whole degrees never start with 0.
+    @Test func coordinatePairsAcrossOtherMarksNeedAMinus() {
+        #expect(PhoneNumbers.scrub("GPS 33.7490; -84.3880") == "GPS 33.7490; -84.3880")
+        #expect(PhoneNumbers.scrub("Call 020.79460958 / 020.79460959") == "Call [number removed]")
+        #expect(PhoneNumbers.scrub("Call 020.79460958 | -0.1276 tonight") == "Call [number removed] tonight")
+    }
+
+    /// A radio frequency (25 to 999, a full stop, three digits) is search information only among other frequencies.
+    @Test func radioFrequenciesStayOnlyAmongFrequencies() {
+        #expect(PhoneNumbers.scrub("Radio 155.160 | 154.205") == "Radio 155.160 | 154.205")
+        #expect(PhoneNumbers.scrub("Call 404.555-0142 #123") == "Call [number removed]")   // joined to other digits, it goes
+    }
+
     /// Spanish digit words count like English ones in any capitals; "un" and "una" are articles, not digits.
     @Test func spanishDigitWordsAreANumber() {
         #expect(PhoneNumbers.scrub("Call cuatro cero cuatro cinco cinco cinco cero uno cuatro dos") == "Call [number removed]")
