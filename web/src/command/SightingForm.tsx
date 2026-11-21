@@ -205,6 +205,11 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
           {busy === "read" ? "Reading" : "Read the note"}
         </button>
       </div>
+      {busy === "read" && (
+        <p role="status" className="muted">
+          Reading the note on this laptop. The first read can take up to a minute.
+        </p>
+      )}
       {readState === "no-model" && (
         <div role="status" className="note-state">
           <p>This laptop has no local model. Nothing was sent.</p>
