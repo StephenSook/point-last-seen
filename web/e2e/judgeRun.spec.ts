@@ -53,12 +53,14 @@ test("the site serves its published drill run, and the judge page replays it", {
   expect(res.status()).toBe(200);
   expect(res.headers()["content-type"]).toContain("application/json");
   const file = (await res.json()) as { label: string; runId: string };
-  expect(file.label).toContain("Training drill. Nobody is missing.");
+  // The label says what the run holds: test family reports and plans (no searcher reports). README.md says the same.
+  expect(file.label).toBe("Development drill, Piedmont Park, Atlanta: test family reports and plans, 2026-11-18 to 19. Training drill. Nobody is missing.");
   await page.goto("/judge");
   const section = page.getByRole("region", { name: "Watch the drill replay" });
   // The end frame of this exact file: a change to the engine or the reader that moves the judged map fails here.
   // Re-exporting the run changes the file and this code in the same commit.
   await expect(section.getByTestId("replay-code")).toHaveText("T43J");
+  await expect(section.getByTestId("run-label")).toHaveText("Development drill, Piedmont Park, Atlanta: test family reports and plans, 2026-11-18 to 19.");
   // The page's own drill line, above the heading, labels the whole page; the replay card does not repeat it.
   await expect(page.getByText("Training drill. Nobody is missing.", { exact: true })).toHaveCount(1);
   await expect(section.getByText("Training drill. Nobody is missing.", { exact: true })).toHaveCount(0);
