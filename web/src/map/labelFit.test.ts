@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CODE_GAP_PX, cappedDotRadius, codePlace } from "./labelFit";
+import { CHIP_GAP_PX, CODE_GAP_PX, cappedDotRadius, chipPlace, codePlace } from "./labelFit";
 
 // A cell 60 px wide and 40 px tall, its centre at (100, 100).
 const box = { left: 70, top: 80, right: 130, bottom: 120 };
@@ -43,5 +43,38 @@ describe("codePlace", () => {
     const room = 100 - 6 - CODE_GAP_PX - box.left;
     expect(codePlace({ code: { w: room, h: 12 }, box, centre, dotR: 6 })).toBe("left");
     expect(codePlace({ code: { w: room + 1, h: 12 }, box, centre, dotR: 6 })).toBe("centre");
+  });
+});
+
+describe("chipPlace", () => {
+  const chip = { w: 50, h: 16 };
+  const centre = { x: 200, y: 200 };
+  const at = (o: [number, number]) => ({ left: centre.x + o[0] - chip.w / 2, top: centre.y + o[1] - chip.h / 2, right: centre.x + o[0] + chip.w / 2, bottom: centre.y + o[1] + chip.h / 2 });
+  const ABOVE: [number, number] = [0, -(16 + chip.h / 2)];
+  const RIGHT: [number, number] = [10 + CHIP_GAP_PX + chip.w / 2, 0];
+  const LEFT: [number, number] = [-(10 + CHIP_GAP_PX + chip.w / 2), 0];
+  const below = (plateH: number): [number, number] => [0, (plateH > 0 ? 16 + plateH : 10) + CHIP_GAP_PX + chip.h / 2];
+  const plate = (o: [number, number]) => ({ box: at(o), kind: "plate" as const });
+  const code = (o: [number, number]) => ({ box: at(o), kind: "code" as const });
+
+  it("sits above the dot when nothing is there", () => {
+    expect(chipPlace({ chip, centre, dotR: 10, ownPlateH: 0, obstacles: [] })).toEqual({ offset: ABOVE, covered: [] });
+  });
+
+  it("moves right of the dot when another label is above it, then left, then below its own plate", () => {
+    expect(chipPlace({ chip, centre, dotR: 10, ownPlateH: 0, obstacles: [plate(ABOVE)] })).toEqual({ offset: RIGHT, covered: [] });
+    expect(chipPlace({ chip, centre, dotR: 10, ownPlateH: 0, obstacles: [plate(ABOVE), code(RIGHT)] })).toEqual({ offset: LEFT, covered: [] });
+    expect(chipPlace({ chip, centre, dotR: 10, ownPlateH: 18, obstacles: [plate(ABOVE), code(RIGHT), code(LEFT)] })).toEqual({ offset: below(18), covered: [] });
+  });
+
+  it("when every place covers something, it covers a code before a percent, and says which it covers", () => {
+    // Above covers a percent; right covers a code; left and below cover a percent each.
+    const obstacles = [plate(ABOVE), code(RIGHT), plate(LEFT), plate(below(0))];
+    expect(chipPlace({ chip, centre, dotR: 10, ownPlateH: 0, obstacles })).toEqual({ offset: RIGHT, covered: [1] });
+  });
+
+  it("never covers another chip while any place covers only labels", () => {
+    const obstacles = [{ box: at(ABOVE), kind: "chip" as const }, { box: at(RIGHT), kind: "chip" as const }, plate(LEFT), plate(below(0))];
+    expect(chipPlace({ chip, centre, dotR: 10, ownPlateH: 0, obstacles })).toEqual({ offset: LEFT, covered: [2] });
   });
 });
