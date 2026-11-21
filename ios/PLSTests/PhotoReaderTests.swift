@@ -72,6 +72,22 @@ import Testing
         #expect(gate.tryStart() == false)      // and has not opened it
     }
 
+    /// The read's mission is checked before each model call: once it is not current, no further call starts.
+    @Test func noModelCallStartsOnceTheMissionIsNotCurrent() async throws {
+        let asked = Count(), described = Count()
+        let r = await PhotoReader.run(try Self.onePixel(), timeoutSeconds: 5, gate: PhotoReadGate(), model: "m",
+                                      askPerson: { _ in asked.n += 1; return .no }, describe: { _ in described.n += 1; return Self.cap },
+                                      stillCurrent: { false })
+        #expect(asked.n == 0 && described.n == 0)
+        if case .failed = r {} else { Issue.record("a read for a mission that changed kept the photo") }
+        final class Flag: @unchecked Sendable { var current = true }
+        let flag = Flag()
+        _ = await PhotoReader.run(try Self.onePixel(), timeoutSeconds: 5, gate: PhotoReadGate(), model: "m",
+                                  askPerson: { _ in flag.current = false; return .no }, describe: { _ in described.n += 1; return Self.cap },
+                                  stillCurrent: { flag.current })
+        #expect(described.n == 0)
+    }
+
     @Test func aReadWithinItsLimitDescribesThePhoto() async throws {
         let r = await PhotoReader.run(try Self.onePixel(), timeoutSeconds: 5, gate: PhotoReadGate(), model: "m",
                                       askPerson: { _ in .no }, describe: { _ in Self.cap })

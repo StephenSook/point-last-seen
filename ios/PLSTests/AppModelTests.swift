@@ -141,7 +141,7 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
     /// A photo model with a fake reader and a journal; the reader's answer is fixed per test.
     func photoModel(_ answer: PhotoReadResult, available: Bool = true) throws -> (AppModel, EventStore) {
         let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
-                             readPhoto: { _ in answer }, photoReaderAvailable: { available }, joinBackend: NoClaimsJoinBackend())
+                             readPhoto: { _, _ in answer }, photoReaderAvailable: { available }, joinBackend: NoClaimsJoinBackend())
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("photo-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
@@ -207,7 +207,7 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
     @Test func aCancelledPhotoReadSendsNothing() async throws {
         let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
         let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
-                             readPhoto: { _ in
+                             readPhoto: { _, _ in
                                  withUnsafeCurrentTask { $0?.cancel() }
                                  return .described(cap, model: "m", latencyMs: 1)
                              }, photoReaderAvailable: { true }, joinBackend: NoClaimsJoinBackend())
@@ -256,7 +256,7 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         let box = ModelBox()
         let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
         let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
-                             readPhoto: { _ in
+                             readPhoto: { _, _ in
                                  _ = await box.model?.leaveSearch()
                                  return .described(cap, model: "m", latencyMs: 1)
                              }, photoReaderAvailable: { true }, joinBackend: NoClaimsJoinBackend())
@@ -277,7 +277,7 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         let mission = try quietMission()
         let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
         let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
-                             readPhoto: { _ in
+                             readPhoto: { _, _ in
                                  box.model?.dropMissionNow()
                                  await box.model?.load(mission)
                                  return .described(cap, model: "m", latencyMs: 1)
@@ -305,7 +305,7 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
                                  await box.model?.load(owned)
                                  return true
                              }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
-                             readPhoto: { _ in .described(cap, model: "m", latencyMs: 1) }, photoReaderAvailable: { true },
+                             readPhoto: { _, _ in .described(cap, model: "m", latencyMs: 1) }, photoReaderAvailable: { true },
                              joinBackend: NoClaimsJoinBackend())
         box.model = model
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("signin-\(UUID().uuidString)")
@@ -332,7 +332,7 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
                                      await box.model?.load(replacement)
                                      return true
                                  }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
-                                 readPhoto: { _ in .described(cap, model: "m", latencyMs: 1) }, photoReaderAvailable: { true },
+                                 readPhoto: { _, _ in .described(cap, model: "m", latencyMs: 1) }, photoReaderAvailable: { true },
                                  joinBackend: NoClaimsJoinBackend())
             box.model = model
             let dir = FileManager.default.temporaryDirectory.appendingPathComponent("team-\(UUID().uuidString)")
@@ -345,13 +345,72 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         }
     }
 
+    final class Calls: @unchecked Sendable { var n = 0 }
+
+    /// A mission that changes while the report waits for its GPS fix (another incident, or a mode where no model may
+    /// read) gets no model call at all: the reader is never asked, and nothing is journalled.
+    @Test func aMissionSwitchDuringTheGPSWaitStartsNoReader() async throws {
+        var live = try quietMission()
+        live.mode = "search"
+        var other = try quietMission()
+        other.incidentId = "I2"
+        for replacement in [live, other] {
+            let box = ModelBox()
+            let reads = Calls()
+            let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                                 readReport: { text, _, _, _ in
+                                     reads.n += 1
+                                     let route = RouteRecord(platform: .ios, path: .rules, stage: .deterministicParser, model: "none",
+                                                             reason: .onDeviceDefault, latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+                                     return ReadOutcome(reading: .unclear(quote: text), route: route, validation: .ok)
+                                 },
+                                 fixPosition: { _ in
+                                     await box.model?.load(replacement)
+                                     return nil
+                                 }, joinBackend: NoClaimsJoinBackend())
+            box.model = model
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("gps-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+            model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+            await model.load(try quietMission())
+            #expect(await model.submit("Cleared AC", inputMethod: .typed) == "Cleared AC")
+            #expect(reads.n == 0 && store.entries.isEmpty && model.problem == AppModel.teamChanged, "\(replacement.incidentId) \(replacement.mode)")
+        }
+    }
+
+    @Test func aModeSwitchDuringTheGPSWaitStartsNoPhotoRead() async throws {
+        var live = try quietMission()
+        live.mode = "search"
+        let box = ModelBox()
+        let reads = Calls()
+        let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _, _ in
+                                 reads.n += 1
+                                 return .described(cap, model: "m", latencyMs: 1)
+                             }, photoReaderAvailable: { true },
+                             fixPosition: { _ in
+                                 await box.model?.load(live)
+                                 return nil
+                             }, joinBackend: NoClaimsJoinBackend())
+        box.model = model
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("gpsphoto-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(reads.n == 0 && store.entries.isEmpty && model.problem == AppModel.teamChanged)
+    }
+
     /// The same mission loaded again while the photo is read (a refresh, a new plan) keeps the report.
     @Test func aPhotoReadKeepsItsReportWhenTheSameMissionReloads() async throws {
         let box = ModelBox()
         let mission = try quietMission()
         let cap = PhotoDescription(showsPerson: false, object: "red cap", color: .red, kind: .hat)
         let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
-                             readPhoto: { _ in
+                             readPhoto: { _, _ in
                                  await box.model?.load(mission)
                                  return .described(cap, model: "m", latencyMs: 1)
                              }, photoReaderAvailable: { true }, joinBackend: NoClaimsJoinBackend())

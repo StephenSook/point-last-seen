@@ -130,30 +130,32 @@ enum PhotoReader {
         return .described(description, model: model, latencyMs: latencyMs)
     }
 
-    static func read(_ image: CGImage) async -> PhotoReadResult {
+    static func read(_ image: CGImage, stillCurrent: @escaping @Sendable () -> Bool) async -> PhotoReadResult {
         guard #available(iOS 27, *), available else { return .failed }
         return await run(image, timeoutSeconds: timeoutSeconds, gate: gate, model: ModelSessionFactory.onDeviceStatus().variant,
-                         askPerson: { await askPerson($0) }, describe: { await describe($0) })
+                         askPerson: { await askPerson($0) }, describe: { await describe($0) }, stillCurrent: stillCurrent)
     }
 
     /// One read: the person question first, the description only after a clean no, both within `timeoutSeconds`.
     /// The gate opens exactly once for this read, when its work ends or at the limit, whichever is first, so a stalled
     /// model call never blocks the next photo and a late worker never opens a later read's gate. Before each model
-    /// call the worker checks that the read is still wanted (not cancelled, image not released), so an answer that
+    /// call the worker checks that the read is still wanted (not cancelled, image not released, its mission still on
+    /// screen), so an answer that
     /// comes after the limit starts nothing more. A model call already running keeps its own copy of the image until
     /// it returns; this code cannot release that copy.
     static func run(_ image: CGImage, timeoutSeconds: Double, gate: PhotoReadGate, model: String,
                     askPerson: @escaping @Sendable (CGImage) async -> PersonAnswer?,
-                    describe: @escaping @Sendable (CGImage) async -> PhotoDescription?) async -> PhotoReadResult {
+                    describe: @escaping @Sendable (CGImage) async -> PhotoDescription?,
+                    stillCurrent: @escaping @Sendable () -> Bool = { true }) async -> PhotoReadResult {
         guard gate.tryStart() else { return .busy }
         let holder = ImageHolder(image)
         let endOnce = EndOnce(gate)
         let start = Date()
         let answer = await Timeout.run(seconds: timeoutSeconds) { () -> (PhotoDescription?, PersonAnswer?) in
             defer { endOnce.end() }
-            guard !Task.isCancelled, let first = holder.image else { return (nil, nil) }
+            guard !Task.isCancelled, stillCurrent(), let first = holder.image else { return (nil, nil) }
             let person = await askPerson(first)
-            guard person == .no, !Task.isCancelled, let second = holder.image else { return (nil, person) }
+            guard person == .no, !Task.isCancelled, stillCurrent(), let second = holder.image else { return (nil, person) }
             return (await describe(second), person)
         }
         holder.release()

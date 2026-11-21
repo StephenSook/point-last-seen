@@ -30,9 +30,11 @@ final class AppModel {
     typealias ReadReport = @MainActor (String, ReportSituation, RemoteConfigValues, EvidenceScreen) async -> ReadOutcome
     private let readReport: ReadReport
     /// Reads one photo on Apple's model, on the phone; and whether this phone can (seams for tests).
-    typealias ReadPhoto = @MainActor (CGImage) async -> PhotoReadResult
+    typealias ReadPhoto = @MainActor (CGImage, @escaping @Sendable () -> Bool) async -> PhotoReadResult
     private let readPhoto: ReadPhoto
     private let photoReaderAvailable: () -> Bool
+    /// The searcher's GPS fix (a seam for tests; the default asks Core Location).
+    private let fixOverride: (@MainActor (TimeInterval) async -> Position?)?
 
     /// The joinIncident callable and Auth's claims, and where the mission is read from; seams for tests.
     private let joinBackend: JoinBackend
@@ -98,6 +100,7 @@ final class AppModel {
          readReport: ReadReport? = nil,
          readPhoto: ReadPhoto? = nil,
          photoReaderAvailable: (() -> Bool)? = nil,
+         fixPosition: (@MainActor (TimeInterval) async -> Position?)? = nil,
          joinBackend: JoinBackend? = nil,
          missionReader: MissionReader? = nil,
          pushTopics: PushTopics? = nil,
@@ -116,7 +119,8 @@ final class AppModel {
         self.uid = uid
         self.nowMs = nowMs
         self.measurements = measurements
-        self.readPhoto = readPhoto ?? { await PhotoReader.read($0) }
+        self.readPhoto = readPhoto ?? { await PhotoReader.read($0, stillCurrent: $1) }
+        self.fixOverride = fixPosition
         self.photoReaderAvailable = photoReaderAvailable ?? { PhotoReader.available }
         self.readReport = readReport ?? { text, situation, config, screen in
             await ReportReader(ai: AIClient.make(useLimitedUseTokens: config.useLimitedUseTokens), config: config, screen: screen)
@@ -194,7 +198,9 @@ final class AppModel {
     var cloudConsent = false { didSet { refreshGate() } }
     /// Whether this phone has the cloud route (iOS 27); without it the live gate keeps the cloud off (a seam for tests).
     var cloudRouteAvailable = ModelSessionFactory.cloudRouteSupported { didSet { refreshGate() } }
-    private(set) var mission: Mission?
+    private(set) var mission: Mission? { didSet { missionKey.set(MissionKey(mission)) } }
+    /// The mission on screen as a key any thread can read (a report's check before each model call).
+    @ObservationIgnored let missionKey = MissionKeyBox()
     private(set) var store: EventStore?
     private(set) var sending = false
     /// The last GPS fix this phone got; the screen theme uses it to know when it is dusk here.
@@ -902,14 +908,18 @@ final class AppModel {
         refreshGate()
         let submittedAt = nowMs()
 
-        let position = await location.fix(timeout: 10)
+        let position = await positionFix(10)
         if let position { lastFix = position }
-        let situation = ReportSituation(
+        // The mission may have changed while the fix was awaited: then no model reads this report.
+        let current = stillCurrent(mission)
+        guard current() else { problem = Self.teamChanged; return false }
+        var situation = ReportSituation(
             incidentMode: mission.mode, knownSegmentIds: mission.grid.map(\.segmentId),
             assignedSegmentIds: mission.assignedSegmentIds,
             positionSegmentId: position.flatMap { Geo.segment(containing: $0, in: mission.grid) },
             profile: mission.profile, networkOnline: connectivity.isOnline, cloudConsent: cloudConsent,
             liveGate: { [gate] in gate.current }, subjectNames: Self.subjectNames(mission))
+        situation.stillCurrent = current
         let outcome = await readReport(text, situation, config, screen)
         let readDone = nowMs()
         switch outcome.cloudTransport {
@@ -976,6 +986,18 @@ final class AppModel {
         return await readReport(Self.routeCheckSentence(mission), situation, config, screen)
     }
 
+    /// Whether `mission` is still the one on screen (incident, team and mode), as a check any thread can run.
+    func stillCurrent(_ mission: Mission) -> @Sendable () -> Bool {
+        let key = MissionKey(mission)
+        let box = missionKey
+        return { box.current == key }
+    }
+
+    private func positionFix(_ timeout: TimeInterval) async -> Position? {
+        if let fixOverride { return await fixOverride(timeout) }
+        return await location.fix(timeout: timeout)
+    }
+
     static let photoReadFailed = "The photo could not be read on this phone. Try again, or type what you found."
     static let teamChanged = "Your team changed while this was sending. Send it again."
     static let photoReadBusy = "The last photo is still being read. Try again in a moment."
@@ -999,16 +1021,20 @@ final class AppModel {
         sending = true
         defer { sending = false }
         let submittedAt = nowMs()
-        let position = await location.fix(timeout: 10)
+        let position = await positionFix(10)
         if let position { lastFix = position }
         // Segments come from code: the one the searcher stands in, else the team's only one.
         let segmentIds = position.flatMap { Geo.segment(containing: $0, in: mission.grid) }.map { [$0] }
             ?? (mission.assignedSegmentIds.count == 1 ? mission.assignedSegmentIds : [])
-        let read = await readPhoto(image)
+        let current = stillCurrent(mission)
+        guard current() else { problem = Self.teamChanged; return false }
+        let read = await readPhoto(image, current)
         if case .busy = read {
             problem = Self.photoReadBusy
             return false
         }
+        // The mission changed while the photo was read: nothing of it is kept.
+        guard current() else { problem = Self.teamChanged; return false }
         guard case let .described(photo, modelName, latencyMs) = read else {
             problem = Self.photoReadFailed
             return false
@@ -1046,7 +1072,7 @@ final class AppModel {
         sending = true
         defer { sending = false }
         let submittedAt = nowMs()
-        let position = await location.fix(timeout: 10)
+        let position = await positionFix(10)
         if let position { lastFix = position }
         return journal(PickList.outcome(choice, nowMs: submittedAt), rawText: "", inputMethod: .picklist, position: position,
                        mission: mission, uid: uid, identity: identity, store: store, drops: drops, submittedAt: submittedAt, readDone: submittedAt)
@@ -1061,7 +1087,7 @@ final class AppModel {
         // (the searcher left, the token stopped naming it, the account changed), even if it was loaded again
         // since: it goes nowhere. The same mission reloaded or with a new plan, with no drop, keeps its report.
         guard store === self.store, drops == missionDrops, let current = self.mission, current.incidentId == mission.incidentId,
-              current.teamId == mission.teamId else { return false }
+              current.teamId == mission.teamId, current.mode == mission.mode else { return false }
         // The task that read it was cancelled: the report is not journalled, and its words stay in the field.
         guard !Task.isCancelled else { return false }
         do {

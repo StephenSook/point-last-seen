@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a report whose mission changes while it waits gets no model call
+- What: the app keeps the mission on screen (incident, team and mode) as a key any thread can read. After the GPS
+  fix, and right before every model call (the typed reader's token count and stages, the photo's person question and
+  description), the report's mission must still be that key; otherwise no model is called and nothing is journalled
+  ("Your team changed while this was sending. Send it again."). The journal also checks the mode. The GPS fix has a
+  test seam.
+- Source: review (a switch to a live search during the GPS wait could still start a model call, and typed reports
+  passed the old drill mode to the reader).
+- Verified: tests of a mode-only and an incident-only switch during the GPS wait (zero reader calls, typed and photo),
+  of the photo reader with a mission that is not current (no person question, no description after it changes), and
+  of the typed reader (no token count) pass; with the reader's check removed, its test fails; 240 app tests pass.
+
 ### fix(ios-core): the reader checks the report's mission is still current before every model call
 - What: a read can be given a still-current check (same incident, team and mode as when the report was made). It is
   run right before every model call, on the phone and in the cloud; once it fails, no model runs and rules read the
