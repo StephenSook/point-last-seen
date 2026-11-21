@@ -49,7 +49,8 @@ async function familySession(cfg: WebConfig, incidentId: string, onJoined?: (uid
   return joinedSession(cfg, incidentId, "family", required("PLS_SMOKE_FAMILY_CODE"), onJoined);
 }
 
-/** An anonymous account joined to the incident with a role, as the apps join; onJoined runs once the join succeeded. */
+/** An anonymous account joined to the incident with a role, as the apps join. onJoined runs just before the join is
+ *  sent, so a caller can clean up even when the join went through but its answer was lost. */
 async function joinedSession(cfg: WebConfig, incidentId: string, role: "family" | "command", joinCode: string,
   onJoined?: (uid: string) => void): Promise<FamilySession> {
   const key = encodeURIComponent(cfg.apiKey);
@@ -57,15 +58,17 @@ async function joinedSession(cfg: WebConfig, incidentId: string, role: "family" 
   const projectNumber = cfg.appId.split(":")[1];
   const exchange = await post(`https://firebaseappcheck.googleapis.com/v1/projects/${projectNumber}/apps/${cfg.appId}:exchangeDebugToken?key=${key}`, { debugToken: required("PLS_APPCHECK_DEBUG_TOKEN") });
   const appCheck = String(exchange["token"]);
+  onJoined?.(String(signUp["localId"]));
   await post(
     `https://us-central1-${cfg.projectId}.cloudfunctions.net/joinIncident`,
     { data: { incidentId, joinCode, role } },
     { authorization: `Bearer ${String(signUp["idToken"])}`, "x-firebase-appcheck": appCheck },
   );
-  onJoined?.(String(signUp["localId"]));
   // The join set the claims; a refreshed ID token carries them.
   const refreshed = await post(`https://securetoken.googleapis.com/v1/token?key=${key}`, { grant_type: "refresh_token", refresh_token: String(signUp["refreshToken"]) });
-  return { idToken: String(refreshed["id_token"]), uid: String(signUp["localId"]), appCheck, refreshToken: String(refreshed["refresh_token"]) };
+  const refreshToken = refreshed["refresh_token"];
+  if (typeof refreshToken !== "string" || refreshToken === "") throw new Error("The session refresh gave no refresh token");
+  return { idToken: String(refreshed["id_token"]), uid: String(signUp["localId"]), appCheck, refreshToken };
 }
 
 /** The family's cloud consent for one photo of the incident, named by its own hash, as the family app gives it. */
@@ -102,20 +105,24 @@ export async function familyConsentToPhoto(incidentId: string, sha: string): Pro
 /** A fresh family member of the incident, joined the way the family app joins (for removal checks). */
 export type FamilyMember = { uid: string; idToken: string; appCheck: string; refreshToken: string };
 
-/** If anything fails after the join succeeded, the account is removed again before the error leaves. */
+/** If anything fails once the join was sent, the account is removed again (or found never joined) before the error leaves. */
 export async function freshFamilyMember(incidentId: string): Promise<FamilyMember> {
   refuseJudgeSeed(incidentId);
   let joined: string | null = null;
   try {
     return await familySession(webConfig(), incidentId, (uid) => (joined = uid));
   } catch (e) {
-    if (joined) await removeAsCommand(incidentId, joined).catch(() => undefined);
+    if (joined) await removeAsCommand(incidentId, joined, { notMemberOk: true });
     throw e;
   }
 }
 
-/** Removes an account through removeMember as a command session of its own (the cleanup when a check fails). */
-export async function removeAsCommand(incidentId: string, uid: string): Promise<number> {
+/**
+ * Removes an account through removeMember as a command session of its own (the cleanup when a check fails), and throws
+ * unless the server removed it (or, with notMemberOk, says it never joined). The cleanup's own command account stays
+ * joined: command cannot remove itself, and it holds no reports.
+ */
+export async function removeAsCommand(incidentId: string, uid: string, opts: { notMemberOk?: boolean } = {}): Promise<void> {
   refuseJudgeSeed(incidentId);
   const cfg = webConfig();
   const c = await joinedSession(cfg, incidentId, "command", required("PLS_SMOKE_JOIN_CODE"));
@@ -124,18 +131,21 @@ export async function removeAsCommand(incidentId: string, uid: string): Promise<
     headers: { "content-type": "application/json", authorization: `Bearer ${c.idToken}`, "x-firebase-appcheck": c.appCheck, referer: referer() },
     body: JSON.stringify({ data: { incidentId, uid } }),
   });
-  return res.status;
+  if (res.ok || (opts.notMemberOk && res.status === 404)) return;
+  throw new Error(`Cleanup could not remove the test member: removeMember answered HTTP ${res.status}`);
 }
 
-/** The HTTP status of refreshing the member's session (refused once removal has revoked it). */
-export async function refreshStatus(m: FamilyMember): Promise<number> {
+/** Why refreshing the member's session fails ("TOKEN_EXPIRED" once removal has revoked it), or "ok" while it works. */
+export async function refreshError(m: FamilyMember): Promise<string> {
   const cfg = webConfig();
   const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(cfg.apiKey)}`, {
     method: "POST",
     headers: { "content-type": "application/json", referer: referer() },
     body: JSON.stringify({ grant_type: "refresh_token", refresh_token: m.refreshToken }),
   });
-  return res.status;
+  if (res.ok) return "ok";
+  const body = (await res.json().catch(() => ({}))) as { error?: { message?: unknown } };
+  return String(body.error?.message ?? `HTTP ${res.status}`);
 }
 
 /** The HTTP status of the member reading the incident doc now (200 while a member, 403 once removed). */
