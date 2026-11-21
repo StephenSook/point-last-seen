@@ -107,6 +107,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: removeMember refuses a missing or expired incident (permission-denied, not_command), as
+  deleteIncidentMediaNow and rotateJoinCode do, reading it inside its transaction, so no removal record is written
+  under a deleted drill; a closed search still allows a removal. Source: review (deferred minor from member removal).
+  Verified: a new case (missing incident and expired incident refused with no record written; a closed one allowed)
+  failed first, then passes; 363 functions and rules tests and the typecheck pass.
 - evidence: the Measured file re-run from stored data on 2026-11-21 (after the outdoor drill was cancelled): 124
   report reads (9 on device, 2 cloud, 113 rules), 48 plan wordings (7 cloud, 41 rules), and $0.1212 of cloud spend
   over 8 days. Source: review (Measured export re-run). Verified: measured_export.py --check passes on the written

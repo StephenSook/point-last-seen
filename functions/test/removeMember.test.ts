@@ -172,3 +172,16 @@ describe("cleanup and joins, review round 2", () => {
   });
 });
 
+describe("the incident must still be there", () => {
+  it("refuses removal from a missing or expired incident and writes no removal record; a closed one still allows it", async () => {
+    const ghostCmd = await member({ inc: "GONE", role: "command", team: null });
+    const ghostMember = await member({ inc: "GONE", role: "searcher", team: "T1" });
+    await expectCode(handleRemoveMember(admin.db, admin.auth, caller(ghostCmd, { inc: "GONE", role: "command" }), { incidentId: "GONE", uid: ghostMember }), "permission-denied");
+    expect((await admin.db.doc(`incidents/GONE/removed/${ghostMember}`).get()).exists).toBe(false);
+    await admin.db.doc("incidents/I1").update({ expiresAt: new Date(Date.now() - 1000) });
+    await expectCode(handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: searcher }), "permission-denied");
+    await admin.db.doc("incidents/I1").update({ expiresAt: null, status: "closed", closedReason: "found" });
+    expect(await handleRemoveMember(admin.db, admin.auth, asCmd(), { incidentId: "I1", uid: searcher })).toEqual({ removed: true });
+  });
+});
+

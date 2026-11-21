@@ -42,7 +42,13 @@ export async function handleRemoveMember(db: Firestore, auth: Pick<Auth, "getUse
   const removedRef = db.doc(`incidents/${incidentId}/removed/${uid}`);
   const memberRef = db.doc(`incidents/${incidentId}/members/${uid}`);
   await db.runTransaction(async tx => {
-    const [removed, member] = await Promise.all([tx.get(removedRef), tx.get(memberRef)]);
+    const [incident, removed, member] = await Promise.all([tx.get(db.doc(`incidents/${incidentId}`)), tx.get(removedRef), tx.get(memberRef)]);
+    // As in media.ts: claims outlive an incident, so a missing or expired one refuses its command too (and no removal
+    // record is written under a deleted drill). A closed search still allows a removal.
+    const exp = incident.get("expiresAt") as { toMillis(): number } | null | undefined;
+    if (!incident.exists || (exp != null && exp.toMillis() <= Date.now())) {
+      throw new HttpsError("permission-denied", refusal, { reason: "not_command" });
+    }
     if (removed.exists) return;
     let role: unknown = member.get("role");
     let team: unknown = member.get("team") ?? null;
