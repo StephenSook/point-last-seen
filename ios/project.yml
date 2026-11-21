@@ -5,7 +5,7 @@ name: PLS
 options:
   bundleIdPrefix: app.pointlastseen
   deploymentTarget:
-    iOS: "27.0"
+    iOS: "26.0"
   createIntermediateGroups: true
 settings:
   base:

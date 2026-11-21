@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### fix(ios): the app installs on iOS 26
+- What: the deployment target is iOS 26.0 (it was 27.0), so a phone that has not updated to iOS 27 can
+  install the app. Apple's on-device model needs only iOS 26; on iOS 26 the cloud route is off, so a read
+  is Apple's model, then rules.
+- Source: review (minimum iOS version).
+- Verified: a test that the app's MinimumOSVersion is 26.0 failed at 27.0 and passes after; the whole
+  app suite builds and passes at the 26.0 target on an iOS 27.2 simulator and on an iOS 26.5 simulator
+  (203 tests, the four iOS 27-only tests skipped there).
+
 ### fix(ios): an iOS 26 path for each iOS 27 call; the cloud route needs iOS 27
 - What: every call the app makes that needs iOS 27 now has an iOS 26 path. The model's variant name
   (iOS 27) reads as a plain name on iOS 26. Below iOS 26.4 the model cannot count tokens, so the
