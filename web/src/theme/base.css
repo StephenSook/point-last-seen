@@ -32,14 +32,16 @@ button, input, select { font: inherit; color: inherit; }
 
 /* On a laptop the post is exactly the window and only its rails scroll: nothing inside, absolutely placed or not,
    can make the document taller. */
-.post { position: relative; display: grid; grid-template-rows: auto 1fr; height: 100%; height: 100dvh; overflow: hidden; }
+/* A column: the header, any status line (offline, unreadable plans) at its own height, then the body filling the rest. */
+.post { position: relative; display: flex; flex-direction: column; height: 100%; height: 100dvh; overflow: hidden; }
+.post > p { margin: 0; padding: 6px 16px; border-bottom: 1px solid var(--line); }
 .post-head { display: flex; align-items: center; gap: 24px; padding: 10px 16px; background: var(--bg-1); border-bottom: 1px solid var(--line); }
 .drill { font-weight: 700; color: var(--fg-1); }
 .post-head .incident { color: var(--fg-2); }
 .post-head .code { margin-left: auto; display: flex; align-items: baseline; gap: 8px; flex-shrink: 0; white-space: nowrap; }
 .post-head .code .num { font-size: 20px; letter-spacing: 0.08em; }
 
-.post-body { display: grid; grid-template-columns: 160px 1fr 340px; min-height: 0; }
+.post-body { flex: 1 1 auto; display: grid; grid-template-columns: 160px 1fr 340px; min-height: 0; }
 /* position: relative keeps a rail's absolutely placed children (the visually hidden spoken lines) inside its scroll. */
 .rail { position: relative; background: var(--bg-1); border-right: 1px solid var(--line); padding: 12px; overflow: auto; min-height: 0; }
 .rail.right { border-right: 0; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px; }
