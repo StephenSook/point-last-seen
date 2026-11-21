@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-20
 
+### feat(ios): Apple's model reads a photo of something found, on the phone
+- What: PhotoReader asks Apple's on-device model (iOS 27 with the vision capability, greedy, capped, 30-second
+  limit) what one photo shows: a person or not, the object, its color and its kind. It is never shown the family's
+  description. AppModel.submitPhoto turns that into a clue with PhotoClue and journals it like any report
+  (inputMethod photo, segments from the searcher's position or the team's only segment, the reading validated in
+  code). A photo that shows a person, or that could not be read, sends nothing and says why. The photo stays in
+  memory and is never kept or sent; there is no cloud route for photos. Photos are read only in a drill that lets a
+  model read.
+- Source: the photo clue feature.
+- Verified: four app tests (a described item journalled as a consistent clue with its route, a person photo and a
+  failed read send nothing, no photo reading without the model or outside a drill) were written before the code and
+  pass; on the simulator the shipped reader read two public-domain photos as "black baseball cap" (black, hat) and
+  "green knit hat" (green, hat) in 1.3 to 3.5 s.
+
 ### feat(ios-core): a photo report's receipt says the photo was not kept
 - What: EchoText.photoLine gives the line under a report read from a photo: "Read from a photo on this phone. The
   photo was not kept.", with "Like the family's description." when code found it consistent. Nil for any other

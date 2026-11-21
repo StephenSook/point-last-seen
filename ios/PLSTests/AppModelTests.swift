@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import PLSCore
 import Testing
@@ -126,6 +127,70 @@ import Testing
         Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
                 assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
                 profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget)
+    }
+
+    /// A photo model with a fake reader and a journal; the reader's answer is fixed per test.
+    func photoModel(_ answer: PhotoReadResult, available: Bool = true) throws -> (AppModel, EventStore) {
+        let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                             readPhoto: { _ in answer }, photoReaderAvailable: { available })
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("photo-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        model.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        return (model, store)
+    }
+
+    static func onePixel() throws -> CGImage {
+        let ctx = try #require(CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                         space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        return try #require(ctx.makeImage())
+    }
+
+    /// A photo of a described item is one clue report, written by code, read on this phone.
+    @Test func aPhotoOfSomethingFoundIsJournalledAsAClue() async throws {
+        let cap = PhotoDescription(showsPerson: false, object: "red baseball cap", color: .red, kind: .hat)
+        let (model, store) = try photoModel(.described(cap, model: "test-model", latencyMs: 1500))
+        var mission = try quietMission()
+        mission.profile = ModelProfile(shared: .object(["clothingLastWorn": .string("a red baseball cap")]))
+        await model.load(mission)
+        #expect(model.canReadPhoto)
+        #expect(await model.submitPhoto(try Self.onePixel()))
+        let doc = try #require(store.entries.first?.doc)
+        #expect(doc.inputMethod == .photo && doc.rawText == "Photo: red baseball cap.")
+        #expect(doc.reading?["kind"] == .string("clue") && doc.reading?["matchesProfile"] == .string("consistent"))
+        #expect(doc.route?.path == .onDevice && doc.route?.model == "test-model" && doc.route?.latencyMs == 1500)
+        #expect(model.problem == nil)
+    }
+
+    @Test func aPhotoThatShowsAPersonIsNotKeptOrSent() async throws {
+        let person = PhotoDescription(showsPerson: true, object: "red baseball cap", color: .red, kind: .hat)
+        let (model, store) = try photoModel(.described(person, model: "test-model", latencyMs: 1500))
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(store.entries.isEmpty)
+        #expect(model.problem == PhotoClue.personMessage)
+    }
+
+    @Test func aPhotoThatCouldNotBeReadSendsNothing() async throws {
+        let (model, store) = try photoModel(.failed)
+        await model.load(try quietMission())
+        #expect(await model.submitPhoto(try Self.onePixel()) == false)
+        #expect(store.entries.isEmpty)
+        #expect(model.problem == AppModel.photoReadFailed)
+    }
+
+    /// The photo button shows only when Apple's model can read photos here, in a drill that lets a model read.
+    @Test func photosAreReadOnlyWhereAModelMayReadThem() async throws {
+        let cap = PhotoDescription(showsPerson: false, object: "cap", color: .red, kind: .hat)
+        let (off, _) = try photoModel(.described(cap, model: "m", latencyMs: 1), available: false)
+        await off.load(try quietMission())
+        #expect(off.canReadPhoto == false)
+        let (live, liveStore) = try photoModel(.described(cap, model: "m", latencyMs: 1))
+        var mission = try quietMission()
+        mission.mode = "search"
+        await live.load(mission)
+        #expect(live.canReadPhoto == false)
+        #expect(await live.submitPhoto(try Self.onePixel()) == false && liveStore.entries.isEmpty)
     }
 
     /// A found object read as a clue keeps its reason with the report on this phone, for the receipt, and the

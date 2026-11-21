@@ -1,3 +1,4 @@
+import CoreGraphics
 import FirebaseAuth
 import FirebaseFirestore
 import Foundation
@@ -28,6 +29,10 @@ final class AppModel {
     /// Apple's model and, when allowed, Gemini through Firebase AI Logic.
     typealias ReadReport = @MainActor (String, ReportSituation, RemoteConfigValues, EvidenceScreen) async -> ReadOutcome
     private let readReport: ReadReport
+    /// Reads one photo on Apple's model, on the phone; and whether this phone can (seams for tests).
+    typealias ReadPhoto = @MainActor (CGImage) async -> PhotoReadResult
+    private let readPhoto: ReadPhoto
+    private let photoReaderAvailable: () -> Bool
 
     /// The joinIncident callable and Auth's claims, and where the mission is read from; seams for tests.
     private let joinBackend: JoinBackend
@@ -88,6 +93,8 @@ final class AppModel {
          nowMs: @escaping () -> Double = { Date().timeIntervalSince1970 * 1000 },
          measurements: MeasurementWriter? = nil,
          readReport: ReadReport? = nil,
+         readPhoto: ReadPhoto? = nil,
+         photoReaderAvailable: (() -> Bool)? = nil,
          joinBackend: JoinBackend? = nil,
          missionReader: MissionReader? = nil,
          pushTopics: PushTopics? = nil,
@@ -106,6 +113,8 @@ final class AppModel {
         self.uid = uid
         self.nowMs = nowMs
         self.measurements = measurements
+        self.readPhoto = readPhoto ?? { await PhotoReader.read($0) }
+        self.photoReaderAvailable = photoReaderAvailable ?? { PhotoReader.available }
         self.readReport = readReport ?? { text, situation, config, screen in
             await ReportReader(ai: AIClient.make(useLimitedUseTokens: config.useLimitedUseTokens), config: config, screen: screen)
                 .read(text, situation: situation)
@@ -956,6 +965,45 @@ final class AppModel {
             networkOnline: route == .cloud && connectivity.isOnline, cloudConsent: route == .cloud, liveGate: nil,
             onDeviceOff: route == .cloud)
         return await readReport(Self.routeCheckSentence(mission), situation, config, screen)
+    }
+
+    static let photoReadFailed = "The photo could not be read on this phone. Try again, or type what you found."
+
+    /// The photo button shows when Apple's model here can read a photo, in a drill that lets a model read.
+    var canReadPhoto: Bool { photoReaderAvailable() && mission.map { ReadPlan.modelModes.contains($0.mode) } == true }
+
+    /// A photo of something found: Apple's model describes it on the phone, and code makes the clue
+    /// (`PhotoClue`). A photo that shows a person, or that could not be read, sends nothing. The photo is
+    /// never kept or sent. True once the clue is in the journal.
+    func submitPhoto(_ image: CGImage) async -> Bool {
+        guard !sending, canReadPhoto else { return false }
+        guard let mission, let identity, let store else { problem = "No pack loaded."; return false }
+        if !mission.isPractice { await trySignIn() }
+        guard let uid = authorUid else { problem = "Not signed in yet. Stay in signal for a moment."; return false }
+        sending = true
+        defer { sending = false }
+        let submittedAt = nowMs()
+        let position = await location.fix(timeout: 10)
+        if let position { lastFix = position }
+        // Segments come from code: the one the searcher stands in, else the team's only one.
+        let segmentIds = position.flatMap { Geo.segment(containing: $0, in: mission.grid) }.map { [$0] }
+            ?? (mission.assignedSegmentIds.count == 1 ? mission.assignedSegmentIds : [])
+        guard case let .described(photo, modelName, latencyMs) = await readPhoto(image) else {
+            problem = Self.photoReadFailed
+            return false
+        }
+        switch PhotoClue.decide(photo, profile: mission.profile, segmentIds: segmentIds) {
+        case let .discarded(why):
+            problem = why
+            return false
+        case let .clue(clue):
+            let route = RouteRecord(platform: .ios, path: .onDevice, stage: .guided, model: modelName, reason: .onDeviceDefault,
+                                    latencyMs: latencyMs, sdkReported: false, blocked: nil, decidedAtMs: submittedAt)
+            let validation = ReadingValidator.validate(clue.reading, knownSegmentIds: mission.grid.map(\.segmentId), rawText: clue.rawText)
+            return journal(ReadOutcome(reading: clue.reading, route: route, validation: validation), rawText: clue.rawText, inputMethod: .photo,
+                           position: position, mission: mission, uid: uid, identity: identity, store: store,
+                           submittedAt: submittedAt, readDone: nowMs())
+        }
     }
 
     /// A report the searcher picked from the list: no model runs, the person's choices stand.
