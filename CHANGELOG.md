@@ -77,6 +77,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- drill-day, section 3: a new step 6 prints the debrief sheets (More, then Print debrief sheets): one Letter page per
+  segment of the approved plan, team and segment typed, then two blank sheets; teams fill them in in BLOCK CAPITALS,
+  tick one coverage box and write no one's name or phone number; command checks every field before it is saved. Later
+  steps move by one. Source: review (paper debrief, live on the command post). Verified against
+  web/src/extras/ExtrasDock.tsx:19, web/src/extras/debrief/DebriefSheets.tsx:39,71 and
+  web/src/extras/print/PrintSession.tsx:56 (DEBRIEF_BLANKS), and the live site at 0c9766e serving Print debrief
+  sheets.
 - Phone-number vectors: the six Spanish digit word cases are no longer pending, now that the web, iPhone and Android
   rules count the words; LIMITS states 58 of 58 on every platform. Source: review. Verified: each platform's vector
   runner passes all 58 cases in CI on this commit.
