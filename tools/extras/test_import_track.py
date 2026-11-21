@@ -347,6 +347,20 @@ def test_the_passes_file_spans_every_kept_point_so_a_report_at_the_last_fix_is_i
     assert f["passes"][0]["atMs"] == T0 + 67_000
 
 
+def test_the_repository_reached_by_another_name_is_still_the_repository(tmp_path):
+    # Another name for the same folder (a link here; on a Mac also /System/Volumes/Data/...) must not pass the check:
+    # the check compares folders, not the strings that name them.
+    repo = tmp_path / "repo"
+    (repo / "web" / "public").mkdir(parents=True)
+    alias = tmp_path / "alias"
+    alias.symlink_to(repo, target_is_directory=True)
+    for written in (alias / "web" / "public" / "x.local" / "t.json", alias / "WEB" / "public" / "x.local" / "t.json"):
+        assert it._inside_repository(written, repo), written
+    assert not it._inside_repository(tmp_path / "elsewhere.local" / "t.json", repo)
+    assert cli(tmp_path, alias / "web" / "public" / "x.local" / "t.json", tmp_path / "p.json", repo=repo) == 2
+    assert not (repo / "web" / "public" / "x.local").exists()
+
+
 def test_a_synthetic_passes_file_is_never_written_inside_the_repository(tmp_path):
     repo = tmp_path / "repo"
     for served in (repo / "web" / "public" / "extras" / "passes" / "x.passes.json", repo / "web" / "dist" / "x.passes.json",

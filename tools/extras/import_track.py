@@ -295,6 +295,30 @@ def _inside_as_written(path: Path, root: Path) -> bool:
     return any(p == r or p.startswith(r + os.sep) for r in {os.path.abspath(root).casefold(), str(root.resolve()).casefold()})
 
 
+def _ancestors(path: Path):
+    p = Path(os.path.abspath(path))
+    yield p
+    yield from p.parents
+
+
+def _inside_repository(path: Path, root: Path) -> bool:
+    """Whether the path, as written or with links followed, lies in the repository. Folders are compared as folders
+    (device and inode), so another name for the repository (a link, a letter-case variant, the Mac's
+    /System/Volumes/Data path) is still the repository. The name checks remain for a root that does not exist yet."""
+    try:
+        root_stat = os.stat(root)
+    except OSError:
+        root_stat = None
+    if root_stat is not None:
+        for a in [*_ancestors(path), *_ancestors(path.resolve())]:
+            try:
+                if os.path.samestat(os.stat(a), root_stat):
+                    return True
+            except OSError:
+                continue
+    return _inside(path, root) or _inside_as_written(path, root)
+
+
 def _write(path: Path, data: dict) -> None:
     """Writes through a new temporary file (created exclusively, so a link planted beside it is never followed)."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -320,11 +344,11 @@ def main(argv: list[str] | None = None, repo_root: Path = REPO) -> int:
     ap.add_argument("--passes-out", required=True)
     args = ap.parse_args(argv)
     track_out, passes_out = Path(args.track_out), Path(args.passes_out)
-    if track_out.is_symlink() or not _in_local_folder(track_out) or _inside(track_out, repo_root) or _inside_as_written(track_out, repo_root):
+    if track_out.is_symlink() or not _in_local_folder(track_out) or _inside_repository(track_out, repo_root):
         print(f"import_track: the track is a person's location; write it only inside a *.local folder outside the "
               f"repository, and not through a link: not {track_out}", file=sys.stderr)
         return 2
-    if args.source == "synthetic" and (_inside(passes_out, repo_root) or _inside_as_written(passes_out, repo_root)):
+    if args.source == "synthetic" and _inside_repository(passes_out, repo_root):
         print("import_track: a synthetic track's passes are never written inside the repository", file=sys.stderr)
         return 2
     try:
