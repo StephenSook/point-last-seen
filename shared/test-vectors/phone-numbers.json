@@ -215,9 +215,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "ios"
       ]
     },
     {
@@ -227,9 +224,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "ios"
       ]
     },
     {
@@ -239,9 +233,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "ios"
       ]
     },
     {
@@ -251,9 +242,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "ios"
       ]
     },
     {
@@ -263,9 +251,6 @@
       "forbidden": [],
       "keep": [
         "Call"
-      ],
-      "pendingOn": [
-        "ios"
       ]
     }
   ],
