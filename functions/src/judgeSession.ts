@@ -41,7 +41,7 @@ type Config = { seedIncidentId: string; perDay: number; copy?: (copy: () => Prom
 
 /**
  * Gives the command role on a practice search, but only while it is still the visitor's attempt (judgeUsers/{uid}),
- * ready and not ended, read right before the role is written. A start that paused and finds a newer winner leaves
+ * ready, not closed and not expired, read right before the role is written. A start that paused and finds a newer winner leaves
  * that winner's role alone. (A pause between this read and the write itself is the gap left; docs/LIMITS.md.)
  */
 async function giveCommand(db: Firestore, auth: Auth, uid: string, incidentId: string, nowMs: number,
@@ -50,7 +50,7 @@ async function giveCommand(db: Firestore, auth: Auth, uid: string, incidentId: s
   const [user, sandbox] = await db.getAll(db.doc(`judgeUsers/${uid}`), db.doc(`incidents/${incidentId}`));
   const exp = sandbox!.get("expiresAt");
   const current = user!.get("incidentId") === incidentId && sandbox!.get("setupReady") === true
-    && exp instanceof Timestamp && exp.toMillis() > Math.max(nowMs, Date.now());
+    && sandbox!.get("status") !== "closed" && exp instanceof Timestamp && exp.toMillis() > Math.max(nowMs, Date.now());
   if (!current) throw stillSettingUp();
   await auth.setCustomUserClaims(uid, { inc: incidentId, role: "command", team: null });
   return { incidentId, role: "command" };

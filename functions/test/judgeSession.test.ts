@@ -313,6 +313,14 @@ describe("startJudgeSession hands out the role only for the visitor's current at
     expect(await claims(uid)).toEqual({ inc: newer, role: "command", team: null });
     expect(first).not.toBe(newer);
   });
+  it("a start that finds the sandbox closed by the time it hands out the role grants nothing (review: close during a start)", async () => {
+    const uid = await freshUid();
+    const first = (await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, cfg)).incidentId;
+    await admin.auth.setCustomUserClaims(uid, null);
+    const pause = { ...cfg, beforeClaims: async () => { await inc(first).update({ status: "closed", closedReason: "training_ended" }); } };
+    await expect(handleStartJudgeSession(admin.db, admin.auth, uid, NOW + HOUR, pause)).rejects.toMatchObject({ code: "unavailable" });
+    expect(await claims(uid)).toEqual({});
+  });
 });
 
 describe("startJudgeSession and a sandbox made before setup was tracked", () => {

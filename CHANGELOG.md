@@ -82,6 +82,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- functions: startJudgeSession's final grant refuses a practice search that was closed after the start chose it, so a
+  close landing mid-start never hands back command on the ended one. Source: review (cross-family, round 1 on practice
+  searches and an ended search). Verified: a new case (the visitor closes the sandbox while the start pauses before
+  the grant; the start fails unavailable and no claims are set) failed first, then passes; all functions and rules
+  tests and the gates pass.
 - functions: a practice search the visitor ended (status closed) is no longer handed back on the next start: like an
   expired one, it gives a new session, subject to the same hourly limit per visitor, so Try a practice search after
   End this search starts fresh instead of reopening the ended post. Source: review (practice copies after End this
