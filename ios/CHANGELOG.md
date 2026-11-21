@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### docs: LIMITS says what the iPhone photo clue does and what is not verified
+- What: a "Photo clues (iPhone)" section: on-device only and never kept; the separate person question and why a
+  dedicated person detector is not used; code compares with the family's items; the evidence protocol; what the
+  30-second limit releases; and what is not verified (the real camera, real person photos, picker caches, the app
+  switcher snapshot).
+- Source: review.
+- Verified: the gates pass (the LIMITS checks included).
+
 ### feat(ios): leaving the app while the photo picker is up covers the screen
 - What: while the photo picker is open, the app covers its window when it stops being active and uncovers it when it
   comes back, so the app switcher's snapshot shows no photo. Whether iOS keeps anything else of the photo (the
