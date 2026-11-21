@@ -70,6 +70,99 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- Drill retention: starting a purge clears both done and stale marks, so a drill once marked stale that later becomes
+  due is retried by the next run when its purge fails partway. Source: review (second-model, fourth round). Verified:
+  a new test (a stale record, the drill due, sign-in deletes failing after the root is gone, then the next run) failed
+  first, then passes; functions suite 281.
+- LIMITS, Drill data retention: tombstones and the seed tool's refusal of a purged id, and the one race left open (a
+  sign-in idle since the close that joins another incident in the instant before its delete; its person signs in again
+  and rejoins with a code). Source: review. Verified against functions/src/retention.ts and tools/seed/seed_drill.py.
+- Drill retention: purge records are kept for good as tombstones (doneAt when finished, staleAt when the id was in use
+  again) instead of being deleted, so the seed tool can refuse a purged id; a finished purge is never resumed; each
+  unfinished record is handled on its own, so one that cannot be written fails alone and the other drills are still
+  purged. Source: review (second-model, third round). Verified: 3 new tests (a tombstone not resumed, a stale record
+  left alone on the next run, one failing record beside a due drill) and 3 updated ones failed first, then pass;
+  functions suite 280.
+- Seed tool: refuses to create a drill, or add a code to one, when the drill retention job holds a purge record for
+  its id, and fails closed when the record cannot be read; checked before anything is written to the Keychain or
+  Firestore. Source: review (second-model: a purged id seeded again would carry old sign-ins' claims and could be hit
+  by a resumed purge). Verified: 3 new tests failed first, then pass (18).
+- LIMITS, Drill data retention: a reused id's record is dropped, the last join-code sweep, sign-ins used after the
+  close are kept, and the 2026-11-21 audit (no drill had a closedAt before the rules made it the server's). Source:
+  review. Verified against functions/src/retention.ts and a read of every production drill.
+- Drill retention, second review round: a purge record keeps the drill's close time and resumes only while its
+  incident is gone; a record whose id is in use again is dropped without deleting anything; a sign-in is deleted only
+  if nobody used it since the drill closed (a person joining anything refreshes their token first); a last join-code
+  sweep runs after the incident is deleted; the job's log line counts dropped records. Source: review (second-model).
+  Verified: 3 new tests (a reused id, a sign-in used after the close, a join code written during the purge) failed
+  first, then pass; functions suite 278; ci-local gates, ts and rules pass.
+- LIMITS, Drill data retention: the purge record and the next-run finish, join codes, the last media sweep, the
+  commit-time closedAt and the re-read before a sign-in is deleted. Source: review. Verified against
+  functions/src/retention.ts and functions/src/index.ts.
+- Rules test: no client reads or writes a drill purge record (ops/drillPurges/items), signed in or not. Source:
+  review. Verified: the functions suite passes (275).
+- Drill retention, after a second-model review: a purge record (ops/drillPurges/items/{id}) is written before anything
+  is deleted and cleared only when every step succeeded, so a run that stops partway, even after the incident root is
+  gone, is finished by the next one; the drill's join codes are deleted; a last media sweep after the incident is gone
+  catches an upload made during the purge; each sign-in is read again just before deletion and kept if it joined
+  another incident; a deleteUsers result with failures keeps the record. closedAt is the close write's commit time,
+  set in a transaction only if absent, and the trigger retries. Source: review (second-model). Verified: 9 new
+  failure-injection tests (resume from the record with the root gone, failed sign-in deletes, a sign-in that moved, a
+  late upload, a repeated close event) failed first, then pass; functions suite 275; ci-local gates, ts and rules
+  pass.
+- LIMITS gains Drill data retention (what is deleted and when, the server's closedAt, the orphaned anonymous sign-ins,
+  the keep-list, the iPhone practice drill staying on the phone); the production checklist gets the job's row. Source:
+  review (drill retention). Verified against functions/src/retention.ts, firestore.rules and
+  ios/PLS/App/AppModel.swift; on 2026-11-21 every drill in production was open, so nothing is due before 30 days after
+  the first close.
+- functions/src/index.ts: recordDrillClosedTrigger (incident updates) and deleteEndedDrillsJob (daily 07:41 UTC,
+  counts only in its log line). Source: review (drill retention). Verified: functions typecheck; the functions suite
+  passes (270); ci-local ts and rules sections pass.
+- functions/src/retention.ts: closedAtPatch and recordDrillClosed write the server's closedAt once, when a drill
+  becomes closed; deleteEndedDrills deletes every drill closed more than 30 days ago (media prefixes first, then the
+  incident recursively, then its orphaned anonymous sign-ins), keeps drill-dev-1, drill-judge-1 and drill-kennesaw-1
+  until 2027-01-01, leaves a drill whose media cannot be deleted for the next run, and has a dry run. Source: review
+  (drill retention, approved). Verified: 9 emulator tests failed first (no module), then pass.
+- Rules: closedAt on an incident is server-owned, like mode and expiresAt, so no client can move a drill's deletion;
+  command still closes a drill. Source: review (drill retention). Verified: a new rules test failed first (command
+  could write closedAt), then passes; the functions suite passes (270).
+- README gains How we built it: the AI paths (all through Firebase AI Logic), the Firebase products, the apps'
+  frameworks, the engine and its Swift port, the shared rules Android ports, the data, the checks, and the build
+  process with evidence in the repository (Claude Code; Codex reviews on pull requests). Source: review. Verified:
+  every item against a dependency or import in the shipped code.
+- README, judges line: the published run is now described as test family reports and plans, the run label's new words;
+  scripts/test_readme_run_label.py fails CI when README.md stops containing the label's description (it reads
+  web/public/evidence/published-run.json). Source: review (the README and the judge card must say the same thing).
+  Verified: the test failed first on the old words, then passes.
+- SECURITY row 6: the four server prompt templates are locked, with the read-back: locked true and the same template
+  text by SHA-256, an identical-text write refused (HTTP 400 FAILED_PRECONDITION), template calls still answering 200
+  after the lock, and the publish dry run matching the repository. Source: review (Firebase recommends locking
+  templates used in production). Verified: GET of each template after modifyLock; the refused PATCH; serviceruntime
+  request counts per minute (TemplateGenerateContent 200 at 01:56:52Z and 01:57:52Z); scripts/template_publish.py dry
+  run.
+- README, judges line: the published run is described in the judge card's own words again (the run file's label:
+  Piedmont Park, Atlanta: the build's own test reports and plans, 2026-11-18 to 19), not a separate count. Source:
+  review (the README and the judge card must say the same thing). Verified: the README contains the label text of the
+  live /evidence/published-run.json.
+- LIMITS: Apple's Foundation Models acceptable-use terms, quoted (no official use in connection with law enforcement
+  or criminal justice; no decisions without human supervision with a material impact on individual rights in high-risk
+  domains); the iPhone reads with a model only in drill and judge incidents (ReadPlan.swift) and command approves
+  every assignment change; we cannot verify Apple permits use on an official search. Source: review. Verified: both
+  quotes word for word from Apple's Acceptable use requirements for the Foundation Models framework page (read
+  2026-11-21); ReadPlan.modelModes is drill and judge.
+- Production checklist: the minimum_version_android item no longer waits for the repo to go public on 2026-11-28; the
+  repo is public and /releases/latest opens the android-judge release with its APK, so the key is raised only when a
+  newer release APK is published. Source: review. Verified: /releases/latest answers 200 and resolves to
+  releases/tag/android-judge for a signed-out request.
+- README, judges line: the judge page names the cloud model and says whether the laptop's built-in model is ready (it
+  does not name an on-device model). Source: review. Verified against web/src/judge/judge.ts.
+- SECURITY row 1b: App Attest PASSED on a physical iPhone (2026-11-20, Ad Hoc Release build, App Attest production:
+  attestation and assertion exchanges 200, Firestore reads VALID before enforcement); it said PENDING. Source: review.
+  Verified: Cloud Monitoring reads at 21:22Z and 21:28Z on 2026-11-20; docs/TEST-MATRIX.md build 8 rows.
+- README and SECURITY: four calls use server prompt templates, not three; the web photo read calls pls-photo-cues-v1
+  (photoTemplateGenerator in web/src/ai/client.ts, used by CommandPost's readPhotoCloud since 65ee825a), so SECURITY
+  row 6, the call-table intro and the photo row say so. Source: review. Verified against
+  web/src/command/CommandPost.tsx:455.
 - served_version_check compares the served commit's production inputs with origin/main's instead of checking ancestry,
   and refuses a shallow clone, a missing origin/main and an unknown served commit. Source: review (second-model).
   Verified: 12 real-git tests; the live site fails today because main's engine changes are not deployed.

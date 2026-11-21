@@ -158,3 +158,60 @@ def test_the_extra_code_commands_check_their_arguments_before_anything_changes()
         seed.main(["--add-code", "proj", "drill-test-1", "pilot", "drill-test-1-reviewer"])
     with pytest.raises(SystemExit, match="account"):
         seed.main(["--revoke-code", "proj", "drill-test-1", "searcher", "drill-test-1"])
+
+
+class _Resp:
+    def __init__(self, status): self.status = status
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def read(self): return b"{}"
+
+
+def _fetch(status):
+    import urllib.error
+    def f(req, timeout=None):
+        if status == 200:
+            return _Resp(200)
+        raise urllib.error.HTTPError(req.full_url, status, "x", {}, None)
+    return f
+
+
+def test_a_purged_incident_id_is_recognised_and_an_unreadable_record_fails_closed():
+    assert seed.purge_record_exists("p", "drill-x", "t", fetch=_fetch(200)) is True
+    assert seed.purge_record_exists("p", "drill-x", "t", fetch=_fetch(404)) is False
+    try:
+        seed.purge_record_exists("p", "drill-x", "t", fetch=_fetch(500))
+    except SystemExit as e:
+        assert "purge record" in str(e)
+    else:
+        raise AssertionError("a 500 must stop the seed")
+
+
+def test_a_drill_id_that_was_purged_is_never_seeded_again_and_nothing_is_written(monkeypatch):
+    writes, stored = [], []
+    monkeypatch.setattr(seed, "_token", lambda: "t")
+    monkeypatch.setattr(seed, "purge_record_exists", lambda project, incident_id, token: True)
+    monkeypatch.setattr(seed, "create_doc", lambda *a, **k: writes.append(a))
+    monkeypatch.setattr(seed, "keychain_store", lambda *a: stored.append(a))
+    try:
+        seed.main(["proj", "drill-old", "Old drill", "T1"])
+    except SystemExit as e:
+        assert "was purged" in str(e)
+    else:
+        raise AssertionError("seeding a purged id must stop")
+    assert writes == [] and stored == []
+
+
+def test_no_code_is_added_for_a_purged_drill(monkeypatch):
+    stored = []
+    monkeypatch.setattr(seed, "_token", lambda: "t")
+    monkeypatch.setattr(seed, "purge_record_exists", lambda project, incident_id, token: True)
+    monkeypatch.setattr(seed, "keychain_read", lambda *a: "ABCDEFGH")
+    monkeypatch.setattr(seed, "keychain_store", lambda *a: stored.append(a))
+    try:
+        seed.add_code("proj", "drill-old", "searcher", "drill-old-guest")
+    except SystemExit as e:
+        assert "was purged" in str(e)
+    else:
+        raise AssertionError("adding a code to a purged drill must stop")
+    assert stored == []

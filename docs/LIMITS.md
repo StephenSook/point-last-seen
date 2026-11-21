@@ -11,6 +11,12 @@ each line says what the limit is and why.
   and the debug provider (the debug APK reports 5).
 - An Android APK built before c05f679 cannot read clips: it writes a clip consent that expires 30 days out,
   and the rules require 31 to 33 days, so the consent and the upload are refused.
+- Apple's terms for its on-device model forbid "official use in connection with law enforcement or criminal
+  justice" and decisions "without human supervision that have a material impact on individual rights, in high-risk
+  domains" (Acceptable use requirements for the Foundation Models framework). The iPhone app reads a report with
+  Apple's model or Gemini only in a drill or judge incident (`ios/PLSCore/Sources/PLSCore/ReadPlan.swift`; any
+  other incident is read by rules), and a person at command approves every assignment change. We CANNOT VERIFY that
+  Apple permits its model's use on an official search, so this build is for training drills.
 - The iPhone's cloud route needs iOS 27; on iOS 26 it reads on the device, then by rules. The app installs from
   iOS 26.0, but the cloud route runs Gemini in a Foundation Models session (`ai.geminiLanguageModel(name:)`),
   which iOS 26 does not have, so the reader keeps the cloud off there. The iOS 26.5 simulator runs the app's tests
@@ -229,6 +235,35 @@ each line says what the limit is and why.
   minutes and retries a sandbox until a sweep finds nothing left. Both are live (deployed 2026-11-18); the daily
   probe checks the sweep's `ops/storage` heartbeat. A link made during the sandbox stops working when its file
   is deleted.
+
+## Drill data retention
+
+- A drill's data is deleted 30 days after the search command closes it: the incident with its events, plans,
+  debriefs, consents and everything else under it, its clips, photos and packs, and its join codes.
+  `deleteEndedDrillsJob` runs daily at 07:41 UTC (`functions/src/retention.ts`). It writes a purge record
+  (`ops/drillPurges/items/{id}`, which no client can read or write) before deleting anything and marks it done only
+  when every step succeeded, so a run that stops partway is finished by the next one, even after the incident itself
+  is gone; a record whose incident id is in use again is marked stale and nothing of that incident is deleted. Done
+  and stale records are kept for good, and the seed tool (`tools/seed/seed_drill.py`) refuses to create a drill, or
+  add a code, for any id that has one, so a purged drill's id is never used again. A last media
+  and join-code sweep after the incident is deleted catches anything written during the purge; with the incident
+  gone, the rules refuse new uploads.
+- The close time is the server's: `recordDrillClosedTrigger` writes `closedAt`, the close write's own commit time,
+  once and only if it is absent, so a repeated or retried trigger cannot move it, and the security rules refuse
+  `closedAt` from every client, so no seat can move a drill's deletion. Closing is final, so `closedAt` is never
+  cleared. A drill closed before this job existed has no `closedAt` and is not deleted by it (on 2026-11-21, before
+  the rules made `closedAt` the server's, every drill was still open and none had a `closedAt`).
+- The anonymous sign-ins whose only incident was the deleted drill are deleted with it. Each is read again just
+  before it is deleted and kept if it has joined another incident since or was used after the drill closed; a
+  sign-in with an email, a phone number or another provider is a person's account and is kept. A failed sign-in
+  delete leaves the purge record unfinished, so the next run tries again. Not closed: a sign-in idle since the close
+  that refreshes and joins another incident in the moment between that last read and the delete is still deleted.
+  Its person then signs in again and rejoins with a code; nothing they wrote is lost.
+- Kept whatever their close: `drill-dev-1` (the development drill) and `drill-judge-1` (the judge sandboxes'
+  seed), and `drill-kennesaw-1` until 2027-01-01 (the drill on film and on the judge page). A live search and a
+  judge sandbox are never deleted by this job; a sandbox goes a day after it ends (`deleteEndedSandboxesJob`).
+- The iPhone's practice drill keeps its reports on that phone only: it never signs in and sends neither its reports nor
+  their timings (`ios/PLS/App/AppModel.swift`), so nothing of it is in Firestore to delete.
 
 ## The published drill run
 

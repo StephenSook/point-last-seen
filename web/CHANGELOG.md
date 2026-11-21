@@ -1988,6 +1988,16 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: a confirmed sighting on the test drill now shows these banners, which the check refused.
 - Verified: the check failed on the live site with the older-sighting banner, then passed live; the patterns accept each banner form and refuse a truncated one.
 
+### feat(command): the rail leads with what changed, the plan and the top segments
+- What: the command post's right rail now opens with What changed, Plan and the POA top 5, then who to look for and the sighting actions (Add sighting, Add camera clip, Sightings). Conditions, Family, Prior model, Prior, Family photos, Debriefs and Reports by team move under one closed "Details" at the foot of the rail (`data-testid="rail-details"`). Each section is unchanged and keeps its data-testids; the live checks that use a moved section open Details first (`openDetails` in `e2e/fixtures.ts`), and the accessibility check scans the post with Details open as well.
+- Source: UI review (the rail led with the profile and forms; the three things command reads every minute were below the fold).
+- Verified: new deployed check `e2e/railOrder.spec.ts` (lead order, the sections under a closed Details, Family hidden until Details opens) failed on the live site, and runs again after the deploy; typecheck, web unit suite (953), the harness suite (except the triage measurement, which needs the build env file), the no-backend set (41), CI's Python gates and the hygiene guard pass.
+
+### fix(data): the phone rule removes a number spoken in Spanish digit words
+- What: `removePhoneNumbers` counts cero, uno, dos, tres, cuatro, cinco, seis, siete, ocho and nueve as spoken digits, matched in any case, as the shared rule now names them; "un" and "una" stay articles. An English note carrying "cuatro cero cuatro cinco cinco cinco cero uno cuatro dos" no longer keeps the number.
+- Source: privacy gap (a number spelled in Spanish digit words passed the rule).
+- Verified: run against the six new shared cases with their pending platforms forced, the web vector test failed 4 (the two keep cases already passed), then passed all 58; new unit checks in `src/data/phoneNumbers.test.ts` (a Spanish spoken number in any case is removed; un and una are kept) failed on the old rule, then passed; web unit suite, typecheck and the hygiene guard pass.
+
 ### feat(command): the sighting form shows when, where, the note and Save first
 - What: in Add sighting, Seen at, Place, the Note with Read the note and its status lines, and Save sighting come first; Going, Top, Bottom, Footwear, Carrying, Reported by and the callback wait under a closed "More details". A read that fills the fields opens More details, so every filled field is in view when the form says "Check every field."
 - Source: UI review (Save sat about 950 px below the top of the form).
