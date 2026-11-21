@@ -2063,6 +2063,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: UI review (on a laptop the "+0.2 pts" chip covered BC's percentage).
 - Verified: new `chipPlace` unit tests failed first, then passed; a new harness check in `e2e/harness/change.spec.ts` (at 1440 by 900 and 1100 by 700, then zoomed out two steps, every chip inside the map and none over a visible percent or code) failed on main ("+14.7 pts over 7.5%", "3.5%", "1.0%" two steps out), then passed with the change and map checks; typecheck, web unit suite and the hygiene guard pass.
 
+### chore(e2e): the harness and extras dev servers take their port from the environment
+- What: `e2e/harness.config.ts` reads `PLS_HARNESS_PORT` (default 5175) and `e2e/extras.config.ts` reads `PLS_EXTRAS_PORT` (default 5176) through `e2e/harnessPort.ts`, which refuses anything but a whole number from 1024 to 65535. Each server starts with `--strictPort`, so two worktrees running the same suite at once collided on one port; now each can use its own. CI and an unset variable behave as before.
+- Source: review (two worktrees' harness runs failed on a busy port 5175).
+- Verified: new `src/e2eConfig.test.ts` (defaults 5175 and 5176, the variables move base URL, server command and ready URL, bad values refused) failed first, then passed; the map harness checks pass with `PLS_HARNESS_PORT=5185` (16); typecheck, web unit suite and the hygiene guard pass.
+
 ### feat(command): the Teams strip picks a team and outlines its cells
 - What: the Teams rail is a narrow strip (160 px, was 200 px), so the map gets the width. Each team is a button: pressing it makes that team the active one (its name in fg-1, the others in fg-4) and outlines its assigned cells on the map in 2 px fg-1 on a bg-0 casing, under the cyan outline of the newest change; pressing it again clears the pick. With no team picked every name reads in fg-2; before, no team could ever be active, so every name was fg-4 grey. The map element names the outlined cells in `data-team-outline`. New harness `web/harness/teams.html`.
 - Source: UI review (teams rail as a narrow strip, active team in fg-1; no team was ever active).
