@@ -2,6 +2,7 @@ package app.pointlastseen.family.core
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PhoneNumbersTest {
@@ -82,6 +83,22 @@ class PhoneNumbersTest {
         for (note in listOf("GPS 33.7490, -84.3880", "Punto 19.4326, -99.1332", "Last seen 33.7490 -84.3880",
             "Phone found at 33.7866, -84.3733")) {
             assertEquals(note, PhoneNumbers.remove(note))
+        }
+    }
+
+    /**
+     * A run of clock times the rule reads as its own group stays in clock order with no phone cue before it; out of
+     * order, or after a cue (a cue word among the three words before it, or a "#"), the whole run goes.
+     */
+    @Test fun aRunOfTimesStaysInClockOrderAndGoesWholeOutOfOrderOrAfterACue() {
+        assertEquals("The possible times are 14:03, 14:10, 14:17.", PhoneNumbers.remove("The possible times are 14:03, 14:10, 14:17."))
+        assertEquals("Times 14:03, 14:10, 14:17. Call [number removed]", PhoneNumbers.remove("Times 14:03, 14:10, 14:17. Call 404 555 0142"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call four 4:04 5:55 6:42"))
+        for (note in listOf("Call 21:25 5:50 1:42 tonight", "Call 21:25, 5:50, 1:42 tonight", "Try 12:12 5:55 01:42 tonight",
+            "Call\t4:04 5:55 16:42 tonight", "Reach me at 4:04 5:55 06:42 tonight", "Call (4:04 5:55 16:43) tonight", "Note #4:04 5:55 06:42")) {
+            val out = PhoneNumbers.remove(note)
+            assertFalse(out, Regex("[0-9]").containsMatchIn(out))
+            assertTrue(out, out.contains(PhoneNumbers.REPLACEMENT))
         }
     }
 
