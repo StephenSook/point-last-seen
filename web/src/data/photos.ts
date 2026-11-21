@@ -4,7 +4,7 @@
 // days.
 
 import type { PhotoCues, RouteRecord } from "@pls/engine";
-import { getDocFromServer, doc, setDoc, type Firestore } from "firebase/firestore";
+import { collection, getDocFromServer, doc, onSnapshot, setDoc, type Firestore, type Unsubscribe } from "firebase/firestore";
 import { getBytes, getMetadata, listAll, ref, uploadBytes, type FirebaseStorage } from "firebase/storage";
 
 const HASH = /^[0-9a-f]{64}$/;
@@ -124,6 +124,11 @@ export async function uploadPhoto(storage: FirebaseStorage, incidentId: string, 
 
 export async function savePhotoReading(db: Firestore, incidentId: string, reading: ReturnType<typeof photoReadingDoc>): Promise<void> {
   await setDoc(doc(db, "incidents", incidentId, "photoReadings", reading.sha256), reading);
+}
+
+/** The photos command has saved a reading of (by sha256), live; the Details summary counts the rest as to review. */
+export function subscribePhotoReadingIds(db: Firestore, incidentId: string, cb: (ids: ReadonlySet<string>) => void, onError: (e: unknown) => void): Unsubscribe {
+  return onSnapshot(collection(db, "incidents", incidentId, "photoReadings"), (s) => cb(new Set(s.docs.map((d) => d.id))), onError);
 }
 
 /** A failed load is said in plain words; it is never shown as an empty tray. */
