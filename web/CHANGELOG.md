@@ -2346,3 +2346,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the callable answers "unauthenticated" for a rejected sign-in token as well as for a refused App Check token, so "Refused by App Check. Try a normal browser window." could send command the wrong way. It now reads "Refused: sign-in or App Check. Reload the page and try again."
 - Source: review (Codex, low: a rejected sign-in token is reported as an App Check failure).
 - Verified: the unit test's expected sentence was changed first and failed, then passed with the whole file (8).
+
+### fix(data): a refused read of the members or removal records keeps what was shown
+- What: when the removal records' listener was refused after a good read, it replaced them with an empty set, so a removed person with an old report got Remove from this drill again. A refused read now changes nothing: the lists start empty before any read succeeds, and keep what they showed after one.
+- Source: review (Codex: a failed removal listener makes removed people appear eligible again).
+- Verified: a new unit test, `membersListen.test.ts` (Firestore's listener mocked: a good read, then a refusal on each collection), failed first, then passed with the members tests (9); typecheck and the hygiene guard pass.

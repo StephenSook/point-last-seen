@@ -71,8 +71,9 @@ export function memberRows(
 }
 
 /**
- * Command's live view of the members records and the removal records. Either listener that is refused (rules not yet
- * deployed, or not command) reads as empty, so the list falls back to event authors.
+ * Command's live view of the members records and the removal records. A refused read changes nothing: before any read
+ * succeeds the lists start empty (so the list falls back to event authors), and after one it keeps what it showed,
+ * so a removed person never looks removable again.
  */
 export function subscribeMembers(db: Firestore, incidentId: string, onMembers: (m: Record<string, MemberDoc>) => void,
   onRemoved: (uids: Set<string>) => void): () => void {
@@ -83,8 +84,8 @@ export function subscribeMembers(db: Firestore, incidentId: string, onMembers: (
       if (typeof role === "string") m[d.id] = { role, team: typeof team === "string" ? team : null };
     }
     onMembers(m);
-  }, () => onMembers({}));
+  }, () => undefined);
   const stopRemoved = onSnapshot(collection(db, "incidents", incidentId, "removed"), (s) => onRemoved(new Set(s.docs.map((d) => d.id))),
-    () => onRemoved(new Set()));
+    () => undefined);
   return () => { stopMembers(); stopRemoved(); };
 }
