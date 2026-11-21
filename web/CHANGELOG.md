@@ -2554,3 +2554,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `DebriefSection` takes a `prefill` (segment, note, seq). That segment's row opens its form as Add or Edit would, adds the note after what What worked already says, and puts the cursor there. Nothing saves until command fills the time and saves the debrief.
 - Source: review (a team's search report typed into the sighting form).
 - Verified: two new harness tests (a row with no debrief opens with the note, focused and unsaved, and saves it under What worked; a row with a debrief keeps its words and time and adds the note after them) failed first, then passed; both debrief harness specs (24) pass.
+
+### feat(command): the post sends a search report to its cleared segment's debrief
+- What: the command post gives the sighting form its cleared segments, and "Add it to segment XX's debrief" closes the form, opens Details and opens that segment's debrief with the note. A deployed-only check (`e2e/searchReport.spec.ts`) types a report on the drill, sends it to the first cleared segment's debrief, checks the box holds the note and has the cursor, and cancels, so it writes nothing.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: typecheck, web unit suite and the harness suite (231) pass; the deployed check runs after the deploy.

@@ -291,6 +291,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const latestSeen = useRef<number | null | undefined>(undefined);
   const nextSeq = useRef(makeSeq()).current;
   const [adding, setAdding] = useState(false);
+  // A search report the sighting form sent to a cleared segment's debrief, and the Details rail that holds it.
+  const [debriefPrefill, setDebriefPrefill] = useState<{ segmentId: string; note: string; seq: number } | null>(null);
+  const railDetails = useRef<HTMLDetailsElement>(null);
   const [clipping, setClipping] = useState(false);
   // A view setting for this screen only: every plate of 0.1% or more on the map, not only the ones that fit.
   const [everyPercent, setEveryPercent] = useState(false);
@@ -914,6 +917,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               readNote={readNote}
               readNoteInCloud={readNoteInCloud}
               cloudPaused={rc.killCloud}
+              debriefable={new Set(clearedSegments(events).map((c) => c.segmentId))}
+              onDebrief={(segmentId, note) => {
+                setDebriefPrefill((p) => ({ segmentId, note, seq: (p?.seq ?? 0) + 1 }));
+                if (railDetails.current) railDetails.current.open = true;
+                setAdding(false);
+                setPin(null);
+              }}
               onClose={() => {
                 setAdding(false);
                 setPin(null);
@@ -966,7 +976,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <ConditionsForm conditions={null} open={incident.status !== "closed"} onSave={(c) => setConditions(pls.db, incidentId, c)} />
           )}
           {/* Opened less often: command reads these when it needs them; the summary says what needs a person. */}
-          <details className="rail-details" data-testid="rail-details" onToggle={(e) => openedDetails(e.currentTarget.open)}>
+          <details ref={railDetails} className="rail-details" data-testid="rail-details" onToggle={(e) => openedDetails(e.currentTarget.open)}>
             <summary data-testid="rail-details-summary">
               <span className="label">Details</span>
               {summary !== "Details" && <span className="muted">{summary.slice("Details".length)}</span>}
@@ -1048,6 +1058,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
                 saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
               }
               paperRead={readSheetHere}
+              prefill={debriefPrefill}
             />
             <MergeLanes lanes={lanes} />
             <MembersPanel rows={people} stale={membersStale} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />
