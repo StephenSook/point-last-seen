@@ -326,14 +326,31 @@ import Testing
         }
     }
 
-    /// The cases still marked pending on the iPhone pass too, with the same checks: the shared rule has
-    /// been ported. Once the marks are dropped from the file, the tests above run them.
-    @Test func theCasesStillPendingOnTheIPhonePass() throws {
-        let f = try file()
-        for c in f.mustRemove where !Self.runsHere(c.pendingOn) { Self.checkRemoved(c) }
-        for c in f.mustKeep where !Self.runsHere(c.pendingOn) { #expect(PhoneNumbers.scrub(c.input) == c.input, "\(c.name)") }
-        for c in f.exact ?? [] where !Self.runsHere(c.pendingOn) {
-            #expect(Array(PhoneNumbers.scrub(c.input).utf8) == Array(c.output.utf8), "\(c.name)")
+    /// Why a removal case fails here, or nil when it passes: the same checks as `checkRemoved`.
+    static func removalFailure(_ c: Remove) -> String? {
+        let out = PhoneNumbers.scrub(c.input)
+        if out.contains(c.number) { return "the number stays: \(out)" }
+        if out.unicodeScalars.contains(where: Self.isNumber) { return "a number character stays: \(out)" }
+        if let w = c.forbidden.first(where: { out.lowercased().contains($0.lowercased()) }) { return "\(w) stays: \(out)" }
+        if let p = c.keep.first(where: { !out.contains($0) }) { return "\(p) is gone: \(out)" }
+        return nil
+    }
+
+    /// The cases a pending mark leaves out here that already pass: each is a fixed gap whose mark must go.
+    static func fixedButPending(_ f: File) -> [String] {
+        var fixed: [String] = []
+        for c in f.mustRemove where !runsHere(c.pendingOn) && removalFailure(c) == nil { fixed.append(c.name) }
+        for c in f.mustKeep where !runsHere(c.pendingOn) && PhoneNumbers.scrub(c.input) == c.input { fixed.append(c.name) }
+        for c in f.exact ?? [] where !runsHere(c.pendingOn) && Array(PhoneNumbers.scrub(c.input).utf8) == Array(c.output.utf8) {
+            fixed.append(c.name)
         }
+        return fixed
+    }
+
+    /// A case marked pending on the iPhone is a known gap there, so it must still fail here, with the same checks the
+    /// tests above make. One that passes is a fixed gap whose mark must go, and the test names it: "un-pend <name>".
+    @Test func everyCasePendingOnTheIPhoneStillFailsHere() throws {
+        let fixed = Self.fixedButPending(try file())
+        #expect(fixed.isEmpty, "un-pend \(fixed.joined(separator: ", "))")
     }
 }

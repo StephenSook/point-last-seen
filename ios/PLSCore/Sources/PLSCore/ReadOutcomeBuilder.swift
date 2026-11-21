@@ -216,10 +216,6 @@ public enum PhoneNumbers {
         "ave", "avenue", "st", "street", "rd", "road", "blvd", "boulevard", "dr", "drive", "ln", "lane", "pl", "place", "way",
         "ct", "court", "pkwy", "parkway", "hwy", "highway", "ter", "terrace", "cir", "circle", "sq", "square", "trl", "trail",
     ]
-    /// Endings glued to a number that make it a quantity (5km, 3pm).
-    static let units: Set<String> = [
-        "am", "pm", "h", "hr", "hrs", "min", "mins", "km", "m", "mi", "ft", "yd", "yds", "mph", "kg", "lb", "lbs", "cm", "mm",
-    ]
     /// US state and territory codes, in capitals (GA 30301-1234); lower case would match common words.
     static let states: Set<String> = [
         "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA",
@@ -236,8 +232,49 @@ public enum PhoneNumbers {
         var alone = false
     }
 
+    /// Removes phone numbers from a note. A run made only of clock times is decided first, as a whole (the shared
+    /// vectors' README); the text between decided runs, and every note NFKC changes, follows the shared rule (`byRule`).
     public static func scrub(_ text: String) -> String {
         let s = text.precomposedStringWithCompatibilityMapping          // full-width digits become ASCII
+        // A note NFKC changes skips the times step: folding can turn other characters into the ASCII digits a run is
+        // made of. Compared scalar by scalar, since String equality calls a decomposed note unchanged.
+        guard s.unicodeScalars.elementsEqual(text.unicodeScalars) else { return byRule(s) }
+        let scalars = Array(s.unicodeScalars)
+        // The step decides on the note's code points, as the web and Android rules do: a mark or selector that a
+        // grapheme cluster would fold into a word or a digit (Call\u{034F}, 15:55\u{FE0F}, #\u{FE0F}\u{20E3}) never hides a
+        // cue or moves a part's end.
+        let parts = scalarRuleParts(scalars)
+        var startsAt: [Int: Int] = [:], endsAt: [Int: Int] = [:]
+        for (k, p) in parts.enumerated() {
+            startsAt[p.start] = k
+            endsAt[p.end] = k
+        }
+        func slice(_ r: Range<Int>) -> String {
+            var v = String.UnicodeScalarView()
+            v.append(contentsOf: scalars[r])
+            return String(v)
+        }
+        var out = "", from = 0
+        for run in timesRuns(scalars) {
+            // The run must be a whole number of the shared rule's parts, and no digit, written or spoken, may join it.
+            guard let first = startsAt[run.lowerBound], let last = endsAt[run.upperBound] else { continue }
+            let joined = (first > 0 && joins(scalars, parts[first - 1], parts[first]))
+                || (last + 1 < parts.count && joins(scalars, parts[last], parts[last + 1]))
+            // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00), which changes how the
+            // shared rule groups the digits around it, so such a run stays with the text around it.
+            func month(_ i: Int) -> Bool { i >= 0 && i < parts.count && !parts[i].written && months.contains(word(scalars, parts[i])) }
+            if joined || month(first - 1) || month(last + 1) { continue }
+            let runText = slice(run)
+            // In clock order with no cue it is search information (14:03, 14:10, 14:17); otherwise it could be a
+            // number written as times (Call 21:25 5:50 1:42), and the whole run goes: when in doubt, remove.
+            out += byRule(slice(from..<run.lowerBound)) + (inClockOrder(runText) && !cuedRun(scalars, parts, first) ? runText : replacement)
+            from = run.upperBound
+        }
+        return out + byRule(slice(from..<scalars.count))
+    }
+
+    /// The parts of s as the shared rule reads them: a spoken repeat counted, and a street name's number set apart.
+    static func ruleParts(_ s: String) -> [Part] {
         var parts = parts(s)
         for i in parts.indices.dropLast() {
             guard let extra = repeats[word(s, parts[i])], !parts[i].written, parts[i + 1].digits > 0,
@@ -250,8 +287,183 @@ public enum PhoneNumbers {
             && parts[i + 1].range.lowerBound == parts[i].range.upperBound && ordinals.contains(word(s, parts[i + 1]))
             && !parts[i + 2].written && streets.contains(word(s, parts[i + 2])) {
             let gap = s[parts[i + 1].range.upperBound..<parts[i + 2].range.lowerBound]
-            if !gap.isEmpty, gap.allSatisfy(\.isWhitespace) { parts[i].alone = true }
+            if !gap.isEmpty, gap.unicodeScalars.allSatisfy(isKotlinSpace) { parts[i].alone = true }
         }
+        return parts
+    }
+
+    /// Before a run of times, two more words cue a number (Text 21:25 5:50 1:42; Reach me at 4:04 5:55 6:42).
+    static let timeCues: Set<String> = phoneCues.union(["text", "reach"])
+    /// How many words before a run of times are read for a cue.
+    static let cueWindow = 3
+
+    /// The runs of two or more clock times in s, as scalar ranges, found left to right as the shared rule's pattern
+    /// finds them: a time is h:mm or hh:mm in ASCII digits (hour 0 to 23, minutes 00 to 59), the times are joined by
+    /// spaces and commas, and no number character sits before or after the run with only marks or spaces between.
+    /// A run that would end beside a number gives up its last times until it does not, and needs two times left.
+    static func timesRuns(_ u: [Unicode.Scalar]) -> [Range<Int>] {
+        var runs: [Range<Int>] = []
+        var p = 0
+        while p < u.count {
+            if let end = timesRun(u, at: p) { runs.append(p..<end); p = end } else { p += 1 }
+        }
+        return runs
+    }
+
+    static func timesRun(_ u: [Unicode.Scalar], at p: Int) -> Int? {
+        var b = p - 1
+        while b >= 0, !isLetter(u[b]), !isNumber(u[b]) { b -= 1 }
+        if b >= 0, isNumber(u[b]) { return nil }
+        guard let firstEnd = clockTime(u, at: p) else { return nil }
+        var ends = [firstEnd]
+        while true {
+            var q = ends[ends.count - 1]
+            while q < u.count, u[q] == " " || u[q] == "," { q += 1 }
+            guard q > ends[ends.count - 1], let next = clockTime(u, at: q) else { break }
+            ends.append(next)
+        }
+        for k in stride(from: ends.count - 1, through: 1, by: -1) {
+            var a = ends[k]
+            while a < u.count, !isLetter(u[a]), !isNumber(u[a]) { a += 1 }
+            if a == u.count || !isNumber(u[a]) { return ends[k] }
+        }
+        return nil
+    }
+
+    /// The end of a clock time starting at i, read as the pattern reads it: hour [01]?d or 2[0-3], a colon, minutes
+    /// [0-5]d, in ASCII digits only.
+    static func clockTime(_ u: [Unicode.Scalar], at i: Int) -> Int? {
+        func digit(_ k: Int) -> UInt32? { k < u.count && u[k].value >= 48 && u[k].value <= 57 ? u[k].value - 48 : nil }
+        func colon(_ k: Int) -> Bool { k < u.count && u[k] == ":" }
+        let hourEnd: Int
+        if let a = digit(i), a <= 1, digit(i + 1) != nil, colon(i + 2) {
+            hourEnd = i + 2
+        } else if digit(i) != nil, colon(i + 1) {
+            hourEnd = i + 1
+        } else if digit(i) == 2, let b = digit(i + 1), b <= 3, colon(i + 2) {
+            hourEnd = i + 2
+        } else {
+            return nil
+        }
+        guard let m = digit(hourEnd + 1), m <= 5, digit(hourEnd + 2) != nil else { return nil }
+        return hourEnd + 3
+    }
+
+    static func isNumber(_ c: Unicode.Scalar) -> Bool {
+        switch c.properties.generalCategory {
+        case .decimalNumber, .letterNumber, .otherNumber: true
+        default: false
+        }
+    }
+
+    static func isLetter(_ c: Unicode.Scalar) -> Bool {
+        switch c.properties.generalCategory {
+        case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter: true
+        default: false
+        }
+    }
+
+    /// Whether each time in the run is no earlier on the clock than the one before.
+    static func inClockOrder(_ run: String) -> Bool {
+        let minutes = run.split(whereSeparator: { $0 == " " || $0 == "," }).compactMap { t -> Int? in
+            let hm = t.split(separator: ":")
+            guard hm.count == 2, let h = Int(hm[0]), let m = Int(hm[1]) else { return nil }
+            return h * 60 + m
+        }
+        return zip(minutes, minutes.dropFirst()).allSatisfy { $0 <= $1 }
+    }
+
+    /// Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it,
+    /// or a "#". A part carrying digits (written, spoken, or a counted double or triple) is read past and is not one
+    /// of the three words, so "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued.
+    static func cuedRun(_ u: [Unicode.Scalar], _ parts: [ScalarPart], _ first: Int) -> Bool {
+        var j = first - 1, words = 0
+        while j >= 0, words < cueWindow {
+            if parts[j].digits > 0 { j -= 1; continue }
+            if timeCues.contains(word(u, parts[j])) { return true }
+            words += 1
+            j -= 1
+        }
+        // By code point: a keycap's "#" (#\u{FE0F}\u{20E3}) is a "#".
+        return u[(j >= 0 ? parts[j].end : 0)..<parts[first].start].contains("#")
+    }
+
+    /// A part as the web and Android rules read it, by code point: a run of digits (a decimal digit in any script, a
+    /// Chinese numeral digit or another number character), counting them, or a run of letters, one digit if it is a
+    /// spoken digit. Offsets are scalar offsets into the note.
+    struct ScalarPart {
+        var start: Int
+        var end: Int
+        var digits: Int
+        let written: Bool
+        var alone = false
+    }
+
+    static let chineseDigits = Set("〇零一二三四五六七八九幺".unicodeScalars)
+    static func isRuleDigit(_ c: Unicode.Scalar) -> Bool { isNumber(c) || chineseDigits.contains(c) }
+
+    static func word(_ u: [Unicode.Scalar], _ p: ScalarPart) -> String {
+        var v = String.UnicodeScalarView()
+        v.append(contentsOf: u[p.start..<p.end])
+        return String(v).lowercased()
+    }
+
+    /// The parts of the note as the shared rule reads them, by code point: a spoken repeat counted, and a street name's
+    /// number set apart.
+    static func scalarRuleParts(_ u: [Unicode.Scalar]) -> [ScalarPart] {
+        var parts: [ScalarPart] = []
+        var i = 0
+        while i < u.count {
+            if isRuleDigit(u[i]) {
+                var j = i
+                while j < u.count, isRuleDigit(u[j]) { j += 1 }
+                parts.append(ScalarPart(start: i, end: j, digits: j - i, written: true))
+                i = j
+            } else if isLetter(u[i]) {
+                // A word stops at a Chinese numeral, which is a digit here.
+                var j = i
+                while j < u.count, isLetter(u[j]), !isRuleDigit(u[j]) { j += 1 }
+                let p = ScalarPart(start: i, end: j, digits: 0, written: false)
+                parts.append(ScalarPart(start: i, end: j, digits: digitWords.contains(word(u, p)) ? 1 : 0, written: false))
+                i = j
+            } else {
+                i += 1
+            }
+        }
+        for i in parts.indices.dropLast() {
+            guard let extra = repeats[word(u, parts[i])], !parts[i].written, parts[i + 1].digits > 0,
+                  joinsGap(u[parts[i].end..<parts[i + 1].start]) else { continue }
+            parts[i].digits = extra
+        }
+        for i in parts.indices where parts[i].written && parts[i].digits <= 3 && i + 2 < parts.count && !parts[i + 1].written
+            && parts[i + 1].start == parts[i].end && ordinals.contains(word(u, parts[i + 1]))
+            && !parts[i + 2].written && streets.contains(word(u, parts[i + 2])) {
+            let gap = u[parts[i + 1].end..<parts[i + 2].start]
+            if !gap.isEmpty, gap.allSatisfy(isKotlinSpace) { parts[i].alone = true }
+        }
+        return parts
+    }
+
+    /// Whether part a joins the part b right after it into one number, by code point.
+    static func joins(_ u: [Unicode.Scalar], _ a: ScalarPart, _ b: ScalarPart) -> Bool {
+        a.digits > 0 && b.digits > 0 && !a.alone && !b.alone && joinsGap(u[a.end..<b.start])
+    }
+
+    /// A gap that joins two parts: anything but a mark in `notASeparator`, as `onlySeparators` reads it.
+    static func joinsGap(_ gap: ArraySlice<Unicode.Scalar>) -> Bool { !gap.contains(where: notASeparator.contains) }
+
+    /// Kotlin's whitespace: Java's (with the information separators U+001C to U+001F) plus every space separator.
+    static func isKotlinSpace(_ c: Unicode.Scalar) -> Bool {
+        switch c.properties.generalCategory {
+        case .spaceSeparator, .lineSeparator, .paragraphSeparator: return true
+        default: return ["\t", "\n", "\u{0B}", "\u{0C}", "\r", "\u{1C}", "\u{1D}", "\u{1E}", "\u{1F}"].contains(c)
+        }
+    }
+
+    /// The shared rule on its own, as every platform runs it, without the run-of-times step.
+    static func byRule(_ text: String) -> String {
+        let s = text.precomposedStringWithCompatibilityMapping          // full-width digits become ASCII
+        let parts = ruleParts(s)
         let spans = searchSpans(s, parts)
         // Walk back from the end, so replacing one number never moves the ones before it.
         var out = s
@@ -302,12 +514,28 @@ public enum PhoneNumbers {
         return pieces
     }
 
+    /// Whether a gap reads this character as a space, as the web and Android rules read every gap: a mark or a format
+    /// character (a zero-width space) is dropped, and a line break or Kotlin's whitespace (Java's, which includes the
+    /// information separators U+001C to U+001F, plus every space separator) is a space.
+    static func readsAsSpace(_ c: Unicode.Scalar) -> Bool {
+        switch c.properties.generalCategory {
+        case .nonspacingMark, .enclosingMark, .spacingMark, .format, .spaceSeparator, .lineSeparator, .paragraphSeparator: return true
+        default: return ["\t", "\n", "\u{0B}", "\u{0C}", "\r", "\u{1C}", "\u{1D}", "\u{1E}", "\u{1F}", "\u{0085}"].contains(c)
+        }
+    }
+
+    /// The line breaks a note may hold, as the web and Android rules read them: CRLF, LF, CR, a next line (U+0085), a
+    /// line separator and a paragraph separator.
+    static let lineBreaks: Set<Character> = ["\r\n", "\n", "\r", "\u{0085}", "\u{2028}", "\u{2029}"]
+
     /// Replaces parts[first...last] (with a leading + or ( when the run starts there), keeping any line breaks.
     static func replace(_ out: inout String, _ s: String, _ parts: [Part], _ first: Int, _ last: Int) {
         var lower = parts[first].range.lowerBound
-        while lower > s.startIndex, "+(".contains(s[s.index(before: lower)]) { lower = s.index(before: lower) }
+        // By code point: a format character before the "+" (U+0600) never hides it.
+        let u = s.unicodeScalars
+        while lower > s.startIndex, "+(".unicodeScalars.contains(u[u.index(before: lower)]) { lower = u.index(before: lower) }
         let upper = parts[last].range.upperBound
-        let breaks = s[lower..<upper].filter { $0 == "\n" || $0 == "\r" || $0 == "\r\n" }.count
+        let breaks = s[lower..<upper].filter(lineBreaks.contains).count
         out.replaceSubrange(lower..<upper, with: Array(repeating: replacement, count: breaks + 1).joined(separator: "\n"))
     }
 
@@ -328,7 +556,7 @@ public enum PhoneNumbers {
     /// dropped time (which joins its minutes).
     static func searchSpans(_ s: String, _ parts: [Part]) -> (found: Set<Int>, kept: Set<Int>, glued: Set<Int>) {
         func gap(_ a: Int, _ b: Int) -> Substring { s[parts[a].range.upperBound..<parts[b].range.lowerBound] }
-        func len(_ i: Int) -> Int { s[parts[i].range].count }
+        func len(_ i: Int) -> Int { s[parts[i].range].utf16.count }       // UTF-16, as the web measures
         func text(_ i: Int) -> Substring { s[parts[i].range] }
         func value(_ i: Int) -> Int? { Int(text(i)) }                       // ASCII digits only
         func written(_ i: Int) -> Bool { parts.indices.contains(i) && parts[i].written }
@@ -347,8 +575,8 @@ public enum PhoneNumbers {
         // cue further back names a thing, not a number to dial: "Phone found at 33.7866, -84.3733" is a clue's place.
         func cueBefore(_ i: Int) -> Bool {
             let start = i > 0 ? parts[i - 1].range.upperBound : s.startIndex
-            if s[start..<parts[i].range.lowerBound].contains("#") { return true }
-            func near(_ a: Int, _ b: Int) -> Bool { gap(a, b).allSatisfy { $0.isWhitespace || $0 == ":" } }
+            if s.unicodeScalars[start..<parts[i].range.lowerBound].contains("#") { return true }    // a keycap's "#" too
+            func near(_ a: Int, _ b: Int) -> Bool { gap(a, b).unicodeScalars.allSatisfy { $0 == ":" || readsAsSpace($0) } }
             func isWord(_ j: Int) -> Bool { j >= 0 && parts[j].digits == 0 && !parts[j].written }
             if isWord(i - 1), near(i - 1, i), phoneCues.contains(word(s, parts[i - 1])) { return true }
             return isWord(i - 2) && isWord(i - 1) && cueConnectors.contains(word(s, parts[i - 1])) && near(i - 2, i - 1)
@@ -365,12 +593,12 @@ public enum PhoneNumbers {
         for i in parts.indices {
             if !parts[i].written {
                 guard months.contains(word(s, parts[i])) else { continue }
-                if isDay(i + 1), gapMatches(gap(i, i + 1), [(isDot, 0, 1), (isSpace, 1, 2)]) {
+                if isDay(i + 1), gapMatches(gap(i, i + 1), [(["."], 0, 1), (spaceOrBreak, 1, 2)]) {
                     monthDates.insert(i + 1)
-                    if isYear(i + 2), gapMatches(gap(i + 1, i + 2), [(isComma, 0, 1), (isSpace, 1, 2)]) { monthDates.insert(i + 2) }
-                } else if isDay(i - 1), gapMatches(gap(i - 1, i), [(isSpace, 1, 2)]) {
+                    if isYear(i + 2), gapMatches(gap(i + 1, i + 2), [([","], 0, 1), (spaceOrBreak, 1, 2)]) { monthDates.insert(i + 2) }
+                } else if isDay(i - 1), gapMatches(gap(i - 1, i), [(spaceOrBreak, 1, 2)]) {
                     monthDates.insert(i - 1)
-                    if isYear(i + 1), gapMatches(gap(i, i + 1), [(isComma, 0, 1), (isSpace, 1, 2)]) { monthDates.insert(i + 1) }
+                    if isYear(i + 1), gapMatches(gap(i, i + 1), [([","], 0, 1), (spaceOrBreak, 1, 2)]) { monthDates.insert(i + 1) }
                 }
                 continue
             }
@@ -381,19 +609,16 @@ public enum PhoneNumbers {
             // A month and day with no year (11/19, or 19/11), joined by a slash.
             if written(i + 1), gap(i, i + 1) == "/", len(i) <= 2, len(i + 1) <= 2, let x = value(i), let y = value(i + 1),
                (1...31).contains(x), (1...31).contains(y), (1...12).contains(x) || (1...12).contains(y),
-               !sameSeparatorNeighbour(s, parts, i, i + 1) {
+               // No other slash group on either side: a written one after it, or any digits before it.
+               !(written(i + 2) && gap(i + 1, i + 2) == "/"), !(i > 0 && parts[i - 1].digits > 0 && gap(i - 1, i) == "/") {
                 dates.append(i...(i + 1))
-            }
-            // A quantity has fewer than seven digits; seven or more with a unit glued on is still a number.
-            if i + 1 < parts.count, !parts[i + 1].written, parts[i + 1].range.lowerBound == parts[i].range.upperBound,
-               units.contains(word(s, parts[i + 1])), parts[i].digits < 7 {
-                kept.insert(i)
             }
             if written(i + 1), gap(i, i + 1) == ":", len(i) <= 2, len(i + 1) == 2, (value(i) ?? 99) <= 23, (value(i + 1) ?? 99) <= 59 {
                 times.append(i...(i + 1))
             }
             // A decimal pair after a "+" is an international number, not a coordinate.
-            let plus = parts[i].range.lowerBound > s.startIndex && s[s.index(before: parts[i].range.lowerBound)] == "+"
+            let plus = parts[i].range.lowerBound > s.startIndex
+                && s.unicodeScalars[s.unicodeScalars.index(before: parts[i].range.lowerBound)] == "+"
             if !plus, degrees(i, i + 1, 90), degrees(i + 2, i + 3, 180), coordinateGap(gap(i + 1, i + 2)), !cueBefore(i) {
                 kept.formUnion(i...(i + 3))
             }
@@ -447,23 +672,27 @@ public enum PhoneNumbers {
         return before || after
     }
 
+    /// The note's parts by code point, as the web and Android rules read them: a run of digits (a decimal digit in any
+    /// script, a Chinese numeral digit or another number character), counting them, or a run of letters (one digit if
+    /// it is a spoken digit). A mark or selector a grapheme cluster would fold into a word or digit stays in the gap.
     static func parts(_ s: String) -> [Part] {
         var parts: [Part] = []
-        var i = s.startIndex
-        while i < s.endIndex {
-            if s[i].isWholeNumber {
-                var j = i
-                while j < s.endIndex, s[j].isWholeNumber { j = s.index(after: j) }
-                parts.append(Part(range: i..<j, digits: s.distance(from: i, to: j), written: true))
+        let u = s.unicodeScalars
+        var i = u.startIndex
+        while i < u.endIndex {
+            if isRuleDigit(u[i]) {
+                var j = i, n = 0
+                while j < u.endIndex, isRuleDigit(u[j]) { j = u.index(after: j); n += 1 }
+                parts.append(Part(range: i..<j, digits: n, written: true))
                 i = j
-            } else if s[i].isLetter {
-                // A word stops at a numeral (a Chinese numeral is a letter too), which is a digit here.
+            } else if isLetter(u[i]) {
+                // A word stops at a Chinese numeral, which is a digit here.
                 var j = i
-                while j < s.endIndex, s[j].isLetter, !s[j].isWholeNumber { j = s.index(after: j) }
+                while j < u.endIndex, isLetter(u[j]), !isRuleDigit(u[j]) { j = u.index(after: j) }
                 parts.append(Part(range: i..<j, digits: digitWords.contains(s[i..<j].lowercased()) ? 1 : 0, written: false))
                 i = j
             } else {
-                i = s.index(after: i)
+                i = u.index(after: i)
             }
         }
         return parts
@@ -493,22 +722,48 @@ public enum PhoneNumbers {
         return day.contains(x) && day.contains(y) && (month.contains(x) || month.contains(y))
     }
 
-    static func isSpace(_ c: Character) -> Bool { c.isWhitespace }
-    static func isDot(_ c: Character) -> Bool { c == "." }
-    static func isComma(_ c: Character) -> Bool { c == "," }
+    /// A gap as the web and Android rules read it: marks and format characters dropped, each line break (with any
+    /// indent after it, unless `keepIndent`) one "\n", and every other space " ".
+    static func flat(_ gap: Substring, keepIndent: Bool = false) -> [Unicode.Scalar] {
+        let u: [Unicode.Scalar] = Array(gap.unicodeScalars).filter { c in
+            switch c.properties.generalCategory {
+            case .nonspacingMark, .enclosingMark, .spacingMark, .format: false
+            default: true
+            }
+        }
+        var out: [Unicode.Scalar] = []
+        var i = 0
+        while i < u.count {
+            let c = u[i]
+            if c == "\r" || c == "\n" || c == "\u{0085}" || c == "\u{2028}" || c == "\u{2029}" {
+                if c == "\r", i + 1 < u.count, u[i + 1] == "\n" { i += 1 }
+                out.append("\n")
+                i += 1
+                if !keepIndent { while i < u.count, u[i] == " " || u[i] == "\t" { i += 1 } }
+            } else {
+                out.append(isKotlinSpace(c) ? " " : c)
+                i += 1
+            }
+        }
+        return out
+    }
+
+    /// A space or a line break in a flat gap.
+    static let spaceOrBreak: Set<Unicode.Scalar> = [" ", "\n"]
 
     /// A coordinate pair's middle: a comma, semicolon, bullet, middle dot, bar or slash (with at most two spaces around
     /// it) then a minus, or one or two spaces then a minus. The minus is the western longitude every drill site has: two
     /// decimals with no minus between them can be two phone numbers (33.12345678, 33.87654321 is two Mexican numbers),
     /// and a bare minus between two decimals (44.2071-23.4567) is a dotted number.
     static func coordinateGap(_ gap: Substring) -> Bool {
-        var rest = gap[...]
+        // Read flat with the indent kept, as the web reads it: a line break's indent counts toward the two spaces.
+        var rest = flat(gap, keepIndent: true)[...]
         var n = 0
-        while n < 2, let c = rest.first, c.isWhitespace { rest = rest.dropFirst(); n += 1 }
+        while n < 2, let c = rest.first, spaceOrBreak.contains(c) { rest = rest.dropFirst(); n += 1 }
         if let c = rest.first, coordinateMarks.contains(c) {
             rest = rest.dropFirst()
             n = 0
-            while n < 2, let c = rest.first, c.isWhitespace { rest = rest.dropFirst(); n += 1 }
+            while n < 2, let c = rest.first, spaceOrBreak.contains(c) { rest = rest.dropFirst(); n += 1 }
         } else if n == 0 {
             return false
         }
@@ -518,17 +773,17 @@ public enum PhoneNumbers {
 
     /// Whether a gap is exactly a sequence of character classes, each repeated `min` to `max` times. The
     /// classes next to each other never overlap, so taking each greedily decides it.
-    static func gapMatches(_ gap: Substring, _ pattern: [(test: (Character) -> Bool, min: Int, max: Int)]) -> Bool {
-        var rest = gap[...]
-        for (test, min, max) in pattern {
+    static func gapMatches(_ gap: Substring, _ pattern: [(set: Set<Unicode.Scalar>, min: Int, max: Int)]) -> Bool {
+        var rest = flat(gap)[...]
+        for (set, min, max) in pattern {
             var n = 0
-            while n < max, let c = rest.first, test(c) { rest = rest.dropFirst(); n += 1 }
+            while n < max, let c = rest.first, set.contains(c) { rest = rest.dropFirst(); n += 1 }
             if n < min { return false }
         }
         return rest.isEmpty
     }
 
-    static let coordinateMarks: Set<Character> = [",", ";", "\u{2022}", "\u{00B7}", "|", "/"]
+    static let coordinateMarks: Set<Unicode.Scalar> = [",", ";", "\u{2022}", "\u{00B7}", "|", "/"]
     /// Words that say the next digits are a phone number; one just before a decimal pair makes it two numbers.
     static let phoneCues: Set<String> = ["call", "tel", "phone", "cell", "mobile", "number", "llame", "llamar", "teléfono", "telefono",
                                          "celular", "número", "numero"]

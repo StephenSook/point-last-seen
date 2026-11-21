@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Test matrix: a web row for the sighting-note read on the deployed command post with the browser tab offline (build
+  1b7d3571, the test drill, Chrome 157.0.8103.80): two reads ran on this laptop as the SDK reported, the second in 2,361
+  ms from the click, and every request in the read windows was refused offline with none to an AI host. Evidence:
+  `docs/evidence/web/2026-11-21-note-read-offline-deployed.json` and its screenshot. Source: review (the iPhone already
+  has a network-off row). Verified: `scripts/test_test_matrix.py` passes; the hygiene guard passes.
 - Docs: the README's Android row and the production checklist name android-judge-4
   (`point-last-seen-family-8d448c60.apk`, built from main 8d448c60) instead of android-judge-2. The judge page and the
   README link GitHub's `/releases/latest`, which now redirects to android-judge-4, so no link changed. Source: a new
