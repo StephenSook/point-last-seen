@@ -68,3 +68,28 @@ describe("rebuilding the prior from the stored segments", () => {
     expect(() => rebuildPrior(SEGS, { gridId: "s", attribution: "a", ipp: IPP, terrain: "temperate_flat" }, { linear: false, wedge: true }, null)).toThrow(/direction of travel/);
   });
 });
+
+describe("rebuilding with the elevation layer (Koester, Lost Person Behavior, dementia p.164)", () => {
+  // BB holds the start point; the row north of it is 20 m up, the row south 20 m down, the middle row level.
+  const elevationM = Object.fromEntries(SEGS.map((s) => [s.segmentId, s.segmentId[0] === "C" ? 120 : s.segmentId[0] === "A" ? 80 : 100]));
+  const site = { gridId: "synthetic", attribution: "a", ipp: IPP, terrain: "temperate_flat" as const, elevationM };
+
+  it("gives what buildPrior gives with the start segment's elevation, and leaves ROW alone", () => {
+    const layers = { linear: false, wedge: false, elevation: true };
+    const r = rebuildPrior(SEGS, site, layers, null);
+    const direct = buildPrior(gridFromDocs(SEGS, "synthetic", "a"), IPP, "temperate_flat", layers, null, DEFAULT_PARAMS,
+      { startM: 100, bySegment: elevationM });
+    expect(r.segments).toEqual(direct.segments);
+    const ring = rebuildPrior(SEGS, site, { linear: false, wedge: false }, null);
+    expect(r.row).toBeCloseTo(ring.row, 12);
+    const up = r.segments.filter((s) => s.segmentId[0] === "C").reduce((n, s) => n + s.priorPoa, 0);
+    expect(up / (1 - r.row)).toBeCloseTo(0.19, 9);
+  });
+
+  it("refuses without the site's elevations or with the start outside every segment", () => {
+    const layers = { linear: false, wedge: false, elevation: true };
+    expect(() => rebuildPrior(SEGS, { ...site, elevationM: undefined }, layers, null)).toThrow(/elevation/);
+    expect(() => rebuildPrior(SEGS, { ...site, ipp: { lat: 34.5, lon: -84.38 } }, layers, null)).toThrow(/start point/);
+  });
+});
+

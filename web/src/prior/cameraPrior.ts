@@ -18,6 +18,8 @@ export type CameraPriorIncident = {
   priorVersion: number;
   priorInputEventIds?: string[];
   engineParams?: EngineParams;
+  /** Each segment's elevation in metres (the site's elevation file); needed when the elevation layer is on. */
+  elevationM?: Readonly<Record<string, number>>;
 };
 
 export function cameraPriorWrites(segments: readonly SegmentDoc[], incident: CameraPriorIncident, cam: EventDoc, bearingDeg: number | null): PriorWrites {
@@ -28,7 +30,7 @@ export function cameraPriorWrites(segments: readonly SegmentDoc[], incident: Cam
   // wedge with no bearing would make the rebuild refuse).
   const layers = { ...stored, wedge: bearingDeg !== null };
   const terrain = incident.terrain ?? "temperate_flat";
-  const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp, terrain }, layers, bearingDeg, incident.engineParams);
+  const rebuilt = rebuildPrior(segments, { gridId: incident.gridId, attribution: incident.gridAttribution ?? "", ipp, terrain, elevationM: incident.elevationM }, layers, bearingDeg, incident.engineParams);
   const w = priorWrites(rebuilt, incident, layers, terrain);
   return { ...w, incident: { ...w.incident, priorModel: "rings", ipp, priorInputEventIds: patch.priorInputEventIds } };
 }
