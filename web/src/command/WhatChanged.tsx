@@ -39,7 +39,7 @@ export function draftKeyOf(draft: PlanDraft | null): string | null {
 
 /** "What ran" for a suggestion; a model that was asked but not used is described, then why fixed wording won. */
 export function whatRan(w: WordedPlan): string[] {
-  const base = { asked: "this laptop first", sentBytes: w.promptBytes ?? 0, what: "plan text" };
+  const base = { asked: "this device first", sentBytes: w.promptBytes ?? 0, what: "plan text" };
   if (w.attempt) return [...receiptLines({ ...base, route: w.attempt.route }), `Not used: ${WHY[w.attempt.failure]}. The plan uses fixed wording from code.`];
   return receiptLines({ ...base, route: w.route });
 }

@@ -9,7 +9,7 @@ describe("whatRan", () => {
   it("describes a model that was asked but not used, then why fixed wording won", () => {
     const lines = whatRan({ wording, notice: null, promptBytes: 900, route: route({}), attempt: { failure: "timeout", route: route({ path: "unknown", model: "gemini-3.5-flash-lite", reason: "sdk_prefer_on_device" }) } });
     expect(lines).toEqual([
-      "Asked for: this laptop first.",
+      "Asked for: this device first.",
       "Ran: not reported by the SDK.",
       "Model: gemini-3.5-flash-lite.",
       "Sent: up to 900 bytes of plan text, if it ran in the cloud.",

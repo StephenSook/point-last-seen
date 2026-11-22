@@ -39,13 +39,13 @@ test("a reply worded for older probabilities is dropped even when the assignment
   await expect(page.getByRole("button", { name: /^Approve/ })).toHaveCount(0);
 });
 
-test("the suggestion's label is the route that ran: Cloud without a local model, On this laptop when it ran here", async ({ page }) => {
+test("the suggestion's label is the route that ran: Cloud without a local model, On this device when it ran here", async ({ page }) => {
   await page.goto("/harness/plan.html?route=cloud");
   await page.getByRole("button", { name: /^Suggest/ }).click();
   await expect(page.getByTestId("suggested-plan").getByTestId("route-glyph")).toHaveText("Cloud");
   await page.goto("/harness/plan.html?route=on_device");
   await page.getByRole("button", { name: /^Suggest/ }).click();
-  await expect(page.getByTestId("suggested-plan").getByTestId("route-glyph")).toHaveText("On this laptop");
+  await expect(page.getByTestId("suggested-plan").getByTestId("route-glyph")).toHaveText("On this device");
 });
 
 test("a draft with more teams than a plan can name says so and cannot be suggested or approved", async ({ page }) => {
@@ -61,7 +61,7 @@ test("each suggestion carries a closed What ran receipt: asked for, where it ran
   const receipt = page.getByTestId("suggested-plan").getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
   await expect(receipt.getByText("Ran: in the cloud (reported by the SDK).")).toBeHidden();
   await receipt.getByText("What ran", { exact: true }).click();
-  await expect(receipt).toContainText("Asked for: this laptop first.");
+  await expect(receipt).toContainText("Asked for: this device first.");
   await expect(receipt).toContainText("Ran: in the cloud (reported by the SDK).");
   await expect(receipt).toContainText("Model: gemini-3.5-flash-lite.");
   await expect(receipt).toContainText("Sent: 1,234 bytes of plan text.");
@@ -72,7 +72,7 @@ test("the receipt for a plan worded on this laptop says nothing left it", async 
   await page.getByRole("button", { name: "Suggest plan" }).click();
   const receipt = page.getByTestId("suggested-plan").getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
   await receipt.getByText("What ran", { exact: true }).click();
-  await expect(receipt).toContainText("Sent: no text or image left this laptop.");
+  await expect(receipt).toContainText("Sent: no text or image left this device.");
 });
 
 test("a fallback plan shows only the fixed-wording mark; why the cloud was not used is in What ran", async ({ page }) => {

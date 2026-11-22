@@ -3008,3 +3008,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - Accepted: a reply with a team named twice is read with its last value, which must still be one of that team's own facts, so nothing untrue is shown.
 - Source: review.
 - Verified: the changed schema test failed first, then passed (34); against the live site before the fix the check still fails with 0 of 3 used; typecheck passes; the cited lines 47 and 232 are unchanged.
+
+### fix(command): a model's receipt and route mark say this device, not this laptop
+- What: the receipt shown under a plan, a sighting note, a photo or a debrief sheet read said "Asked for: this laptop first.", "Ran: on this laptop." and "Sent: no text or image left this laptop.", and the route mark said "On this laptop". The same command post opens in a phone's browser, so they now say "this device". Button labels and other lines are unchanged.
+- Source: deployed stills (the receipt at phone width).
+- Verified: the receipt, What ran and plan wording tests and the harness specs that quote these lines were changed first and failed, then passed (56 unit; harness 241/241); typecheck passes.
