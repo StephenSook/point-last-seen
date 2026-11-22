@@ -2,9 +2,9 @@
 // local model, and the route records which one ran (the SDK's inferenceSource), never the mode asked for. The plan itself is
 // drafted by code, and so is each team's task line ("Search segment AA."): a
 // model writes only each team's reason and the summary, in a closed schema.
-// Code rejects wording whose teams differ from the draft, or whose reason names
-// a segment that team was not given. Any failure falls to a fixed template, and
-// the route says "rules".
+// Code rejects wording whose teams differ from the draft, whose reason names a segment that team was not given, or
+// whose reason uses a number from outside that team's own rows or gives an earlier POA as the current one. Any failure
+// falls to a fixed template, and the route says "rules".
 
 import { InferenceMode, type HybridParams } from "firebase/ai";
 import type { DraftAssignment, PlanWording, RankedSegment, RouteRecord } from "@pls/engine";
@@ -58,14 +58,17 @@ export function wordingParams(model: string, teamIds: readonly string[] | null =
 }
 
 const pct = (p: number) => `${(p * 100).toFixed(1)}%`;
+/** How many ranked segments the prompt lists. */
+const PROMPT_ROWS = 10;
+const assignmentLine = (a: DraftAssignment) => `${a.teamId}: ${a.segmentIds.join(", ")}`;
 
 /** The engine's table, in the user text (the SDK passes only contents and our prompt options to Chrome). */
 export function planPrompt(draft: PlanDraft): string {
   const lines = [
     "Assignments decided by code:",
-    ...draft.assignments.map((a) => `${a.teamId}: ${a.segmentIds.join(", ")}`),
+    ...draft.assignments.map(assignmentLine),
     "Segments by POA, highest first:",
-    ...draft.rank.slice(0, 10).map((r) => `${r.segmentId} ${pct(r.poa)} (was ${pct(r.priorPoa)})`),
+    ...draft.rank.slice(0, PROMPT_ROWS).map((r) => `${r.segmentId} ${pct(r.poa)} (was ${pct(r.priorPoa)})`),
   ];
   return lines.join("\n");
 }
@@ -91,7 +94,93 @@ export function templateWording(draft: PlanDraft): PlanWording {
 type ModelWording = { assignments: { teamId: string; reason: string; taskText?: unknown }[]; summary: string };
 
 export const NUMBER_NOT_IN_PLAN = "a number that is not in the plan";
-const NUMBER = /\d+(?:\.\d+)?/g;
+export const OUTSIDE_TEAMS_ROWS = "a reason uses a number from outside its own team's rows";
+export const EARLIER_AS_CURRENT = "a reason gives an earlier POA as the current one";
+export const CURRENT_AS_EARLIER = "a reason gives the current POA as an earlier one";
+export const WRONG_DIRECTION = "a reason says a POA moved in a direction none of its team's segments did";
+// A minus sign or dash belongs to its number, so "-31.0" or "\u221231.0" is never read as the plan's "31.0"; one joined
+// to a word before it ("AC\u201431.0%") is punctuation.
+const NUMBER = /(?:(?<![\p{L}\p{N}])[-\u2010-\u2015\u2212\ufe58\ufe63\uff0d])?\d+(?:\.\d+)?/gu;
+const numbersIn = (t: string) => t.match(NUMBER) ?? [];
+const escapeRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * One team's own rows of the prompt, as the model saw them: the current and "was" POA of each of its segments listed
+ * there, and whether any of them rose or fell at the precision the prompt prints.
+ */
+function teamRows(draft: PlanDraft, teamId: string): { ids: string[]; now: Set<string>; was: Set<string>; rose: boolean; fell: boolean } {
+  const a = draft.assignments.find((d) => d.teamId === teamId);
+  const own = new Set(a?.segmentIds ?? []);
+  const rows = draft.rank.slice(0, PROMPT_ROWS).filter((r) => own.has(r.segmentId));
+  const moved = rows.map((r) => Number.parseFloat(pct(r.poa)) - Number.parseFloat(pct(r.priorPoa)));
+  return {
+    ids: [teamId, ...own],
+    now: new Set(rows.flatMap((r) => numbersIn(pct(r.poa)))),
+    was: new Set(rows.flatMap((r) => numbersIn(pct(r.priorPoa)))),
+    rose: moved.some((d) => d > 0),
+    fell: moved.some((d) => d < 0),
+  };
+}
+
+const EARLIER_CUES = new Set(["was", "were", "from", "prior", "previously", "before", "earlier", "had"]);
+const CURRENT_CUES = new Set(["now", "currently", "current", "is", "at", "to"]);
+// Words that say a POA moved. "higher" and "lower" count only with a time after them ("lower than before"); with
+// anything else they compare two segments.
+const RISE_WORDS = new Set(["rose", "rise", "rises", "rising", "risen", "up", "increased", "increase", "increases", "increasing", "grew", "grow", "grows", "growing", "climbed", "climb", "climbs", "gained", "gain", "gains", "jumped", "jump", "soared", "surged", "spiked"]);
+const FALL_WORDS = new Set(["fell", "fall", "falls", "falling", "fallen", "dropped", "drop", "drops", "dropping", "down", "decreased", "decrease", "decreases", "decreasing", "lowered", "declined", "decline", "declines", "shrank", "shrunk", "lost", "slipped", "slid", "dipped", "dip", "dips", "sank", "sunk", "eased", "plunged", "plummeted", "tumbled"]);
+const NEGATIONS = new Set(["not", "no", "never", "nor", "without", "cannot"]);
+const COMPARED_WITH_THEN = new Set(["before", "earlier", "previously", "last", "then", "was", "prior"]);
+const wordsIn = (t: string) => t.toLowerCase().replace(/\u2019/g, "'").match(/[a-z]+(?:'[a-z]+)?/g) ?? [];
+// A clause ends at one of these; a cue in an earlier clause says nothing about the next figure. A colon does not end
+// one: it joins a label to its figure ("Prior POA: 20.0%").
+const CLAUSE_END = /[.!?;,\n]/;
+
+/** Whether the words of the clause since the last number mark the next one as earlier or current; an earlier cue wins. */
+function cueBefore(since: string): "earlier" | "current" | null {
+  let start = since.length;
+  while (start > 0 && !CLAUSE_END.test(since[start - 1]!)) start--;
+  const words = wordsIn(since.slice(start));
+  if (words.some((w) => EARLIER_CUES.has(w))) return "earlier";
+  if (words.some((w) => CURRENT_CUES.has(w))) return "current";
+  return null;
+}
+
+/**
+ * A reason sits beside that team's task, so each number in it must be one of the team's own figures, in its own role:
+ * a value that is only a "was" figure needs an earlier cue ("was", "from") just before it, and a value that is only a
+ * current figure must not have one; a value that is both may appear either way. The team's own id and segment ids
+ * are read past (in any case), so "T1" never supplies a 1; an id with no letter is not, so it can never hide a figure.
+ * A word saying a POA rose or fell needs one of the team's segments that did, and a negated one ("did not rise") is
+ * always refused.
+ */
+function reasonNumbersFail(draft: PlanDraft, teamId: string, reason: string): string | null {
+  const { ids, now, was, rose, fell } = teamRows(draft, teamId);
+  // Each id becomes a word of x's of the same length: the cue windows keep their places, a dash joined to the id stays
+  // joined to a word, and "xx" is no cue.
+  // The team id in any case; segment ids (capitals) only as written, so a team with segment AT keeps the word "at".
+  const blank = (t: string, id: string, flags: string) =>
+    t.replace(new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(id)}(?![\\p{L}\\p{N}])`, flags), (x) => "x".repeat(x.length));
+  const [team, ...segments] = ids;
+  const scan = segments.reduce((t, id) => blank(t, id, "gu"), /\p{L}/u.test(team!) ? blank(reason, team!, "giu") : reason);
+  let since = 0;
+  for (const m of scan.matchAll(NUMBER)) {
+    const n = m[0];
+    const cue = cueBefore(scan.slice(since, m.index));
+    since = m.index + n.length;
+    if (!now.has(n) && !was.has(n)) return OUTSIDE_TEAMS_ROWS;
+    if (!now.has(n) && cue !== "earlier") return EARLIER_AS_CURRENT;
+    if (!was.has(n) && cue === "earlier") return CURRENT_AS_EARLIER;
+  }
+  const words = wordsIn(reason);
+  for (const [i, w] of words.entries()) {
+    const overTime = words[i + 1] === "than" && words.slice(i + 2, i + 4).some((v) => COMPARED_WITH_THEN.has(v));
+    const rise = RISE_WORDS.has(w) || (w === "higher" && overTime);
+    if (!rise && !FALL_WORDS.has(w) && !(w === "lower" && overTime)) continue;
+    const negated = words.slice(Math.max(0, i - 2), i).some((v) => NEGATIONS.has(v) || v.endsWith("n't"));
+    if (negated || (rise ? !rose : !fell)) return WRONG_DIRECTION;
+  }
+  return null;
+}
 
 export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: true } | { ok: false; reason: string } {
   if (!wording || !Array.isArray(wording.assignments)) return { ok: false, reason: "no assignments" };
@@ -110,6 +199,12 @@ export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: tru
   const given = new Set(planPrompt(draft).match(NUMBER) ?? []);
   const written = [...wording.assignments.map((a) => a.reason), wording.summary].flatMap((t) => t.match(NUMBER) ?? []);
   if (written.some((n) => !given.has(n))) return { ok: false, reason: NUMBER_NOT_IN_PLAN };
+  // A reason is shown beside its team's task: it may use only that team's own figures, each in its own role. The
+  // summary stays checked against the whole plan above.
+  for (const a of wording.assignments) {
+    const fail = reasonNumbersFail(draft, a.teamId, a.reason);
+    if (fail) return { ok: false, reason: fail };
+  }
   return { ok: true };
 }
 

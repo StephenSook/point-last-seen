@@ -110,6 +110,19 @@ class PhoneNumbersTest {
         assertEquals("The possible times are 14:03, 14:10, 14:17.", PhoneNumbers.remove("The possible times are 14:03, 14:10, 14:17."))
     }
 
+    /**
+     * A "[number removed]" already in a note is read past like digits when looking for a cue before a run of times: its
+     * "number" is never a cue, so a second pass reads the same words before the run as the first did.
+     */
+    @Test fun aMarkerAlreadyInANoteIsNeverACue() {
+        assertEquals("Witness [number removed] at 14:03 14:10", PhoneNumbers.remove("Witness [number removed] at 14:03 14:10"))
+        val once = PhoneNumbers.remove("Witness 4045550142 at 14:03 14:10")
+        assertEquals("Witness [number removed] at 14:03 14:10", once)
+        assertEquals(once, PhoneNumbers.remove(once))
+        assertEquals("Call [number removed] [number removed]", PhoneNumbers.remove("Call [number removed] 21:25 5:50 1:42"))
+        assertEquals("Call [number removed] at [number removed]", PhoneNumbers.remove("Call 404 555 0142 at 4:04 5:55 6:42"))
+    }
+
     /** A month name beside a run of times reads an hour or minutes as a day, so the run is left to the rule as a whole. */
     @Test fun aRunOfTimesBesideAMonthNameIsLeftToTheRule() {
         assertEquals("[number removed] May 6:00 7:00", PhoneNumbers.remove("1.4045, -55.0142 14 May 6:00 7:00"))
