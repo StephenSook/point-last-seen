@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Phone corpus: written again for the web rule's faster marker check (it reads back only a marker's length); only
+  its rule hash changed, every row is the same, and the shared README names the new SHA-256. Source: review of
+  PR #349 (a long note took about 3 s a pass). Verified: the 9,130 rows compare equal before and after; the file
+  hashes to the README's SHA-256 and `--check` passes; `scripts/test_phone_vectors.py`, the web phone tests and
+  `scripts/ci-local.sh --gates` pass.
 - Phone vectors: the shared README says every platform scrubs a note until it stops changing, at most four passes,
   keeping the fourth pass's text and logging a fixed line with no note text if it still changes; the corpus is written
   again for the web's fixpoint (39 rows change, none keeps more digits) and the README names its SHA-256. Limits: times

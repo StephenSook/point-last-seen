@@ -224,7 +224,7 @@ sequences and emoji modifiers).
 `tools/vectors/phone_corpus.ts` builds it; `npx tsx tools/vectors/phone_corpus_cli.ts --write` rewrites the file and
 `--check` exits 1 unless the file is exactly what `--write` would write. A change to the web rule changes `rule`, so the
 web test fails until the file is written again. The file's SHA-256 is
-`eded23418d15ead4f1a936d697f2fb32b3c860f3282b108883a93572a13cf273`.
+`752069060478c882eb1acb8196cd0b0bd57832acf3635cf5175915d77af4d65f`.
 
 ## language.json (hand-written)
 
