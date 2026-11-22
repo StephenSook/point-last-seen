@@ -29,24 +29,33 @@ test("Suggest plan sends only team ids, segment codes and percents, and the rece
   await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   const plan = page.getByRole("region", { name: "Plan" });
   await expect(plan.getByText("It sends only team ids, segment codes and percents, never a note or a name.", { exact: false })).toBeVisible();
-  await plan.getByRole("button", { name: "Suggest plan" }).click();
+  // Other live checks write reports to this drill at the same time; a reply for a draft that has changed meanwhile is
+  // never shown (by design), so press again, up to three times.
   const suggested = page.getByTestId("suggested-plan");
-  await expect(suggested).toBeVisible({ timeout: 90_000 });
+  for (let i = 0; i < 3 && !(await suggested.isVisible()); i++) {
+    await expect(plan.getByRole("button", { name: "Suggest plan" })).toBeEnabled({ timeout: 60_000 });
+    await plan.getByRole("button", { name: "Suggest plan" }).click();
+    await suggested.waitFor({ timeout: 45_000 }).catch(() => undefined);
+  }
+  await expect(suggested).toBeVisible();
   await suggested.getByText("What ran", { exact: true }).click();
 
-  expect(sent).toHaveLength(1);
-  const [call] = sent;
-  expect(call!.url).toMatch(/\/models\/[^/:?]+:generateContent(\?|$)/);
-  const contents = (call!.body?.["contents"] ?? []) as { role?: string; parts?: { text?: string }[] }[];
-  expect(contents).toHaveLength(1);
-  const parts = contents[0]!.parts ?? [];
-  expect(parts).toHaveLength(1);
-  const text = parts[0]!.text ?? "";
-  const lines = text.split("\n");
-  expect(lines.length).toBeGreaterThan(3);
-  for (const line of lines) expect(HEADINGS.has(line) || TEAM_LINE.test(line) || SEGMENT_LINE.test(line), line).toBe(true);
-  // The receipt counts exactly the bytes of that text.
-  const bytes = new TextEncoder().encode(text).length;
+  // Every request the presses sent holds only the plan table, one content with one text part.
+  expect(sent.length).toBeGreaterThan(0);
+  const texts = sent.map((call) => {
+    expect(call.url).toMatch(/\/models\/[^/:?]+:generateContent(\?|$)/);
+    const contents = (call.body?.["contents"] ?? []) as { role?: string; parts?: { text?: string }[] }[];
+    expect(contents).toHaveLength(1);
+    const parts = contents[0]!.parts ?? [];
+    expect(parts).toHaveLength(1);
+    const text = parts[0]!.text ?? "";
+    const lines = text.split("\n");
+    expect(lines.length).toBeGreaterThan(3);
+    for (const line of lines) expect(HEADINGS.has(line) || TEAM_LINE.test(line) || SEGMENT_LINE.test(line), line).toBe(true);
+    return text;
+  });
+  // The receipt shown counts exactly the bytes of the last request, the one whose reply is on screen.
+  const bytes = new TextEncoder().encode(texts.at(-1)!).length;
   await expect(suggested).toContainText(`Sent: ${bytes.toLocaleString("en-US")} bytes of plan text.`);
   // Not approved: no plan was written.
   await expect(page.getByTestId("plan-status")).toHaveCount(0);
