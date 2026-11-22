@@ -175,25 +175,20 @@ object PhoneNumbers {
         for (m in timesRuns(folded)) {
             val first = startsAt[m.range.first] ?: continue
             val last = endsAt[m.range.last + 1] ?: continue
-            // A run inside a group an earlier marker check already replaced.
-            if (m.range.first < from) continue
-            // A "[number removed]" right before or after the run, with no letter or digit between, stands for digits
-            // joined to it, so the run goes, whatever else is beside it (Dial [number removed] 4:04 5:55 12:12). Checked
-            // first. The digits joined to the run, written or spoken, go with it (Dial [number removed] 4:04 5:55 one two
-            // one two), so none of the number is left.
-            if (MARKER_BEFORE.containsMatchIn(folded.substring(from, m.range.first)) ||
-                MARKER_AFTER.containsMatchIn(folded.substring(m.range.last + 1))
-            ) {
-                var a = first
-                var b = last
-                while (a > 0 && parts[a - 1].start >= from && joins(folded, parts[a - 1], parts[a])) a--
-                while (b + 1 < parts.size && joins(folded, parts[b], parts[b + 1])) b++
-                out.append(removeByRule(folded.substring(from, parts[a].start))).append(REPLACEMENT)
-                from = parts[b].end
-                continue
-            }
             val joined = (first > 0 && joins(folded, parts[first - 1], parts[first])) ||
                 (last + 1 < parts.size && joins(folded, parts[last], parts[last + 1]))
+            // A "[number removed]" right before or after a run with nothing joined to it, with no letter or digit between,
+            // stands for digits joined to the run, so the run goes (Dial [number removed] 4:04 5:55 12:12). A run with
+            // digits joined to it is left to the rule below, as it was before.
+            if (!joined && (
+                    MARKER_BEFORE.containsMatchIn(folded.substring(from, m.range.first)) ||
+                        MARKER_AFTER.containsMatchIn(folded.substring(m.range.last + 1))
+                    )
+            ) {
+                out.append(removeByRule(folded.substring(from, m.range.first))).append(REPLACEMENT)
+                from = m.range.last + 1
+                continue
+            }
             // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which
             // changes how the rule groups the digits around it, so such a run stays with the text around it.
             fun month(i: Int) = i in parts.indices && !parts[i].written && word(folded, parts[i]) in MONTHS

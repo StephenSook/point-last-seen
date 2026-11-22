@@ -136,11 +136,16 @@ class PhoneNumbersTest {
         assertEquals("Seen 14:03 14:10 then [number removed]", PhoneNumbers.remove("Seen 14:03 14:10 then [number removed]"))
     }
 
-    /** A run beside a marker takes the digits joined to it too, written or spoken, so none of the number is left. */
-    @Test fun aRunBesideAMarkerTakesItsJoinedDigits() {
-        assertEquals("Dial [number removed] [number removed]", PhoneNumbers.remove("Dial [number removed] 4:04 5:55 one two one two"))
+    /**
+     * A run with digits joined to it is left to the rule as before, even beside a marker: no two-digit group of a later
+     * run is left, and a line break after it stays.
+     */
+    @Test fun aRunWithDigitsJoinedToItIsLeftToTheRuleBesideAMarker() {
+        val later = PhoneNumbers.remove("Dial [number removed] 4:04 5:55 one two 12:34 15:56 [number removed]")
+        assertFalse(later, Regex("[0-9]{2}").containsMatchIn(later))
+        val broken = PhoneNumbers.remove("Dial [number removed] 4:04 5:55 one two\n2 searchers went north")
+        assertTrue(broken, broken.endsWith("[number removed]\n[number removed] searchers went north"))
         assertEquals("[number removed] [number removed] tonight", PhoneNumbers.remove("one two 4:04 5:55 [number removed] tonight"))
-        assertEquals("Witness [number removed] at 14:03 14:10", PhoneNumbers.remove("Witness [number removed] at 14:03 14:10"))
     }
 
     /** A month name beside a run of times reads an hour or minutes as a day, so the run is left to the rule as a whole. */
