@@ -5,6 +5,36 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(eval): the README gives run 1's numbers in plain words, with their limits
+- What: the eval README's "no numbers yet" is replaced by run 1: rules only 13 of 20 right (95% 0.43 to 0.82), on-device
+  9 of 20 (0.26 to 0.66, 17 rows read by Apple's model, 1 blocked), exact McNemar p 0.22, so not a significant
+  difference; the rules alone got more right; every miss but one was a wrong kind (the other a blocked read); the
+  on-device arm is the app's real path (3 rows went to the rules); the model read three object finds as found; and,
+  after the run, the key's writer marked n12 and n18 as rows a second labeller might label differently, with the key
+  unchanged. It is stated as measured on 20 made-up reports with a one-labeller key, not as accuracy for real
+  searches. "Running it" now says to start the practice drill, as this run did.
+- Source: the eval plan; the run on the phone.
+- Verified: every number checked against the committed result file (arms, summaries, paired counts, routes and
+  latencies) and the key's rows.
+
+### chore(ci): the secret scan ignores the eval result's answer-key hash, by its fingerprint
+- What: a committed .gitleaksignore with one fingerprint: line 1114 of the eval result file at dac8b2c, its
+  "answerKeySha256" field. That is the SHA-256 of the public answer key in the same folder, not a credential; the
+  generic-api-key rule matched the field name. The result file stays byte for byte as the phone saved it.
+- Source: the full-history secret scan (local gates; the same command CI runs) flagged it once the result was
+  committed.
+- Verified: the flagged line holds f98c6f5d..., which equals the SHA-256 of docs/evidence/eval/pls-drill-reports-v1.json;
+  with the file in place, gitleaks git --redact --log-opts="--all" reports no leaks.
+
+### docs(eval): the first report-reading eval result from the iPhone, unchanged
+- What: docs/evidence/eval/eval-pls-drill-reports-v1-1795376366383.json, the result file the eval screen saved on
+  the iPhone 17 Pro (iOS 27.2.1, debug build 1.0.0 (1) from commit ee331aaf, Airplane Mode on), copied over USB and
+  committed byte for byte. It names the frozen key (pls-drill-reports-v1, SHA-256 f98c6f5d...), both arms' readings
+  of all 20 rows, and the run time (2026-11-22 19:39:26 UTC).
+- Source: the eval plan; the run on the phone.
+- Verified: SHA-256 4ce67410... on the phone's copy and in the repo; its key SHA-256, writer, grid, app version, build
+  and commit match the pinned key and the installed build; both arms have exactly the key's 20 row ids.
+
 ### build(ios): the Debug app bundles the eval's pinned answer key
 - What: a build step copies docs/evidence/eval/pls-drill-reports-v1.json into the app in Debug builds only, like the
   eval screen that reads it, so "Report-reading eval" finds the key. archive_release.sh now also fails when the key is
