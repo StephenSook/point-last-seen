@@ -1,0 +1,417 @@
+{
+  "what": "Does the command post's on-device photo read invent text? readPhotoOnDevice with photoGenerator (the same path as CommandPost's readPhotoHere) on Chrome's built-in model, on eight synthetic drawings: four with known sign text, four with none (one of those a blank sign board). Each drawing read twice: all eight once, then all eight again, in one newly opened page.",
+  "date": "2026-11-22",
+  "browser": "Stephen's Google Chrome 157.0.8103.80 on this Mac (macOS 27.0.0, Apple M5 Pro); the built-in model reported available for image + text; the model version was not recorded",
+  "page": "web/harness/photo-invention.html (dev server http://127.0.0.1:5175), bare Firebase app with no App Check and no sign-in, at the commit that adds the page",
+  "scenes": [
+    {
+      "id": "trail-sign",
+      "text": [
+        "PINE RIDGE TRAIL",
+        "2.4 MI"
+      ],
+      "drawn": [
+        "blue sky",
+        "green grass",
+        "three trees",
+        "brown wooden sign on two posts, cream text in two lines"
+      ],
+      "jpegBase64Chars": 21948,
+      "jpegSha256": "349cb972ddd356feef2bcfdd32a73b6d369b78caf8886214a01499ae7ba4f832"
+    },
+    {
+      "id": "street-sign",
+      "text": [
+        "MAPLE AVE"
+      ],
+      "drawn": [
+        "blue sky",
+        "grey pavement",
+        "grey pole",
+        "green street-name sign, white text"
+      ],
+      "jpegBase64Chars": 18692,
+      "jpegSha256": "e12e6a0db6c4f589418535969e0abe21641fc6bf35a7a2dac63158a774940178"
+    },
+    {
+      "id": "park-sign",
+      "text": [
+        "CEDAR LAKE PARK"
+      ],
+      "drawn": [
+        "blue sky",
+        "green grass",
+        "blue lake",
+        "two trees",
+        "dark green sign on a grey stone base, white text"
+      ],
+      "jpegBase64Chars": 24132,
+      "jpegSha256": "a6384fe44defd6d1d95f8c845ac39e39c4c1ac0e2525714c1add9301504a472a"
+    },
+    {
+      "id": "trailhead-board",
+      "text": [
+        "BEAR CREEK",
+        "TRAILHEAD",
+        "NO CAMPING"
+      ],
+      "drawn": [
+        "blue sky",
+        "green grass",
+        "four trees",
+        "wooden board on two posts, cream text in two lines",
+        "red plaque below it, white text"
+      ],
+      "jpegBase64Chars": 33988,
+      "jpegSha256": "2d4d51ef8d419cf301d6452a8d97eb54626ff2bba3acae16dc4b33b897350bd9"
+    },
+    {
+      "id": "figure",
+      "text": [],
+      "drawn": [
+        "green ground",
+        "a figure: tan round head, blue coat, grey trousers"
+      ],
+      "jpegBase64Chars": 7224,
+      "jpegSha256": "d9bf4bd1b711c8cf3cabccc8923c578a54fa74c72bf07233402cb2776f546086"
+    },
+    {
+      "id": "tree-line",
+      "text": [],
+      "drawn": [
+        "blue sky",
+        "green grass",
+        "a row of six trees"
+      ],
+      "jpegBase64Chars": 17972,
+      "jpegSha256": "9ae77d0cbbae64735f4f1e1dcdf68bfb063ba2af380c5a99b9bf383c421ae49a"
+    },
+    {
+      "id": "road",
+      "text": [],
+      "drawn": [
+        "blue sky",
+        "green grass",
+        "grey road to the horizon",
+        "yellow dashed centre line"
+      ],
+      "jpegBase64Chars": 7848,
+      "jpegSha256": "4d6ec21008c53d17faec0b7dd90f64788bec12e5ad23a770881b04dedeb6a70c"
+    },
+    {
+      "id": "blank-sign",
+      "text": [],
+      "drawn": [
+        "blue sky",
+        "green grass",
+        "blue lake",
+        "brown wooden bench",
+        "brown wooden sign board on a post, no text"
+      ],
+      "jpegBase64Chars": 12152,
+      "jpegSha256": "6b782a198741d2f238d17111a93ac774e4e479c569f4278164ada53def5cbc0f"
+    }
+  ],
+  "scenesNote": "Each scene is a 640 x 480 JPEG drawn on a canvas by the page (flat shapes, Helvetica bold text); text lists every word drawn, drawn lists every object drawn. No real person, place or photo. The SHA-256 is of the JPEG bytes this browser encoded.",
+  "method": "signTextInventedWords: every word of the kept signText that is not among the words drawn (upper-cased, split on anything not a letter or digit; web/src/harness/photoTruth.ts, unit-tested). trueSignTextRead: whether the kept signText carries all, some or none of the drawn words. landmarksNotDrawn: judged by hand against the scene's drawn list, counting a landmark as drawn when it names a drawn object in plain words (trees for the drawn trees, pond for the drawn lake, grass or ground for the green ground, signpost for a sign on a post).",
+  "runs": [
+    {
+      "scene": "trail-sign",
+      "pass": 1,
+      "replyMs": 11183,
+      "inferenceSource": "on_device",
+      "placeType": "trail",
+      "modelPlaceName": "PINE RIDGE TRAIL",
+      "placeNameKept": "PINE RIDGE TRAIL",
+      "signText": "PINE RIDGE TRAIL\n2.4 MI",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "all",
+      "landmarks": [
+        "Trees",
+        "Road",
+        "Signpost"
+      ],
+      "landmarksNotDrawn": [
+        "Road"
+      ]
+    },
+    {
+      "scene": "street-sign",
+      "pass": 1,
+      "replyMs": 2179,
+      "inferenceSource": "on_device",
+      "placeType": "road",
+      "modelPlaceName": "MAPLE AVE",
+      "placeNameKept": "MAPLE AVE",
+      "signText": "MAPLE AVE",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "all",
+      "landmarks": [],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "park-sign",
+      "pass": 1,
+      "replyMs": 2100,
+      "inferenceSource": "on_device",
+      "placeType": "park",
+      "modelPlaceName": "Cedar Lake Park",
+      "placeNameKept": "Cedar Lake Park",
+      "signText": "CEDAR LAKE PARK",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "all",
+      "landmarks": [
+        "Lake",
+        "Trees",
+        "Parking lot"
+      ],
+      "landmarksNotDrawn": [
+        "Parking lot"
+      ]
+    },
+    {
+      "scene": "trailhead-board",
+      "pass": 1,
+      "replyMs": 2313,
+      "inferenceSource": "on_device",
+      "placeType": "trail",
+      "modelPlaceName": "BEAR CREEK TRAILHEAD",
+      "placeNameKept": "BEAR CREEK TRAILHEAD",
+      "signText": "BEAR CREEK\nTRAILHEAD\nNO CAMPING",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "all",
+      "landmarks": [
+        "trees"
+      ],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "figure",
+      "pass": 1,
+      "replyMs": 1868,
+      "inferenceSource": "on_device",
+      "placeType": "park",
+      "modelPlaceName": "",
+      "placeNameKept": "",
+      "signText": "",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "no-text",
+      "landmarks": [
+        "person",
+        "grass"
+      ],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "tree-line",
+      "pass": 1,
+      "replyMs": 1945,
+      "inferenceSource": "on_device",
+      "placeType": "park",
+      "modelPlaceName": "",
+      "placeNameKept": "",
+      "signText": "",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "no-text",
+      "landmarks": [
+        "trees",
+        "grass",
+        "sky"
+      ],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "road",
+      "pass": 1,
+      "replyMs": 1810,
+      "inferenceSource": "on_device",
+      "placeType": "road",
+      "modelPlaceName": "",
+      "placeNameKept": "",
+      "signText": "",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "no-text",
+      "landmarks": [],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "blank-sign",
+      "pass": 1,
+      "replyMs": 2368,
+      "inferenceSource": "on_device",
+      "placeType": "park",
+      "modelPlaceName": "",
+      "placeNameKept": "",
+      "signText": "",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "no-text",
+      "landmarks": [
+        "bench",
+        "pond",
+        "signpost"
+      ],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "trail-sign",
+      "pass": 2,
+      "replyMs": 2434,
+      "inferenceSource": "on_device",
+      "placeType": "trail",
+      "modelPlaceName": "Pine Ridge Trail",
+      "placeNameKept": "Pine Ridge Trail",
+      "signText": "PINE RIDGE TRAIL\n2.4 MI",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "all",
+      "landmarks": [
+        "trees",
+        "sign",
+        "grass"
+      ],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "street-sign",
+      "pass": 2,
+      "replyMs": 1876,
+      "inferenceSource": "on_device",
+      "placeType": "road",
+      "modelPlaceName": "MAPLE AVE",
+      "placeNameKept": "MAPLE AVE",
+      "signText": "MAPLE AVE",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "all",
+      "landmarks": [],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "park-sign",
+      "pass": 2,
+      "replyMs": 2675,
+      "inferenceSource": "on_device",
+      "placeType": "park",
+      "modelPlaceName": "Cedar Lake Park",
+      "placeNameKept": "Cedar Lake Park",
+      "signText": "CEDAR LAKE PARK",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "all",
+      "landmarks": [
+        "Trees",
+        "Lake",
+        "Grass"
+      ],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "trailhead-board",
+      "pass": 2,
+      "replyMs": 3060,
+      "inferenceSource": "on_device",
+      "placeType": "trail",
+      "modelPlaceName": "Bear Creek Trailhead",
+      "placeNameKept": "Bear Creek Trailhead",
+      "signText": "BEAR CREEK\nTRAILHEAD\nNO CAMPING",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "all",
+      "landmarks": [
+        "trees",
+        "sign",
+        "ground"
+      ],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "figure",
+      "pass": 2,
+      "replyMs": 1793,
+      "inferenceSource": "on_device",
+      "placeType": "unknown",
+      "modelPlaceName": "",
+      "placeNameKept": "",
+      "signText": "",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "no-text",
+      "landmarks": [],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "tree-line",
+      "pass": 2,
+      "replyMs": 1968,
+      "inferenceSource": "on_device",
+      "placeType": "park",
+      "modelPlaceName": "",
+      "placeNameKept": "",
+      "signText": "",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "no-text",
+      "landmarks": [
+        "trees",
+        "grass",
+        "sky"
+      ],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "road",
+      "pass": 2,
+      "replyMs": 1944,
+      "inferenceSource": "on_device",
+      "placeType": "road",
+      "modelPlaceName": "",
+      "placeNameKept": "",
+      "signText": "",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "no-text",
+      "landmarks": [
+        "road",
+        "grass",
+        "sky"
+      ],
+      "landmarksNotDrawn": []
+    },
+    {
+      "scene": "blank-sign",
+      "pass": 2,
+      "replyMs": 2535,
+      "inferenceSource": "on_device",
+      "placeType": "park",
+      "modelPlaceName": "",
+      "placeNameKept": "",
+      "signText": "",
+      "signTextInventedWords": [],
+      "trueSignTextRead": "no-text",
+      "landmarks": [
+        "bench",
+        "pond",
+        "signpost"
+      ],
+      "landmarksNotDrawn": []
+    }
+  ],
+  "runsNote": "In all 16 runs the model's reply parsed, ran on device as the SDK reported, and cleanCues kept every field unchanged (no field was cut and no place name was dropped), so the model's reply and the kept cues are the same and only one copy is listed.",
+  "googleRequests": [],
+  "counts": {
+    "reads": 16,
+    "readsWithInventedSignTextWords": 0,
+    "textSceneReadsWithAllSignWords": "8 of 8",
+    "noTextSceneReadsWithEmptySignText": "8 of 8",
+    "placeNamesFromModel": "8, all inside the read sign text; cleanCues dropped none",
+    "landmarks": 33,
+    "landmarksNotDrawn": 2,
+    "readsWithALandmarkNotDrawn": "2 of 16 (trail-sign pass 1: Road; park-sign pass 1: Parking lot)"
+  },
+  "codeCheck": {
+    "rule": "web/src/ai/photoCues.ts cleanCues (lines 46-55): placeName is kept only when the squashed signText (upper-cased, runs of anything not A-Z or 0-9 turned into one space) contains the squashed placeName; otherwise it is emptied. Unit-tested in web/src/ai/photoCues.test.ts (dropped when the sign does not show it, kept when it does).",
+    "inThisRun": "Not exercised: all 8 place names the model gave were in its sign text, so the rule had nothing to drop.",
+    "limits": "The test is a substring test, not a whole-word test, so a name that is part of a sign word is kept (signText SPARKS RD, placeName Park: kept). A placeName with no letters or digits squashes to empty and is kept (placeName !!!: kept). Both checked by a one-off probe against cleanCues on this commit, not committed."
+  },
+  "findings": [
+    "No invented sign text: in 16 reads no signText word was missing from the drawing, every text scene's sign words were all read (8 of 8), and every no-text scene came back with empty signText (8 of 8), including the blank sign board both times.",
+    "Landmarks are where invention showed: 2 of 33 landmarks named something not drawn, both on pass 1 (Road beside the trail sign, where no road is drawn; Parking lot beside the park sign, likely the grey stone base read as one). The same scenes on pass 2 listed only drawn things. The tray shows landmarks under the Suggested tag as Landmarks: ..., so these would reach the screen as a suggestion.",
+    "placeType is a closed-list guess for plain scenes: park for the figure on green ground (pass 1; unknown on pass 2), the tree line and the blank-sign lake scene.",
+    "The first read took 11,183 ms and the other 15 took 1,793 to 3,060 ms; all 16 ran on device and the page made no request to a Google or Firebase host."
+  ],
+  "limitsOfThisMeasurement": "n = 16 reads of 8 synthetic flat drawings with large, clean, high-contrast text, on one machine, on device only; real photos with small, worn, angled or partly hidden signs were not measured. Landmark judgments are by hand. This shows how the read behaved on these drawings, not an accuracy rate.",
+  "n": 16
+}
