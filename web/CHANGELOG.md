@@ -2994,3 +2994,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - new and changed checkChoice, schema and caller tests failed first, then passed (54 in the plan wording suites);
   - 6 runs on Chrome's built-in model: all on device and used, every code a team fact, reasons and summary matching, the main picks as before;
   - typecheck passes; replanWording.ts lines 47 and 232, which the test matrix cites, are unchanged.
+
+### test(e2e): the live suite fails when the cloud path's plan wording always falls back
+- What: a deployed check (e2e/planUsed.spec.ts) presses Suggest plan three times with no built-in model, reads the route mark of each suggestion, and requires at least two to be the model's choice, not fixed wording. Each reply that was not used is recorded in the failure and attached to the report. Nothing is approved.
+- Source: deployed stills (the cloud path fell back on every press, and no check noticed).
+- Verified: against the live site before the schema fix it fails with 0 of 3 used and records the six "highest_poa" picks; after the fix it is run with the live suite.
