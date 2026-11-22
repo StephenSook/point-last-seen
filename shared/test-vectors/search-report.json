@@ -257,7 +257,7 @@
     },
     {
       "name": "curly_apostrophe",
-      "note": "Searched AB, he wasn’t seen there.",
+      "note": "Searched AB, he wasn\u2019t seen there.",
       "report": true,
       "clause": "whole_words"
     },
@@ -304,10 +304,76 @@
       "clause": "whole_words"
     },
     {
-      "name": "single_quotes_stay_on_the_word",
+      "name": "quotes_are_trimmed_from_words",
       "note": "Team said 'cleared' for AB.",
+      "report": true,
+      "clause": "whole_words"
+    },
+    {
+      "name": "quoted_sighting_word",
+      "note": "Searched AB. Witness radioed, 'saw him at the north gate'.",
       "report": false,
       "clause": "whole_words"
+    },
+    {
+      "name": "sighting_word_recognized",
+      "note": "Segment AB searched. A man recognized him at the north gate.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_witness",
+      "note": "Combed the lot. Witness at the store says yes.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_shoes",
+      "note": "Swept AB, shoes by the bench.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_tracks",
+      "note": "Combed AB, tracks in the mud.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_footprints",
+      "note": "Cleared AB, footprints in the snow.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "nothing_two_words_before_found",
+      "note": "Searched AB, nothing was found.",
+      "report": true,
+      "clause": "found_negated"
+    },
+    {
+      "name": "nothing_three_words_before_found",
+      "note": "Searched AB, nothing at all, then found a glove.",
+      "report": false,
+      "clause": "found_negated"
+    },
+    {
+      "name": "em_dash_ends_a_clause",
+      "note": "Searched AB, no sign \u2014 footprints by the gate.",
+      "report": false,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "en_dash_ends_a_clause",
+      "note": "Searched AB, no sign \u2013 footprints by the gate.",
+      "report": false,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "spaced_hyphen_ends_a_clause",
+      "note": "Searched AB, no sign - footprints by the gate.",
+      "report": false,
+      "clause": "negation_scope"
     }
   ]
 }

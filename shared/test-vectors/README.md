@@ -262,16 +262,19 @@ can still be saved with one more tap. English only. A note reads as a search rep
   `nothing found`, `not found`, `no trace`, or a segment named done (`segment AB done`, `segment 4 finished`,
   `segment AE is complete`). `covered` is not one ("a man covered in mud" is a sighting).
 - It has no sighting word: `saw`, `seen`, `spotted`, `sighted`, `caller`, `walking`, `heading`, `wearing`, `heard`,
-  `found`, `footprint(s)`, `track(s)`, `shoe(s)`, `clothing`. A sighting word with `not`, `never`, `no`, `nobody`,
-  `wasn't`, `hasn't`, `haven't`, `hadn't`, `didn't`, `isn't`, `weren't` or `couldn't` one or two words before it in
-  the same clause does not count ("subject not seen", "no one saw"), and neither does `found` after `nothing` in the
-  same clause. Pronouns are not sighting words ("no sign of him" is a search report).
+  `found`, `footprint(s)`, `track(s)`, `shoe(s)`, `clothing`, `witness(es)`, `recognized`, `recognised`,
+  `identified`. A sighting word with `not`, `never`, `no`, `nobody`, `wasn't`, `hasn't`, `haven't`, `hadn't`,
+  `didn't`, `isn't`, `weren't` or `couldn't` one or two words before it in the same clause does not count ("subject
+  not seen", "no one saw"), and neither does `found` with `nothing` one or two words before it in the same clause
+  ("nothing was found"). Pronouns are not sighting words ("no sign of him" is a search report).
 
-Words, exactly: lowercase the note, turn the curly apostrophes U+2018 and U+2019 into `'`, and take each run of `a-z`,
-`0-9` and `'` as a word; every other character separates words. So "Segment-4 done." holds `segment 4 done`, and
-"'cleared'" keeps its quotes and is not the word `cleared`. A clause ends at `.`, `!`, `?`, `;`, `:`, `,` or a line
-break: the negation look-back stays inside the sighting word's clause ("Searched AB, no sign. Footprints at the creek."
-is a sighting), while the search result may be anywhere in the note. Each case names the clause it tests, and every
+Words, exactly: lowercase the note, turn the curly apostrophes U+2018 and U+2019 into `'`, take each run of `a-z`, `0-9`
+and `'`, and trim any `'` from its two ends; what is left, if not empty, is a word, and every other character
+separates words. So "Segment-4 done." holds `segment 4 done`, a quoted "'saw him'" holds the word `saw`, and `wasn't`
+keeps its own apostrophe. A clause ends at `.`, `!`, `?`, `;`, `:`, `,`, a line break, an en or em dash (U+2013,
+U+2014), or a hyphen with a space on each side: the negation look-back stays inside the sighting word's clause
+("Searched AB, no sign. Footprints at the creek." is a sighting), while the search result may be anywhere in the note.
+Each case names the clause it tests, and every
 clause with two sides has a case on each.
 
 Fields: `schemaVersion` (1); `note`, what the file is; `line`, the exact warning a platform shows; and `cases`, each with

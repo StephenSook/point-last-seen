@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Search-report rule: fewer real sightings read as reports. A quote at either end of a word is trimmed ("'saw him'"
+  holds saw); witness(es), recognized, recognised and identified are sighting words; and an en or em dash or a spaced
+  hyphen ends a clause, so "no sign - footprints by the gate" keeps its footprints. Eleven new cases (62 in all), among
+  them pins for each plural and the two-word window after nothing; the README says it. Source: review (Codex first
+  round, and lane review of the dashes). Verified: seven new cases fail on the previous rule and all 62 pass on this
+  one; engine suite and typecheck pass.
 - Search-report contract: the shared README states the word rule exactly (lowercase, curly apostrophes as ', a word is a
   run of a-z, 0-9 and '), two cases pin it ("Segment-4 done." is a report; "'cleared'" in single quotes is not the
   word), and the vector test checks schemaVersion and that every case names one of the README's ten clauses. Source:
