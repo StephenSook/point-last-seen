@@ -58,6 +58,11 @@ each line says what the limit is and why.
   - A member removed while a clip upload is in progress can finish that one upload within the hour.
   - Removal takes effect at once for every account that joined after membership records began (2026-11-21, 18:48
     UTC). An account that joined before and has since joined another search cannot be removed for up to an hour.
+- When command ends a search, an iPhone in it shows the command post's own line ("Search ended: training ended. No
+  new reports are taken.") and its reports stay on screen, read-only, with no Send. With signal the phone hears it
+  at once from a listener on the incident; without signal it learns at the next check in signal (a launch, a return
+  to the app or to signal, or a push it opens). A report sent offline after the search ended is refused by the
+  server when the phone reconnects, and its receipt then says "Not taken: the search had ended."
 
 - The iPhone acts on a mission only within the account session it was read in: the user Auth last reported
   plus a count of account changes, where every change of user starts a new session. A join signs in first,

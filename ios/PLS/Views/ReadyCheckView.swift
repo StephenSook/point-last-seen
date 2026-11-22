@@ -63,7 +63,7 @@ struct ReadyCheckView: View {
                         .toggleStyle(FieldToggleStyle())
                     Text(Self.cloudDetail).font(.title3).foregroundStyle(theme.text(.secondary))
                 }
-                if model.mission != nil || model.canRetryMission {
+                if model.offersLeave {
                     let inPractice = model.mission?.isPractice == true
                     let leaveTitle = inPractice ? Self.endPracticeLabel : Self.leaveLabel
                     section(leaveTitle) {

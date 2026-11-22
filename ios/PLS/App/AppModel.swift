@@ -77,6 +77,12 @@ final class AppModel {
     /// Names the plan listener in place: a callback from a retired one (queued before it stopped)
     /// is ignored, also after a move away and back to the same team.
     @ObservationIgnored private var planWatchId = 0
+    /// Stops listening for the loaded mission's incident (command ending the search), named like the plan listener.
+    @ObservationIgnored private var stopIncidentWatch: (@Sendable () -> Void)?
+    @ObservationIgnored private var incidentWatchId = 0
+    /// The drop count just before the searcher's own Leave, while that Leave was the last drop: words whose read began
+    /// there are not held for review. Words read across an earlier drop (the search ended) still are.
+    @ObservationIgnored private var leaveDroppedFrom: Int?
     /// Counts mission loads and joins; only the newest installs a mission.
     @ObservationIgnored private var missionGeneration = 0
     /// Counts every time the mission is dropped (never on a reload of the same one): a report read across a drop is
@@ -415,10 +421,16 @@ final class AppModel {
             // Loading speaks, which takes time: a newer join, load or drop meanwhile owns the listener.
             guard generation == missionGeneration else { return .superseded }
             watchPlans(incidentId: incidentId, teamId: teamId)
+            watchIncident(incidentId: incidentId)
             followTopicSoon()
             await refreshAlerts()
             return .loaded
         } catch let failure as MissionBuilder.Failure {
+            // A search that is no longer open keeps its reports on screen, with the line saying why, unless a newer load
+            // or another account took over while this read ran.
+            if case let .notOpen(line) = failure, generation == missionGeneration, isCurrent(session) {
+                endedSearch = endedRecord(incidentId: incidentId, line: line, owner: session.uid)
+            }
             return .failed(failure)
         } catch MissionReadError.accessDenied {
             return .denied
@@ -504,6 +516,69 @@ final class AppModel {
         return signedIn ? "Signed in" : "Not signed in. Stay in signal."
     }
 
+    /// A search command ended while this phone was in it: its id and what the phone says.
+    struct EndedSearch: Equatable {
+        let incidentId: String
+        let line: String
+        /// The account that was in the search; only its reports are shown.
+        var owner: String? = nil
+        /// Reports already refused when the phone learned the search ended: they keep their own line.
+        var refusedBefore: Set<String> = []
+    }
+    /// Whether a refused report in the ended search reads as refused because the search ended: only one refused after
+    /// the phone learned it, since a refusal from before (a team move) looks the same.
+    func refusalShowsTheEnd(_ eventId: String) -> Bool {
+        guard let ended = endedSearch else { return false }
+        return !ended.refusedBefore.contains(eventId)
+    }
+
+    /// What the phone keeps when it sees a search ended. Seen again by the same account (a later read of the closed
+    /// search), the refusals from before stay the ones recorded the first time: a report refused since then was
+    /// refused by the end.
+    private func endedRecord(incidentId: String, line: String, owner: String?) -> EndedSearch {
+        if let held = endedSearch, held.incidentId == incidentId, held.owner == owner {
+            return EndedSearch(incidentId: incidentId, line: line, owner: owner, refusedBefore: held.refusedBefore)
+        }
+        return EndedSearch(incidentId: incidentId, line: line, owner: owner, refusedBefore: refusedNow(incidentId))
+    }
+
+    /// The reports of an incident already refused, by event id.
+    private func refusedNow(_ incidentId: String) -> Set<String> {
+        Set(store?.entries.filter { e in
+            guard e.doc.incidentId == incidentId, case .rejected = e.state else { return false }
+            return true
+        }.map(\.eventId) ?? [])
+    }
+    /// Ready check offers Leave while a search is loaded, read again, or ended on screen.
+    var offersLeave: Bool { mission != nil || canRetryMission || endedSearch != nil }
+    private(set) var endedSearch: EndedSearch?
+    /// The ended search's reports, shown read-only on the task screen.
+    var endedEntries: [OutboxEntry] {
+        guard let ended = endedSearch else { return [] }
+        return store?.entries.filter { $0.doc.incidentId == ended.incidentId && $0.doc.authorUid == ended.owner } ?? []
+    }
+
+    /// Command ended the search this phone is in: the mission goes, so nothing more can be sent to it, the phone says
+    /// so in the command post's words, and that search's reports stay on screen, read-only.
+    private func searchEnded(incidentId: String, line: String) {
+        let record = endedRecord(incidentId: incidentId, line: line, owner: uid())
+        dropMissionNow()
+        endedSearch = record
+        joinMessage = line
+    }
+
+    /// Listens to the loaded mission's incident, so a search command ends shows as ended at once, not at the next
+    /// access check. A callback from a retired listener, or for a mission no longer loaded, changes nothing.
+    private func watchIncident(incidentId: String) {
+        stopIncidentWatch?()
+        incidentWatchId += 1
+        let id = incidentWatchId
+        stopIncidentWatch = missionReader.watchIncident(incidentId: incidentId) { [weak self] state in
+            guard let self, self.incidentWatchId == id, !state.isOpen, self.mission?.incidentId == incidentId else { return }
+            self.searchEnded(incidentId: incidentId, line: state.endedLine)
+        }
+    }
+
     static let leaveNeedsDelete = "Could not delete this phone's sign-in. Stay in signal, then leave again."
     /// Why the last Leave was refused; nil once a Leave goes through.
     private(set) var leaveRefusal: String?
@@ -520,13 +595,29 @@ final class AppModel {
     var hasUnsettledReports: Bool {
         // Practice reports never go anywhere, so none is waiting to settle.
         guard practice == nil else { return false }
+        let ended = endedSearch?.incidentId
+        let user = uid()
         return store?.entries.contains { entry in
-            switch entry.state {
-            case .pending, .checking: true
-            case let .rejected(reason): Outbox.isRetryable(reason: reason)
-            case .acked: false
-            }
+            // An ended search's reports can never settle (the server refuses them; Leave reads the search again first),
+            // so they never block Leave, and neither do an account's that left: its write queue went with it.
+            if entry.doc.incidentId == ended || entry.doc.authorUid != user { return false }
+            return Self.isWaiting(entry.state)
         } ?? false
+    }
+
+    /// Whether the signed-in account has a report in this incident still waiting to settle.
+    private func hasWaitingReports(in incidentId: String) -> Bool {
+        let user = uid()
+        return store?.entries.contains { $0.doc.incidentId == incidentId && $0.doc.authorUid == user && Self.isWaiting($0.state) }
+            ?? false
+    }
+
+    private static func isWaiting(_ state: OutboxState) -> Bool {
+        switch state {
+        case .pending, .checking: true
+        case let .rejected(reason): Outbox.isRetryable(reason: reason)
+        case .acked: false
+        }
     }
 
     /// The searcher leaves the search on this phone: the anonymous account is deleted on the server, then
@@ -543,12 +634,26 @@ final class AppModel {
             leaveRefusal = nil
             return true
         }
+        // A search seen to end can be reset to open under the same id, which the stopped listener never hears. Before
+        // Leave passes over that search's waiting reports, one read confirms it is still not open; open again, the
+        // search loads back, its reports can still be sent, and nothing is deleted.
+        if let ended = endedSearch, hasWaitingReports(in: ended.incidentId) {
+            guard let state = try? await missionReader.incidentState(incidentId: ended.incidentId) else {
+                return refuseLeave(Self.leaveNeedsDelete)
+            }
+            if state.isOpen {
+                await resumeMission()
+                return refuseLeave(Self.leaveBlocked)
+            }
+        }
         guard !hasUnsettledReports else { return refuseLeave(Self.leaveBlocked) }
         // The server deletes its caller's own account, so this runs first, while the phone is still signed in.
         guard await joinBackend.deleteMyAccount() else { return refuseLeave(Self.leaveNeedsDelete) }
         // Any access check still running has no say after this.
         accessCheck += 1
+        let dropsBeforeLeave = missionDrops
         await dropMission()
+        leaveDroppedFrom = dropsBeforeLeave
         await topicFollow?.value
         signIn.signOut()
         signedIn = false
@@ -557,6 +662,7 @@ final class AppModel {
         joinMessage = nil
         problem = nil
         leaveRefusal = nil
+        endedSearch = nil
         return true
     }
 
@@ -603,6 +709,9 @@ final class AppModel {
         sessionUid = reported
         sessionGeneration += 1
         accessCheck += 1
+        // An ended search belongs to the account that was in it; another user never sees its reports or its line.
+        if let ended = endedSearch, joinMessage == ended.line { joinMessage = nil }
+        endedSearch = nil
         // A practice drill belongs to no account, so a change of user leaves it and its voice alone.
         guard practice == nil else { return true }
         speaker.stop()
@@ -619,10 +728,14 @@ final class AppModel {
     func dropMissionNow() {
         missionGeneration += 1
         missionDrops += 1
+        leaveDroppedFrom = nil
         membership = nil
         stopPlanWatch?()
         stopPlanWatch = nil
         planWatchId += 1
+        stopIncidentWatch?()
+        stopIncidentWatch = nil
+        incidentWatchId += 1
         mission = nil
         offersAlerts = false
         // Nothing of the dropped mission is spoken from here on, and the next one starts fresh.
@@ -704,9 +817,8 @@ final class AppModel {
         case .unread:
             // The server could not be reached: the offline path, for the same user only.
             if heldByThisUser, matchesLoaded() { requestTaskOpen(in: session) } else { joinMessage = Self.missionUnread }
-        case .failed(.notOpen):
-            await dropMission()
-            joinMessage = MissionBuilder.Failure.notOpen.message
+        case let .failed(.notOpen(line)):
+            searchEnded(incidentId: incidentId, line: line)
         case let .failed(failure):
             joinMessage = failure.message
         case .denied:
@@ -836,10 +948,9 @@ final class AppModel {
             // The claims are unchanged, but command may have closed the incident: when its status
             // can be read and is no longer open, the mission goes. With no signal it stays.
             let generation = missionGeneration
-            guard let status = try? await missionReader.incidentStatus(incidentId: incidentId),
-                  check == accessCheck, isCurrent(session), generation == missionGeneration, status != "open" else { return }
-            await dropMission()
-            joinMessage = MissionBuilder.Failure.notOpen.message
+            guard let state = try? await missionReader.incidentState(incidentId: incidentId),
+                  check == accessCheck, isCurrent(session), generation == missionGeneration, !state.isOpen else { return }
+            searchEnded(incidentId: incidentId, line: state.endedLine)
             return
         }
         // Another incident or team now: the old mission, its plan listener and its spoken updates
@@ -872,6 +983,8 @@ final class AppModel {
     /// any sound and before the phone's own voice stands in: a drop, a newer load or a newer plan
     /// meanwhile keeps it silent.
     func load(_ mission: Mission) async {
+        // A mission on screen again replaces any search that ended.
+        endedSearch = nil
         let newIncident = self.mission?.incidentId != mission.incidentId
         let newTeam = self.mission != nil && (newIncident || self.mission?.teamId != mission.teamId)
         // Another incident or team, or a task that changed or was taken away: whatever was being said
@@ -1125,7 +1238,12 @@ final class AppModel {
         // (the searcher left, the token stopped naming it, the account changed), even if it was loaded again
         // since: it goes nowhere. The same mission reloaded or with a new plan, with no drop, keeps its report.
         guard store === self.store, drops == missionDrops, let current = self.mission, current.incidentId == mission.incidentId,
-              current.teamId == mission.teamId, current.mode == mission.mode else { return false }
+              current.teamId == mission.teamId, current.mode == mission.mode else {
+            // The mission was dropped while the words were read (the search ended, the token moved): they wait for
+            // review, so a later mission never takes them on a plain second tap. Not after the searcher's own Leave.
+            if store === self.store, drops != missionDrops, drops != leaveDroppedFrom { problem = Self.teamChanged }
+            return false
+        }
         // The task that read it was cancelled: the report is not journalled, and its words stay in the field.
         guard !Task.isCancelled else { return false }
         do {

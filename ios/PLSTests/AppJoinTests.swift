@@ -79,11 +79,28 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     }
 
     private(set) var statusReads = 0
-    func incidentStatus(incidentId: String) async throws -> String? {
+    /// The incident's state on the server as the listener last sent it, or as a test sets it (a reset the stopped
+    /// listener never hears); nil reads the documents.
+    var incidentNow: IncidentState?
+    func incidentState(incidentId: String) async throws -> IncidentState {
         statusReads += 1
+        if let incidentNow { return incidentNow }
         guard let docs else { throw URLError(.notConnectedToInternet) }
-        if case let .string(s)? = docs.incident["status"] { return s }
-        return nil
+        return IncidentState(incident: docs.incident)
+    }
+
+    /// The incident listener: which incidents were watched, how many watches stopped, and the callback to send a
+    /// snapshot of the incident's state through.
+    private(set) var incidentWatching: [String] = []
+    private(set) var incidentStops = 0
+    var onIncident: (@MainActor (IncidentState) -> Void)?
+    func watchIncident(incidentId: String, onState: @escaping @MainActor (IncidentState) -> Void) -> @Sendable () -> Void {
+        incidentWatching.append(incidentId)
+        onIncident = { [weak self] state in
+            self?.incidentNow = state
+            onState(state)
+        }
+        return { [weak self] in self?.incidentStops += 1 }
     }
 }
 
@@ -91,10 +108,10 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
 /// before gets it back from the token's claims.
 @MainActor
 @Suite struct AppJoinTests {
-    func drillDocs(status: String = "open") throws -> MissionDocs {
+    func drillDocs(status: String = "open", closedReason: String? = nil) throws -> MissionDocs {
         let segments = try DrillDocs.segments()
         let first = segments.compactMap { if case let .string(id)? = $0["segmentId"], id != "ROW" { id } else { nil } }.first ?? ""
-        return MissionDocs(incident: try DrillDocs.incident(status: status), segments: segments,
+        return MissionDocs(incident: try DrillDocs.incident(status: status, closedReason: closedReason), segments: segments,
                            plan: DrillDocs.plan(segmentIds: [first]), sharedProfile: DrillDocs.shared)
     }
 
@@ -498,9 +515,314 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         reader.docs = nil
         await m.trySignIn()
         #expect(m.mission?.teamId == "T1")
-        reader.docs = try drillDocs(status: "closed")
+        reader.docs = try drillDocs(status: "closed", closedReason: "suspended")
         await m.trySignIn()
-        #expect(m.mission == nil && reader.stops == 1 && m.joinMessage == "This incident is not open for searching.")
+        let line = "Search ended: search suspended. No new reports are taken."
+        #expect(m.mission == nil && reader.stops == 1 && m.joinMessage == line && m.endedSearch?.line == line)
+    }
+
+    /// Command ends the search while the phone is open on it: the incident listener says so at once, in the command
+    /// post's own words, and the mission goes, so nothing more can be sent to it.
+    @Test func aSearchEndedWhileOpenIsShownAtOnce() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1" && reader.incidentWatching == ["drill-dev-1"])
+        reader.onIncident?(IncidentState(status: "open", closedReason: nil))
+        #expect(m.mission != nil && m.endedSearch == nil)
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "training_ended"))
+        let line = "Search ended: training ended. No new reports are taken."
+        #expect(m.mission == nil && m.endedSearch?.incidentId == "drill-dev-1" && m.endedSearch?.line == line)
+        #expect(m.joinMessage == line && reader.incidentStops == 1 && reader.stops == 1)
+    }
+
+    /// The ended search's reports stay on screen, read-only, until a new mission loads.
+    @Test func theEndedSearchKeepsItsReportsUntilANewMission() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "found"))
+        #expect(m.mission == nil && m.endedEntries.count == 1)
+        // A snapshot for the ended search after it ended changes nothing.
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "suspended"))
+        #expect(m.endedSearch?.line == "Search ended: person found. No new reports are taken.")
+        await m.trySignIn()
+        #expect(m.mission?.teamId == "T1" && m.endedSearch == nil && m.endedEntries.isEmpty)
+    }
+
+    /// An ended search belongs to the account that was in it: another user never sees its reports.
+    @Test func anEndedSearchIsGoneAfterAnAccountChange() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-acct-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "found"))
+        #expect(m.endedEntries.count == 1 && m.endedSearch?.owner == "uid-1")
+        m.noteAccount("uid-2")
+        #expect(m.endedSearch == nil && m.endedEntries.isEmpty)
+    }
+
+    /// The next account never sees the ended search's line either.
+    @Test func theEndedLineGoesWithAnAccountChange() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        await m.trySignIn()
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "found"))
+        #expect(m.joinMessage == "Search ended: person found. No new reports are taken.")
+        m.noteAccount("uid-2")
+        #expect(m.joinMessage == nil && m.endedSearch == nil)
+    }
+
+    /// A read that started for one account and comes back closed after the account changed shows nothing.
+    @Test func aLateClosedReadForAnOldAccountShowsNothing() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs(status: "closed", closedReason: "found"))
+        let gate = ReadGate()
+        reader.holdNextRead = gate
+        let m = model(FakeJoinBackend(), reader)
+        let resume = Task { await m.trySignIn() }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        m.noteAccount("uid-2")
+        gate.release()
+        await resume.value
+        #expect(m.endedSearch == nil)
+    }
+
+    /// The account can still be deleted from an ended search: Ready check offers Leave, and leaving clears it.
+    @Test func anEndedSearchCanStillBeLeft() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let backend = FakeJoinBackend()
+        let m = model(backend, reader)
+        await m.trySignIn()
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "training_ended"))
+        #expect(m.mission == nil && m.offersLeave)
+        #expect(await m.leaveSearch())
+        #expect(backend.deletes == 1 && m.endedSearch == nil && !m.offersLeave)
+    }
+
+    /// A report the server refused because the search ended can never settle, so it never blocks Leave (and with it
+    /// deleting the sign-in).
+    @Test func aReportRefusedByTheEndDoesNotBlockLeave() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let backend = FakeJoinBackend()
+        let m = model(backend, reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-leave-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let server = FakeEventServer()
+        server.writeErrors = [NSError(domain: "FIRFirestoreErrorDomain", code: 7)]
+        server.readBacks = [.absent]
+        let store = try EventStore(server: server, outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        for _ in 0..<1000 where store.entries.first?.state != .rejected(reason: "permission-denied") { await Task.yield() }
+        #expect(store.entries.first?.state == .rejected(reason: "permission-denied"))
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "training_ended"))
+        #expect(await m.leaveSearch())
+        #expect(backend.deletes == 1 && m.endedSearch == nil)
+    }
+
+    /// Words whose send was cut off because the search ended wait for review: a later mission never takes them on a
+    /// plain second tap.
+    @Test func wordsCutOffByAnEndedSearchWaitForReview() async throws {
+        final class Box: @unchecked Sendable { var reader: FakeMissionReader?; var model: AppModel? }
+        let box = Box()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        box.reader = reader
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                         readReport: { text, _, _, _ in
+            await MainActor.run { box.reader?.onIncident?(IncidentState(status: "closed", closedReason: "suspended")) }
+            let route = RouteRecord(platform: .ios, path: .onDevice, stage: .guided, model: "apple", reason: .onDeviceDefault,
+                                    latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+            var reading = ReportReading.unclear(quote: text)
+            reading.kind = .clue
+            return ReadOutcome(reading: reading, route: route, validation: .ok)
+        }, joinBackend: FakeJoinBackend(), missionReader: reader)
+        box.model = m
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-send-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        #expect(m.mission != nil)
+        let text = "Found a glove by the creek"
+        #expect(await m.submit(text, inputMethod: .typed) == text)
+        #expect(m.mission == nil && store.entries.isEmpty && m.heldForReview == text)
+    }
+
+    /// A read that finishes after the searcher left keeps nothing for review: leaving was the searcher's own choice,
+    /// so a later mission never offers "Send to my new team" for those words.
+    @Test func aReadThatOutlivesALeaveIsNotHeld() async throws {
+        let gate = ReadGate()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                         readReport: { text, _, _, _ in
+            await gate.wait()
+            let route = RouteRecord(platform: .ios, path: .onDevice, stage: .guided, model: "apple", reason: .onDeviceDefault,
+                                    latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+            var reading = ReportReading.unclear(quote: text)
+            reading.kind = .clue
+            return ReadOutcome(reading: reading, route: route, validation: .ok)
+        }, joinBackend: FakeJoinBackend(), missionReader: reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("left-read-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        #expect(m.mission != nil)
+        let text = "Found a glove by the creek"
+        let send = Task { await m.submit(text, inputMethod: .typed) }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        #expect(gate.isWaiting)
+        #expect(await m.leaveSearch())
+        gate.release()
+        #expect(await send.value == text)
+        #expect(m.heldForReview == nil && m.problem == nil && store.entries.isEmpty)
+    }
+
+    /// Only a report refused after the search ended reads as the end: one already refused before it (a team move,
+    /// say) keeps its own line, since both refusals look the same.
+    @Test func aRefusalFromBeforeTheEndKeepsItsOwnLine() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-before-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let server = FakeEventServer()
+        server.writeErrors = [NSError(domain: "FIRFirestoreErrorDomain", code: 7)]
+        server.readBacks = [.absent]
+        let store = try EventStore(server: server, outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        for _ in 0..<1000 where store.entries.first?.state != .rejected(reason: "permission-denied") { await Task.yield() }
+        let before = try #require(store.entries.first?.eventId)
+        server.holdWrites = true
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        let after = try #require(store.entries.last?.eventId)
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "suspended"))
+        #expect(!m.refusalShowsTheEnd(before) && m.refusalShowsTheEnd(after))
+    }
+
+    /// A report of an account that left can never settle (its write queue went with the account), so it never blocks
+    /// the next account's Leave.
+    @Test func aLeftAccountsReportsNeverBlockTheNextLeave() async throws {
+        final class User: @unchecked Sendable { var uid: String? = "uid-1" }
+        let user = User()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = AppModel(signIn: SignIn(isSignedIn: { user.uid != nil }, attempt: { true }, signOut: { user.uid = nil }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                         uid: { user.uid }, joinBackend: FakeJoinBackend(), missionReader: reader, pushTopics: FakePushTopics(),
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "left-\(UUID().uuidString)")!)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("left-acct-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let server = FakeEventServer()
+        server.writeErrors = [NSError(domain: "FIRFirestoreErrorDomain", code: 7)]
+        server.readBacks = [.absent]
+        let store = try EventStore(server: server, outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        for _ in 0..<1000 where store.entries.first?.state != .rejected(reason: "permission-denied") { await Task.yield() }
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "training_ended"))
+        #expect(await m.leaveSearch())
+        user.uid = "uid-2"
+        await m.trySignIn()
+        #expect(m.mission != nil)
+        #expect(await m.leaveSearch())
+    }
+
+    /// When the search ended while the words were read and the searcher then left, the end still holds them: a later
+    /// mission never takes them on a plain tap.
+    @Test func anEndDuringTheReadStillHoldsTheWordsAfterALeave() async throws {
+        let gate = ReadGate()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }), uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                         readReport: { text, _, _, _ in
+            await gate.wait()
+            let route = RouteRecord(platform: .ios, path: .onDevice, stage: .guided, model: "apple", reason: .onDeviceDefault,
+                                    latencyMs: 1, sdkReported: false, blocked: nil, decidedAtMs: 0)
+            var reading = ReportReading.unclear(quote: text)
+            reading.kind = .clue
+            return ReadOutcome(reading: reading, route: route, validation: .ok)
+        }, joinBackend: FakeJoinBackend(), missionReader: reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("end-then-leave-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let text = "Found a glove by the creek"
+        let send = Task { await m.submit(text, inputMethod: .typed) }
+        for _ in 0..<1000 where !gate.isWaiting { await Task.yield() }
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "suspended"))
+        #expect(await m.leaveSearch())
+        gate.release()
+        #expect(await send.value == text)
+        #expect(m.heldForReview == text && store.entries.isEmpty)
+    }
+
+    /// A report refused after the phone learned the search ended still reads as refused by the end when the phone
+    /// reads the closed search again: a second read does not move it among the refusals from before.
+    @Test func aRereadOfTheEndedSearchKeepsWhichRefusalsCameBefore() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-reread-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let server = FakeEventServer()
+        server.holdWrites = true
+        let store = try EventStore(server: server, outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        let report = try #require(store.entries.first?.eventId)
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "suspended"))
+        server.readBacks = [.absent]
+        server.answerHeldWrites(NSError(domain: "FIRFirestoreErrorDomain", code: 7))
+        for _ in 0..<1000 where store.entries.first?.state != .rejected(reason: "permission-denied") { await Task.yield() }
+        #expect(m.refusalShowsTheEnd(report))
+        reader.docs = try drillDocs(status: "closed", closedReason: "suspended")
+        await m.trySignIn()
+        #expect(m.endedSearch != nil)
+        #expect(m.refusalShowsTheEnd(report))
+    }
+
+    /// A drill can be reset to open under the same id after the phone saw it end, and the stopped listener never hears
+    /// it. Before Leave passes over that search's waiting reports it reads the search again: open, the search loads
+    /// back, its reports can still be sent, and no sign-in is deleted.
+    @Test func leaveReadsAnEndedSearchAgainBeforePassingItsReports() async throws {
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(backend, reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-reset-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let server = FakeEventServer()
+        server.holdWrites = true
+        let store = try EventStore(server: server, outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "training_ended"))
+        #expect(m.endedSearch != nil)
+        reader.incidentNow = IncidentState(status: "open", closedReason: nil)
+        #expect(!(await m.leaveSearch()))
+        #expect(backend.deletes == 0)
+        #expect(m.mission != nil && m.endedSearch == nil)
+        #expect(m.leaveRefusal == AppModel.leaveBlocked)
     }
 
     /// A drop silences the voice, and the next membership starts fresh: after T1 is dropped and
@@ -762,7 +1084,7 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     @Test func aMissionThatCannotBeReadSaysWhy() async throws {
         let closed = model(FakeJoinBackend(), FakeMissionReader(docs: try drillDocs(status: "found")))
         await closed.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
-        #expect(closed.joinMessage == MissionBuilder.Failure.notOpen.message && closed.mission == nil)
+        #expect(closed.joinMessage == "This incident is not open for searching." && closed.mission == nil)
         let offline = model(FakeJoinBackend(), FakeMissionReader(docs: nil))
         await offline.join(code: "ABCDEFGH", teamId: "T1", incidentId: "")
         #expect(offline.joinMessage == AppModel.missionUnread && offline.mission == nil)

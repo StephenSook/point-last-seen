@@ -5,6 +5,157 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): Leave reads an ended search again before passing over its reports
+- What: a drill can be reset to open under the same id after the phone saw it end, and the incident listener stops at
+  the end, so it never hears the reset. Leave passed over the ended search's waiting reports and deleted the sign-in
+  they need. When the signed-in account has a waiting report in the ended search, Leave now reads the search once
+  first: still not open, Leave goes on as before; open again, the search loads back, its reports can still be sent,
+  nothing is deleted, and Leave says reports are still waiting; no answer (no signal), nothing is deleted and Leave
+  asks for signal.
+- Source: third review of the ended-search change.
+- Verified: a test where the search ends with a report waiting and is then reset to open failed before the change
+  (the sign-in was deleted) and passes after; the earlier tests where the search stays ended still pass; the test
+  fake now answers the incident read with the state its listener last sent; the full app suite passes.
+
+### fix(ios): an ended search's report list never says Retry
+- What: an ended search's reports are shown read-only, with no Retry button, yet a report refused before the end
+  (or for a reason other than the end) said "Not delivered. Retry". In that list it now says "Not delivered. Ask
+  command"; a report refused by the end still says "Not taken: the search had ended.", and the other states keep
+  their lines. The open search's receipt is unchanged.
+- Source: third review of the ended-search change.
+- Verified: a core test that no refusal in the ended list says Retry failed before the change (the line did not
+  exist) and passes after; the ended-search core suite and the full app suite pass.
+
+### fix(ios): a re-read of the ended search keeps which refusals came before the end
+- What: when the phone sees a search it already shows as ended end again (a later read of the closed search, the
+  listener, a push), the refusals from before the end stay the ones recorded the first time. A report refused since
+  then keeps reading "Not taken: the search had ended." instead of turning back into a retry line.
+- Source: third review of the ended-search change.
+- Verified: a test where a report is refused after the end and the phone then reads the closed search again failed
+  before the change and passes after; the test fake now holds a held write's callback so it can be answered later;
+  the full app suite passes.
+
+### fix(ios): an end during the read still holds the words after a Leave
+- What: words read while their mission was dropped wait for review, except after the searcher's own Leave. The
+  exception now covers only a read that began right before that Leave. When command ended the search during the read
+  and the searcher then left, the end still holds the words, so a later team never takes them on a plain Send.
+- Source: third review of the ended-search change.
+- Verified: a test where the search ends during a typed report's read and the searcher then leaves failed before the
+  change and passes after; the earlier test where only a Leave happens still passes; the full app suite passes.
+
+### fix(ios): a report of an account that left never blocks the next one's Leave
+- What: Leave waits for this phone's unsettled reports, but a report written by an account that has since left can
+  never settle: its write queue went with the account. Such a report (one refused after its search ended, say) is
+  now left out, so it no longer blocks the next account's Leave, and with it deleting that account's sign-in.
+- Source: third review of the ended-search change.
+- Verified: a test where one account leaves an ended search with a refused report and the next account then joins
+  and leaves failed before the change and passes after; the full app suite passes.
+
+### fix(ios): a refusal from before the search ended keeps its own line
+- What: in an ended search's read-only list, "Not taken: the search had ended." now shows only for a report refused
+  after the phone learned the search ended. A report already refused before that (a team move, say, whose refusal
+  looks the same) keeps its own line. The reports already refused are recorded when the search is seen to end, by
+  the listener, the access check, a push or a load at launch.
+- Source: second review of the ended-search change.
+- Verified: a test with one report refused before the end and one still on the phone at the end failed before the
+  change and passes after; the full app suite passes.
+
+### fix(ios): a read that outlives the searcher's own Leave holds nothing for review
+- What: words whose mission was dropped while they were read wait for review ("Send to my new team"), but not when
+  the drop was the searcher's own Leave: leaving was their choice, so a read that finishes after it keeps the words
+  in the field without the team-changed message or the review hold.
+- Source: second review of the ended-search change.
+- Verified: a test where Leave completes while a typed report is being read failed before the change and passes
+  after; the AppJoin and AppModel suites pass.
+
+### fix(ios): the ended search's line goes with an account change
+- What: a change of account already cleared the ended search and its reports; it now also clears the ended line from
+  the join form's message, so the next account never sees the previous one's "Search ended: ..." reason.
+- Source: second review of the ended-search change.
+- Verified: a test that the line goes with an account change failed before the change and passes after; the
+  AppJoin suite passes.
+
+### fix(ios): an ended search's reports never block leaving it
+- What: a report the server refused because its search had ended is retryable in the journal, so it kept "Leave
+  this search" refused ("Some reports have not reached command yet") with no way to settle it, and with it the
+  sign-in could never be deleted. Leave now leaves out the ended search's reports when it checks for unsettled ones;
+  the server refuses them in any case.
+- Source: second review of the ended-search change.
+- Verified: a test where the rules refuse a report, the search ends and Leave then deletes the account failed
+  before the change and passes after; 256 app tests pass.
+
+### fix(ios): the incident listener hears the server confirm a cached state
+- What: the incident listener now asks for metadata changes, so when the server confirms a state the phone first saw
+  from its cache (only isFromCache changes), the listener still calls back and a real close is not missed.
+- Source: second review of the ended-search change.
+- Verified: by reading the listener and Firestore's listener options (includeMetadataChanges); the Firestore
+  listener has no test fake, so no unit test covers this line. 255 app tests pass.
+
+### fix(ios): words cut off because the mission was dropped wait for review
+- What: when the mission is dropped while a typed report is being read (the search ended, the token moved), the
+  words are not journaled, as before, and now they also wait for review: the phone shows "Your team changed while
+  this was sending. Check your new task, then send again if it still applies." and a later mission takes them only
+  through "Send to my new team" or after an edit, never on a plain second tap.
+- Source: review of the ended-search change.
+- Verified: a test where the search ends during the read failed before the change and passes after; 255 app tests
+  pass.
+
+### fix(ios): an ended search can still be left, so its sign-in can be deleted
+- What: Ready check offers "Leave this search" while an ended search is on screen, not only while a search is
+  loaded, so a searcher whose search ended can still delete the phone's sign-in; leaving clears the ended search.
+  Before, a search ended by the listener took Leave away until the next launch.
+- Source: review of the ended-search change (account deletion must stay reachable).
+- Verified: a test that Leave is offered after the end and that leaving deletes the account and clears the ended
+  search failed before the change and passes after; 255 app tests pass.
+
+### fix(ios): an ended search stays with the account that was in it
+- What: the ended search records the account that was in it and lists only that account's reports, and a change of
+  account clears it, so another user never sees the previous one's reports or words. A read that started for one
+  account and comes back closed after the account changed (or after a newer load) no longer sets it.
+- Source: review of the ended-search change.
+- Verified: tests for an account change after the end and for a late closed read for an old account failed before
+  the change and pass after; 255 app tests pass.
+
+### fix(ios): only the server's word ends a search on the phone
+- What: the incident listener ignores a snapshot that comes only from the phone's cache, so a stale cached "closed"
+  (a drill reset to open under the same id) cannot end a search that is open on the server. The server's snapshot
+  follows within seconds once the phone has signal.
+- Source: review of the ended-search change.
+- Verified: by reading Firestore's snapshot metadata (isFromCache) and the listener; the Firestore listener has no
+  test fake, so no unit test covers this line. 255 app tests pass.
+
+### fix(ios-core): only the rules' refusal reads as the search having ended
+- What: in an ended search's read-only list, a refused report says "Not taken: the search had ended." only when the
+  server refused it under the security rules (permission-denied). A report refused for anything else (an id
+  conflict, an encoding failure, a refusal from before the end) keeps its own line.
+- Source: review of the ended-search change.
+- Verified: the receipt test now checks an id conflict and an unavailable refusal keep their lines; it failed
+  before the change and passes after; 450 PLSCore tests pass.
+
+### docs(limits): an iPhone in a search command ends, and removing a member who left
+- What: LIMITS says what an iPhone shows when command ends its search (the command post's line, read-only reports,
+  no Send), when it learns it (at once with signal, otherwise at its next check in signal), and what a report sent
+  offline after the end shows. The Leave line now says a member who left stays on the command post's Members list
+  until command removes it with "Remove from this drill", which also works once the sign-in is gone; it no longer
+  says command has no way to remove a member.
+- Source: the ended-search change before this entry; removeMember is on main.
+- Verified: each sentence checked against AppModel (watchIncident, searchEnded, the access check triggers),
+  functions/src/join.ts (the members record), functions/src/account.ts and functions/src/members.ts at this commit.
+
+### feat(ios): the phone shows at once when command ends its search
+- What: while a search is loaded, the phone listens to its incident, so when command ends the search the phone
+  shows it at once instead of at its next access check, which could be long after. It shows the command post's own
+  line ("Search ended: training ended. No new reports are taken.", with the reason command gave, or "Search ended.
+  No new reports are taken." without one), drops the mission so nothing more can be sent, and keeps that search's
+  reports on the task screen, read-only. A report the server refused because the search had ended says "Not taken:
+  the search had ended." and offers no retry. The same line and list come from every way the phone learns it: the
+  listener, the access check, a push it opens, and a load at launch. A new mission clears it. Any status other than
+  closed keeps the older "This incident is not open for searching."
+- Source: review of End this search (a phone with the report screen open kept offering Send).
+- Verified: tests for the line per reason, the refused receipt, the listener ending the search at once (an open
+  snapshot and a late snapshot change nothing), the access check and a push carrying the reason, and the ended
+  search's reports until a new mission; each failed before the change and passes after. 450 PLSCore and 251 app
+  tests pass.
 ### fix(ios-core): a slash month-day keeps its exception unless a written group follows
 - What: a month and day joined by a slash (11/19) lost its date exception to any digit part after another slash,
   a spoken digit included, so "11/19/seven 404-555-0142" removed the date with the number. As on the web, only a

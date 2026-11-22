@@ -104,6 +104,16 @@ struct TaskView: View {
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                 }
+            } else if let ended = model.endedSearch {
+                // The search ended: the line says so, and its reports stay, read-only, so each shows what happened.
+                Text(ended.line).font(.title3.bold()).foregroundStyle(theme.text(.primary))
+                    .accessibilityIdentifier("search-ended")
+                List(model.endedEntries.reversed(), id: \.eventId) { entry in
+                    ReportEchoView(entry: entry, searchEnded: true, refusedByTheEnd: model.refusalShowsTheEnd(entry.eventId), retry: {})
+                        .listRowBackground(theme.backgroundColor)
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             } else {
                 ContentUnavailableView("No mission loaded", systemImage: "shippingbox", description: Text(Self.noMissionHint))
             }

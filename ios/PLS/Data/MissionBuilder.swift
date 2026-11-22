@@ -17,13 +17,14 @@ struct MissionDocs: Sendable {
 /// cannot trust it refuses, in words the ready check shows.
 enum MissionBuilder {
     enum Failure: Error, Equatable {
-        case notOpen
+        /// The incident is not open; carries what the phone says about it (IncidentState.endedLine).
+        case notOpen(String)
         case segments(String)
         case priorMismatch
 
         var message: String {
             switch self {
-            case .notOpen: "This incident is not open for searching."
+            case let .notOpen(line): line
             case let .segments(id): "The search area could not be read (segment \(id)). Ask command to rebuild it."
             case .priorMismatch: "Command is rebuilding the search area. Try again in a minute."
             }
@@ -31,7 +32,7 @@ enum MissionBuilder {
     }
 
     static func build(incidentId: String, teamId: String, docs: MissionDocs, bundledParams: EngineParams) throws -> Mission {
-        guard case .string("open")? = docs.incident["status"] else { throw Failure.notOpen }
+        guard case .string("open")? = docs.incident["status"] else { throw Failure.notOpen(IncidentState(incident: docs.incident).endedLine) }
         let parsed: PackSegments.Parsed
         do {
             parsed = try PackSegments.parse(docs.segments)
