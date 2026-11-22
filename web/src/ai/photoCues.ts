@@ -48,11 +48,14 @@ export function photoParams(): HybridParams {
 const wordsOf = (s: string) => s.normalize("NFKC").toUpperCase().normalize("NFKC").split(/[^\p{L}\p{M}\p{Nd}]+/u).filter(Boolean);
 
 /**
- * The words of the sign text that end inside its first `kept` code units. Words are found in the uncut text, so a
- * sign cut inside a word (or inside a surrogate pair) never offers the piece left at the end as a whole word.
+ * The whole words of the kept (cut) sign text. Both texts fold the same way; when the kept text's last word differs
+ * from the uncut text's word in that place, the cut fell inside it (inside a word, a combining sequence, a surrogate
+ * pair or a symbol NFKC turns into letters), so that piece is not a word.
  */
-function signWords(full: string, kept: number): string[] {
-  return [...full.matchAll(/[\p{L}\p{M}\p{N}]+/gu)].filter((m) => m.index + m[0].length <= kept).flatMap((m) => wordsOf(m[0]));
+function signWords(full: string, kept: string): string[] {
+  const words = wordsOf(kept);
+  if (words.length > 0 && words[words.length - 1] !== wordsOf(full)[words.length - 1]) words.pop();
+  return words;
 }
 
 /** Whether the name's words appear among the sign's words, whole and in order; a name with no letter or digit never does. */
@@ -72,7 +75,7 @@ export function cleanCues(c: PhotoCues): PhotoCues | null {
   const name = typeof c.placeName === "string" && c.placeName.length <= P.placeName.maxLength ? c.placeName : "";
   return {
     placeType: c.placeType,
-    placeName: signShows(signWords(typeof c.signText === "string" ? c.signText : "", signText.length), name) ? name : "",
+    placeName: signShows(signWords(typeof c.signText === "string" ? c.signText : "", signText), name) ? name : "",
     signText,
     landmarks: (Array.isArray(c.landmarks) ? c.landmarks : []).filter((l): l is string => typeof l === "string").slice(0, P.landmarks.maxItems).map((l) => l.slice(0, P.landmarks.items.maxLength)),
     outdoors: c.outdoors,

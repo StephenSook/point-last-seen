@@ -48,6 +48,9 @@ describe("cleanCues", () => {
     expect(name("CEDAR COUNTY LAKE", "Cedar Lake")).toBe("");
     expect(name("ΟΔΟΣ 1ΗΣ ΜΑΪ́ΟΥ", "1ης Μαΐου")).toBe("1ης Μαΐου");
     expect(name("LOT ፲", "፲")).toBe("");
+    expect(name("\u21167 COFFEE", "7 Coffee")).toBe("");
+    expect(name("\u21167 COFFEE", "No7 Coffee")).toBe("No7 Coffee");
+    expect(name("NORTH \u24B6 PLAZA", "North Plaza")).toBe("");
   });
 
   it("never counts the part of a word left where a long sign text was cut", () => {
@@ -56,8 +59,10 @@ describe("cleanCues", () => {
     expect((lead + "RIVER PARKS").length).toBe(81);
     expect(name(lead + "RIVER PARKS", "River Park")).toBe("");
     expect(name(lead + "RIVER PARK, OPEN", "River Park")).toBe("River Park");
-    expect(name(lead + "RIVER PARKÉ", "River Parke")).toBe("");
+    expect(name("X".repeat(68) + " RIVER PARKE\u0301", "River Parke")).toBe("");
     expect(name("X".repeat(69) + " RIVER PAR\u{1D400}K", "River Par")).toBe("");
+    expect(name("X".repeat(68) + " RIVER PARK\u{1F130}", "River Park")).toBe("");
+    expect(name("X".repeat(69) + " RIVER PARK\u2474", "River Park")).toBe("River Park");
     const long = "A".repeat(50) + " RIVER PARKS";
     expect(long.length).toBeGreaterThan(60);
     expect(name(long, long)).toBe("");

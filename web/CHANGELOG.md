@@ -3137,3 +3137,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `cleanCues` place-name words now run NFKC again after upper-casing, so a letter with no precomposed capital (Greek "Μαΐου") folds the same in the name and on the sign; and a word is letters, marks and decimal digits only, so a lone number symbol such as the Ethiopic ten is not a word and a name made only of one is dropped. A new case checks that the name's words must be next to each other on the sign ("CEDAR COUNTY LAKE" does not keep "Cedar Lake").
 - Source: review (second-model pass on the whole-word place name rule, low findings).
 - Verified: the Greek case failed first (the number-symbol case was shown kept by the review's run of the earlier code), then all passed (19); web unit; typecheck; gates; hygiene.
+
+### fix(ai): find a cut sign's whole words after folding, not before
+- What: the cut-word check found word spans in the raw sign text, but NFKC turns some symbols into letters or digits ("№" to "No", "Ⓐ" to "A", "🄰" to "A"), so the spans disagreed with the folded words: "7 Coffee" was kept from "№7 COFFEE", "North Plaza" from "NORTH Ⓐ PLAZA", and a cut inside "🄰" still left "PARK". Now the kept text and the uncut text fold the same way, and the kept text's last word is dropped only when it differs from the uncut text's word in that place. The combining-mark test now cuts between the letter and its accent, as it meant to.
+- Source: review (second-model pass on the cut-word fix).
+- Verified: the new cases (number sign, circled letter, a cut inside a squared letter, a word ending exactly before a parenthesized digit) failed first, then passed (19); web unit; typecheck; gates; hygiene.
