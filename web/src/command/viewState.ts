@@ -40,17 +40,21 @@ export type LastChange = { causeEventId: string; before: Record<string, number>;
 /**
  * What the newest report did to the map: the posterior without that one event against
  * the posterior with every event. Recomputed from the events, so a reload or a second
- * seat shows the same change.
+ * seat shows the same change. "Newest" is by each phone's clock corrected by its measured
+ * offset (server time minus device clock, per deviceId), as the report list orders them;
+ * a phone with no measured offset keeps its own time.
  */
 export function lastReportChange(
   prior: SegmentPrior[],
   docs: readonly EventDoc[],
   priorInputEventIds: readonly string[],
   params: EngineParams,
+  clockOffsets: Readonly<Record<string, number>> = {},
 ): LastChange | null {
   const reports = docs.filter((d) => !NOT_A_REPORT.has(d.type));
   if (reports.length === 0) return null;
-  const cause = reports.reduce((a, b) => (b.clientTimeMs > a.clientTimeMs || (b.clientTimeMs === a.clientTimeMs && b.seq > a.seq) ? b : a));
+  const sent = (d: EventDoc) => d.clientTimeMs + (clockOffsets[d.deviceId] ?? 0);
+  const cause = reports.reduce((a, b) => (sent(b) > sent(a) || (sent(b) === sent(a) && b.seq > a.seq) ? b : a));
   const ids = [...priorInputEventIds];
   // Command confirming a sighting with a place rebuilt the prior from it (the sighting is now a prior input).
   const target = cause.type === "confirmation" && cause.role === "command" && cause.decision === "confirmed" && cause.targetEventId

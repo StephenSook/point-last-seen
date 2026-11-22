@@ -508,7 +508,10 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     () => (engineIn ? viewState(engineIn.prior, events as unknown as EventDoc[], engineIn.priorIds, engineIn.params, engineIn.priorVersion) : null),
     [engineIn, events],
   );
-  const last = useMemo(() => (engineIn ? lastReportChange(engineIn.prior, events as unknown as EventDoc[], engineIn.priorIds, engineIn.params) : null), [engineIn, events]);
+  const last = useMemo(
+    () => (engineIn ? lastReportChange(engineIn.prior, events as unknown as EventDoc[], engineIn.priorIds, engineIn.params, view?.clockOffsets ?? {}) : null),
+    [engineIn, events, view?.clockOffsets],
+  );
   const [holding, setHolding] = useState(false);
   const beat = useMemo(() => {
     // Until the server has answered, the events may be a partial cached set: no beat yet.

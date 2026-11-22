@@ -2965,3 +2965,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the band is measured from the last-seen point to the segment's centre, and a 125 m cell can cross a band's edge (a centre 250 m away puts part of the cell 312 m away). "AA is within 0.3 km of the last-seen point" could be false for part of AA. The sentence is now "AA's centre is within 0.3 km of the last-seen point, in the ISRID first 25% distance band".
 - Source: review.
 - Verified: the changed reasonCodes tests failed first, then passed, including the 200-character fit; typecheck passes.
+
+### fix(command): the newest report is chosen by each phone's corrected clock
+- What: the report list orders reports by each phone's clock corrected by its measured offset, but lastReportChange picked "the newest report" by the phone's own time. A report sent at 10:00 from a phone one minute fast could outrank one sent at 10:00:20, so the change banner and a plan reason ("The newest report raised AA") could name the wrong report. lastReportChange now takes the incident's clock offsets per device and the command post passes them; a phone with no measured offset keeps its own time.
+- Source: review.
+- Verified: a new viewState test (a fast phone's earlier report against a later one) failed first, then passed (13), and with no offsets the order is unchanged; typecheck passes.
