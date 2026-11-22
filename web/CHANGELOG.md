@@ -2612,3 +2612,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the panel needs the drill's status to be open, as the server does, so an older drill saved as found no longer offers a replacement the server refuses.
 - Source: review (Codex, first round on the join-code panel).
 - Verified: typecheck and the web unit suite pass.
+
+### fix(data): a dropped link also says the code may already be replaced
+- What: "unavailable" now gets the may-already-be-replaced line too, since a reply lost after the server committed (a 503 from the host) reads the same as no connection; a second replacement would stop the code the first one made.
+- Source: review (Codex, second round on the join-code panel).
+- Verified: the extended unit test failed first, then passed (5).

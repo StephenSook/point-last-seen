@@ -25,8 +25,9 @@ export async function rotateJoinCode(functions: Functions, incidentId: string, r
 }
 
 /** The sentence for a refused replacement: the server's reason when it gave one, never the person's fault for a refused
- *  sign-in or App Check token or a dropped link. When no answer came back (a deadline, a server error, or an answer that
- *  could not be read), the server may already have replaced the code, so the line says so instead of "try again": a
+ *  sign-in or App Check token or a dropped link. When no answer came back (a deadline, a server error, a dropped link,
+ *  which a reply lost after the server committed also looks like, or an answer that could not be read), the server may
+ *  already have replaced the code, so the line says so instead of "try again": a
  *  second replacement would stop the code the first one made. */
 export function rotateErrorMessage(e: unknown): string {
   const o = typeof e === "object" && e !== null ? (e as { code?: unknown; details?: unknown }) : {};
@@ -39,6 +40,5 @@ export function rotateErrorMessage(e: unknown): string {
   if (reason === "bad_role") return "Only a searcher or family code can be replaced.";
   if (reason === "bad_incident_id") return "This search's link is not valid. Reload the page.";
   if (reason === "not_signed_in" || code.endsWith("unauthenticated")) return "Refused: sign-in or App Check. Reload the page and try again.";
-  if (code.endsWith("unavailable")) return "No connection. Try again when the link is back.";
   return "No answer came back, so the code may already have been replaced. Replacing it again makes the newest code the only one that works.";
 }

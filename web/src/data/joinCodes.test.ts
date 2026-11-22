@@ -32,12 +32,12 @@ describe("rotateErrorMessage: the sentence for a refused replacement", () => {
 
   it("never blames the person for a refused sign-in, a dropped link or an answer it could not read", () => {
     expect(rotateErrorMessage(refused(undefined, "functions/unauthenticated"))).toBe("Refused: sign-in or App Check. Reload the page and try again.");
-    expect(rotateErrorMessage(refused(undefined, "functions/unavailable"))).toBe("No connection. Try again when the link is back.");
   });
 
   it("says the code may already be replaced when no answer came back, so a retry is a choice, not a repair", () => {
     const unknown = "No answer came back, so the code may already have been replaced. Replacing it again makes the newest code the only one that works.";
-    for (const code of ["functions/deadline-exceeded", "functions/internal", "functions/unknown"]) expect(rotateErrorMessage(refused(undefined, code)), code).toBe(unknown);
+    // "unavailable" too: a reply lost after the server committed (a 503 from the host) reads the same as no connection.
+    for (const code of ["functions/deadline-exceeded", "functions/internal", "functions/unknown", "functions/unavailable"]) expect(rotateErrorMessage(refused(undefined, code)), code).toBe(unknown);
     // An answer that could not be read came after the server made a code.
     expect(rotateErrorMessage(new Error("odd answer"))).toBe(unknown);
   });
