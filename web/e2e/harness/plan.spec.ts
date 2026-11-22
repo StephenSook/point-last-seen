@@ -77,7 +77,8 @@ test("the receipt for a plan worded on this laptop says nothing left it", async 
 
 test("a fallback plan shows only the fixed-wording mark; why the cloud was not used is in What ran", async ({ page }) => {
   await page.goto("/harness/plan.html?fallback=1");
-  await expect(page.getByText(/this laptop/)).toHaveCount(0);
+  // No laptop notice before the plan is suggested, apart from the one line that says where wording is made.
+  await expect(page.getByText(/this laptop/).filter({ hasNotText: "Suggest plan words the draft" })).toHaveCount(0);
   await page.getByRole("button", { name: "Suggest plan" }).click();
   const plan = page.getByTestId("suggested-plan");
   await expect(plan).toContainText("Fixed wording");
@@ -126,4 +127,13 @@ test("the Plan section says whether its history has come from the server, for ch
   await expect(page.getByRole("region", { name: "Plan" })).toHaveAttribute("data-plans-loaded", "false");
   await page.goto("/harness/plan.html");
   await expect(page.getByRole("region", { name: "Plan" })).toHaveAttribute("data-plans-loaded", "true");
+});
+
+test("before Suggest plan, the Plan section says where the wording is made and what it sends", async ({ page }) => {
+  await page.goto("/harness/plan.html");
+  const plan = page.getByRole("region", { name: "Plan" });
+  await expect(plan.getByText("Suggest plan words the draft on this laptop's built-in model, or with Gemini in the cloud when it has none. It sends only team ids, segment codes and percents, never a note or a name.")).toBeVisible();
+  await page.goto("/harness/plan.html?paused=1");
+  await expect(page.getByRole("region", { name: "Plan" }).getByText("Cloud reading is paused, so Suggest plan uses fixed wording and sends nothing.")).toBeVisible();
+  await expect(page.getByText("with Gemini in the cloud when it has none")).toHaveCount(0);
 });
