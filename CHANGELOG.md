@@ -26,6 +26,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   `shared/test-vectors/search-report.json` holds 44 hand-written cases, one on each side of each clause, and a README
   section gives the rule, so the phones can match it. Source: review (a team's search report typed into the sighting
   form). Verified: the vector test failed first, then passed (45); the engine suite (434) and typecheck pass.
+- Limits: the command post also checks the browser's sign-in at once after a refused action, past the 30-second spacing.
+  Source: review. Verified: the hygiene guard passes in public mode.
+- Limits: the command post checks the browser's sign-in when its tab is shown or focused and every five minutes while
+  shown, at most once in 30 seconds. Source: review. Verified: the hygiene guard passes.
+- Limits: a practice search's post, which has no join code, sends you back to the judge's page when the browser's
+  sign-in moved; the post checks again whenever its tab is shown and every five minutes. Source: review. Verified: the
+  hygiene guard passes.
+- Limits: a browser's sign-in holds one search and one role at a time, so a practice search or a join in another tab
+  moves it; a command post still open for the first drill then says so and asks to be reopened with its command code
+  (`docs/LIMITS.md`, Sign-in and joining). Source: review (a command who opens a practice search loses command).
+  Verified: the hygiene guard passes.
 - Phone corpus: written again for the merged shared cases (121 inputs, among them the run-of-times and colon-gap cases),
   so it holds 9,121 rows; the README names its new SHA-256. Source: the run-of-times and colon-gap cases merged.
   Verified: `--check` failed before the rewrite and passes after; the web corpus test passes.

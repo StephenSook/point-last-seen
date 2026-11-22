@@ -34,6 +34,12 @@ each line says what the limit is and why.
   (`JOIN_ATTEMPTS_PER_HOUR`, `functions/src/join.ts`); the 11th is refused with "Too many join attempts. Try
   again in an hour." A device that mistypes a code several times waits for the window to end, so read codes
   carefully.
+- A browser's sign-in holds one search and one role at a time. Starting a practice search, or joining another drill
+  in another tab, moves it, and a command post still open for the first drill can no longer act: it says "You're
+  signed in to another search in this browser. Reopen this drill with its command code to act as command." A practice
+  search has no code, so its post sends you back to the judge's page instead. The post checks again whenever its tab
+  is shown or focused and every five minutes while it is shown, at most once in 30 seconds, and at once after a
+  refused action. Use a separate browser profile to run two searches side by side.
 - "Leave this search" on the iPhone first asks the server to delete the phone's anonymous account (the
   `deleteMyAccount` callable), then leaves the team's push topic, drops the mission and signs out, so the next join
   is a new user. Leaving needs signal: it waits until every report from the phone is settled with the server, since

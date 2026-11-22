@@ -2577,3 +2577,27 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the command post gives the sighting form its cleared segments, and "Add it to segment XX's debrief" closes the form, opens Details and opens that segment's debrief with the note. A deployed-only check (`e2e/searchReport.spec.ts`) types a report on the drill, sends it to the first cleared segment's debrief, checks the box holds the note and has the cursor, and cancels, so it writes nothing.
 - Source: review (a team's search report typed into the sighting form).
 - Verified: typecheck, web unit suite and the harness suite (231) pass; the deployed check runs after the deploy.
+### fix(command): a post whose sign-in moved to another search says so
+- What: a browser's sign-in holds one search and one role. Starting a practice search or joining another drill in another tab moved it, and a command post still open for the first drill then failed every write with a bare refusal. The post now watches the sign-in (any tab) and, when its claims name another incident, shows "You're signed in to another search in this browser. Reopen this drill with its command code to act as command." with a Reopen this drill button (another role on the same drill has its own line); after a refusal it rechecks with fresh claims, and the no-access panel gives the same line. `docs/LIMITS.md` says so.
+- Source: review (a command who opens a practice search loses command).
+- Verified: new unit tests (the line for each case; the watch reports each change, rechecks with fresh claims and stops) failed first, then passed; web unit suite and typecheck pass.
+
+### fix(command): the sign-in line knows a practice search, a sign-out and a hidden tab
+- What: a practice search has no join code, so its post now says "This browser is no longer signed in to this practice search. Open it again from the judge's page." with a button to the judge's page (the no-access panel too), instead of pointing to a code. A signed-out browser, or one whose sign-in holds no search, says it is no longer signed in to this drill rather than "another search". The post asks for fresh claims whenever its tab is shown again and every five minutes, so a refused action whose token predates the move still gets the line. A read that finishes after its watch stopped is dropped.
+- Source: review (Codex, first round on the sign-in line: two medium, two low findings).
+- Verified: updated unit tests (practice, signed out, no search, a late read after stop) failed first, then passed (7); web unit suite (1192) and typecheck pass.
+
+### fix(command): only the newest sign-in check counts, and checks are spaced
+- What: a sign-in check that finished after a newer one could restore an old line (or clear a current one); now only the newest read decides. The post also checks when its window gets focus, so side-by-side windows (no tab switch) still show the line before a refused action; the 5-minute check runs only while the tab is shown, and a forced check runs at most once in 30 seconds and never while one is running. Whether the post is a practice search now comes from the incident's own mode once it has loaded (an id is only the first guess), and the no-access panel's drill button reloads with the drill still in the link ("Reopen this drill") instead of dropping it.
+- Source: review (Codex, second round on the sign-in line: three medium, two low findings).
+- Verified: new unit tests (a late older read is dropped; forced reads are spaced and never overlap) failed first, then passed (9); web unit suite (1196) and typecheck pass.
+
+### fix(command): a refusal's sign-in check is never dropped, and a stalled one does not block
+- What: the check after a refused read is urgent: it skips the 30-second spacing, and one that comes while a forced check is running waits for it and then runs, so the line is right at the moment it matters. A forced check still running after 30 seconds counts as stalled and no longer holds the next one back.
+- Source: review (Codex, third round on the sign-in line).
+- Verified: two new unit tests (an urgent recheck inside the spacing runs after the running one; a stalled read stops blocking after 30 s) failed first, then passed; the claims tests (11) and typecheck pass.
+
+### fix(command): the no-access panel never traps the browser
+- What: the panel is its own component (`NoAccessPanel`). A drill offers "Reopen this drill" (a reload, for a sign-in that is back) and "Join another search" (the join form), so an expired drill whose token still names it no longer reopens into the same denial. A practice search points to the judge's page. When the search's mode has not loaded and only its id suggests a practice search, all three are offered.
+- Source: review (Codex, third round on the sign-in line).
+- Verified: three new render tests (drill, practice, mode guessed from the id) failed first, then passed; web unit suite and typecheck pass.

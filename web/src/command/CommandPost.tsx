@@ -36,6 +36,7 @@ import { beatDistances, type LatLon, segmentChoices, segmentContaining } from ".
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
 import { ProfileForm } from "./ProfileForm";
+import { NoAccessPanel } from "./NoAccessPanel";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
 import { sightingCards, type SightingCard } from "./sightingCards";
@@ -44,6 +45,7 @@ import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSe
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
+import { watchClaims } from "../data/claims";
 import { subscribeIncident } from "../data/incident";
 import { flagTarget, latestTeamOf, subscribeFlags, type Flag } from "../data/contentReports";
 import { FlagsPanel } from "./FlagsPanel";
@@ -297,6 +299,38 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [clipping, setClipping] = useState(false);
   // A view setting for this screen only: every plate of 0.1% or more on the map, not only the ones that fit.
   const [everyPercent, setEveryPercent] = useState(false);
+  // Why this browser no longer acts as command here, when its sign-in moved to another search or role (any tab).
+  const [claimsNote, setClaimsNote] = useState<string | null>(null);
+  const claimsWatch = useRef<{ stop: () => void; recheck: (urgent?: boolean) => void } | null>(null);
+  // A practice search has no join code: its lines and buttons point back to the judge's page. The incident's own mode
+  // decides once it has loaded (and is remembered after a refusal clears the view); until then its id does.
+  const knownMode = useRef<string | null>(null);
+  if (view?.incident?.mode) knownMode.current = view.incident.mode;
+  const practice = knownMode.current ? knownMode.current === "judge" : incidentId.startsWith("judge-");
+  useEffect(() => {
+    const w = watchClaims(pls.auth, { incidentId, practice }, setClaimsNote);
+    claimsWatch.current = w;
+    // Fresh claims when this tab is shown or focused again (after a practice search started in another tab or
+    // window) and every 5 minutes while it is shown, since a refused action alone may not show the line when this
+    // tab's token is older than the server's claims. watchClaims spaces the forced reads.
+    const onShow = () => {
+      if (document.visibilityState === "visible") w.recheck();
+    };
+    document.addEventListener("visibilitychange", onShow);
+    window.addEventListener("focus", onShow);
+    const every = setInterval(onShow, 5 * 60_000);
+    return () => {
+      w.stop();
+      claimsWatch.current = null;
+      document.removeEventListener("visibilitychange", onShow);
+      window.removeEventListener("focus", onShow);
+      clearInterval(every);
+    };
+  }, [pls, incidentId, practice]);
+  useEffect(() => {
+    // A refusal asks at once, past the spacing: it is the moment the line must be right.
+    if (denied) claimsWatch.current?.recheck(true);
+  }, [denied]);
   const [pin, setPin] = useState<LatLon | null>(null);
   const [writes, setWrites] = useState<Record<string, { state: WriteState; doc: EventDoc }>>({});
   // A report the server has not answered yet lives only in this browser until it is sent, so the post says it is
@@ -810,10 +844,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       <main className="panel">
         <p className="drill">{DRILL_LINE}</p>
         <h1>This browser no longer has access to the incident</h1>
-        <p>Its data was cleared from the screen. Join again with a current code.</p>
-        <button type="button" onClick={() => location.assign(location.pathname)}>
-          Join again
-        </button>
+        <p>Its data was cleared from the screen.</p>
+        <NoAccessPanel line={claimsNote} practice={knownMode.current ? (practice ? "yes" : "no") : practice ? "guess" : "no"} />
       </main>
     );
   }
@@ -847,6 +879,20 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           }}
         />
       </header>
+      {claimsNote && (
+        <p className="error" role="alert" data-testid="claims-line">
+          {claimsNote}{" "}
+          {practice ? (
+            <button type="button" onClick={() => location.assign("/judge")}>
+              Open the judge's page
+            </button>
+          ) : (
+            <button type="button" onClick={() => location.reload()}>
+              Reopen this drill
+            </button>
+          )}
+        </p>
+      )}
       {offline && (
         <p className="error" role="status">
           No connection. Showing the last data received.
