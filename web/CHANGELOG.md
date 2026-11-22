@@ -2975,3 +2975,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: supportingFact gives no second fact when a team has no other fact, so the line before Suggest plan now says "Code adds a second fact when the team has one and writes every word", matching LIMITS.
 - Source: review.
 - Verified: plan harness spec 15/15 with the new line; typecheck passes.
+
+### fix(data): an urgent sign-in recheck queued behind a stalled read runs on its own
+- What: in watchClaims, an urgent recheck (after a refusal) that arrived while a forced read was running waited for that read to settle. If the read stalled, the recheck never ran until something else asked, so the sign-in line could stay out of date.
+  - A timer now runs the waiting recheck once that read counts as stalled (30 seconds after it started).
+  - A new sign-in session is never held back by an older session's read. When another account signs in, a waiting recheck runs at once as that account's forced read. At a sign-out it is dropped, since there is no account to read.
+  - The timer is cancelled when the read settles first, and at stop.
+- Source: issue #336.
+- Verified: new watchClaims tests (a stalled read, a read that settles first, stop, another account, a sign-out) failed first where the behaviour changed, then passed (24); typecheck passes.
