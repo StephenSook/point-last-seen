@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): Leave reads an ended search again before passing over its reports
+- What: a drill can be reset to open under the same id after the phone saw it end, and the incident listener stops at
+  the end, so it never hears the reset. Leave passed over the ended search's waiting reports and deleted the sign-in
+  they need. When the signed-in account has a waiting report in the ended search, Leave now reads the search once
+  first: still not open, Leave goes on as before; open again, the search loads back, its reports can still be sent,
+  nothing is deleted, and Leave says reports are still waiting; no answer (no signal), nothing is deleted and Leave
+  asks for signal.
+- Source: third review of the ended-search change.
+- Verified: a test where the search ends with a report waiting and is then reset to open failed before the change
+  (the sign-in was deleted) and passes after; the earlier tests where the search stays ended still pass; the test
+  fake now answers the incident read with the state its listener last sent; the full app suite passes.
+
 ### fix(ios): an ended search's report list never says Retry
 - What: an ended search's reports are shown read-only, with no Retry button, yet a report refused before the end
   (or for a reason other than the end) said "Not delivered. Retry". In that list it now says "Not delivered. Ask

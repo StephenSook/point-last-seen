@@ -598,15 +598,26 @@ final class AppModel {
         let ended = endedSearch?.incidentId
         let user = uid()
         return store?.entries.contains { entry in
-            // An ended search's reports can never settle (the server refuses them), so they never block Leave, and
-            // neither do an account's that left: its write queue went with it.
+            // An ended search's reports can never settle (the server refuses them; Leave reads the search again first),
+            // so they never block Leave, and neither do an account's that left: its write queue went with it.
             if entry.doc.incidentId == ended || entry.doc.authorUid != user { return false }
-            return switch entry.state {
-            case .pending, .checking: true
-            case let .rejected(reason): Outbox.isRetryable(reason: reason)
-            case .acked: false
-            }
+            return Self.isWaiting(entry.state)
         } ?? false
+    }
+
+    /// Whether the signed-in account has a report in this incident still waiting to settle.
+    private func hasWaitingReports(in incidentId: String) -> Bool {
+        let user = uid()
+        return store?.entries.contains { $0.doc.incidentId == incidentId && $0.doc.authorUid == user && Self.isWaiting($0.state) }
+            ?? false
+    }
+
+    private static func isWaiting(_ state: OutboxState) -> Bool {
+        switch state {
+        case .pending, .checking: true
+        case let .rejected(reason): Outbox.isRetryable(reason: reason)
+        case .acked: false
+        }
     }
 
     /// The searcher leaves the search on this phone: the anonymous account is deleted on the server, then
@@ -622,6 +633,18 @@ final class AppModel {
             problem = nil
             leaveRefusal = nil
             return true
+        }
+        // A search seen to end can be reset to open under the same id, which the stopped listener never hears. Before
+        // Leave passes over that search's waiting reports, one read confirms it is still not open; open again, the
+        // search loads back, its reports can still be sent, and nothing is deleted.
+        if let ended = endedSearch, hasWaitingReports(in: ended.incidentId) {
+            guard let state = try? await missionReader.incidentState(incidentId: ended.incidentId) else {
+                return refuseLeave(Self.leaveNeedsDelete)
+            }
+            if state.isOpen {
+                await resumeMission()
+                return refuseLeave(Self.leaveBlocked)
+            }
         }
         guard !hasUnsettledReports else { return refuseLeave(Self.leaveBlocked) }
         // The server deletes its caller's own account, so this runs first, while the phone is still signed in.

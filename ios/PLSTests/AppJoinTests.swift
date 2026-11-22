@@ -79,8 +79,12 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     }
 
     private(set) var statusReads = 0
+    /// The incident's state on the server as the listener last sent it, or as a test sets it (a reset the stopped
+    /// listener never hears); nil reads the documents.
+    var incidentNow: IncidentState?
     func incidentState(incidentId: String) async throws -> IncidentState {
         statusReads += 1
+        if let incidentNow { return incidentNow }
         guard let docs else { throw URLError(.notConnectedToInternet) }
         return IncidentState(incident: docs.incident)
     }
@@ -92,7 +96,10 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
     var onIncident: (@MainActor (IncidentState) -> Void)?
     func watchIncident(incidentId: String, onState: @escaping @MainActor (IncidentState) -> Void) -> @Sendable () -> Void {
         incidentWatching.append(incidentId)
-        onIncident = onState
+        onIncident = { [weak self] state in
+            self?.incidentNow = state
+            onState(state)
+        }
         return { [weak self] in self?.incidentStops += 1 }
     }
 }
@@ -791,6 +798,31 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         await m.trySignIn()
         #expect(m.endedSearch != nil)
         #expect(m.refusalShowsTheEnd(report))
+    }
+
+    /// A drill can be reset to open under the same id after the phone saw it end, and the stopped listener never hears
+    /// it. Before Leave passes over that search's waiting reports it reads the search again: open, the search loads
+    /// back, its reports can still be sent, and no sign-in is deleted.
+    @Test func leaveReadsAnEndedSearchAgainBeforePassingItsReports() async throws {
+        let backend = FakeJoinBackend()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(backend, reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-reset-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let server = FakeEventServer()
+        server.holdWrites = true
+        let store = try EventStore(server: server, outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "training_ended"))
+        #expect(m.endedSearch != nil)
+        reader.incidentNow = IncidentState(status: "open", closedReason: nil)
+        #expect(!(await m.leaveSearch()))
+        #expect(backend.deletes == 0)
+        #expect(m.mission != nil && m.endedSearch == nil)
+        #expect(m.leaveRefusal == AppModel.leaveBlocked)
     }
 
     /// A drop silences the voice, and the next membership starts fresh: after T1 is dropped and
