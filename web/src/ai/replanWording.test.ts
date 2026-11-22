@@ -346,6 +346,18 @@ describe("a reason's numbers belong to that team's own rows", () => {
     const t2 = (reason: string) => ({ assignments: [{ teamId: "T1", taskText: "x", reason: "Highest." }, { teamId: "T2", taskText: "x", reason }], summary: "s" });
     expect(checkWording(draft, t2("At 22.0%, AB has a higher POA than the unassigned segment."))).toEqual({ ok: true });
   });
+  it("reads a label's cue across its colon", () => {
+    expect(checkWording(draft, withReason("Prior POA: 31.0%."))).toEqual({ ok: false, reason: CURRENT_AS_EARLIER });
+    expect(checkWording(draft, withReason("Prior POA: 20.0%. Now 31.0%."))).toEqual({ ok: true });
+  });
+  it("reads higher or lower than before as a direction, and higher than another segment as none", () => {
+    expect(checkWording(draft, withReason("AC's POA is lower than before."))).toEqual({ ok: false, reason: WRONG_DIRECTION });
+    expect(checkWording(draft, withReason("AC's POA is higher than before."))).toEqual({ ok: true });
+  });
+  it("reads a dash joined to a word as punctuation, and a spaced one before a figure as a minus", () => {
+    expect(checkWording(draft, withReason("AC\u201431.0%, the highest POA."))).toEqual({ ok: true });
+    expect(checkWording(draft, withReason("POA now \u201431.0%."))).toEqual({ ok: false, reason: NUMBER_NOT_IN_PLAN });
+  });
   it("reads the team's own id past in any case and beside brackets, and a digits-only id never hides a figure", () => {
     expect(checkWording(draft, withReason("Team t1 gets AC at 31.0%."))).toEqual({ ok: true });
     expect(checkWording(draft, withReason("(T1) gets AC at 31.0%."))).toEqual({ ok: true });
