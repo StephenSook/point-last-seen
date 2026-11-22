@@ -30,6 +30,14 @@ const WHY: Record<NonNullable<WordedPlan["attempt"]>["failure"], string> = {
   number: "it used a number that is not in the plan",
 };
 
+/**
+ * What a suggestion was worded for: the event set, the prior, the ranked probabilities, the assignments and the facts
+ * the reasons may cite. A suggestion is shown only while this is unchanged.
+ */
+export function draftKeyOf(draft: PlanDraft | null): string | null {
+  return draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.rank, draft.assignments, draft.facts ?? null]) : null;
+}
+
 /** "What ran" for a suggestion; a model that was asked but not used is described, then why fixed wording won. */
 export function whatRan(w: WordedPlan): string[] {
   const base = { asked: "this laptop first", sentBytes: w.promptBytes ?? 0, what: "plan text" };
@@ -46,10 +54,10 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
   const [busy, setBusy] = useState<"suggest" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approved, setApproved] = useState<number | null>(null);
-  // A suggestion belongs to the draft it was worded for: the event set, the prior, the ranked
-  // probabilities the model reads and the assignments. If any of them changes (for example the plan
-  // history arrives, or another seat's rebuild reaches the segments first), it is withdrawn.
-  const draftKey = draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.rank, draft.assignments]) : null;
+  // A suggestion belongs to the draft it was worded for (draftKeyOf). If any of it changes (for example the plan
+  // history arrives, another seat's rebuild reaches the segments first, or a search marks a segment searched), it is
+  // withdrawn.
+  const draftKey = draftKeyOf(draft);
   // A draft the plans rule cannot hold is said so here, before a suggestion is asked for.
   const limit = draft ? planLimitLine(draft) : null;
   const suggested = reply && reply.key === draftKey && !limit ? reply.worded : null;

@@ -2900,3 +2900,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - The measurement page checks a reply with checkChoice.
 - Source: plan wording review.
 - Verified: new tests for the prompt, the schema, the rendering and checkChoice failed first, then passed (45 with the fact tests); a reply carrying extra text renders only code's sentences; typecheck passes.
+
+### feat(command): the plan draft carries each segment's facts, and a suggestion follows them
+- What: the command post fills the draft's facts with web/src/command/draftFacts.ts. Each segment gets:
+  - its grid features;
+  - whether a team has searched it (cumulative POD above 0);
+  - whether the newest report raised it;
+  - its distance band from the last-seen point, from the ring model's radii for the incident's terrain column (flat when unset), and only when the map uses the ring model.
+  - A suggestion's key (draftKeyOf) now includes the facts, so a reason written from old facts is withdrawn when a search or a report changes them.
+- Source: plan wording review.
+- Verified: new draftFacts and draftKeyOf tests failed first (missing module), then passed (4); typecheck passes.
