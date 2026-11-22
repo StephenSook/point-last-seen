@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Evidence: docs/evidence/web/2026-11-22-plan-reason-cloud-live.json records the cloud path of plan reasons on the
+  live site (deployed 4531ca16, the test drill, Chrome's built-in model removed, gemini-3.5-flash-lite): 3 calls, each
+  request text and reply; every reply named each team once with one of its own facts and was used; on the earlier
+  list form the same drill state drew a refused reply 6 of 6 times. Source: the per-team reply form (PR #362).
+  Verified: read in full and valid JSON, with no token, key or account id in it; each reply's codes checked against
+  the facts in its own request text; the picks recounted; the live site serves 4531ca16.
 - Limits: the plan reason line says the reply's form offers each team only its own facts, one code per team, cites
   the per-team run (the same picks), and says the order effect was not measured on the cloud model. Source: the
   per-team reply form (PR #362). Verified: each sentence against checkChoice and planWordingJson in
