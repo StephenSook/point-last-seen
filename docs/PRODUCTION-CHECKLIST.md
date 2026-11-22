@@ -79,6 +79,10 @@ inside the window has a test (`scripts/test_judging_window.py`) or a line below 
 
 - [ ] Every judge-sandbox copy of a clip reading gets `expiresAt` set from the sandbox's own end (Task 23,
   `startJudgeSession`), never the drill's original value, so the TTL cannot remove a sandbox's readings early.
+- [ ] Before every hosting deploy, `bash scripts/predeploy.sh` passes, from a clean checkout of origin/main with
+  `.env.local` copied in. It runs every pre-deploy check in order (clean tree at main, the live commit an ancestor,
+  `npm ci` when the lockfile changed, the build, the stylesheet order, `mapCascade.spec.ts`, the judge seed check
+  below) and ends by printing the deploy command; it never deploys.
 - [ ] Before every hosting or functions deploy, `python3 -I scripts/judge_seed_check.py buildhybridai-2026-yg3m`
   exits 0: the drill every judge practice search is copied from still matches `scripts/judge_seed_baseline.json`
   (its settings, segments, teams and shared profile, and its event count). Live and device tests write only to

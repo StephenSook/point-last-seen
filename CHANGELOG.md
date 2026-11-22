@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Production checklist: names bash scripts/predeploy.sh as the step before every hosting deploy. Source: review.
+  Verified: the hygiene guard passes in public mode.
+- Pre-deploy checks: scripts/predeploy.sh runs every check before a hosting deploy in one command (clean tree at
+  origin/main, .env.local present, the live commit an ancestor of HEAD, npm ci when the lockfile changed, the web build,
+  main's stylesheet before base.css, mapCascade.spec.ts, the judge seed check) and never deploys, ending with the deploy
+  command; scripts/test_predeploy.py runs in CI's Python gate list. Source: review (a hosting deploy skipped two of
+  these checks). Verified: the script passed all eight steps on a clean checkout of main b8077292; its test (4) passes,
+  including that a changed tree stops it before any network call.
 - Limits: the phone-number section lists the six kept-number gaps in plain words and the new counts (128 shared cases;
   each platform passes 117). Source: issue #298. Verified: scripts/test_phone_vectors.py checks the counts against the
   file; the hygiene guard passes in public mode.
