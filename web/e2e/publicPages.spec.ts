@@ -39,6 +39,8 @@ test("support says what the app is, that drills are made up, where to get help, 
   await expect(page.getByText("Point Last Seen is a field app for search team training drills.")).toBeVisible();
   await expect(page.getByText("Don't post personal details in an issue.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Privacy policy" })).toHaveAttribute("href", "/privacy");
+  await expect(page.getByRole("link", { name: "stevefunds2006@gmail.com" })).toHaveAttribute("href", "mailto:stevefunds2006@gmail.com");
+  await expect(page.getByText("about a problem with the app, an abusive post or member, or deleting your data.")).toBeVisible();
 });
 
 test("a visitor the service worker already controls still gets each static page", { tag: "@no-backend" }, async ({ page }) => {
@@ -49,6 +51,12 @@ test("a visitor the service worker already controls still gets each static page"
     await expect(page.getByRole("heading", { level: 1, name: p.heading })).toBeVisible();
     await expect(page.locator("#root")).toHaveCount(0);
   }
+});
+
+test("the live support page serves its contact email in the HTML a reviewer fetches", async ({ request }) => {
+  deployedOnly();
+  const html = await (await request.get("/support", { headers: { "Cache-Control": "no-cache" } })).text();
+  expect(html).toContain('<p>Email <a href="mailto:stevefunds2006@gmail.com">stevefunds2006@gmail.com</a> about a problem with the app, an abusive post or member, or deleting your data.</p>');
 });
 
 test("the live privacy and support pages carry no draft text", async ({ request }) => {
