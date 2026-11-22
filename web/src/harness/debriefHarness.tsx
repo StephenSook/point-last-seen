@@ -19,6 +19,8 @@ const params = new URLSearchParams(location.search);
 const fail = params.get("save") === "fail";
 const paper = params.get("paper");
 const inDetails = params.get("details") === "1";
+// ?open=AA: the sighting form asked to open that segment's debrief at load; "Ask to open" asks (again) for it, or AA.
+const openSegment = params.get("open");
 const cleared = [
   { segmentId: "AA", eventId: "a".repeat(32), deviceId: "d1", teamId: "T1" },
   { segmentId: "AB", eventId: "b".repeat(32), deviceId: "d2", teamId: "T2" },
@@ -49,6 +51,10 @@ const wrap = (section: ReactNode) => (inDetails ? <details open><summary>Details
 function Harness() {
   const [saved, setSaved] = useState<string>("");
   const [stored, setStored] = useState(initial);
+  // "Take back AA's clear" / "Clear AA again": AA's row leaves and comes back. "Another screen saves": a debrief for the
+  // ?open segment (or AA) is saved from another tab while this one may have its form open.
+  const [aaCleared, setAaCleared] = useState(true);
+  const [openReq, setOpenReq] = useState(openSegment ? { segmentId: openSegment, seq: 1 } : null);
   const [jpeg, setJpeg] = useState("");
   const [reads, setReads] = useState(0);
   const paperRead: PaperRead | undefined = paper
@@ -67,7 +73,7 @@ function Harness() {
     <main className="rail right" style={{ width: 340 }}>
       <p className="drill">Synthetic segments, not drill data.</p>
       {wrap(<DebriefSection
-        cleared={cleared}
+        cleared={aaCleared ? cleared : cleared.filter((c) => c.segmentId !== "AA")}
         debriefs={stored}
         teams={teams}
         onSave={async (segmentId: string, input: DebriefInput, existing: boolean, clearedEventId: string | null) => {
@@ -76,7 +82,26 @@ function Harness() {
           setStored((s) => ({ ...s, [segmentId]: { ...input, segmentId, byUid: "harness", createdAtMs: 2, clearedEventId } }));
         }}
         paperRead={paperRead}
+        openRequest={openReq}
       />)}
+      <button type="button" onClick={() => setOpenReq((r) => ({ segmentId: openSegment ?? "AA", seq: (r?.seq ?? 0) + 1 }))}>
+        Ask to open
+      </button>
+      <button type="button" onClick={() => setAaCleared(false)}>
+        Take back AA's clear
+      </button>
+      <button type="button" onClick={() => setAaCleared(true)}>
+        Clear AA again
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          const id = openSegment ?? "AA";
+          setStored((s) => ({ ...s, [id]: { segmentId: id, tookMinutes: 20, hazards: "Ice on the steps", byUid: "other", createdAtMs: 3, clearedEventId: null } }));
+        }}
+      >
+        Another screen saves
+      </button>
       <pre data-testid="saved">{saved}</pre>
       <pre data-testid="read-jpeg">{jpeg}</pre>
       <pre data-testid="read-count">{reads}</pre>

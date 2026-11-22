@@ -102,12 +102,17 @@ export function debriefEdit(input: DebriefInput): object {
   };
 }
 
-/** Each segment a searcher cleared, once, with its latest clear. */
+/**
+ * Each segment that stands cleared, once, with its latest clear that command has not taken back: a debrief links to
+ * that clear, and a segment whose every clear was taken back has none.
+ */
 export function clearedSegments(events: readonly StreamedEvent[]): ClearedSegment[] {
+  const retracted = new Set(events.filter((e) => e["type"] === "retraction").map((e) => e["targetEventId"]));
   const latest = new Map<string, { c: ClearedSegment; t: number }>();
   for (const e of events) {
     const effect = e["effect"] as { kind?: unknown; segmentId?: unknown } | undefined;
     if (e["type"] !== "cleared" || effect?.kind !== "cleared" || typeof effect.segmentId !== "string") continue;
+    if (retracted.has(e.eventId)) continue;
     const t = e.serverTimeMs ?? Number.MAX_SAFE_INTEGER;
     const prev = latest.get(effect.segmentId);
     if (prev && prev.t > t) continue;
@@ -117,6 +122,11 @@ export function clearedSegments(events: readonly StreamedEvent[]): ClearedSegmen
     });
   }
   return [...latest.values()].map((x) => x.c).sort((a, b) => a.segmentId.localeCompare(b.segmentId));
+}
+
+/** The segments that stand cleared now (see clearedSegments): the sighting form offers a debrief only for these. */
+export function standingClears(events: readonly StreamedEvent[]): ReadonlySet<string> {
+  return new Set(clearedSegments(events).map((c) => c.segmentId));
 }
 
 /** Who wrote it: the clearing team when its own device did, else command. */

@@ -2632,3 +2632,73 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the deployed check now waits for the Plan section's `data-plans-loaded` before going offline. It used to go offline as soon as the map drew, which on the drill now came from cache before the plan history arrived, so Approve refused with "The plan history is still loading" and the check failed twice in a row.
 - Source: live check after the deploy of 9e19f602.
 - Verified: an online Approve after a 15-second wait succeeded on the drill (the history does load); the updated check runs after the next deploy.
+
+### feat(command): the sighting form asks before saving a note that reads as a search report
+- What: at Save, a note that reads as a team's search report rather than a sighting (`readsAsSearchReport`, shared engine) shows "This reads as a search report, not a sighting." with "Save as a sighting anyway" and, when the place is a cleared segment, "Add it to segment XX's debrief". It never blocks a save; an edited note asks again. The debrief scope guard lists the form and its harness: they hand a note to the debrief form and read no debrief.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: three new harness tests (warning then save anyway; the debrief button only for a cleared segment, with nothing saved; a sighting saves on the first tap and an edit drops the warning) failed first, then passed; the sighting harness spec (26), web unit suite and typecheck pass.
+
+### feat(command): a debrief can open with a search report from the sighting form
+- What: `DebriefSection` takes a `prefill` (segment, note, seq). That segment's row opens its form as Add or Edit would, adds the note after what What worked already says, and puts the cursor there. Nothing saves until command fills the time and saves the debrief.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: two new harness tests (a row with no debrief opens with the note, focused and unsaved, and saves it under What worked; a row with a debrief keeps its words and time and adds the note after them) failed first, then passed; both debrief harness specs (24) pass.
+
+### feat(command): the post sends a search report to its cleared segment's debrief
+- What: the command post gives the sighting form its cleared segments, and "Add it to segment XX's debrief" closes the form, opens Details and opens that segment's debrief with the note. A deployed-only check (`e2e/searchReport.spec.ts`) types a report on the drill, sends it to the first cleared segment's debrief, checks the box holds the note and has the cursor, and cancels, so it writes nothing.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: typecheck, web unit suite and the harness suite (231) pass; the deployed check runs after the deploy.
+
+### feat(data): which segments stand cleared, with taken-back clears left out
+- What: `standingClears(events)` gives each segment with at least one clear that command has not taken back, so a search report is offered a segment's debrief only while that segment stands cleared.
+- Source: review (Codex, first round on the search-report guard).
+- Verified: a new unit test (an only clear taken back drops the segment; an earlier clear keeps it after a later one is taken back) failed first, then passed; the debrief data tests (15) pass.
+
+### fix(command): a search report sent to a debrief keeps its sighting draft, and a late read fills nothing
+- What: "Add it to segment XX's debrief" now leaves the sighting form open with its note and fields and says "The note is in segment XX's debrief, not saved yet. Save it there and cancel this sighting, or save it as a sighting anyway.", so a sighting is never lost when its debrief is not saved or cannot hold the note. A read still running at the first Save tap is dropped there too, so a field cannot change between the warning and "Save as a sighting anyway".
+- Source: review (Codex, first round: a real sighting could be lost through the debrief path).
+- Verified: the updated handoff test and a new late-read test failed first, then passed; the sighting harness spec (27) passes.
+
+### fix(command): a search report never erases a debrief draft or a team's stored debrief
+- What: a report sent to a debrief already being edited keeps every edit and adds the note after What worked (two reports add both); a stored debrief that arrives after a report opened the form empty fills what the form left empty and puts its What worked first, so a save keeps the team's words; and a report that arrives while a debrief is saving keeps the form open with the new note instead of closing with the save.
+- Source: review (Codex, first round on the search-report guard).
+- Verified: three new harness tests failed first, then passed; both debrief harness specs (27) pass.
+
+### fix(command): the post offers a debrief only for a segment that stands cleared, and keeps the sighting open
+- What: the post passes `standingClears` to the sighting form (a taken-back clear offers no debrief), no longer closes the sighting form on the handoff, and opening Details for the handoff no longer counts as reading it, so the new family-answer count stays. The deployed check now tries each debrief row until one stands cleared and cancels both forms.
+- Source: review (Codex, first round on the search-report guard).
+- Verified: typecheck, web unit suite (1234) and the harness suite (235) pass; the deployed check runs after the deploy.
+
+### fix(data): a debrief links only to a clear that stands
+- What: `clearedSegments` leaves out clears command took back, so a segment's debrief links to its latest standing clear and a segment whose every clear was taken back has none; `standingClears` is now its set of segment ids.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: a new unit test (the latest clear taken back links the earlier one; all taken back lists none) failed first, then passed (16).
+
+### fix(command): a debrief row keeps every search report, draft and stored word
+- What: a save that fails before the stored debrief loaded leaves the late merge armed, so the debrief merges when it arrives and a retry keeps the team's words; the merge skips fields command changed by hand (an emptied hazard stays empty) and does not repeat a What worked the team's text already holds; a report sent while the paper sheet is open waits, shown in the row, and opens in the form when the sheet closes; and a report the box already holds is not added again.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: four new harness tests (failed save then late debrief; an emptied field; the paper sheet; the same report twice) failed first, then passed; both debrief harness specs (31) pass.
+
+### fix(command): the sighting says when its note's debrief was saved, and can send it again
+- What: after command saves that segment's debrief, the sighting form says "Segment XX's debrief was saved. Cancel this sighting, or save it as a sighting too." instead of "not saved yet", and the debrief button stays, so a debrief cancelled by mistake can be opened again with the note.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: a new harness test failed first, then passed; the sighting harness spec (28) passes.
+
+### fix(command): the post reports a saved debrief to the sighting, and nested toggles leave Details' counts alone
+- What: a debrief save for the handoff's segment tells the sighting form it was saved; and the Details rail ignores toggles of details inside it (a photo's What ran, say), which reached its handler and marked the family's answers read.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: typecheck, web unit suite (1235) and the harness suite (240) pass.
+
+### refactor(command): a search report opens its segment's debrief instead of filling it
+- What: the sighting form's debrief button is now "Open segment XX's debrief": it opens Details at that segment's debrief and puts the cursor in What worked, as Add or Edit would, unless that form or the paper sheet is already open. The sighting form keeps its draft and says "Segment XX's debrief is open below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway." No note is carried into the debrief, so the prefill, the late merge, the waiting queue and the "saved" status are gone; the debrief row is back to main's apart from the open request. The rule, its vectors, the Save-time warning, "Save as a sighting anyway", standing clears and the nested-toggle guard stay.
+- Source: review (Codex, third round on the search-report guard: one high and five mediums, all in the auto-fill; replaced by design rather than patched).
+- Verified: three new debrief harness tests (opens as Add with the cursor in What worked and saves nothing; keeps an open form's edits; leaves an open paper sheet alone) and the rewritten sighting handoff test pass; the two that need the request failed first. Web unit suite (1240), typecheck, harness suite (237) and every gate pass.
+
+### fix(command): a debrief form never overwrites what another screen saved
+- What: the form remembers what the stored debrief said when it opened, and a save refuses with "This debrief was saved from another screen while you edited. Cancel and open it again to see it." if another screen has saved it since, instead of writing this form's older copy over it (a hazard another tab added was deleted). This held for a form opened by hand as well as from the sighting form.
+- Source: review (Codex, scoped pass on the open-only handoff).
+- Verified: a new harness test (another screen saves while the form is open) failed first, then passed; both debrief harness specs pass.
+
+### fix(command): an open request a debrief row already acted on is not acted on again
+- What: the debrief section keeps the newest open request a row has acted on, so a row that leaves (its clear taken back) and comes back does not open its form and take the cursor again without a new click.
+- Source: review (Codex, scoped pass on the open-only handoff).
+- Verified: a new harness test (the row leaves and comes back) failed first, then passed; both debrief harness specs (27), web unit suite and typecheck pass.

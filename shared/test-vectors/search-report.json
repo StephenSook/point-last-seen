@@ -1,0 +1,379 @@
+{
+  "schemaVersion": 1,
+  "note": "Whether a sighting note reads as a search report (readsAsSearchReport, shared/engine-ts/src/searchReport.ts): a search-result word or phrase, or a segment named done, with no sighting word, where a sighting word within two words after a negation in the same clause does not count. English only; the form warns and never blocks a save. Hand-written: one case for each side of each clause.",
+  "line": "This reads as a search report, not a sighting.",
+  "cases": [
+    {
+      "name": "searched",
+      "note": "Segment BO searched, all clear.",
+      "report": true,
+      "clause": "result_phrase"
+    },
+    {
+      "name": "cleared",
+      "note": "Team 2 cleared the woods by the lake.",
+      "report": true,
+      "clause": "result_phrase"
+    },
+    {
+      "name": "swept",
+      "note": "Swept the creek bank twice.",
+      "report": true,
+      "clause": "result_phrase"
+    },
+    {
+      "name": "combed",
+      "note": "Combed the field north of the barn.",
+      "report": true,
+      "clause": "result_phrase"
+    },
+    {
+      "name": "no_sign",
+      "note": "No sign along the fence line.",
+      "report": true,
+      "clause": "result_phrase"
+    },
+    {
+      "name": "nothing_found",
+      "note": "Nothing found in the culvert.",
+      "report": true,
+      "clause": "result_phrase"
+    },
+    {
+      "name": "not_found",
+      "note": "Checked the shed, not found.",
+      "report": true,
+      "clause": "result_phrase"
+    },
+    {
+      "name": "no_trace",
+      "note": "No trace at the pond.",
+      "report": true,
+      "clause": "result_phrase"
+    },
+    {
+      "name": "no_result_phrase",
+      "note": "Went back to the truck for water.",
+      "report": false,
+      "clause": "result_phrase"
+    },
+    {
+      "name": "covered_is_a_sighting",
+      "note": "A man covered in mud by the road.",
+      "report": false,
+      "clause": "covered_dropped"
+    },
+    {
+      "name": "segment_done",
+      "note": "Segment AB done.",
+      "report": true,
+      "clause": "segment_done"
+    },
+    {
+      "name": "segment_number_finished",
+      "note": "segment 4 finished",
+      "report": true,
+      "clause": "segment_done"
+    },
+    {
+      "name": "segment_is_complete",
+      "note": "Segment AE is complete.",
+      "report": true,
+      "clause": "segment_done"
+    },
+    {
+      "name": "segment_without_done",
+      "note": "Segment AB is near the creek.",
+      "report": false,
+      "clause": "segment_done"
+    },
+    {
+      "name": "sighting_word_saw",
+      "note": "Searched the trail and saw a man in a red coat.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_seen",
+      "note": "Cleared AB, a woman seen by the gate.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_spotted",
+      "note": "Swept the lot, spotted someone by the dumpster.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_sighted",
+      "note": "Combed the field, a man sighted at the fence.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_caller",
+      "note": "Searched AB, a caller says he is at the store.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_walking",
+      "note": "Cleared the trail, a man walking north.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_heading",
+      "note": "Searched the park, someone heading east.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_wearing",
+      "note": "Swept AB, a man wearing a red coat.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_heard",
+      "note": "Searched the woods and heard someone calling.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_found",
+      "note": "Searched the lot and found a scarf.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_footprint",
+      "note": "Cleared AB, a footprint in the mud.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_track",
+      "note": "Combed the bank, a track by the water.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_shoe",
+      "note": "Swept the path, a shoe under the bench.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_clothing",
+      "note": "Searched AB, clothing on the fence.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_plural",
+      "note": "Cleared AB, footprints and tracks by the creek.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "no_clues_found",
+      "note": "Searched the lot, no clues found.",
+      "report": true,
+      "clause": "found_negated"
+    },
+    {
+      "name": "found_after_and",
+      "note": "Swept the alley, and found a glove.",
+      "report": false,
+      "clause": "found_negated"
+    },
+    {
+      "name": "not_seen",
+      "note": "Segment 4 searched, subject not seen.",
+      "report": true,
+      "clause": "negation"
+    },
+    {
+      "name": "nobody_has_spotted",
+      "note": "Swept the bank, nobody has spotted him.",
+      "report": true,
+      "clause": "negation"
+    },
+    {
+      "name": "no_one_saw",
+      "note": "Cleared the woods, no one saw anything.",
+      "report": true,
+      "clause": "negation"
+    },
+    {
+      "name": "wasnt_seen",
+      "note": "Searched AB, he wasn't seen there.",
+      "report": true,
+      "clause": "negation"
+    },
+    {
+      "name": "never_saw",
+      "note": "Combed the field, never saw her.",
+      "report": true,
+      "clause": "negation"
+    },
+    {
+      "name": "negation_too_far",
+      "note": "Searched AB, not one single person seen there.",
+      "report": false,
+      "clause": "negation"
+    },
+    {
+      "name": "no_sign_of_him",
+      "note": "No sign of him along the creek.",
+      "report": true,
+      "clause": "pronoun"
+    },
+    {
+      "name": "pronoun_alone",
+      "note": "He was by the gate an hour ago.",
+      "report": false,
+      "clause": "pronoun"
+    },
+    {
+      "name": "spanish_report",
+      "note": "Buscamos el segmento AB, nada.",
+      "report": false,
+      "clause": "english_only"
+    },
+    {
+      "name": "researched_is_not_searched",
+      "note": "We researched the history of the park.",
+      "report": false,
+      "clause": "whole_words"
+    },
+    {
+      "name": "sawdust_is_not_saw",
+      "note": "Searched the mill, sawdust everywhere.",
+      "report": true,
+      "clause": "whole_words"
+    },
+    {
+      "name": "curly_apostrophe",
+      "note": "Searched AB, he wasn\u2019t seen there.",
+      "report": true,
+      "clause": "whole_words"
+    },
+    {
+      "name": "capitals",
+      "note": "SEARCHED SEGMENT AB.",
+      "report": true,
+      "clause": "whole_words"
+    },
+    {
+      "name": "clue_after_no_sign_sentence",
+      "note": "Searched AB, no sign. Footprints at the creek.",
+      "report": false,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "heard_after_not_found_sentence",
+      "note": "Combed the field, not found. Heard shouting to the east.",
+      "report": false,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "shoe_after_no_trace_sentence",
+      "note": "Cleared segment 4, no trace. Shoe by the gate.",
+      "report": false,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "negation_in_own_clause",
+      "note": "Swept the lot; subject not seen.",
+      "report": true,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "hasnt_been_seen",
+      "note": "Searched AB, subject hasn't been seen.",
+      "report": true,
+      "clause": "negation"
+    },
+    {
+      "name": "hyphen_splits_words",
+      "note": "Segment-4 done.",
+      "report": true,
+      "clause": "whole_words"
+    },
+    {
+      "name": "quotes_are_trimmed_from_words",
+      "note": "Team said 'cleared' for AB.",
+      "report": true,
+      "clause": "whole_words"
+    },
+    {
+      "name": "quoted_sighting_word",
+      "note": "Searched AB. Witness radioed, 'saw him at the north gate'.",
+      "report": false,
+      "clause": "whole_words"
+    },
+    {
+      "name": "sighting_word_recognized",
+      "note": "Segment AB searched. A man recognized him at the north gate.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_witness",
+      "note": "Combed the lot. Witness at the store says yes.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_shoes",
+      "note": "Swept AB, shoes by the bench.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_tracks",
+      "note": "Combed AB, tracks in the mud.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "sighting_word_footprints",
+      "note": "Cleared AB, footprints in the snow.",
+      "report": false,
+      "clause": "sighting_word"
+    },
+    {
+      "name": "nothing_two_words_before_found",
+      "note": "Searched AB, nothing was found.",
+      "report": true,
+      "clause": "found_negated"
+    },
+    {
+      "name": "nothing_three_words_before_found",
+      "note": "Searched AB, nothing at all, then found a glove.",
+      "report": false,
+      "clause": "found_negated"
+    },
+    {
+      "name": "em_dash_ends_a_clause",
+      "note": "Searched AB, no sign \u2014 footprints by the gate.",
+      "report": false,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "en_dash_ends_a_clause",
+      "note": "Searched AB, no sign \u2013 footprints by the gate.",
+      "report": false,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "spaced_hyphen_ends_a_clause",
+      "note": "Searched AB, no sign - footprints by the gate.",
+      "report": false,
+      "clause": "negation_scope"
+    }
+  ]
+}
