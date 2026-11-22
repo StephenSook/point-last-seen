@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detailsSummary, newFamilyAnswers, photosToReview } from "./detailsSummary";
+import { detailsSummary, detailsSummaryParts, newFamilyAnswers, photosToReview } from "./detailsSummary";
 
 describe("the rail's Details summary", () => {
   it("is just Details when nothing there needs a person", () => {
@@ -36,5 +36,16 @@ describe("what the counts count", () => {
     // An answer whose server time has not arrived yet counts as new: it is surfaced, never hidden.
     expect(newFamilyAnswers(questions, 400)).toBe(1);
     expect(newFamilyAnswers(questions.filter((x) => x.id !== "3"), 400)).toBe(0);
+  });
+});
+
+describe("how the Details summary is drawn: the label keeps its colon, so the gap never comes before it", () => {
+  it("splits after the colon, keeping the whole text for a screen reader and a check", () => {
+    const parts = detailsSummaryParts("Details: 38 °F, wet: no. 11 photos to review.");
+    expect(parts).toEqual({ label: "Details:", rest: " 38 °F, wet: no. 11 photos to review." });
+    expect(parts.label + parts.rest).toBe("Details: 38 °F, wet: no. 11 photos to review.");
+  });
+  it("is the bare label when nothing needs a person", () => {
+    expect(detailsSummaryParts("Details")).toEqual({ label: "Details", rest: null });
   });
 });

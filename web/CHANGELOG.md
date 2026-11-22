@@ -2983,3 +2983,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - The timer is cancelled when the read settles first, and at stop.
 - Source: issue #336.
 - Verified: new watchClaims tests (a stalled read, a read that settles first, stop, another account, a sign-out) failed first where the behaviour changed, then passed (24); typecheck passes.
+
+### fix(command): the Details summary keeps its colon beside the label
+- What: the rail's Details summary read "DETAILS : 38 °F, wet: no. 11 photos to review." because the summary row's 6 px gap fell between the label and the text that began with the colon. detailsSummaryParts now gives the label with its colon ("Details:") and the rest with its leading space, which the row drops on screen and keeps in the text, so it reads "DETAILS: 38 °F, ...".
+- Source: deployed stills, both widths, Chromium and WebKit.
+- Verified: new detailsSummaryParts tests failed first, then passed; the summary's whole text is unchanged for screen readers and for the rail-order check; typecheck passes.

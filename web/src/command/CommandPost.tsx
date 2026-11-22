@@ -84,7 +84,7 @@ import { WhatChanged } from "./WhatChanged";
 import { FamilyChannel } from "./FamilyChannel";
 import { ConditionsForm } from "./ConditionsForm";
 import { conditionsOf, setConditions } from "../data/conditions";
-import { detailsSummary, newFamilyAnswers, photosToReview } from "./detailsSummary";
+import { detailsSummary, detailsSummaryParts, newFamilyAnswers, photosToReview } from "./detailsSummary";
 import { reachLine } from "./reach";
 import { connectingLine } from "./connecting";
 import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
@@ -1051,8 +1051,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             }}
           >
             <summary data-testid="rail-details-summary">
-              <span className="label">Details</span>
-              {summary !== "Details" && <span className="muted">{summary.slice("Details".length)}</span>}
+              <span className="label">{detailsSummaryParts(summary).label}</span>
+              {detailsSummaryParts(summary).rest !== null && <span className="muted">{detailsSummaryParts(summary).rest}</span>}
             </summary>
             {/* Every report, each one command can take back: a retraction event the map stops counting on every device. */}
             <ReportsPanel
