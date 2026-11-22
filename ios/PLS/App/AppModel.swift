@@ -564,11 +564,28 @@ final class AppModel {
         return targets
     }
 
-    /// Files a report about the task or the family's description to command, as this phone's searcher: the note loses
+    /// What a Report a problem form opened on: the search, and the plan whose task was on the phone. A report is about
+    /// these, so a plan command publishes while the form is open does not move it.
+    struct ReportContext: Equatable {
+        let incidentId: String
+        let planVersion: Int?
+    }
+
+    /// The context a form opening now would report about, or nil when there is nothing to report.
+    var reportContext: ReportContext? {
+        guard !reportTargets.isEmpty, let mission else { return nil }
+        return ReportContext(incidentId: mission.incidentId, planVersion: mission.planVersion)
+    }
+
+    /// Files a report about the task or the family's description to command, as this phone's searcher, about what the
+    /// form opened on: refused when the search changed since, or when the task it opened on had no plan. The note loses
     /// its phone numbers and is cut to the rule's limit before it leaves the phone.
-    func reportProblem(about target: ContentReport.Target, reason: ContentReport.Reason, note: String) async -> ReportProblemResult {
-        guard reportTargets.contains(target), let mission, let author = uid(), mission.ownerUid == author else { return .unavailable }
-        let targetId = target == .task ? mission.planVersion.map(ContentReport.taskId) : nil
+    func reportProblem(about target: ContentReport.Target, in context: ReportContext, reason: ContentReport.Reason,
+                       note: String) async -> ReportProblemResult {
+        guard reportTargets.contains(target), let mission, mission.incidentId == context.incidentId, let author = uid(),
+              mission.ownerUid == author else { return .unavailable }
+        if target == .task, context.planVersion == nil { return .unavailable }
+        let targetId = target == .task ? context.planVersion.map(ContentReport.taskId) : nil
         guard let report = ContentReport(authorUid: author, role: .searcher, target: target, targetId: targetId, reason: reason,
                                          note: note) else { return .failed }
         return ReportProblemResult(await contentReports.file(report, reportId: ContentReport.newReportId(), incidentId: mission.incidentId))

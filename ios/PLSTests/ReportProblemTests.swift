@@ -44,7 +44,7 @@ final class FakeContentReports: ContentReportWriter {
         let reports = FakeContentReports()
         let m = model(reports, docs: try docs())
         await m.trySignIn()
-        let result = await m.reportProblem(about: .task, reason: .wrongOrMisleading, note: "Trail is closed, call 404-555-0123")
+        let result = await m.reportProblem(about: .task, in: try #require(m.reportContext), reason: .wrongOrMisleading, note: "Trail is closed, call 404-555-0123")
         #expect(result == .sent)
         let filed = try #require(reports.filed.first)
         #expect(reports.filed.count == 1 && filed.incidentId == m.mission?.incidentId)
@@ -58,7 +58,7 @@ final class FakeContentReports: ContentReportWriter {
         let reports = FakeContentReports()
         let m = model(reports, docs: try docs())
         await m.trySignIn()
-        #expect(await m.reportProblem(about: .familyDescription, reason: .personalInformation, note: "") == .sent)
+        #expect(await m.reportProblem(about: .familyDescription, in: try #require(m.reportContext), reason: .personalInformation, note: "") == .sent)
         #expect(reports.filed.first?.report.targetId == nil && reports.filed.first?.report.note == nil)
     }
 
@@ -67,9 +67,28 @@ final class FakeContentReports: ContentReportWriter {
         let reports = FakeContentReports()
         let m = model(reports, docs: nil)
         await m.trySignIn()
-        #expect(m.mission == nil && m.reportTargets.isEmpty)
-        #expect(await m.reportProblem(about: .task, reason: .other, note: "x") == .unavailable)
+        #expect(m.mission == nil && m.reportTargets.isEmpty && m.reportContext == nil)
+        let elsewhere = AppModel.ReportContext(incidentId: "drill-dev-1", planVersion: 2)
+        #expect(await m.reportProblem(about: .task, in: elsewhere, reason: .other, note: "x") == .unavailable)
         #expect(reports.filed.isEmpty)
+    }
+
+    /// The report is about what was on the phone when the form opened: a plan command published meanwhile does not move
+    /// it, and a search that changed meanwhile takes nothing.
+    @Test func aReportIsAboutThePlanAndSearchTheFormOpenedOn() async throws {
+        let reports = FakeContentReports()
+        let m = model(reports, docs: try docs())
+        await m.trySignIn()
+        let opened = try #require(m.reportContext)
+        #expect(opened.planVersion == 2)
+        let earlier = AppModel.ReportContext(incidentId: opened.incidentId, planVersion: 1)
+        #expect(await m.reportProblem(about: .task, in: earlier, reason: .wrongOrMisleading, note: "") == .sent)
+        #expect(reports.filed.last?.report.targetId == "0001")
+        let otherSearch = AppModel.ReportContext(incidentId: "another-incident", planVersion: 2)
+        #expect(await m.reportProblem(about: .task, in: otherSearch, reason: .other, note: "") == .unavailable)
+        let noPlanYet = AppModel.ReportContext(incidentId: opened.incidentId, planVersion: nil)
+        #expect(await m.reportProblem(about: .task, in: noPlanYet, reason: .other, note: "") == .unavailable)
+        #expect(reports.filed.count == 1)
     }
 
     @Test func eachOutcomeSaysWhatHappened() async throws {
@@ -79,7 +98,7 @@ final class FakeContentReports: ContentReportWriter {
         for (outcome, result) in [(ContentReportOutcome.sent, ReportProblemResult.sent), (.waiting, .waiting), (.refused, .refused),
                                   (.failed, .failed)] {
             reports.outcome = outcome
-            #expect(await m.reportProblem(about: .task, reason: .abusive, note: "") == result)
+            #expect(await m.reportProblem(about: .task, in: try #require(m.reportContext), reason: .abusive, note: "") == result)
         }
         #expect(ReportProblemResult.sent.line == "Sent to command.")
         #expect(ReportProblemResult.waiting.line == "Saved on this phone. It goes to command when this phone has signal.")

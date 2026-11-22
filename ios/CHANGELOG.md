@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a report is about the plan and search the form opened on
+- What: the form now takes the search and the plan on the phone once, when it opens, and the report is about those.
+  Before, Send read the newest plan, so a plan command published while the form was open moved a note written about
+  the old task onto the new one. A search that changed while the form was open (a new join, another account) takes
+  nothing, and a task report whose form opened before any plan is refused.
+- Source: review of the Report a problem change.
+- Verified: a test filing about plan 1 while plan 2 is loaded failed before the change (no context to pass) and
+  passes, with target id "0001"; a different search and a missing plan each take nothing. The full app suite
+  passes.
+
 ### docs(ios): the Report a problem entry claims only the report seen to land
 - What: the form's entry said a report about the family's description was sent during the live check. Its result
   line was hidden behind the keyboard and never seen, so the entry now says it was tried and not confirmed; only the

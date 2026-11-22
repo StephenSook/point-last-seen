@@ -18,6 +18,8 @@ struct ReportProblemView: View {
     @State private var sending = false
     @State private var result: ReportProblemResult?
     @FocusState private var noteFocused: Bool
+    /// The search and plan this form opened on, taken once: the report is about them.
+    @State private var context: AppModel.ReportContext?
 
     /// What the report is about, in the words the screen shows.
     static func words(_ target: ContentReport.Target) -> String {
@@ -65,19 +67,19 @@ struct ReportProblemView: View {
                     .accessibilityIdentifier("report-note")
                 Text(Self.noteHint).font(.title3).foregroundStyle(theme.text(.secondary))
                 Button {
-                    guard let reason else { return }
+                    guard let reason, let context else { return }
                     // The keyboard goes, so the line saying what became of the report shows.
                     noteFocused = false
                     sending = true
                     Task {
-                        result = await model.reportProblem(about: target, reason: reason, note: note)
+                        result = await model.reportProblem(about: target, in: context, reason: reason, note: note)
                         sending = false
                     }
                 } label: {
                     Text(sending ? "Sending" : "Send").frame(maxWidth: .infinity, minHeight: 60)
                 }
                 .buttonStyle(.bordered)
-                .disabled(reason == nil || sending || done)
+                .disabled(reason == nil || context == nil || sending || done)
                 .accessibilityIdentifier("report-send")
                 if let result {
                     Text(result.line).font(.title3.weight(.semibold))
@@ -86,6 +88,7 @@ struct ReportProblemView: View {
             }
             .padding()
         }
+        .onAppear { if context == nil { context = model.reportContext } }
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
             // Return starts a new line in the note, so the keyboard has its own way to close.
