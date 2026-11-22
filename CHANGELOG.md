@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Docs: the README's Android row and the production checklist name android-judge-5
+  (`point-last-seen-family-8fcc0803.apk`, built from main 8fcc0803) instead of android-judge-4. The judge page and the
+  README link GitHub's `/releases/latest`, which now redirects to android-judge-5, so no link changed. Source: a new
+  judge build was published. Verified: a signed-out request for /releases/latest answers 302 to the android-judge-5 tag;
+  the hygiene guard passes.
 - Limits: the plan reason line says the order figures were measured on Chrome's built-in model only, and that the
   cloud model's picks were not measured. Source: review. Verified: the main-pick evidence file records only
   on-device runs (path on_device in all 12); the hygiene guard passes in public mode.
