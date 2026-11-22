@@ -11,7 +11,7 @@ struct ReportEchoView: View {
     var practice = false
     /// The search this report belongs to has ended: nothing offers a retry.
     var searchEnded = false
-    /// The report was refused because the search had ended, and says so.
+    /// The report was refused because the search had ended, and says so (read only with `searchEnded`).
     var refusedByTheEnd = false
     let retry: () -> Void
     var canUndo = false
@@ -50,7 +50,8 @@ struct ReportEchoView: View {
                 }
             }
             HStack {
-                Text(EchoText.deliveryLine(entry.state, searchEnded: refusedByTheEnd)).font(.title3.bold())
+                Text(searchEnded ? EchoText.endedDeliveryLine(entry.state, refusedByTheEnd: refusedByTheEnd)
+                                 : EchoText.deliveryLine(entry.state)).font(.title3.bold())
                 Spacer()
                 if canUndo {
                     Button("Undo", action: undo).buttonStyle(.bordered).frame(minHeight: 60)

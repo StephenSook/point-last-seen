@@ -25,16 +25,22 @@ import Testing
     }
 
     @Test func aReportRefusedAfterTheSearchEndedSaysSo() {
-        #expect(EchoText.deliveryLine(.rejected(reason: "permission-denied"), searchEnded: true) == "Not taken: the search had ended.")
-        // Only the rules' refusal is the search ending: a report refused for anything else keeps its own line.
-        #expect(EchoText.deliveryLine(.rejected(reason: "unavailable"), searchEnded: true) == EchoText.deliveryLine(.rejected(reason: "unavailable")))
-        #expect(EchoText.deliveryLine(.rejected(reason: Outbox.conflictReason), searchEnded: true)
-                == EchoText.deliveryLine(.rejected(reason: Outbox.conflictReason)))
+        #expect(EchoText.endedDeliveryLine(.rejected(reason: "permission-denied"), refusedByTheEnd: true)
+                == "Not taken: the search had ended.")
         // Delivered stays delivered, and one still on the phone waits for the server's answer.
-        #expect(EchoText.deliveryLine(.acked, searchEnded: true) == "Delivered")
-        #expect(EchoText.deliveryLine(.pending, searchEnded: true) == "On this phone only")
-        // While the search is open, nothing changes.
-        #expect(EchoText.deliveryLine(.rejected(reason: "permission-denied"), searchEnded: false)
-                == EchoText.deliveryLine(.rejected(reason: "permission-denied")))
+        #expect(EchoText.endedDeliveryLine(.acked, refusedByTheEnd: true) == "Delivered")
+        #expect(EchoText.endedDeliveryLine(.pending, refusedByTheEnd: true) == "On this phone only")
+        #expect(EchoText.endedDeliveryLine(.checking, refusedByTheEnd: false) == "Checking delivery")
+    }
+
+    /// The ended search's list is read-only, with no Retry button: a report refused for anything but the end, or
+    /// before it, says to ask command, never to retry.
+    @Test func theEndedListNeverSaysRetry() {
+        for (reason, byTheEnd) in [("permission-denied", false), ("unavailable", true), ("unavailable", false),
+                                   (Outbox.conflictReason, true), ("invalid-argument", false)] {
+            let line = EchoText.endedDeliveryLine(.rejected(reason: reason), refusedByTheEnd: byTheEnd)
+            #expect(line == "Not delivered. Ask command", "\(reason) \(byTheEnd)")
+            #expect(!line.contains("Retry"))
+        }
     }
 }

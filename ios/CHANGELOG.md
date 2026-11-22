@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): an ended search's report list never says Retry
+- What: an ended search's reports are shown read-only, with no Retry button, yet a report refused before the end
+  (or for a reason other than the end) said "Not delivered. Retry". In that list it now says "Not delivered. Ask
+  command"; a report refused by the end still says "Not taken: the search had ended.", and the other states keep
+  their lines. The open search's receipt is unchanged.
+- Source: third review of the ended-search change.
+- Verified: a core test that no refusal in the ended list says Retry failed before the change (the line did not
+  exist) and passes after; the ended-search core suite and the full app suite pass.
+
 ### fix(ios): a re-read of the ended search keeps which refusals came before the end
 - What: when the phone sees a search it already shows as ended end again (a later read of the closed search, the
   listener, a push), the refusals from before the end stay the ones recorded the first time. A report refused since
