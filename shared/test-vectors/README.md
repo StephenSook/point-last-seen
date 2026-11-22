@@ -332,3 +332,17 @@ sees both: "Read as a clue: an object was found, not the person. The model said 
 
 Where it applies: the iPhone, whose searcher reads produce a kind. The web and the Android family app never produce
 kind `found` from a model; the web runs the vector against the engine.
+
+## content-report-ios.json (hand-written, pinned)
+
+What the iPhone writes for Report a problem: `ContentReport.fields` in `ios/PLSCore`, before the writer adds
+`createdAt` as the server timestamp, for a searcher whose uid is `authorUid`.
+
+- `cases[]`: `{ name, input: { target, targetId, reason, note }, fields }`. The Swift test builds a `ContentReport`
+  from each `input` and expects exactly `fields`, so the file cannot drift from what the phone writes: the phone
+  number in the first note is removed, an empty note is left out, and a long note is cut at 500 code points between
+  whole characters.
+- `functions/test/rules/contentReportsIos.test.ts` writes every case to the emulator (each is accepted with the
+  server's time) and checks that copies of the first case are refused when broken: no server time, the phone's own
+  time, a note over 500 code points, an extra field, another role, someone else's name, no reason, a target id that
+  does not fit the target.

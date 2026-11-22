@@ -89,6 +89,29 @@ import Testing
         #expect(ContentReport.taskId(planVersion: 1) == "0001" && ContentReport.taskId(planVersion: 12) == "0012")
     }
 
+    /// shared/test-vectors/content-report-ios.json is exactly what this phone writes: the rules tests prove the emulator
+    /// takes each case and refuses malformed copies of it.
+    @Test func theSharedVectorIsWhatThisPhoneWrites() throws {
+        guard case let .object(file) = try VectorFile.json("test-vectors/content-report-ios.json"),
+              case let .string(author)? = file["authorUid"], case let .array(cases)? = file["cases"] else {
+            throw VectorInputError(description: "content-report-ios.json has no cases")
+        }
+        #expect(cases.count == 4)
+        for item in cases {
+            guard case let .object(c) = item, case let .object(input)? = c["input"], case let .string(name)? = c["name"],
+                  case let .string(target)? = input["target"], case let .string(reason)? = input["reason"] else {
+                Issue.record("a case without its input"); continue
+            }
+            let targetId: String? = if case let .string(id)? = input["targetId"] { id } else { nil }
+            let note: String? = if case let .string(n)? = input["note"] { n } else { nil }
+            let kind = try #require(ContentReport.Target(rawValue: target), "\(name)")
+            let why = try #require(ContentReport.Reason(rawValue: reason), "\(name)")
+            let report = try #require(ContentReport(authorUid: author, role: .searcher, target: kind, targetId: targetId,
+                                                    reason: why, note: note), "\(name)")
+            #expect(JSONValue.object(report.fields) == c["fields"], "\(name)")
+        }
+    }
+
     /// The reasons in the words the command post shows them with.
     @Test func theReasonsReadAsOnTheCommandPost() {
         #expect(ContentReport.Reason.allCases.map(\.words) == ["Abusive or offensive", "Personal information that should not be shared",

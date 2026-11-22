@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### test(ios-core): the shared vector of what the iPhone writes for Report a problem
+- What: shared/test-vectors/content-report-ios.json holds the fields the iPhone writes for four inputs: a task report
+  whose note holds a phone number, the family's description with an empty note, a note cut at 500 code points, and
+  one exactly 500 code points ending in a five-scalar emoji. A core test builds a `ContentReport` from each input and
+  expects exactly those fields, so the file cannot drift from the phone; the rules tests use it.
+- Source: proving the create rule against the iPhone's own documents, as the first client to write them.
+- Verified: the test passes, and with the first expected note changed back to holding its number it fails; the full
+  core suite passes.
+
 ### feat(ios-core): the content report a member files from Report a problem
 - What: `ContentReport` mirrors shared/schemas/content-report.schema.json: author, role, target (the task, the
   family's description, or an event), target id, reason and note, with `createdAt` left to the server's timestamp.
