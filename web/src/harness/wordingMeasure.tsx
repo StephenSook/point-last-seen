@@ -1,7 +1,9 @@
 // Dev-server-only measurement page (web/harness/wording-measure.html): times the command post's plan wording (wordPlan
 // with the wording's own on-device options, built ONLY_ON_DEVICE so this dev page never builds a cloud model; with the
-// built-in model available the command post's PREFER_ON_DEVICE runs the same options) three times on one made-up plan
-// in a newly opened page, and records where each wording ran as the SDK reported it, whether code accepted it, why
+// built-in model available the command post's PREFER_ON_DEVICE runs the same options) six times on one made-up plan
+// in a newly opened page, alternating each team's facts in the command post's order (most specific first) and in
+// reverse, to show whether the model's choice follows the facts or their place in the list. Each page starts with the
+// order the previous page did not (kept in this browser's storage). It records where each wording ran as the SDK reported it, whether code accepted it, why
 // not, the reason codes the model chose, the sentences code wrote from them, whether each reason and the summary match
 // those codes, and the raw reply. A bare Firebase app (no App Check, no sign-in); the page lists every Google or
 // Firebase request.
@@ -14,6 +16,7 @@ import { wordingOnDeviceGenerator } from "../ai/client";
 import { availabilityOf, onDeviceCreateOptions } from "../ai/gate";
 import { renderReason, renderSummary, teamFacts, type FactCode } from "../ai/reasonCodes";
 import { checkChoice, REPLY_TIMEOUT_MS, wordPlan, type PlanDraft } from "../ai/replanWording";
+import { factsSent, reverseFacts } from "./reverseFacts";
 import { readEnv } from "../firebaseConfig";
 import "../theme/fonts.css";
 import "../theme/base.css";
@@ -43,22 +46,36 @@ const DRAFT: PlanDraft = {
   },
 };
 
+const FIRST_KEY = "wording-measure-first-order";
+
 async function measure(): Promise<object> {
   const app = initializeApp(readEnv(import.meta.env).firebase, "wording-measure");
   const asked = wordingOnDeviceGenerator(getAI(app, { backend: new GoogleAIBackend() }), DRAFT.assignments.map((a) => a.teamId));
   // The raw reply, so a rejected wording says why (the command post keeps only the kind of failure).
   let raw = "";
   let replyMs = 0;
+  let reversed = false;
+  let sent: string[] = [];
   const generate: typeof asked = async (t) => {
+    const text = reversed ? reverseFacts(t) : t;
+    sent = factsSent(text);
     const t0 = performance.now();
-    const r = await asked(t);
+    const r = await asked(text);
     replyMs = Math.round(performance.now() - t0);
     raw = r.text;
     return r;
   };
   const availability = await availabilityOf(onDeviceCreateOptions("text"));
+  let first: "specific first" | "reversed" = "specific first";
+  try {
+    first = localStorage.getItem(FIRST_KEY) === "reversed" ? "reversed" : "specific first";
+    localStorage.setItem(FIRST_KEY, first === "reversed" ? "specific first" : "reversed");
+  } catch {
+    // No storage: every page starts with the command post's order.
+  }
   const runs: object[] = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 6; i++) {
+    reversed = (i % 2 === 0) === (first === "reversed");
     const w = await wordPlan(DRAFT, { generate, now: () => Date.now(), timeoutMs: 180_000, model: MODEL });
     let check: unknown = null;
     try {
@@ -75,13 +92,13 @@ async function measure(): Promise<object> {
       ? w.wording.assignments.every((a) => (choices.get(a.teamId) ?? []).every((c) => facts.get(a.teamId)?.has(c)) && a.reason === renderReason(DRAFT, a.teamId, choices.get(a.teamId) ?? []))
       : null;
     const summaryMatchesReasons = codes ? w.wording.summary === renderSummary(DRAFT, choices) : null;
-    runs.push({ replyMs, raw, check, route: w.route, accepted: w.attempt === undefined && w.route.path !== "rules", notice: w.notice, attempt: w.attempt ?? null, codes, reasonsMatchCodes, summaryMatchesReasons, wording: w.wording, promptBytes: w.promptBytes });
+    runs.push({ order: reversed ? "reversed" : "specific first", factsSent: sent, replyMs, raw, check, route: w.route, accepted: w.attempt === undefined && w.route.path !== "rules", notice: w.notice, attempt: w.attempt ?? null, codes, reasonsMatchCodes, summaryMatchesReasons, wording: w.wording, promptBytes: w.promptBytes });
   }
   const googleRequests = performance
     .getEntriesByType("resource")
     .map((e) => e.name)
     .filter((u) => new URL(u).host !== location.host && GOOGLE_HOST.test(new URL(u).host));
-  return { availability, commandPostLimitMs: REPLY_TIMEOUT_MS, runs, googleRequests };
+  return { availability, commandPostLimitMs: REPLY_TIMEOUT_MS, firstOrder: first, runs, googleRequests };
 }
 
 function Page() {

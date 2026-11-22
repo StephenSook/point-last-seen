@@ -2925,3 +2925,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: FACT_CODES, and so each team's list in the prompt, now runs from the most specific fact to the most general: the newest report, not yet searched, searched and still high, the features, the distance band, then the ranking every segment has. In every measured run the model chose the first ranking facts listed; this order is what the next measurement compares against its reverse.
 - Source: measurement of the reason codes on Chrome's built-in model.
 - Verified: a new reasonCodes test of the order failed first, then passed (51 with the plan wording tests); typecheck passes.
+
+### test(harness): the wording measurement page compares the facts' order with its reverse
+- What: the measurement page runs six wordings per page, alternating each team's facts in the command post's order (most specific first) and in reverse, and starts each page with the order the previous page did not (kept in browser storage). Each run records its order and the fact lists it sent, to show whether the model's choice follows the facts or their place in the list. The reversal is web/src/harness/reverseFacts.ts.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: new reverseFacts tests (it reverses each team's facts and nothing else, also on the command post's own prompt) failed first (missing module), then passed (2); typecheck passes.
