@@ -179,3 +179,18 @@ describe("placing a family sighting on the map", () => {
     expect(after).toBeGreaterThan(before);
   });
 });
+
+describe("a scrubbed note is stored as shown", () => {
+  it("the sighting save stores every corpus note exactly as the scrubbed text it showed", async () => {
+    const { readFileSync } = await import("node:fs");
+    const rows = (JSON.parse(readFileSync(new URL("../../../shared/test-vectors/phone-numbers-corpus.json", import.meta.url), "utf8")) as {
+      rows: { input: string }[];
+    }).rows;
+    const differ = rows.flatMap((r) => {
+      const shown = removePhoneNumbers(r.input).trim();
+      if (shown === "" || shown.length > 2000) return [];
+      return buildSightingEvent({ ...input, freeText: shown }, writer()).rawText !== shown ? [JSON.stringify(r.input)] : [];
+    });
+    expect(differ.length, differ.slice(0, 5).join("\n")).toBe(0);
+  });
+});

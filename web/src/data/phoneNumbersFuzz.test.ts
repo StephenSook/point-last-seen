@@ -1,4 +1,6 @@
-// A fixed-seed differential check of the run-of-times step (removePhoneNumbers). The step is written out again below
+// A fixed-seed differential check of one pass of the run-of-times step (removePhoneNumbersOnce; removePhoneNumbers
+// runs it until it settles, which can only add markers, never keep a digit one pass removed). The step is written out
+// again below
 // from shared/test-vectors/README.md in its own form (tokens and gaps, not the rule's parts), with the shared rule
 // (removeByRule) for the text between runs, and the two must agree byte for byte on every generated note: any leak,
 // any over-removal and any moved text shows up as a difference, whatever its digit count.
@@ -8,7 +10,7 @@
 // cue). Three deliberately wrong stand-ins prove the first property can fail, and a looser README that the second can.
 
 import { describe, expect, it } from "vitest";
-import { REPLACEMENT, removeByRule, removePhoneNumbers } from "./phoneNumbers";
+import { REPLACEMENT, removeByRule, removePhoneNumbersOnce } from "./phoneNumbers";
 
 const RUN = /(?<!\p{N}[^\p{L}\p{N}]*)(?:[01]?\d|2[0-3]):[0-5]\d(?:[ ,]+(?:[01]?\d|2[0-3]):[0-5]\d)+(?![^\p{L}\p{N}]*\p{N})/gu;
 const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
@@ -261,7 +263,7 @@ function check(step: (t: string) => string, n: number, loose = false): Counts {
 
 describe("removePhoneNumbers: the run-of-times step against the README, written again", () => {
   it("agrees byte for byte on 90,000 generated notes, and the README lets no planted number through", () => {
-    const c = check(removePhoneNumbers, 90_000);
+    const c = check(removePhoneNumbersOnce, 90_000);
     // Measured with this seed: 25,557 notes hold a run and 4,762 keep one; a generator change that starves either fails here.
     expect(c.withRun).toBeGreaterThan(24_000);
     expect(c.kept).toBeGreaterThan(4_000);
@@ -287,7 +289,7 @@ describe("removePhoneNumbers: the run-of-times step against the README, written 
   }, 60_000);
 
   it("flags a stand-in that drops a typed private-use character", () => {
-    expect(check((t) => removePhoneNumbers(t).replaceAll("", ""), 9_000).differs).toBeGreaterThan(0);
+    expect(check((t) => removePhoneNumbersOnce(t).replaceAll("", ""), 9_000).differs).toBeGreaterThan(0);
   }, 60_000);
 
   it("the planted-number check flags a looser README that ignores what joins a run", () => {

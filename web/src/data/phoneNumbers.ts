@@ -114,15 +114,40 @@ function cuedRun(s: string, parts: Part[], first: number): boolean {
   return s.substring(j >= 0 ? parts[j]!.end : 0, parts[first]!.start).includes("#");
 }
 
+/** The most passes of the rule one scrub runs; every note in the shared corpus settles in two. */
+export const MAX_PASSES = 4;
+
 /**
- * A run of times the shared rule reads as its own group (no digit, written or spoken, joined to it on either side) is
- * decided whole. In clock order (each time no earlier than the one before) with no phone cue before it, it is search
- * information and stays (The possible times are 14:03, 14:10, 14:17.). Out of order or after a cue it could be a
- * number written as times (Call 21:25 5:50 1:42, 12:12 5:55 01:42), and the whole run goes: when in doubt, remove.
- * The text between such runs follows the shared rule unchanged, and so does every note that NFKC changes, since
- * folding can turn other characters into the ASCII digits a run is made of.
+ * Runs once() until the text stops changing, at most MAX_PASSES times in all, so a scrubbed note scrubbed again
+ * changes nothing (a note is scrubbed when it is read and again when it is saved). When it never settles, onCap() is
+ * told and the last pass's text, the most scrubbed, is returned.
  */
+export function settle(text: string, once: (s: string) => string, onCap: () => void): string {
+  let out = once(text);
+  for (let pass = 1; pass < MAX_PASSES; pass++) {
+    const next = once(out);
+    if (next === out) return out;
+    out = next;
+  }
+  onCap();
+  return out;
+}
+
+/** The shared rule, settled: what every caller uses. The warning names no note text. */
 export function removePhoneNumbers(text: string): string {
+  return settle(text, removePhoneNumbersOnce, () => console.warn("phone-number removal did not settle in 4 passes"));
+}
+
+/**
+ * One pass of the shared rule. A run of times the rule reads as its own group (no digit, written or spoken, joined to
+ * it on either side) is decided whole. In clock order (each time no earlier than the one before) with no phone cue
+ * before it, it is search information and stays (The possible times are 14:03, 14:10, 14:17.). Out of order or after
+ * a cue it could be a number written as times (Call 21:25 5:50 1:42, 12:12 5:55 01:42), and the whole run goes: when
+ * in doubt, remove. The text between such runs follows the shared rule unchanged, and so does every note that NFKC
+ * changes, since folding can turn other characters into the ASCII digits a run is made of. Exported only for checks
+ * of one pass against the README; every caller uses removePhoneNumbers.
+ */
+export function removePhoneNumbersOnce(text: string): string {
   const folded = text.normalize("NFKC");
   if (folded !== text) return removeByRule(folded);
   const parts = ruleParts(folded);

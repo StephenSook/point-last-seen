@@ -2,7 +2,7 @@
 // beyond the shared cases. The shared cases themselves run in phoneVectors.test.ts.
 
 import { describe, expect, it } from "vitest";
-import { REPLACEMENT, removeByRule, removePhoneNumbers } from "./phoneNumbers";
+import { MAX_PASSES, REPLACEMENT, removeByRule, removePhoneNumbers, settle } from "./phoneNumbers";
 
 const DIGIT = /\p{Nd}/u;
 const noDigit = (text: string) => expect(removePhoneNumbers(text), text).not.toMatch(DIGIT);
@@ -248,5 +248,26 @@ describe("a [number removed] beside a run of times", () => {
   });
   it("keeps the times when a word stands between them and the marker", () => {
     expect(removePhoneNumbers("Witness [number removed] at 14:03 14:10")).toBe("Witness [number removed] at 14:03 14:10");
+  });
+});
+
+describe("settle: the rule runs until the text stops changing, at most MAX_PASSES times", () => {
+  it("runs a scrub that never settles exactly MAX_PASSES times, returns its last output and says so once", () => {
+    let calls = 0;
+    let caps = 0;
+    const out = settle("a", (t) => (calls++, `${t}x`), () => caps++);
+    expect(MAX_PASSES).toBe(4);
+    expect([calls, out, caps]).toEqual([4, "axxxx", 1]);
+  });
+  it("stops at the first pass that changes nothing, and does not say so", () => {
+    let calls = 0;
+    let caps = 0;
+    const out = settle("a", (t) => (calls++, "b"), () => caps++);
+    expect([calls, out, caps]).toEqual([2, "b", 0]);
+  });
+  it("gives a settled text in one call", () => {
+    const once = removePhoneNumbers("Seen 11/19/2026 12:12 5:55 01:42");
+    expect(once).toBe("Seen [number removed]:[number removed]");
+    expect(removePhoneNumbers(once)).toBe(once);
   });
 });
