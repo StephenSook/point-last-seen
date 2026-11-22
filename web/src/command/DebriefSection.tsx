@@ -2,7 +2,7 @@
 // covered and what clues and hazards it saw, for the team's own review. Command adds or edits one per segment. A
 // debrief never moves the map, the probabilities or the plans: a stated coverage is the team's words, not a claim.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { debriefAuthor, parseDebriefForm, type ClearedSegment, type Debrief, type DebriefInput } from "../data/debriefs";
 import { DebriefPaperRead, type PaperRead } from "./DebriefPaperRead";
 
@@ -14,22 +14,38 @@ type Props = {
   onSave: (segmentId: string, input: DebriefInput, existing: boolean, clearedEventId: string | null) => Promise<void>;
   /** Reads a team's paper sheet on this laptop; without it, no paper read is offered. */
   paperRead?: PaperRead;
+  /**
+   * The sighting form asked to open this segment's debrief (a search report typed as a sighting): its form opens as
+   * Add or Edit would, unless the form or the paper sheet is already open, and the cursor goes to What worked. Nothing
+   * is carried over or saved. A new `seq` asks again.
+   */
+  openRequest?: { segmentId: string; seq: number } | null;
 };
 
-export function DebriefSection({ cleared, debriefs, teams, onSave, paperRead }: Props) {
+export function DebriefSection({ cleared, debriefs, teams, onSave, paperRead, openRequest = null }: Props) {
   const ids = [...new Set([...cleared.map((c) => c.segmentId), ...Object.keys(debriefs)])].sort();
+  // The newest request a row has acted on: a row that leaves (its clear taken back) and comes back is not opened again.
+  const handled = useRef(0);
+  const pending = openRequest && openRequest.seq > handled.current ? openRequest : null;
   return (
     <section aria-labelledby="debrief-h" className="layers">
       <h2 id="debrief-h" className="label">Debriefs</h2>
       {ids.length === 0 && <p className="muted small">Cleared segments get a debrief here.</p>}
       {ids.map((id) => (
-        <DebriefRow key={id} segmentId={id} cleared={cleared.find((c) => c.segmentId === id)} debrief={debriefs[id]} teams={teams} onSave={onSave} paperRead={paperRead} />
+        <DebriefRow key={id} segmentId={id} cleared={cleared.find((c) => c.segmentId === id)} debrief={debriefs[id]} teams={teams} onSave={onSave} paperRead={paperRead} openSeq={pending?.segmentId === id ? pending.seq : undefined} onOpened={(seq) => { handled.current = Math.max(handled.current, seq); }} />
       ))}
     </section>
   );
 }
 
-function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead }: { segmentId: string; cleared: ClearedSegment | undefined; debrief: Debrief | undefined; teams: Props["teams"]; onSave: Props["onSave"]; paperRead: PaperRead | undefined }) {
+const CHANGED_ELSEWHERE = "This debrief was saved from another screen while you edited. Cancel and open it again to see it.";
+
+/** What a stored debrief says, for telling whether it changed since a form opened on it (not when it was stamped). */
+function debriefWords(d: Debrief | undefined): string {
+  return d ? JSON.stringify([d.tookMinutes, d.worked ?? "", d.didNotWork ?? "", d.coverageStatedPct ?? null, d.clues ?? "", d.hazards ?? "", d.byUid]) : "none";
+}
+
+function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead, openSeq, onOpened }: { segmentId: string; cleared: ClearedSegment | undefined; debrief: Debrief | undefined; teams: Props["teams"]; onSave: Props["onSave"]; paperRead: PaperRead | undefined; openSeq: number | undefined; onOpened: (seq: number) => void }) {
   const [editing, setEditing] = useState(false);
   const [paper, setPaper] = useState(false);
   const [minutes, setMinutes] = useState("");
@@ -41,6 +57,29 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead }: {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const rowRef = useRef<HTMLDivElement>(null);
+  const workedBox = useRef<HTMLTextAreaElement>(null);
+  const focusAsked = useRef(false);
+  useEffect(() => {
+    if (openSeq === undefined) return;
+    onOpened(openSeq);
+    if (!editing && !paper) open();
+    focusAsked.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSeq]);
+  useEffect(() => {
+    if (!focusAsked.current) return;
+    // The form opens on the render after the request; with the paper sheet open there is no box, only the row to show.
+    if (!workedBox.current && !paper) return;
+    focusAsked.current = false;
+    rowRef.current?.scrollIntoView({ block: "center" });
+    workedBox.current?.focus();
+  });
+
+  // The stored debrief as the form opened on it: a save refuses if another screen has saved it since, rather than
+  // overwrite what that screen wrote with this form's older copy.
+  const openedWith = useRef("");
+
   function open() {
     setMinutes(debrief ? String(debrief.tookMinutes) : "");
     setWorked(debrief?.worked ?? "");
@@ -49,10 +88,15 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead }: {
     setClues(debrief?.clues ?? "");
     setHazards(debrief?.hazards ?? "");
     setError(null);
+    openedWith.current = debriefWords(debrief);
     setEditing(true);
   }
 
   async function save() {
+    if (debriefWords(debrief) !== openedWith.current) {
+      setError(CHANGED_ELSEWHERE);
+      return;
+    }
     const parsed = parseDebriefForm({ minutes, worked, didNotWork, coverage, clues, hazards });
     if (!parsed.ok) {
       setError(parsed.message);
@@ -71,7 +115,7 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead }: {
   }
 
   return (
-    <div className="layer" data-testid={`debrief-${segmentId}`}>
+    <div className="layer" data-testid={`debrief-${segmentId}`} ref={rowRef}>
       <p className="num">{segmentId}</p>
       {!editing && !paper && (
         <>
@@ -113,7 +157,7 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead }: {
           </label>
           <label>
             What worked (optional)
-            <textarea maxLength={500} value={worked} onChange={(e) => setWorked(e.target.value)} disabled={saving} />
+            <textarea ref={workedBox} maxLength={500} value={worked} onChange={(e) => setWorked(e.target.value)} disabled={saving} />
           </label>
           <label>
             What didn't work (optional)

@@ -8,11 +8,15 @@ import { AI_HOSTS, deployedOnly, expect, joinCommand, test, withDebugToken } fro
 // Deployed-only (Storage takes the clip only from the deployed origin). The generated clip has no
 // person, so the full path runs (consent record, upload, one cloud read of the inline video) and
 // ends in "Couldn't read this clip", which changes nothing on the map. Each run makes a fresh clip
-// (the square at a random height), because a record left by an earlier run's user can only be
-// renewed by that user.
+// (the square in one of 512 colours at a random height, about 51,000 distinct clips; the height alone gave
+// only 100, a quarter of them already stored, so a run could read a stored answer and call no model), because
+// a record left by an earlier run's user can only be renewed by that user.
 const CLIP = join(mkdtempSync(join(tmpdir(), "pls-clip-")), "moving-box.mp4");
 test.beforeAll(() => {
-  execFileSync("sh", [fileURLToPath(new URL("./assets/make-moving-box.sh", import.meta.url)), CLIP, String(Math.floor(Math.random() * 200))]);
+  // Each channel in steps of 32 (512 colours): nearby colours encode to the same bytes, these do not.
+  const step = () => (Math.floor(Math.random() * 8) * 32).toString(16).padStart(2, "0");
+  const colour = `0x${step()}${step()}${step()}`;
+  execFileSync("sh", [fileURLToPath(new URL("./assets/make-moving-box.sh", import.meta.url)), CLIP, String(Math.floor(Math.random() * 200)), colour]);
 });
 
 test("a staged clip with no person is read once in the cloud as inline video, changes nothing, and is not read again", async ({ page }) => {

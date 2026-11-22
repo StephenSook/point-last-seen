@@ -3,8 +3,189 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-22
+
+- Production checklist: a row for the judge practice-search quota names the daily probe as the guaranteed run of the
+  quota check and the hourly `judge-quota.yml` as best-effort, and says the failed run's email is the alert. Source:
+  review (an infrastructure check before judging). Verified: the hygiene guard passes in public mode.
+- Daily probe: `probe.yml` also runs `scripts/judge_quota_probe.py`, which fails when fewer than 10 of the day's 50
+  judge practice searches are left, so a low quota is caught at least once a day; the hourly `judge-quota.yml` stays
+  as a best-effort extra, since GitHub had started none of its hourly runs 4 h after it was added. Source: review (an
+  infrastructure check before judging). Verified: `test_the_daily_probe_runs_every_probe_script` failed first, then
+  passed; a manual run of the script on 2026-11-22 read "ok, 50 of 50 judge practice searches left today", and the
+  2026-11-21 run failed with "only 0 of 50" as intended; the local gates pass.
+
 ## 2026-11-21
 
+- Limits: a search report placed in a cleared segment can open that segment's debrief (it no longer fills it). Source:
+  review. Verified: the hygiene guard passes in public mode.
+- Search-report rule: fewer real sightings read as reports. A quote at either end of a word is trimmed ("'saw him'"
+  holds saw); witness(es), recognized, recognised and identified are sighting words; and an en or em dash or a spaced
+  hyphen ends a clause, so "no sign - footprints by the gate" keeps its footprints. Eleven new cases (62 in all), among
+  them pins for each plural and the two-word window after nothing; the README says it. Source: review (Codex first
+  round, and lane review of the dashes). Verified: seven new cases fail on the previous rule and all 62 pass on this
+  one; engine suite and typecheck pass.
+- Search-report contract: the shared README states the word rule exactly (lowercase, curly apostrophes as ', a word is a
+  run of a-z, 0-9 and '), two cases pin it ("Segment-4 done." is a report; "'cleared'" in single quotes is not the
+  word), and the vector test checks schemaVersion and that every case names one of the README's ten clauses. Source:
+  review (before any phone ports the rule). Verified: the engine test passes (52).
+- Search-report rule: a negation now counts only inside the sighting word's own clause (split at . ! ? ; : , and line
+  breaks), so "Searched AB, no sign. Footprints at the creek." is a sighting, and hasn't, haven't, hadn't, didn't,
+  isn't, weren't and couldn't join the negations. Five new cases (a `negation_scope` clause and "hasn't been seen"); the
+  README says it. Source: review. Verified: the five cases failed first (four of them; the scoped negation already
+  held), then passed; the engine suite and typecheck pass.
+- Limits: the web sighting form's search-report check knows English words only, so a report in another language saves as
+  a sighting with no warning; it never blocks a save; only the web runs it so far. Source: review. Verified: the hygiene
+  guard passes in public mode.
+- Search-report vectors: the shared README names each field of `search-report.json` and which platforms read it (the
+  engine test and the web sighting form, for now), so a later port knows the contract. Source: review. Verified: the
+  hygiene guard passes in public mode.
+- Search-report check: `readsAsSearchReport` (`shared/engine-ts/src/searchReport.ts`) says whether a sighting note reads
+  as a search report: a search-result word or phrase, or a segment named done, with no sighting word, where a sighting
+  word within two words after a negation does not count. English only, no model.
+  `shared/test-vectors/search-report.json` holds 44 hand-written cases, one on each side of each clause, and a README
+  section gives the rule, so the phones can match it. Source: review (a team's search report typed into the sighting
+  form). Verified: the vector test failed first, then passed (45); the engine suite (434) and typecheck pass.
+- Limits: the command post also checks the browser's sign-in at once after a refused action, past the 30-second spacing.
+  Source: review. Verified: the hygiene guard passes in public mode.
+- Limits: the command post checks the browser's sign-in when its tab is shown or focused and every five minutes while
+  shown, at most once in 30 seconds. Source: review. Verified: the hygiene guard passes.
+- Limits: a practice search's post, which has no join code, sends you back to the judge's page when the browser's
+  sign-in moved; the post checks again whenever its tab is shown and every five minutes. Source: review. Verified: the
+  hygiene guard passes.
+- Limits: a browser's sign-in holds one search and one role at a time, so a practice search or a join in another tab
+  moves it; a command post still open for the first drill then says so and asks to be reopened with its command code
+  (`docs/LIMITS.md`, Sign-in and joining). Source: review (a command who opens a practice search loses command).
+  Verified: the hygiene guard passes.
+- Phone corpus: written again for the merged shared cases (121 inputs, among them the run-of-times and colon-gap cases),
+  so it holds 9,121 rows; the README names its new SHA-256. Source: the run-of-times and colon-gap cases merged.
+  Verified: `--check` failed before the rewrite and passes after; the web corpus test passes.
+- Phone corpus: `shared/test-vectors/phone-numbers-corpus.json` (9,116 rows, 615,930 bytes, 4,531 of them changed by the
+  rule), written by the generator for the current web rule, and a README section with its shape, how to regenerate it
+  and its SHA-256. Source: review (Android and the iPhone check the same rows). Verified: `--check` passes; the web
+  corpus test passes.
+- Phone corpus generator: `tools/vectors/phone_corpus.ts` builds the shared phone-number corpus (every shared case's
+  input, then 9,000 notes from a fixed mulberry32 seed, each with the web rule's output), leaning on runs of times
+  beside cues, digits, spoken digits, months and street names, and on combining marks, variation selectors, keycaps,
+  joiner sequences and emoji modifiers; `tools/vectors/phone_corpus_cli.ts --write` writes it and `--check` exits 1
+  unless the file is exactly what it would write. Source: review (one corpus every platform checks, so a port that
+  drifts fails its own CI). Verified: `--write` then `--check` passes; the web test that imports the generator passes.
+- Phone vectors README: the colon-gap paragraph says the remaining gap is two times beside a month name; two times after
+  a cue with no month are removed whole by the run-of-times step. Source: review (merging the run-of-times step with the
+  colon-gap cases). Verified: the vector tests pass; the hygiene guard passes.
+- Phone vectors README: the list of search information that can sit inside a digit run no longer names "a number with a
+  unit"; no platform's rule keeps one there (a short quantity glued to a unit, `5km`, stays because it never reaches
+  seven digits). Source: review (the iPhone port's notes). Verified: the hygiene guard passes.
+- Phone vectors: the 12 run-of-times cases are no longer pending on the iPhone, whose port is merged (main 20391d1f);
+  `docs/LIMITS.md` counts every platform at 116 of 116. Source: the iPhone port merged. Verified:
+  `scripts/test_phone_vectors.py` passes; the iPhone port matched the web rule on every row of the generated corpora
+  (local evidence, not in the repo).
+- Phone vectors: the cue-walk and month-name cases are no longer pending on Android, whose port is merged (main
+  210b1805); `docs/LIMITS.md` counts Android at 116 of 116. Source: the Android port merged. Verified:
+  `scripts/test_phone_vectors.py` passes, and the Android port matched the web rule on all 60,116 notes of a corpus from
+  36db65c7 (local evidence, not in the repo).
+- Phone rule: a run of times with a month name right before or after it goes to the shared rule. A month name reads the
+  hour or minutes beside it as a day, so cutting the note at such a run changed how the shared rule grouped the digits
+  around it: `1.4045, -55.0142 14 May 6:00 7:00` kept a whole number the shared rule alone removes. One exact case
+  (pending on Android), the README rule text and `docs/LIMITS.md` (116 cases; a number spread across rising times is
+  part of the accepted gap) follow. Source: review (Codex, fourth round on the phone rule: one high, one medium).
+  Verified: the web unit test failed first, then passed (163 phone tests); the fuzz agrees on all 90,000 notes and gains
+  a check that the shared rule on the whole note equals it on each stretch and each decided run, which a looser README
+  fails; `scripts/test_phone_vectors.py` passes.
+- Phone rule: the run-of-times step reads past a digit, written or spoken, when it looks for a cue among the three words
+  before a run, so `Call one: 4:04 5:55 6:42` and `Call 5 at 4:04 5:55 06:44` are removed whole instead of kept; the
+  shared rule alone already removed most of both. A mustRemove case and an exact case (both pending on the iPhone and
+  Android), the README rule text and `docs/LIMITS.md` (115 cases) follow. Source: review (found while checking the
+  fourth round; a gap the step itself made). Verified: the web unit test failed first, then passed (160 phone tests);
+  the byte-for-byte fuzz, with the new contexts, agrees on all 90,000 notes; `scripts/test_phone_vectors.py` passes.
+- Phone vectors: the ten run-of-times cases are no longer pending on Android, whose port of the rule is merged (main
+  30479df3); `docs/LIMITS.md` counts Android at 113 of 113, the iPhone at 103 and the web at 113. Source: the Android
+  port merged. Verified: `scripts/test_phone_vectors.py` passes (6), and the Android port matched the web rule on all
+  60,113 notes of a generated corpus (local evidence, not in the repo).
+- Fix(data): a run of times is decided only when the rule reads it as its own group: the step that decides a run made
+  only of clock times hid the run from the shared rule with a private-use mark, which let a number through in four ways:
+  a phone cue with a tab, a line break or a bracket before the run was missed (`Call\t4:04 5:55 16:42` came back whole);
+  a spoken digit or a Chinese numeral joined to the run was split from it (`Call four 4:04 5:55 6:42` kept every digit);
+  a private-use character typed in a note moved a kept run; and digits that NFKC folds to ASCII (superscripts) qualified
+  as a run. Now a run is decided only when no digit part of the shared rule (written, spoken, Chinese, or a counted
+  `double`/`triple`) joins its first or last part; the text between decided runs goes to the shared rule as it is, with
+  no marks; a cue is a cue word among the three words before the run, or a `#`; and a note that NFKC changes skips the
+  step. The shared vectors gain three mustRemove cases (a tab, a cue a few words back, a bracket) and one exact case (a
+  spoken digit joined to the run), pending on Android and the iPhone; `docs/LIMITS.md` gives 113 cases (Android and the
+  iPhone 103, the web 113). Source: review (Codex, third round on the phone rule: two high, two medium findings).
+  Verified: the five new unit tests failed first, then passed (155 phone tests); `scripts/test_phone_vectors.py` passes;
+  web unit suite (1189), typecheck, build, the gates (329) and the hygiene guard pass. A local differential fuzz against
+  main's rule (300,000 notes, 152,395 holding a run, local evidence, not in the repo) found no note where the new step
+  keeps a digit outside a kept run that main removes, and no change at all for notes without a run; the same fuzz on the
+  previous commit found both the typed-mark and the spoken-digit leaks.
+- Fix(data): a run made only of clock times is decided whole; everything else keeps the shared rule: the previous change
+  edited the shared rule's time handling, and a second review found it let numbers through in ways the old rule did not
+  (a date shape, a digit in another script or a spoken digit beside the times). The rule is back to main's, plus one
+  step before it: a run made only of two or more ASCII clock times, separated by commas or spaces and joined to no other
+  digit, stays whole when it reads in clock order with no phone cue before it, and is replaced whole by one "[number
+  removed]" when it is out of order or comes right after a cue (the cue words plus "text" and "reach", with at most one
+  connector word, or a "#"). Any other run follows the shared rule unchanged. The joined case ("Times 14:03, 14:10,
+  14:17, 404 555 0142") is replaced by one where the number stands apart; the four numbers written as times are pending
+  on Android and the iPhone too, since their rules leave the first hour. `docs/LIMITS.md` gives the counts (109: Android
+  and the iPhone 103, the web 109) and the gap: a number written as rising times with no cue stays. Source: review
+  (Codex, second round on the phone rule: three ways a full number still survived, and wrong native counts). Verified:
+  the six shared cases pass on the web with every phone case (150); `scripts/test_phone_vectors.py` passes; web unit
+  suite (1180), typecheck, the gates (329) and the hygiene guard pass. A probe of the review's inputs: the four numbers
+  written as times and "4:04 5:55 01:42" are removed whole; date-shaped or mixed runs behave exactly as on main.
+- Fix(data): a run of times is kept only in clock order and never right after a phone cue: the rule that kept a time
+  after another kept time let each kept time protect the next, so a phone number written as times kept all its digits
+  ("Call 21:25 5:50 1:42" kept 212-555-0142; "12:12 5:55 01:42" and "Call 4:04 5:55 01:42" too). A time now keeps its
+  place after a kept time only when it is no earlier on the clock; one earlier puts the run in doubt and both go. A time
+  right after a phone cue (the existing cue words plus "text" and "reach", or a "#") is dropped, and the times after it
+  go with it. "The possible times are 14:03, 14:10, 14:17." still stays whole. Four new shared mustRemove cases cover
+  the leak (each passes on Android and the iPhone as they are on main, so none is pending);
+  `shared/test-vectors/README.md` states the rule, and `docs/LIMITS.md` the new counts (109: Android and the iPhone 107,
+  the web 109) and the rule's remaining gap: a number written as rising times with no cue (2:12 5:55 6:42) is kept.
+  Source: review (Android lane and Codex: a privacy leak in the run-of-times rule). Verified: the four cases failed on
+  the web first, then passed with every phone case (150); `scripts/test_phone_vectors.py` passes (the cases pinned, the
+  counts); web unit suite (1180), typecheck, the gates (329) and the hygiene guard pass.
+- Fix(data): the phone-number remover keeps a run of times whole: "The possible times are 14:03, 14:10, 14:17." came out
+  as "The possible times are 14:[number removed].": a time kept its place only after a date, so each time's hour, joined
+  by ", " to the previous time's minutes, counted as joined to other digits and the run was removed. In a search a run
+  of sighting times is evidence. The shared rule (`shared/test-vectors/README.md`) now keeps a time after another kept
+  time too; a time after a dropped one is still dropped, so "Call 1 404 555 01:42" and "Call GA 40455-5014 2:30" are
+  removed as before. Two shared cases: `times_run` (kept whole) and `times_run_then_number` ("Times 14:03, 14:10, 14:17,
+  404 555 0142" keeps the times and removes the number). Both are pending on Android and the iPhone until they port the
+  rule; the web remover (`web/src/data/phoneNumbers.ts`) follows it now. `docs/LIMITS.md` gives the new counts (105
+  cases: the web passes 105, Android and the iPhone 103). Source: review (Codex, on the Problem reports panel: a note's
+  times were removed as a phone number). Verified: the two new cases failed on the web first, then passed with every
+  phone case (146); `scripts/test_phone_vectors.py` (the cases pinned, well formed, and the LIMITS counts) passes; web
+  unit suite (1166), typecheck, the gates (329) and the hygiene guard pass.
+- Test matrix: a web row for the sighting-note read on the deployed command post with the browser tab offline (build
+  1b7d3571, the test drill, Chrome 157.0.8103.80): two reads ran on this laptop as the SDK reported, the second in 2,361
+  ms from the click, and every request in the read windows was refused offline with none to an AI host. Evidence:
+  `docs/evidence/web/2026-11-21-note-read-offline-deployed.json` and its screenshot. Source: review (the iPhone already
+  has a network-off row). Verified: `scripts/test_test_matrix.py` passes; the hygiene guard passes.
+- Docs: the README's Android row and the production checklist name android-judge-4
+  (`point-last-seen-family-8d448c60.apk`, built from main 8d448c60) instead of android-judge-2. The judge page and the
+  README link GitHub's `/releases/latest`, which now redirects to android-judge-4, so no link changed. Source: a new
+  judge build was published. Verified: a signed-out request for /releases/latest answers 302 to the android-judge-4 tag;
+  the hygiene guard passes.
+- Chore(schemas): the content-report schema's web type is built: `shared/schemas/content-report.schema.json` named its
+  TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops
+  "pending:" and the schema parity gate checks it on every run. Source: review (the content-report schema's owner asked
+  for "pending:" to go in whichever PR merged second). Verified: the schema parity gate reports "ok content-report # ts:
+  7 fields" and 0 failures; the hygiene guard passes.
+- Fix(rules): a closedReason copied onto an open incident never blocks its edits: the closedReason clause now applies
+  only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open"
+  (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused.
+  Setting a reason still needs status "closed" and one of the three values. Source: review (Codex: closing the seed
+  drill would make every new practice search refuse ordinary edits). Verified: a new rules test (an open incident
+  carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first;
+  all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
+- Feat(rules): command ends a search with one of three reasons: the incident update rule takes an optional
+  `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`.
+  Command could already close an incident; it now says why. A searcher or the family still cannot write the incident,
+  and a closed incident still takes no edits, so its reason stays as written. Source: review (an "End this search"
+  control for command). Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted
+  from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a
+  closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the
+  rules gate and its tests, the gates and the hygiene guard pass.
 - Rules test: a command retraction in the command post's exact shape (functions/test/rules/retraction-event.json, the
   document web/src/data/sightings.ts buildRetraction writes, pinned by web/src/data/retraction.test.ts) is accepted from
   command for another author's report and refused from a searcher or family seat, whether in command's shape or as their
@@ -82,6 +263,124 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-20
 
+- test(vectors): five shared phone-number cases for a known gap, pending on every platform: a colon breaks a digit
+  run, so a number written as two times after a cue or beside a month ("Call 5:55 01:42 May", "May 5:55 01:42", "Text
+  5:55 07:14 May", "Call May 5:55 01:42") survives; the fifth, "Seen 14 May 5:55 01:42", is an exact case that keeps
+  the date. They are cases to remove, never to keep; issue #298 tracks closing the gap. LIMITS now counts 108 cases,
+  each platform still passing its 103, and the vectors README gives the reason. Source: review (phone rule gap found
+  by an automated security review, ruled a documented gap). Verified: test_phone_vectors.py (the pinned lists and the
+  LIMITS count) passes; the web phone runner passes 144 with the five skipped as pending; the public hygiene guard
+  passes.
+- docs(readme): the on-device claims say only what has run. A searcher's phone reads with an on-device model where it
+  has one (an iPhone without Apple Intelligence reads by rules or the cloud), and Android's on-device path is the code
+  path only, not run on a phone with Gemini Nano (the test phone, a Samsung A16, has no AICore; docs/TEST-MATRIX.md).
+  Source: review (a check of the judge-facing claims). Verified: a grep of README, the docs, the web pages and the
+  judge page for on-device claims; only the README's three lines claimed more than ran.
+- functions: removeMember also refuses a drill whose retention purge has started (its ops/drillPurges marker exists),
+  read in the same transaction, so the purge can never leave a removal record (with member and command ids) under the
+  deleted drill. Source: review (cross-family, round 1 on removeMember's incident check). Verified: a new case (a
+  purge marker present: removal refused, no record written) failed first, then passes; 364 functions and rules tests
+  pass; no live drill has a purge marker.
+- functions: removeMember refuses a missing or expired incident (permission-denied, not_command), as
+  deleteIncidentMediaNow and rotateJoinCode do, reading it inside its transaction, so no removal record is written
+  under a deleted drill; a closed search still allows a removal. Source: review (deferred minor from member removal).
+  Verified: a new case (missing incident and expired incident refused with no record written; a closed one allowed)
+  failed first, then passes; 363 functions and rules tests and the typecheck pass.
+- evidence: the Measured file re-run from stored data on 2026-11-21 (after the outdoor drill was cancelled): 124
+  report reads (9 on device, 2 cloud, 113 rules), 48 plan wordings (7 cloud, 41 rules), and $0.1212 of cloud spend
+  over 8 days. Source: review (Measured export re-run). Verified: measured_export.py --check passes on the written
+  file.
+- README, judges paragraph: the judge page's Measured block and where its numbers come from
+  (scripts/measured_export.py, route records and AI Logic token counts, web/public/evidence/measured.json); no number
+  is typed in the README. Source: review. Verified: scripts/test_readme_run_label.py still passes.
+- web/public/evidence/measured.json, written by scripts/measured_export.py on 2026-11-21 from production: 52 stored
+  report reads, 31 plan wordings, and cloud spend since 2026-11-13. Source: review. Verified: measured_export.py
+  --check passes; the numbers are the script's output, not typed.
+- scripts/measured_export.py writes the judge page's Measured file from stored data only: report reads by route (the
+  route record on each stored event, each event once, since judge sandboxes copy seed events), plan wording by route
+  (each distinct wordingRoute once, since plan ids repeat), and cloud spend per day (AI Logic token counts priced by
+  scripts/ai_spend.py since 2026-11-13); --check validates the committed file in CI. Source: review (a measured block
+  on a judged surface). Verified: 8 tests (dedupe, medians, shares, window, the file's own check) failed first, then
+  pass.
+- functions: the retention purge counts each sign-in once: a removed member whose claims were not yet cleared is
+  handled by the removal pass and skipped by the claim pass, so a dry run's count matches what a live run deletes.
+  Source: review (cross-family, round 1 on removed members' sign-ins). Verified: a dry run with one cleared and one
+  not-yet-cleared removed sign-in counted 3 before the fix and counts 2 after, as the live run deletes 2; 362
+  functions and rules tests pass.
+- docs(limits): the retention line names removed members' sign-ins, found through the drill's removal records. Source:
+  review (claims check).
+- functions: the retention purge also deletes the sign-ins of members command removed from the drill. Removal clears
+  their claims, so the scan by claim missed them; they are read from the drill's removal records, before the drill is
+  deleted, and deleted only while still anonymous, holding no claims or this drill's, and unused since the close.
+  Source: review (claims check of the privacy policy and LIMITS against retention). Verified: new cases (an idle
+  removed sign-in deleted; one that joined another drill, one used after the close and a person's kept; a dry run
+  counts and deletes nothing) failed first, then pass; 362 functions and rules tests and the typecheck pass.
+- scripts: the judge quota probe counts the lower of the cap stored with the count and the checkout's, so a cap
+  lowered today alarms before the next start stores it. Source: review (cross-family, round 2 on the judge quota
+  probe). Verified: a same-day reduction case (40 used, stored cap 50, checkout 40) failed first, then passes; all 8
+  probe tests pass.
+- functions test: the day's judge counter, which anyone may read, holds only its count and cap start after start.
+  Source: review (judge quota probe, publicly readable counter). Verified: the case passes, and fails when the counter
+  write gains another field.
+- scripts: the judge quota probe reads its doc with a Firestore batchGet, so only a reply naming that exact doc
+  missing counts as an unused day (a database or endpoint 404 now fails instead of reading as a full quota), and it
+  prefers the cap stored with the count over the checkout's. Source: review (cross-family, round 1 on the judge quota
+  probe). Verified: new cases (batchGet missing, found, wrong name, empty, error; a deployed cap of 45 below the
+  checkout's 50; a malformed cap) failed first, then pass; a live run before the rules deploy still fails closed with
+  HTTP 403.
+- functions: startJudgeSession writes the daily cap it enforces into the day's counter (ops/judgeSessions-<day>.cap)
+  with the count, so the quota probe reads the deployed cap rather than a checkout's. Source: review (cross-family,
+  round 1 on the judge quota probe). Verified: the first-start case now expects { count: 1, cap: 3 } and failed first,
+  then passes; all functions tests pass.
+- ci: judge-quota.yml runs the judge quota probe hourly (minute 41) through judging, with the CI App Check debug
+  token; a failed run emails the repo owner. Source: review (judge quota probe, approved). Verified: the gates
+  (workflow paths, ci-local mirror) pass.
+- scripts: judge_quota_probe.py reads today's ops/judgeSessions doc (never starts a session) and exits 1 when fewer
+  than 10 of the day's judge practice searches are left; the cap is read from functions/src/judgeSession.ts, a failed
+  read fails, a missing doc is an unused day, and it retires after 2026-12-17. Its tests run in CI and ci-local.
+  Source: review (judge quota probe, approved). Verified: test_judge_quota_probe.py (7 cases) failed first (no
+  script), then passes; a live run before the rules deploy failed closed with HTTP 403.
+- rules: ops/judgeSessions-YYYY-MM-DD, which holds only that UTC day's count of judge practice searches, is readable
+  without sign-in like ops/storage, so a probe can watch the judges' quota without a credential; nobody writes it from
+  a client. Source: review (judge quota probe, approved). Verified: a shapes case (a day's doc readable,
+  ops/judgeSessions-latest not, no client write) failed first, then passes.
+- rules: isOpen counts a missing status as open (get('status', 'open')), as the apps and the Storage rules read it, so
+  an incident with no status field still takes clip readings, reports and plans. The closed-incident reading test now
+  proves its point: a valid completion succeeds on an open record and the same completion is refused after the close.
+  Source: review (cross-family, round 1 on closed-incident writes). Verified: a no-status case failed first, then
+  passes; the completion test fails if the open check is dropped; all 177 rules tests pass. Every live incident has a
+  status.
+- rules: an ended search (status closed) takes no new clip or photo upload, while its media stay readable until its
+  data is deleted. Storage checks the status in the same incident lookup it already makes (liveIncident with
+  mustBeOpen), so every path stays within two Firestore lookups: a clip upload reads the incident and its consent
+  record, a photo upload the incident and the removal record. Source: review (closed-incident writes found during End
+  this search review). Verified: a storage case (after the close, a clip and a photo upload are refused and an
+  existing photo still reads) failed first, then passes; all 176 rules and Storage tests and the gates pass.
+- rules: an ended search (status closed) takes no new clip reading and no change to an open one: clipReadings create
+  and update require isOpen, like reports, plans and family questions. The incident lookup is the one isMember already
+  makes. Source: review (closed-incident writes found during End this search review). Verified:
+  rules/closedIncident.test.ts (a reading starts while open, not after the close; an open record cannot be completed
+  or taken over after it) failed first, then passes; all rules tests pass.
+- docs(limits): removing a member. Command removes a searcher or family member (removeMember): its app can no longer
+  read or write the search, open screens included (measured live: two open listeners refused within a second), and
+  that account cannot rejoin. The four remaining limits: a new sign-in rejoins until the role's code is replaced
+  (rotateJoinCode, which stops every older code of that role); media links already received keep working until the
+  drill's media is deleted; a clip upload in progress can finish within the hour; and an account that joined before
+  membership records began and has since joined another search cannot be removed for up to an hour. The Leave
+  paragraph no longer says command has no way to remove a member. Source: review (member removal, approved wording).
+- functions: startJudgeSession's final grant refuses a practice search that was closed after the start chose it, so a
+  close landing mid-start never hands back command on the ended one. Source: review (cross-family, round 1 on practice
+  searches and an ended search). Verified: a new case (the visitor closes the sandbox while the start pauses before
+  the grant; the start fails unavailable and no claims are set) failed first, then passes; all functions and rules
+  tests and the gates pass.
+- functions: a practice search the visitor ended (status closed) is no longer handed back on the next start: like an
+  expired one, it gives a new session, subject to the same hourly limit per visitor, so Try a practice search after
+  End this search starts fresh instead of reopening the ended post. Source: review (practice copies after End this
+  search). Verified: a new case (an ended sandbox: refused within the hour as resource-exhausted, then a new open
+  incident with the command role) failed first, then passes; 353 functions and rules tests and the gates pass.
+- functions: a judge's practice copy never carries the seed's end of search: closedReason and closedAt join
+  NOT_COPIED, so a copy starts open with neither. Source: review (practice copies after End this search). Verified: a
+  new case with an ended seed failed first, then passes; judgeSession tests pass.
 - rules: an incident's status stays as it is or moves to closed; a bare "found" is refused (no client sets it: the
   command post records a found person by closing with reason found, while the family app shows a bare found as "Found.
   Safe." and stops reporting although the search is open). One already found is kept and still closes. Source: review
@@ -3321,18 +3620,3 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 - e909409: schemas, constants, shared test vectors (148 cases) and the schema parity check.
 - 0ff9f27: iOS model builders move to ModelSessionFactory.swift and AIClient.swift in the rules gate.
 - 861ec6a: a command confirmation outranks a later family one (two new vectors).
-
-### feat(rules): command ends a search with one of three reasons
-- What: the incident update rule takes an optional `closedReason`, which must be `found`, `suspended` or `training_ended` and may only come with `status: "closed"`. Command could already close an incident; it now says why. A searcher or the family still cannot write the incident, and a closed incident still takes no edits, so its reason stays as written.
-- Source: review (an "End this search" control for command).
-- Verified: four new rules tests in `functions/test/rules/roles.test.ts` (each reason accepted from command; a searcher and the family refused; a bad reason, a reason while open and a reason alone refused; a closed incident's reason unchangeable). The reason test failed first; all 296 rules tests pass after the change; the rules gate and its tests, the gates and the hygiene guard pass.
-
-### fix(rules): a closedReason copied onto an open incident never blocks its edits
-- What: the closedReason clause now applies only when a write changes the reason. A practice copy of an ended seed carries the seed's reason with status "open" (the copy keeps every field it is not told to drop), and under the old clause every ordinary merge on it was refused. Setting a reason still needs status "closed" and one of the three values.
-- Source: review (Codex: closing the seed drill would make every new practice search refuse ordinary edits).
-- Verified: a new rules test (an open incident carrying a copied reason takes a name edit, refuses a reason change while open, and can still be ended) failed first; all 297 rules tests pass after the change, with the rules gate and the hygiene guard.
-
-### chore(schemas): the content-report schema's web type is built
-- What: `shared/schemas/content-report.schema.json` named its TypeScript mirror as pending; `ContentReport` now exists in `web/src/data/contentReports.ts`, so the entry drops "pending:" and the schema parity gate checks it on every run.
-- Source: review (the content-report schema's owner asked for "pending:" to go in whichever PR merged second).
-- Verified: the schema parity gate reports "ok content-report # ts: 7 fields" and 0 failures; the hygiene guard passes.

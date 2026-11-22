@@ -9,7 +9,9 @@ export default defineConfig({
   // extras lane's e2e/extras.config.ts runs extras/**.
   testIgnore: ["harness/**", "extras/**"],
   // Checks about the placeholder-key build run only in the no-backend run (ci.config.ts); this runner serves real keys.
-  grepInvert: /@placeholder-build/,
+  // A check tagged @quota starts a real practice search, one of the 50 a UTC day the judges have, so it runs only with
+  // PLS_ALLOW_QUOTA=1: once per hosting deploy, never in a loop (src/practiceQuota.test.ts holds every start to this).
+  grepInvert: process.env["PLS_ALLOW_QUOTA"] === "1" ? /@placeholder-build/ : /@placeholder-build|@quota/,
   timeout: 60_000,
   retries: 0,
   reporter: [["list"]],

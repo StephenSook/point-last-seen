@@ -34,14 +34,30 @@ each line says what the limit is and why.
   (`JOIN_ATTEMPTS_PER_HOUR`, `functions/src/join.ts`); the 11th is refused with "Too many join attempts. Try
   again in an hour." A device that mistypes a code several times waits for the window to end, so read codes
   carefully.
+- A browser's sign-in holds one search and one role at a time. Starting a practice search, or joining another drill
+  in another tab, moves it, and a command post still open for the first drill can no longer act: it says "You're
+  signed in to another search in this browser. Reopen this drill with its command code to act as command." A practice
+  search has no code, so its post sends you back to the judge's page instead. The post checks again whenever its tab
+  is shown or focused and every five minutes while it is shown, at most once in 30 seconds, and at once after a
+  refused action. Use a separate browser profile to run two searches side by side.
 - "Leave this search" on the iPhone first asks the server to delete the phone's anonymous account (the
   `deleteMyAccount` callable), then leaves the team's push topic, drops the mission and signs out, so the next join
   is a new user. Leaving needs signal: it waits until every report from the phone is settled with the server, since
   a report still in that user's write queue would otherwise be stranded, and when the delete fails it changes nothing
   and asks to try again in signal. An account already gone (a delete whose reply was lost) counts as deleted.
-  Reports already sent stay in the incident until its data is deleted. The member stays on the command post's
-  Members list (the join wrote it; deleting the sign-in does not remove it) until command removes it there with
-  "Remove from this drill", which also works once the sign-in is gone.
+  Reports already sent stay in the incident until its data is deleted, and command still lists that member, so
+  command can still remove it like any other.
+- Command removes a searcher or family member from the People panel (the `removeMember` callable). From that moment
+  the member's app can no longer read or write anything in the search, screens already open included (measured on
+  2026-11-21: two open listeners were refused within a second of the removal), and that account cannot join again.
+  Four limits remain:
+  - A removed person can join again with a new sign-in until that role's join code is replaced (the
+    `rotateJoinCode` callable). Replacing it stops every older code of that role, an extra one such as a reviewer's
+    included.
+  - A removed member can still open media through links they already received, until the drill's media is deleted.
+  - A member removed while a clip upload is in progress can finish that one upload within the hour.
+  - Removal takes effect at once for every account that joined after membership records began (2026-11-21, 18:48
+    UTC). An account that joined before and has since joined another search cannot be removed for up to an hour.
 - When command ends a search, an iPhone in it shows the command post's own line ("Search ended: training ended. No
   new reports are taken.") and its reports stay on screen, read-only, with no Send. With signal the phone hears it
   at once from a listener on the incident; without signal it learns at the next check in signal (a launch, a return
@@ -141,6 +157,11 @@ each line says what the limit is and why.
   (`shared/constants/evidence-terms.json`); and the phone-number rule on every platform removes any run of 7 or more
   digits, written in any script, or English or Spanish digit words. Evidence described in another language is not
   caught by the pre-screen.
+- The web's sighting form checks, at Save, whether a note reads as a team's search report rather than a sighting
+  ("Segment 4 searched, subject not seen"), with one rule and no model (`shared/engine-ts/src/searchReport.ts`, cases in
+  `shared/test-vectors/search-report.json`). It knows English words only: a search report in another language saves as
+  a sighting with no warning. It never blocks a save: "Save as a sighting anyway" saves the note as typed, and a
+  report placed in a cleared segment can open that segment's debrief. Only the web runs it so far.
 
 ## Phone numbers in notes
 
@@ -178,9 +199,16 @@ each line says what the limit is and why.
 - A pair of decimals that starts with "+" is removed on every platform, since a phone number can be written that
   way ("Call +44.2071, -23.4567"); so a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too.
   Without the "+" a pair stays.
-- Of the 103 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 103, the iPhone
-  103 and the web 103. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). No case
-  is pending on any platform (`scripts/test_phone_vectors.py` checks these counts against the file).
+- Of the 121 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 116, the iPhone
+  116 and the web 116. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). Five are
+  pending on every platform, a known gap: a colon breaks a digit run, so a number written as two times beside a month
+  name ("Call 5:55 01:42 May", "Seen 14 May 5:55 01:42") survives; issue #298 tracks closing it
+  (`scripts/test_phone_vectors.py` checks these counts against the file).
+- A run of times in clock order with no phone cue before it is kept as search information, so a phone number written
+  as rising times (`2:12 5:55 6:42`), or spread across them (`0:40 4:55 5:01 14:20`), is not removed: a kept run keeps
+  all its digits. Out of order (`12:12 5:55 01:42`) or with a cue among the three
+  words before it (`Call 21:25 5:50 1:42`, `Reach me at 4:04 5:55 06:42`) it is. A note that NFKC changes (superscript
+  or full-width digits, for example) skips this step, so the shared rule may leave the first hour of such a run.
 
 ## Photo clues (iPhone)
 
@@ -313,7 +341,8 @@ each line says what the limit is and why.
   `closedAt` from every client, so no seat can move a drill's deletion. Closing is final, so `closedAt` is never
   cleared. A drill closed before this job existed has no `closedAt` and is not deleted by it (on 2026-11-21, before
   the rules made `closedAt` the server's, every drill was still open and none had a `closedAt`).
-- The anonymous sign-ins whose only incident was the deleted drill are deleted with it. Each is read again just
+- The anonymous sign-ins whose only incident was the deleted drill are deleted with it, a member command removed
+  included (its claims were cleared, so it is found through the drill's removal records). Each is read again just
   before it is deleted and kept if it has joined another incident since or was used after the drill closed; a
   sign-in with an email, a phone number or another provider is a person's account and is kept. A failed sign-in
   delete leaves the purge record unfinished, so the next run tries again. Not closed: a sign-in idle since the close

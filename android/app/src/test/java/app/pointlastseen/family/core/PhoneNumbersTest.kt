@@ -2,6 +2,7 @@ package app.pointlastseen.family.core
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PhoneNumbersTest {
@@ -83,6 +84,35 @@ class PhoneNumbersTest {
             "Phone found at 33.7866, -84.3733")) {
             assertEquals(note, PhoneNumbers.remove(note))
         }
+    }
+
+    /**
+     * A run of clock times the rule reads as its own group stays in clock order with no phone cue before it; out of
+     * order, or after a cue (a cue word among the three words before it, or a "#"), the whole run goes.
+     */
+    @Test fun aRunOfTimesStaysInClockOrderAndGoesWholeOutOfOrderOrAfterACue() {
+        assertEquals("The possible times are 14:03, 14:10, 14:17.", PhoneNumbers.remove("The possible times are 14:03, 14:10, 14:17."))
+        assertEquals("Times 14:03, 14:10, 14:17. Call [number removed]", PhoneNumbers.remove("Times 14:03, 14:10, 14:17. Call 404 555 0142"))
+        assertEquals("Call [number removed]", PhoneNumbers.remove("Call four 4:04 5:55 6:42"))
+        for (note in listOf("Call 21:25 5:50 1:42 tonight", "Call 21:25, 5:50, 1:42 tonight", "Try 12:12 5:55 01:42 tonight",
+            "Call\t4:04 5:55 16:42 tonight", "Reach me at 4:04 5:55 06:42 tonight", "Call (4:04 5:55 16:43) tonight", "Note #4:04 5:55 06:42")) {
+            val out = PhoneNumbers.remove(note)
+            assertFalse(out, Regex("[0-9]").containsMatchIn(out))
+            assertTrue(out, out.contains(PhoneNumbers.REPLACEMENT))
+        }
+    }
+
+    /** A digit between a phone cue and a run of times, written or spoken, never hides the cue. */
+    @Test fun aDigitBetweenACueAndARunOfTimesNeverHidesTheCue() {
+        val spoken = PhoneNumbers.remove("Call one: 4:04 5:55 6:42 tonight")
+        assertFalse(spoken, Regex("[0-9]").containsMatchIn(spoken))
+        assertEquals("Call 5 at [number removed] tonight", PhoneNumbers.remove("Call 5 at 4:04 5:55 06:44 tonight"))
+        assertEquals("The possible times are 14:03, 14:10, 14:17.", PhoneNumbers.remove("The possible times are 14:03, 14:10, 14:17."))
+    }
+
+    /** A month name beside a run of times reads an hour or minutes as a day, so the run is left to the rule as a whole. */
+    @Test fun aRunOfTimesBesideAMonthNameIsLeftToTheRule() {
+        assertEquals("[number removed] May 6:00 7:00", PhoneNumbers.remove("1.4045, -55.0142 14 May 6:00 7:00"))
     }
 
     /** Spanish digit words count as digits, as the shared rule names them; "un" and "una" are articles and do not. */

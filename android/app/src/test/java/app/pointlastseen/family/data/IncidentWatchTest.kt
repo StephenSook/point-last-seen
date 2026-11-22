@@ -93,6 +93,16 @@ class IncidentWatchTest {
         assertNull(IncidentWatch.closedReasonFor(null, currentIncident = "a"))
     }
 
+    /** The search this phone is in has ended when it is found or closed; another search's snapshot never counts. */
+    @Test fun aSearchHasEndedOnlyWhenTheCurrentOneIsFoundOrClosed() {
+        fun info(status: String) = IncidentInfo.from(mapOf("status" to status))!!.copy(incidentId = "a")
+        assertTrue(IncidentWatch.ended(info("closed"), currentIncident = "a"))
+        assertTrue(IncidentWatch.ended(info("found"), currentIncident = "a"))
+        assertFalse(IncidentWatch.ended(info("open"), currentIncident = "a"))
+        assertFalse(IncidentWatch.ended(info("closed"), currentIncident = "b"))
+        assertFalse(IncidentWatch.ended(null, currentIncident = "a"))
+    }
+
     /** After a refused read that kept the search, the watch is tried again a few times, then waits for the foreground. */
     @Test fun reattachingIsBounded() {
         assertEquals(listOf(5_000L, 30_000L, 120_000L, null), (0..3).map { IncidentWatch.reattachDelay(it) })

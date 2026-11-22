@@ -21,6 +21,6 @@ describe("whatRan", () => {
     expect(lines.at(-1)).toBe("Not used: it used a number that is not in the plan. The plan uses fixed wording from code.");
   });
   it("says no model was asked when the cloud was paused", () => {
-    expect(whatRan({ wording, notice: null, promptBytes: 900, route: route({}) })).toEqual(["No model was asked: fixed wording from code.", "Sent: nothing."]);
+    expect(whatRan({ wording, notice: null, promptBytes: 900, route: route({}) })).toEqual(["No model was asked: fixed wording from code.", "Sent: no text or image."]);
   });
 });

@@ -156,6 +156,91 @@ finding) and how it was verified. Newest first.
   snapshot and a late snapshot change nothing), the access check and a push carrying the reason, and the ended
   search's reports until a new mission; each failed before the change and passes after. 450 PLSCore and 251 app
   tests pass.
+### fix(ios-core): a slash month-day keeps its exception unless a written group follows
+- What: a month and day joined by a slash (11/19) lost its date exception to any digit part after another slash,
+  a spoken digit included, so "11/19/seven 404-555-0142" removed the date with the number. As on the web, only a
+  written digit group after it (or any digits before it) cancels the exception now.
+- Source: third review of the run-of-times port against the web rule.
+- Verified: the input as a test failed before the change and passes after; 453 PLSCore tests pass; both web corpora
+  match byte for byte.
+
+### fix(ios-core): a number with a unit is not set apart, as on the web and Android
+- What: the iPhone kept a number of up to six digits with a unit glued on (5km, 3pm) apart from the digits beside it,
+  an exception the web and Android rules do not have. So "Call 1:23 45678pm" kept seven digits the web removes. The
+  exception is gone; a short quantity on its own still stays, since it has fewer than seven digits.
+- Source: third review of the run-of-times port against the web rule.
+- Verified: the input as a test failed before the change and passes after; the existing unit tests ("about 2 5km
+  loops" stays, "Call 4045550142pm" goes) pass; both web corpora match byte for byte.
+
+### fix(ios-core): a "#" or "+" a grapheme cluster would hide is read by code point
+- What: the "#" before a decimal pair (a phone cue), the "+" before one (an international number) and the "+" or
+  "(" taken into a removed number are now read by code point, as the web and Android rules read them. A keycap
+  ("#<U+FE0F><U+20E3>") hid the "#", and a format character glued to the "+" (U+0600) hid the "+", so a cued pair
+  and a frequency-shaped number each stayed.
+- Source: third review of the run-of-times port against the web rule.
+- Verified: the three inputs as tests failed before the change and pass after; 453 PLSCore tests pass with the rest
+  of this review's fixes; both web corpora (60,116 and 9,116 rows) match byte for byte.
+
+### fix(ios-core): the shared phone rule reads the note by code point
+- What: the shared phone rule now reads the note as the web and Android rules do. Parts are runs of code points (a
+  letter-number such as U+10140 is a digit), and a mark or selector a grapheme cluster would fold into a word or a
+  digit stays in the gap. A part's length is in UTF-16 units. A street ordinal's gap is Kotlin's whitespace, so
+  U+0085 is not one. The month, year and coordinate gaps are read flat (marks and format characters dropped, line
+  breaks one "\n", every other space " "). Five notes each kept digits the web removes, among them
+  "Call one<U+034F> 4:04 15:55", which the code-point run-of-times step had just made reach this rule.
+- Source: second review of the run-of-times port against the web rule.
+- Verified: the five inputs as tests failed before the change and pass after; 452 PLSCore tests pass; the web rule's
+  corpus (60,116 rows) still matches byte for byte; the run-of-times vectors file passes with none pending on the
+  iPhone, and the file adding five gaps pending on every platform passes too.
+
+### fix(ios-core): the run-of-times step reads the note by code point
+- What: the run-of-times step now decides on the note's code points, with the web and Android rules' own parts
+  (digits and words by code point, a spoken repeat counted, a street name's number apart), instead of the iPhone's
+  grapheme-based parts. A combining mark or selector that a grapheme cluster folds into a word or a digit no longer
+  hides a cue or moves the run's end: "Call<U+034F> 4:04 15:55", "Call 4:04 15:55<U+FE0F>" and a keycap "#"
+  before a run each kept a number the web removes. The text between decided runs still follows the shared rule.
+- Source: review of the run-of-times port against the web rule.
+- Verified: the three inputs as tests failed before the change and pass after; 451 PLSCore tests pass; the web
+  rule's corpus (60,116 rows) still matches byte for byte; all 116 cases of the run-of-times vectors file pass with
+  none pending on the iPhone.
+
+### test(ios-core): a case pending on the iPhone must still fail there
+- What: the test that ran every case marked pending on the iPhone and expected it to pass (true only while every mark
+  was a port already done) now expects the opposite: a pending case is a known gap, so it must still fail here with
+  the same checks the other vector tests make. A pending case that passes is a fixed gap whose mark must go, and the
+  test names it ("un-pend <name>"). A case pending on every platform, a real gap, no longer fails the iPhone's CI.
+- Source: the shared vectors' pending marks (a known gap pending on all three platforms).
+- Verified: with the run-of-times vectors file as it stands (12 cases marked pending on the iPhone, which the iPhone
+  now passes) the test fails and names all 12; with the file that adds five gaps pending on every platform it passes;
+  with main's file it passes. 450 PLSCore tests pass.
+
+### fix(ios-core): the gap after a phone cue is read as the web and Android rules read it
+- What: when the rule asks whether a phone cue sits right before a decimal pair, the gap between them is now read as
+  the web and Android rules read every gap: a mark or a format character (a zero-width space) is dropped, and a line
+  break or Kotlin's whitespace (including U+001C to U+001F) is a space. Before, "numero <U+200B>33.7866, -84.3733"
+  kept the pair as a place; it is now removed as a number after its cue.
+- Source: the web rule's fixed-seed corpus run through the iPhone rule.
+- Verified: the corpus row as a test failed before the change and passes after; 450 PLSCore tests pass; all 60,116
+  rows of the corpus (the 116 shared inputs and 60,000 generated notes) now match the web rule's output byte for byte.
+
+### fix(ios-core): every line break keeps its line when a number is removed
+- What: a number split across lines is replaced line by line, one "[number removed]" per line, and now a next line
+  (U+0085), a line separator and a paragraph separator count as line breaks there too, as they do in the web and
+  Android rules. Before, "call 555<U+0085>1234 now" became one "[number removed]" with the break gone.
+- Source: the web rule's fixed-seed corpus run through the iPhone rule.
+- Verified: a test for each of the three breaks failed before the change and passes after; 449 PLSCore tests pass.
+
+### feat(ios-core): a run of clock times is decided as a whole before the phone rule
+- What: before the shared phone rule, a run of two or more clock times (h:mm or hh:mm in ASCII digits, joined by
+  spaces and commas, with no number beside it) is decided as a whole, as the web and Android rules do. In clock order
+  with no phone cue before it, it is search information and stays ("The possible times are 14:03, 14:10, 14:17.");
+  out of order, or after a cue (a cue word among the three words before it, reading past digits, or a "#"), it could
+  be a number written as times and is replaced by one "[number removed]". A run that a digit joins, or that stands
+  beside a month name, is left to the shared rule, and so is every note NFKC changes. The text between decided runs
+  follows the shared rule unchanged.
+- Source: the shared phone rule's run-of-times step (shared/test-vectors README).
+- Verified: the 12 shared cases still pending on the iPhone, copied as inline tests, and a "#" cue test failed before
+  the change and pass after; 448 PLSCore tests pass.
 
 ### fix(ios): only a cleared report is filled, and only a stated coverage refuses the read
 - What: numbers matter only to a cleared report, so a sighting or clue is no longer filled from the rules ("There were

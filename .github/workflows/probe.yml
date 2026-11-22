@@ -3,9 +3,11 @@ name: Live probe
 # Daily, unattended through judging (ends 2026-12-16), credential-free: a raw AI Logic call with no App
 # Check token must be refused for App Check; ops/storage must show the 30-day media lifecycle rule and a
 # sweep within 20 minutes; and the AI Logic models page must still list every model we name, with no
-# shutdown before judging ends. The scripts retire themselves after 2026-12-17. A failed run emails the repo
-# owner. Actions minutes are budgeted: one short job a day. Check this workflow's state and its newest
-# run's age, not only green runs (a disabled or throttled cron reports nothing).
+# shutdown before judging ends; and it fails when fewer than 10 of the day's 50 judge practice searches are
+# left (the guaranteed run of that check; the hourly judge-quota.yml is best-effort, since GitHub starts it
+# late or not at all). The scripts retire themselves after 2026-12-17. A failed run emails the repo owner.
+# Actions minutes are budgeted: one short job a day. Check this workflow's state and its newest run's age,
+# not only green runs (a disabled or throttled cron reports nothing).
 on:
   schedule:
     - cron: "23 13 * * *"
@@ -56,3 +58,8 @@ jobs:
           APPCHECK_DEBUG_TOKEN_CI: ${{ secrets.APPCHECK_DEBUG_TOKEN_CI }}
           PLS_SITE: ${{ inputs.site }}
         run: python3 -I scripts/appcheck_control.py --ci
+      - name: Judge practice searches left today (the hourly judge-quota.yml is best-effort; this run is the guaranteed one)
+        if: always()
+        env:
+          APPCHECK_DEBUG_TOKEN_CI: ${{ secrets.APPCHECK_DEBUG_TOKEN_CI }}
+        run: python3 -I scripts/judge_quota_probe.py

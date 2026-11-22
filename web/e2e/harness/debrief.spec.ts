@@ -100,3 +100,56 @@ test("a phone number typed in a note is replaced in what is stored and in the ro
   await expect(row).toContainText("Clues: Call [number removed] at the gate");
   await expect(row).not.toContainText("0142");
 });
+
+test("opening a segment's debrief from the sighting form opens its form as Add would, with the cursor in What worked, and saves nothing", async ({ page }) => {
+  await page.goto("/harness/debrief.html?open=AA");
+  const row = page.getByTestId("debrief-AA");
+  await expect(row.getByLabel("What worked (optional)")).toBeFocused();
+  await expect(row.getByLabel("What worked (optional)")).toHaveValue("");
+  await expect(page.getByTestId("saved")).toHaveText("");
+});
+
+test("opening a debrief already being edited keeps the edits, and opening one with a stored debrief shows its words", async ({ page }) => {
+  await page.goto("/harness/debrief.html?open=AB");
+  const row = page.getByTestId("debrief-AB");
+  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Line search along the creek");
+  await row.getByLabel("Time it took (minutes)").fill("45");
+  await page.getByRole("button", { name: "Ask to open" }).click();
+  await expect(row.getByLabel("What worked (optional)")).toBeFocused();
+  await expect(row.getByLabel("Time it took (minutes)")).toHaveValue("45");
+});
+
+test("opening a debrief while its paper sheet is open leaves the sheet as it is", async ({ page }) => {
+  await page.goto("/harness/debrief.html?paper=sample");
+  const row = page.getByTestId("debrief-AA");
+  await row.getByRole("button", { name: "Read the paper sheet" }).click();
+  const cancel = row.getByRole("button", { name: "Cancel" });
+  await expect(cancel).toBeVisible();
+  await page.getByRole("button", { name: "Ask to open" }).click();
+  await expect(cancel).toBeVisible();
+  await expect(row.getByLabel("What worked (optional)")).toHaveCount(0);
+});
+
+test("a debrief saved from another screen while this form is open is never overwritten by this form's save", async ({ page }) => {
+  await page.goto("/harness/debrief.html?open=AA");
+  const row = page.getByTestId("debrief-AA");
+  await row.getByLabel("Time it took (minutes)").fill("30");
+  await page.getByRole("button", { name: "Another screen saves" }).click();
+  await row.getByRole("button", { name: "Save debrief" }).click();
+  await expect(row.getByRole("alert")).toHaveText("This debrief was saved from another screen while you edited. Cancel and open it again to see it.");
+  await expect(page.getByTestId("saved")).toHaveText("");
+});
+
+test("a debrief open request already handled does not open the row again when it leaves and comes back", async ({ page }) => {
+  await page.goto("/harness/debrief.html?open=AA");
+  const row = page.getByTestId("debrief-AA");
+  await expect(row.getByLabel("What worked (optional)")).toBeFocused();
+  await row.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Take back AA's clear" }).click();
+  await expect(row).toHaveCount(0);
+  await page.getByRole("button", { name: "Clear AA again" }).click();
+  await expect(row.getByRole("button", { name: "Add debrief" })).toBeVisible();
+  // The row reopened a moment after it drew; wait past that before checking that it did not.
+  await page.waitForTimeout(500);
+  await expect(row.getByLabel("What worked (optional)")).toHaveCount(0);
+});

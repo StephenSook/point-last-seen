@@ -32,6 +32,9 @@ const ALLOWED = new Set([
   // The paper sheet's on-device read: it turns a photo into the debrief form's boxes, and saves nothing itself.
   "ai/debriefSheetRead.ts",
   "ai/debriefSheetRead.test.ts",
+  // The sighting form hands a search report's note to a cleared segment's debrief form; it reads no debrief.
+  "command/SightingForm.tsx",
+  "harness/sightingHarness.tsx",
   ...PAPER_SHEET,
   ...MODEL_CLIENT,
 ]);

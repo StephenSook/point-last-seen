@@ -25,6 +25,10 @@ class CopyTest {
         }
     }
 
+    @Test fun aSendAfterTheSearchEndedSaysSo() {
+        assertEquals("The search has ended, so this was not sent.", Copy.SEARCH_ENDED_NOT_SENT)
+    }
+
     @Test fun callFirstSaysTheDrillCallTakerInADrill() {
         assertEquals("Training drill. Call the drill call-taker, not 911.", Copy.callFirst("drill"))
         assertEquals("Training drill. Call the drill call-taker, not 911.", Copy.callFirst("judge"))

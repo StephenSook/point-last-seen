@@ -7,11 +7,14 @@ start a practice search of your own (a copy of the development drill on a real p
 which cloud model the command post is using, and check whether this laptop's own built-in model is ready. The page
 also replays the development drill's published run (Piedmont Park, Atlanta: test family reports and plans,
 2026-11-18 to 19).
+Its Measured block shows where stored report reads and plan wording ran and the cloud model's spend, all computed by
+`scripts/measured_export.py` from the route records each read and plan stores and from AI Logic's token counts
+(`web/public/evidence/measured.json`).
 
 ## What it does
 
-Searchers send field reports from places with no signal. Their own phone reads each report with an on-device model
-and redraws the probability shading of their segments. When a connection returns, the command post merges every
+Searchers send field reports from places with no signal. Their own phone reads each report with an on-device model,
+where the phone has one, and redraws the probability shading of their segments. When a connection returns, the command post merges every
 report and drafts new assignments, and a person at command approves every assignment change. The family shares a
 profile, notes, photos and camera clips from their own app, and decides which of them may be read in the cloud.
 
@@ -21,7 +24,7 @@ profile, notes, photos and camera clips from their own app, and decides which of
 |---|---|---|
 | Web command post | Search command | https://buildhybridai-2026-yg3m.web.app (start at `/judge` for a practice search) |
 | iPhone searcher app | Searchers in the field | TestFlight once Apple clears review (no public link yet); its recorded on-device and cloud runs are in [docs/evidence/ios](docs/evidence/ios) |
-| Android family app | The missing person's family | The signed APK on the [latest judge release](https://github.com/StephenSook/point-last-seen/releases/latest), with its SHA-256 file (on 2026-11-21, `point-last-seen-family-0c9766ea.apk` in android-judge-2) |
+| Android family app | The missing person's family | The signed APK on the [latest judge release](https://github.com/StephenSook/point-last-seen/releases/latest), with its SHA-256 file (on 2026-11-21, `point-last-seen-family-8d448c60.apk` in android-judge-4) |
 
 Which model paths ran on which hardware, and which have not run yet: [docs/TEST-MATRIX.md](docs/TEST-MATRIX.md).
 
@@ -42,7 +45,8 @@ drill's debrief; the limits are in [docs/LIMITS.md](docs/LIMITS.md#command-post-
 - Cloud reads use Gemini through Firebase AI Logic, with App Check and a signed-in user on every call. Four calls
   use server prompt templates; `docs/SECURITY.md` lists every call.
 - On-device reads on the web and on Android use Firebase AI Logic's hybrid inference (the browser's or the phone's
-  own model, with the cloud as the fallback where a call allows it).
+  own model, with the cloud as the fallback where a call allows it). On Android this is the code path only: it has not
+  been run on a phone with Gemini Nano (`docs/TEST-MATRIX.md`).
 - On iPhone, on-device reads use Apple Foundation Models (`SystemLanguageModel`), the on-device option for iOS, and
   cloud reads use Gemini through Firebase AI Logic in the same session.
   The iPhone's cloud route needs iOS 27; on iOS 26 it reads on the device, then by rules.
@@ -64,7 +68,7 @@ is missing.
 - AI, all through Firebase AI Logic: on the web, the Firebase JS SDK's hybrid inference (the laptop's built-in model
   in Chrome for the note, photo and clip-frame reads; on-device first, then Gemini in the cloud, for plan wording); on
   iPhone, Apple's Foundation Models on the device and Gemini in the cloud; on Android, Firebase AI Logic's on-device
-  and cloud models. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that allows only
+  path (code path only, not run on a phone with Gemini Nano) and cloud model. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that allows only
   the listed models and bounds each reply.
 - Firebase: App Check (reCAPTCHA Enterprise on the web, App Attest on iPhone, Play Integrity on Android), enforced on
   AI Logic, Firestore and Storage; anonymous Auth with custom claims; Firestore and Cloud Storage behind security

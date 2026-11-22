@@ -72,7 +72,7 @@ test("the receipt for a plan worded on this laptop says nothing left it", async 
   await page.getByRole("button", { name: "Suggest plan" }).click();
   const receipt = page.getByTestId("suggested-plan").getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
   await receipt.getByText("What ran", { exact: true }).click();
-  await expect(receipt).toContainText("Sent: nothing left this laptop.");
+  await expect(receipt).toContainText("Sent: no text or image left this laptop.");
 });
 
 test("a fallback plan shows only the fixed-wording mark; why the cloud was not used is in What ran", async ({ page }) => {
@@ -119,4 +119,11 @@ test("with no approved plan yet, a suggestion shows on its own", async ({ page }
   await page.getByRole("button", { name: /^Suggest/ }).click();
   await expect(page.getByTestId("suggested-plan")).toBeVisible();
   await expect(page.getByRole("table", { name: "The approved plan and this suggestion" })).toHaveCount(0);
+});
+
+test("the Plan section says whether its history has come from the server, for checks that must not go offline before it", async ({ page }) => {
+  await page.goto("/harness/plan.html?history=loading");
+  await expect(page.getByRole("region", { name: "Plan" })).toHaveAttribute("data-plans-loaded", "false");
+  await page.goto("/harness/plan.html");
+  await expect(page.getByRole("region", { name: "Plan" })).toHaveAttribute("data-plans-loaded", "true");
 });

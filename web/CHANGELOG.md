@@ -2048,6 +2048,15 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: the live run after the reopening change.
 - Verified: the check failed live with the saved session, then passed live (3) as a fresh visitor, and passes in the no-backend run.
 
+### feat(judge): a Measured block with the stored numbers, refusing an old file
+- What: the judge page reads `/evidence/measured.json` (`web/src/judge/measured.ts` `loadMeasured`, `measuredLines`) and shows, under "Stored on our servers", where stored report reads and plan wording ran (on the device, by the cloud model, by fixed rules) with each route's median time, and the cloud model's spend per day. Beside an on-device count of none, a line says why (an iPhone's practice drill keeps its reads on the phone; a plan is worded on the laptop only with Chrome's built-in model). No number is typed in the page; a file older than 30 days or one it cannot read shows a line and no numbers.
+- Source: review (a measured block on a judged surface).
+- Verified: 6 new unit tests failed first (no module), then pass; a new no-backend browser check reads the served file's counts on the page and refuses a 2020 file; 1010 web unit tests, typecheck, the build and 44 no-backend browser checks pass.
+
+### fix(judge): the Measured block counts reads with no route recorded
+- What: when the file counts reads with no route recorded, the block says "n with no route recorded", so the parts add up to the total; a non-integer unknown count makes the file unreadable.
+- Source: review (the parts should add up to the total).
+- Verified: a new unit test failed first, then passes (7).
 ### feat(command): on a phone a bottom bar keeps Add sighting and Plan in reach
 - What: at phone width the post has a bar fixed to the bottom ("Quick actions") with Add sighting, which opens the sighting form and brings it into view, and Plan, which brings the plan into view; the page leaves room for it so it never covers the end of the rail. It is not shown on a laptop, where the rail holds both.
 - Source: UI review (on a 390 px phone Add sighting sat about 1,030 px down the page).
@@ -2491,3 +2500,220 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `latestTeamOf` compared a report with no server time by its phone time against one the server timed, so a phone set ahead could still pin an old team. Any report with a server time now outranks one without (only older stored reports can lack it; the rules now require it), and within each kind the later wins.
 - Source: review (Codex, third round: the team lookup still lets a skewed phone clock win when one report lacks server time).
 - Verified: a new unit test in `contentReports.test.ts` failed first, then passed with the file (9); typecheck and the hygiene guard pass.
+
+### test(data): a fixed-seed fuzz holds the run-of-times step to the shared rule
+- What: `phoneNumbersFuzz.test.ts` compares `removePhoneNumbers` with the shared rule on its own (`removeByRule`, now exported) over 90,000 generated notes with a fixed seed: noise, focused runs of times, and planted ten-digit numbers in five forms (grouped, bracketed, spoken, written as times, a spoken digit before times) after cues and plain words. It checks that a note with no run, or one NFKC changes, comes out exactly as the shared rule gives it; that outside the runs the README lets stay, no more digits survive; that a planted number survives only where the shared rule leaves it or where it is itself a run that may stay (rising times, no cue); and that every run that may stay does. The rule for which runs may stay is written again in the test from the README, in tokens and gaps, so a slip in either copy shows. Three leaky stand-ins (keep the note as written; keep every run, joined or cued; drop a typed private-use character) must each be flagged.
+- Source: review (keep the differential fuzz as a committed test).
+- Verified: the five tests pass (37,000+ of the notes hold a run; all four properties at zero); each stand-in is flagged; the web unit suite, typecheck, build, gates and hygiene guard pass.
+
+### test(data): the run-of-times fuzz compares byte for byte with the README written again
+- What: the fuzz's digit-count checks could miss a leak by construction: a rejected run the shared rule mostly keeps refilled the count budget, a kept run was found again by text so the wrong copy could be blanked, the exact check covered only notes with no run, and the generator never put a spoken digit after the times, wrote two or four times, used most cue words or put punctuation between a cue and the run. The test now builds the README's output itself (the text between decided runs through the shared rule, each decided run kept or replaced, from tokens and gaps rather than the rule's parts) and requires `removePhoneNumbers` to match it byte for byte on every note. A planted number may survive only wholly inside a kept run or where the shared rule alone leaves it. The generator gains those forms and contexts, half its runs rise, and it uses mulberry32: the old generator's low bits repeated in short cycles and never drew some noise tokens. Floors hold the counts of notes with a run, with a kept run and with a typed private-use character.
+- Source: review (Gemini, fourth round on the phone rule's fuzz harness: two critical, two high, two medium findings about the oracle).
+- Verified: 90,000 notes agree byte for byte (25,557 hold a run, 4,762 keep one); no planted number gets through; each wrong stand-in is flagged, and a looser README that ignores joins is caught by the planted-number check; the web unit suite and typecheck pass.
+
+### test(data): the fuzz keeps noise off planted numbers and knows street names
+- What: at 1,000,000 notes two planted numbers read as getting through, but noise had glued onto a trailing spoken digit ("zerodouble", "nineat"), so it was no longer a digit, and a later digit completed the sequence by chance; the planted text now has a separator on each side. Three notes differed because the test's copy of the README joined a run to a street name's number (`四67th Ave`), which the shared rule never joins; the copy now has the same exception, and the shared README says so.
+- Source: review (a 1,000,000-note check before merge).
+- Verified: 1,000,000 notes on each of three random seeds (1544260262, 171560246, 1015165312): 0 differing, 0 planted numbers through, 0 isolation breaks, about 274,000 notes with a run and 49,500 keeping one per seed; the fixed-seed test passes (7).
+### feat(judge): the Measured block says every count is from our own test runs
+- What: under "Stored on our servers", one line says "All counts come from our own test runs and practice drills (<first day> to <file day>); no real search has used the app yet.", with the days taken from the file; the on-device report row says it was measured in our own iPhone test runs. No number is typed in the page.
+- Source: review (every judge-facing number says where it came from).
+- Verified: `src/judge/measured.test.ts` (the source line and the iPhone row) failed first, then passed (7); `e2e/judgeRun.spec.ts` now checks the served line; typecheck, 225 and 72 no-backend browser checks and the build pass.
+### test(e2e): checks never spend the judges' practice searches
+- What: the live browser run skips any check tagged `@quota` unless `PLS_ALLOW_QUOTA=1` is set, and the two checks that start a real practice search (judge.spec's first practice start and endSearch.spec) are tagged, so a deploy check spends at most two of the judges' 50 a UTC day and only when asked to. A new guard, `src/practiceQuota.test.ts`, scans every file under `web/e2e`, the workflows and the scripts: a press of the "Try a practice search" button, the button held in a variable, a request to `/startJudgeSession` or a `startJudgeSession` callable must sit in a `@quota` test or behind a `page.route` stub whose every `continue()` is behind a POST check. It proves itself on six planted samples (an untagged start, a tagged one, two good stubs, a stub that lets the start through, a held button, a helper's request) and refuses to pass on a scan of fewer than 80 browser-check files or 40 others.
+- Source: review (the day's 50 practice searches ran out at about 20:40 UTC, used by checks; no check may draw from the judges' quota).
+- Verified: the guard failed first (no @quota tag; the live config did not skip them), then passed (3 tests); the web unit suite, typecheck and the hygiene guard pass.
+
+### test(data): the web rule gives every stored output in the shared phone corpus
+- What: `phoneCorpus.test.ts` requires the committed corpus to be exactly what the generator writes for the current rule (its `rule` field is the SHA-256 of `phoneNumbers.ts`, so a rule change fails the test until the file is written again), at least 9,000 rows with the shared replacement, the stored output for every row with every mismatch listed, and the README to name the file's SHA-256. A planted wrong output in 50 rows is caught exactly once.
+- Source: review (one corpus every platform checks).
+- Verified: the five tests pass; the web unit suite (1216), typecheck, the gates and the hygiene guard pass.
+### fix(command): Problem reports follow the rail's lead instead of preceding it
+- What: the Problem reports panel sat first in the right rail, so once the test drill had a flag, the rail no longer led with what changed, the plan and the top segments (the agreed rail order). It now comes straight after the top segments, before the rest of the rail, so the working view stays first and a flag is still above Details.
+- Source: live suite after the Problem reports deploy (`e2e/railOrder.spec.ts` failed with a flag present on the test drill).
+- Verified: the rail-order check failed on the live site with the panel first; it runs after deploy. Typecheck, web unit suite and the hygiene guard pass.
+
+### fix(ai): the receipt says no text or image left the laptop, not that nothing did
+- What: every read sends one timing record with its route (path, reason, platform, stage and latency; `web/src/telemetry/trace.ts`, disclosed in `docs/SECURITY.md`), so "Sent: nothing left this laptop." and, for fixed wording, "Sent: nothing." overclaimed. They now read "Sent: no text or image left this laptop." and "Sent: no text or image.".
+- Source: review (the receipt claimed more than the code does).
+- Verified: the receipt and whatRan unit tests failed first, then passed; the plan and debrief-paper harness checks pass with the new line; web unit suite and typecheck pass.
+
+### feat(ai): the receipt gives the time each read took
+- What: a read that ran on this laptop or in the cloud now shows "Took: 2.6 s." under where it ran, from the route record's latency (the time the SDK call took), so the hybrid path's speed is visible in the receipt; under 0.1 s reads "under 0.1 s", and a route with no time (not reported, fixed wording, or a missing or negative latency) shows no line.
+- Source: review (the Android app already shows the time of a cloud read).
+- Verified: a new receipt unit test failed first, then passed (formats, both routes, and every case with no line); the existing receipt tests gain the line; the web unit suite and typecheck pass.
+
+### test(web): the live clip check makes a clip no earlier run has made
+- What: the check made each run's clip "fresh" from a random height (0 to 199), but neighbouring heights encode to the same bytes, so only 100 distinct clips exist, and 24 of them already had a stored reading on the test drill: about one run in four read a stored answer and called no model, failing "read once in the cloud". `make-moving-box.sh` takes the square's colour as a third argument (default red, so the harness clips are unchanged), and the check picks one of 512 colours (each channel in steps of 32; adjacent colours also encode alike) as well as the height, about 51,000 clips.
+- Source: live suite (the clip check failed twice in three runs after the rules deploy).
+- Verified: the 200 heights give 100 distinct SHA-256s and 24 match stored readings on drill-test-1 (read-only); 18 colours in steps of 32 give 18 distinct clips; the harness clip, frames and triage checks pass (28); the live check passed twice in a row.
+
+### test(web): the removal check signs in fresh and joins the test drill itself
+- What: in the full live suite the removal check used the run's shared signed-in account, which by then could hold a practice search's claims (the judge checks start practice searches on it). Its cached token still showed command of the test drill, so the post offered Remove, but `removeMember` checks the caller's current claims and refused with "Only command can remove someone." The check now starts from an empty browser and joins the test drill as command itself. (Its cleanup removed the fresh member it had made, as designed.)
+- Source: live suite after the People panel deploy (the check failed with that refusal; the removal record its cleanup wrote is on the test drill).
+- Verified: run alone against the live site, it passes end to end (the fresh member is removed from the People panel; its read is refused, its session refresh fails with TOKEN_EXPIRED, and its rejoin is refused).
+
+### test(web): the retract check finds its report under Sightings whatever else is waiting
+- What: the check expected its new report among the three sightings shown, but the test drill keeps undecided test sightings, some seen later than now, so the new one could fall below them and the check failed before it retracted anything. It now presses Show all (when shown) before checking where the report is listed.
+- Source: live suite after the Problem reports deploy (the check failed at "listed under Sightings").
+- Verified: run alone against the live site, the retract check passes.
+
+### test(data): a phone case pending on the web must still fail there
+- What: the shared phone-number cases marked pending on the web were skipped; now they run, and the test fails with "un-pend <name>" for any the web rule already passes, so a stale mark can never hide a fixed case (the iPhone's test does the same). The check uses one `passes` function for each case kind, the same contract as the per-case tests; `PLS_FORCE_PENDING=1` still runs pending cases as ordinary ones.
+- Source: review (parity with the iPhone's vector test).
+- Verified: a control with a planted passing case, a planted failing one and one pending on another platform returns exactly "un-pend already_fixed"; the vector test passes (106); web unit suite, typecheck and hygiene guard pass.
+
+### fix(command): a post whose sign-in moved to another search says so
+- What: a browser's sign-in holds one search and one role. Starting a practice search or joining another drill in another tab moved it, and a command post still open for the first drill then failed every write with a bare refusal. The post now watches the sign-in (any tab) and, when its claims name another incident, shows "You're signed in to another search in this browser. Reopen this drill with its command code to act as command." with a Reopen this drill button (another role on the same drill has its own line); after a refusal it rechecks with fresh claims, and the no-access panel gives the same line. `docs/LIMITS.md` says so.
+- Source: review (a command who opens a practice search loses command).
+- Verified: new unit tests (the line for each case; the watch reports each change, rechecks with fresh claims and stops) failed first, then passed; web unit suite and typecheck pass.
+
+### fix(command): the sign-in line knows a practice search, a sign-out and a hidden tab
+- What: a practice search has no join code, so its post now says "This browser is no longer signed in to this practice search. Open it again from the judge's page." with a button to the judge's page (the no-access panel too), instead of pointing to a code. A signed-out browser, or one whose sign-in holds no search, says it is no longer signed in to this drill rather than "another search". The post asks for fresh claims whenever its tab is shown again and every five minutes, so a refused action whose token predates the move still gets the line. A read that finishes after its watch stopped is dropped.
+- Source: review (Codex, first round on the sign-in line: two medium, two low findings).
+- Verified: updated unit tests (practice, signed out, no search, a late read after stop) failed first, then passed (7); web unit suite (1192) and typecheck pass.
+
+### fix(command): only the newest sign-in check counts, and checks are spaced
+- What: a sign-in check that finished after a newer one could restore an old line (or clear a current one); now only the newest read decides. The post also checks when its window gets focus, so side-by-side windows (no tab switch) still show the line before a refused action; the 5-minute check runs only while the tab is shown, and a forced check runs at most once in 30 seconds and never while one is running. Whether the post is a practice search now comes from the incident's own mode once it has loaded (an id is only the first guess), and the no-access panel's drill button reloads with the drill still in the link ("Reopen this drill") instead of dropping it.
+- Source: review (Codex, second round on the sign-in line: three medium, two low findings).
+- Verified: new unit tests (a late older read is dropped; forced reads are spaced and never overlap) failed first, then passed (9); web unit suite (1196) and typecheck pass.
+
+### fix(command): a refusal's sign-in check is never dropped, and a stalled one does not block
+- What: the check after a refused read is urgent: it skips the 30-second spacing, and one that comes while a forced check is running waits for it and then runs, so the line is right at the moment it matters. A forced check still running after 30 seconds counts as stalled and no longer holds the next one back.
+- Source: review (Codex, third round on the sign-in line).
+- Verified: two new unit tests (an urgent recheck inside the spacing runs after the running one; a stalled read stops blocking after 30 s) failed first, then passed; the claims tests (11) and typecheck pass.
+
+### fix(command): the no-access panel never traps the browser
+- What: the panel is its own component (`NoAccessPanel`). A drill offers "Reopen this drill" (a reload, for a sign-in that is back) and "Join another search" (the join form), so an expired drill whose token still names it no longer reopens into the same denial. A practice search points to the judge's page. When the search's mode has not loaded and only its id suggests a practice search, all three are offered.
+- Source: review (Codex, third round on the sign-in line).
+- Verified: three new render tests (drill, practice, mode guessed from the id) failed first, then passed; web unit suite and typecheck pass.
+
+### test(e2e): the receipt's Sent line is checked against the request that left
+- What: a deployed check, `web/e2e/receiptSent.spec.ts`, types a sighting note with a phone number in it. With no built-in model it reads the note, and no request reaches an AI host. After the consent tap the cloud read sends exactly one request, to the server prompt template, whose whole body is `{"inputs":{"note":...}}` with the number removed and no other field. The receipt counts exactly that note's bytes ("Sent: 94 bytes of the note, with phone numbers removed."), and no digit of the number is in the request.
+- Source: review (make the receipt's honesty something a test proves).
+- Verified: the check passes twice on the deployed site (build b890674b, the test drill); web typecheck and the hygiene guard pass; the sighting is cancelled, never saved.
+
+### feat(data): command can ask for a new searcher or family join code
+- What: `web/src/data/joinCodes.ts` calls the `rotateJoinCode` callable, checks its answer (eight join-code characters for the role asked, and a whole count of replaced codes), and gives a plain sentence for every refusal the server names (not_command, practice_search, not_open, collision, bad_role, bad_incident_id, not_signed_in), a refused sign-in or App Check token, and a dropped link.
+- Source: review (command needs a way to replace a code that got out).
+- Verified: new unit tests failed first, then passed (4); typecheck passes.
+
+### feat(command): Give searchers or family a new code, beside the People list
+- What: on an open drill, a Join codes section under People offers "Give searchers a new code" and "Give family a new code". Each asks first ("Every searcher code given out stops working. People already in the search stay in."), then shows the new code once, large and selectable, with Copy and how many old codes it replaced; Done hides it. A refusal keeps the confirm open with the server's reason. A practice search and an ended search show no codes. The members harness renders the section with a stand-in.
+- Source: review (command needs a way to replace a code that got out).
+- Verified: three new harness checks (ask, Cancel, Replace, Copy and Done; a refusal; no codes on a practice search) failed first, then passed with the members checks (10); web unit suite (1191) and typecheck pass.
+
+### fix(data): a replacement with no answer says the code may already be replaced
+- What: when no answer came back (a deadline, a server error, or an answer that could not be read), the line is now "No answer came back, so the code may already have been replaced. Replacing it again makes the newest code the only one that works." instead of "Try again", since the server may already have made a code a second tap would stop. `parseRotation` also refuses a replaced count JavaScript cannot hold exactly.
+- Source: review (Codex, first round on the join-code panel).
+- Verified: the new and extended unit tests failed first, then passed (5).
+
+### fix(command): "Copied." names only the code the clipboard took
+- What: the panel remembers which code a Copy wrote, so a Copy that finishes after command pressed Done and made another code never marks the new one copied.
+- Source: review (Codex, first round on the join-code panel).
+- Verified: a new harness test (a slow searcher Copy finishing over a family code) failed first, then passed; the members harness spec (11) passes.
+
+### fix(command): the join-code panel shows only on an open drill
+- What: the panel needs the drill's status to be open, as the server does, so an older drill saved as found no longer offers a replacement the server refuses.
+- Source: review (Codex, first round on the join-code panel).
+- Verified: typecheck and the web unit suite pass.
+
+### fix(data): a dropped link also says the code may already be replaced
+- What: "unavailable" now gets the may-already-be-replaced line too, since a reply lost after the server committed (a 503 from the host) reads the same as no connection; a second replacement would stop the code the first one made.
+- Source: review (Codex, second round on the join-code panel).
+- Verified: the extended unit test failed first, then passed (5).
+
+### feat(command): the Plan section says when its history has come from the server
+- What: the Plan section carries `data-plans-loaded` ("true" once the plan history has come from the server, which Approve waits for), so a check that takes the link down can wait for it first.
+- Source: live check (the offline-approve check took the link down after the map drew from cache but before the plan history arrived, and Approve rightly refused).
+- Verified: a new harness test (false while loading, true once loaded) failed first, then passed; the plan harness spec (14), web unit suite and typecheck pass.
+
+### test(e2e): the offline-approve check waits for the plan history before taking the link down
+- What: the deployed check now waits for the Plan section's `data-plans-loaded` before going offline. It used to go offline as soon as the map drew, which on the drill now came from cache before the plan history arrived, so Approve refused with "The plan history is still loading" and the check failed twice in a row.
+- Source: live check after the deploy of 9e19f602.
+- Verified: an online Approve after a 15-second wait succeeded on the drill (the history does load); the updated check runs after the next deploy.
+
+### feat(command): the sighting form asks before saving a note that reads as a search report
+- What: at Save, a note that reads as a team's search report rather than a sighting (`readsAsSearchReport`, shared engine) shows "This reads as a search report, not a sighting." with "Save as a sighting anyway" and, when the place is a cleared segment, "Add it to segment XX's debrief". It never blocks a save; an edited note asks again. The debrief scope guard lists the form and its harness: they hand a note to the debrief form and read no debrief.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: three new harness tests (warning then save anyway; the debrief button only for a cleared segment, with nothing saved; a sighting saves on the first tap and an edit drops the warning) failed first, then passed; the sighting harness spec (26), web unit suite and typecheck pass.
+
+### feat(command): a debrief can open with a search report from the sighting form
+- What: `DebriefSection` takes a `prefill` (segment, note, seq). That segment's row opens its form as Add or Edit would, adds the note after what What worked already says, and puts the cursor there. Nothing saves until command fills the time and saves the debrief.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: two new harness tests (a row with no debrief opens with the note, focused and unsaved, and saves it under What worked; a row with a debrief keeps its words and time and adds the note after them) failed first, then passed; both debrief harness specs (24) pass.
+
+### feat(command): the post sends a search report to its cleared segment's debrief
+- What: the command post gives the sighting form its cleared segments, and "Add it to segment XX's debrief" closes the form, opens Details and opens that segment's debrief with the note. A deployed-only check (`e2e/searchReport.spec.ts`) types a report on the drill, sends it to the first cleared segment's debrief, checks the box holds the note and has the cursor, and cancels, so it writes nothing.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: typecheck, web unit suite and the harness suite (231) pass; the deployed check runs after the deploy.
+
+### feat(data): which segments stand cleared, with taken-back clears left out
+- What: `standingClears(events)` gives each segment with at least one clear that command has not taken back, so a search report is offered a segment's debrief only while that segment stands cleared.
+- Source: review (Codex, first round on the search-report guard).
+- Verified: a new unit test (an only clear taken back drops the segment; an earlier clear keeps it after a later one is taken back) failed first, then passed; the debrief data tests (15) pass.
+
+### fix(command): a search report sent to a debrief keeps its sighting draft, and a late read fills nothing
+- What: "Add it to segment XX's debrief" now leaves the sighting form open with its note and fields and says "The note is in segment XX's debrief, not saved yet. Save it there and cancel this sighting, or save it as a sighting anyway.", so a sighting is never lost when its debrief is not saved or cannot hold the note. A read still running at the first Save tap is dropped there too, so a field cannot change between the warning and "Save as a sighting anyway".
+- Source: review (Codex, first round: a real sighting could be lost through the debrief path).
+- Verified: the updated handoff test and a new late-read test failed first, then passed; the sighting harness spec (27) passes.
+
+### fix(command): a search report never erases a debrief draft or a team's stored debrief
+- What: a report sent to a debrief already being edited keeps every edit and adds the note after What worked (two reports add both); a stored debrief that arrives after a report opened the form empty fills what the form left empty and puts its What worked first, so a save keeps the team's words; and a report that arrives while a debrief is saving keeps the form open with the new note instead of closing with the save.
+- Source: review (Codex, first round on the search-report guard).
+- Verified: three new harness tests failed first, then passed; both debrief harness specs (27) pass.
+
+### fix(command): the post offers a debrief only for a segment that stands cleared, and keeps the sighting open
+- What: the post passes `standingClears` to the sighting form (a taken-back clear offers no debrief), no longer closes the sighting form on the handoff, and opening Details for the handoff no longer counts as reading it, so the new family-answer count stays. The deployed check now tries each debrief row until one stands cleared and cancels both forms.
+- Source: review (Codex, first round on the search-report guard).
+- Verified: typecheck, web unit suite (1234) and the harness suite (235) pass; the deployed check runs after the deploy.
+
+### fix(data): a debrief links only to a clear that stands
+- What: `clearedSegments` leaves out clears command took back, so a segment's debrief links to its latest standing clear and a segment whose every clear was taken back has none; `standingClears` is now its set of segment ids.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: a new unit test (the latest clear taken back links the earlier one; all taken back lists none) failed first, then passed (16).
+
+### fix(command): a debrief row keeps every search report, draft and stored word
+- What: a save that fails before the stored debrief loaded leaves the late merge armed, so the debrief merges when it arrives and a retry keeps the team's words; the merge skips fields command changed by hand (an emptied hazard stays empty) and does not repeat a What worked the team's text already holds; a report sent while the paper sheet is open waits, shown in the row, and opens in the form when the sheet closes; and a report the box already holds is not added again.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: four new harness tests (failed save then late debrief; an emptied field; the paper sheet; the same report twice) failed first, then passed; both debrief harness specs (31) pass.
+
+### fix(command): the sighting says when its note's debrief was saved, and can send it again
+- What: after command saves that segment's debrief, the sighting form says "Segment XX's debrief was saved. Cancel this sighting, or save it as a sighting too." instead of "not saved yet", and the debrief button stays, so a debrief cancelled by mistake can be opened again with the note.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: a new harness test failed first, then passed; the sighting harness spec (28) passes.
+
+### fix(command): the post reports a saved debrief to the sighting, and nested toggles leave Details' counts alone
+- What: a debrief save for the handoff's segment tells the sighting form it was saved; and the Details rail ignores toggles of details inside it (a photo's What ran, say), which reached its handler and marked the family's answers read.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: typecheck, web unit suite (1235) and the harness suite (240) pass.
+
+### refactor(command): a search report opens its segment's debrief instead of filling it
+- What: the sighting form's debrief button is now "Open segment XX's debrief": it opens Details at that segment's debrief and puts the cursor in What worked, as Add or Edit would, unless that form or the paper sheet is already open. The sighting form keeps its draft and says "Segment XX's debrief is open below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway." No note is carried into the debrief, so the prefill, the late merge, the waiting queue and the "saved" status are gone; the debrief row is back to main's apart from the open request. The rule, its vectors, the Save-time warning, "Save as a sighting anyway", standing clears and the nested-toggle guard stay.
+- Source: review (Codex, third round on the search-report guard: one high and five mediums, all in the auto-fill; replaced by design rather than patched).
+- Verified: three new debrief harness tests (opens as Add with the cursor in What worked and saves nothing; keeps an open form's edits; leaves an open paper sheet alone) and the rewritten sighting handoff test pass; the two that need the request failed first. Web unit suite (1240), typecheck, harness suite (237) and every gate pass.
+
+### fix(command): a debrief form never overwrites what another screen saved
+- What: the form remembers what the stored debrief said when it opened, and a save refuses with "This debrief was saved from another screen while you edited. Cancel and open it again to see it." if another screen has saved it since, instead of writing this form's older copy over it (a hazard another tab added was deleted). This held for a form opened by hand as well as from the sighting form.
+- Source: review (Codex, scoped pass on the open-only handoff).
+- Verified: a new harness test (another screen saves while the form is open) failed first, then passed; both debrief harness specs pass.
+
+### fix(command): an open request a debrief row already acted on is not acted on again
+- What: the debrief section keeps the newest open request a row has acted on, so a row that leaves (its clear taken back) and comes back does not open its form and take the cursor again without a new click.
+- Source: review (Codex, scoped pass on the open-only handoff).
+- Verified: a new harness test (the row leaves and comes back) failed first, then passed; both debrief harness specs (27), web unit suite and typecheck pass.
+
+### fix(map): a sighting placed from the Place list lands inside its segment
+- What: `segmentChoices` gives each segment a point inside it: its centroid when that lies inside, else the middle of the widest stretch of the segment along one of 15 lines of latitude. Five shipped segments had a centroid outside themselves (Kennesaw EN and EQ, Piedmont AJ, AQ and AY), so a sighting placed there from the list was stored outside the segment and the form said "Outside the search area".
+- Source: review (Codex, while reviewing the search-report guard).
+- Verified: two new unit tests (a U-shaped segment; every segment of both shipped grids is placed inside itself) failed first, then passed; the old test's triangle, whose centroid sat on its edge, is now the square it was meant to be. Web unit suite, typecheck and harness suite pass.
+
+### fix(map): a segment's place point resolves to that segment among all of them
+- What: `insidePoint` (now exported) keeps the centroid only when it resolves to its own segment among all segments, since a centroid on an edge a neighbour shares can count as the neighbour first; otherwise it takes the widest stretch inside along 15, then 63, lines of latitude kept off round values, again only where it resolves to its own segment. It finds a ring's latitude range with a loop, so a ring of 150,000 points no longer overflows the stack.
+- Source: review (Codex, first round on the Place list fix).
+- Verified: two new unit tests (a centroid on a shared edge; a 150,000-point ring) failed first, then passed (13); about 4 ms for the 338-segment Kennesaw grid.
+
+### fix(map): the map's centre dot sits inside its segment
+- What: `centreFeatures` puts each dot at `insidePoint`, so on the five segments whose centroid lies outside them, a click on the dot picks the segment it belongs to instead of "Outside the search area". The old test's triangle, whose centroid sat on its edge, is now a square.
+- Source: review (Codex, first round on the Place list fix).
+- Verified: a new unit test (a U-shaped segment's dot resolves to it) failed first, then passed; map tests (25), web unit suite, typecheck and harness suite pass.

@@ -8,6 +8,8 @@ import { formatPct } from "../map/poaStyle";
 
 type Props = {
   draft: PlanDraft | null;
+  /** The plan history has come from the server (the post's plansLoaded); until then Approve refuses. Default true. */
+  historyLoaded?: boolean;
   onSuggest: () => Promise<WordedPlan>;
   /** Starts the write and returns at once; `ack` settles when the server has the plan or refuses it. */
   onApprove: (worded: WordedPlan) => { version: number; ack: Promise<void> };
@@ -34,7 +36,7 @@ export function whatRan(w: WordedPlan): string[] {
 }
 
 /** The suggested plan. Nothing is written before a person presses Approve. */
-export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [], current = null }: Props) {
+export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [], current = null, historyLoaded = true }: Props) {
   const nameOf = (id: string) => teams.find((t) => t.teamId === id)?.name ?? id;
   // The reply is kept with the draft it was asked for; it shows (and can be approved) only while
   // that draft is still current, so a reply that lands after the draft changed is never used.
@@ -87,7 +89,9 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
   }
 
   return (
-    <section aria-labelledby="plan-h">
+    // data-plans-loaded: whether the plan history has come from the server (Approve waits for it), for checks that take
+    // the link down and must not do so before then.
+    <section aria-labelledby="plan-h" data-plans-loaded={historyLoaded ? "true" : "false"}>
       <h2 id="plan-h" className="label">Plan</h2>
       {!draft ? (
         <p>No draft yet.</p>

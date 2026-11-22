@@ -36,6 +36,7 @@ import { beatDistances, type LatLon, segmentChoices, segmentContaining } from ".
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
 import { ProfileForm } from "./ProfileForm";
+import { NoAccessPanel } from "./NoAccessPanel";
 import { SightingForm } from "./SightingForm";
 import { SightingsPanel } from "./SightingsPanel";
 import { sightingCards, type SightingCard } from "./sightingCards";
@@ -44,11 +45,14 @@ import { approveNow, localDraft, nextPlanVersion, planChange, planDocFor, planSe
 import { ensureSignedIn, getPls, type Pls } from "../firebase";
 import { subscribeEvents, type StreamedEvent } from "../data/events";
 import { initialPostState, postReducer } from "./postAccess";
+import { watchClaims } from "../data/claims";
 import { subscribeIncident } from "../data/incident";
 import { flagTarget, latestTeamOf, subscribeFlags, type Flag } from "../data/contentReports";
 import { FlagsPanel } from "./FlagsPanel";
 import { memberRows, removeMember, subscribeMembers, type MemberDoc } from "../data/members";
 import { MembersPanel } from "./MembersPanel";
+import { rotateJoinCode } from "../data/joinCodes";
+import { JoinCodes } from "./JoinCodes";
 import { endedLine, endSearch, writesOpen } from "../data/endSearch";
 import { EndSearch } from "./EndSearch";
 import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
@@ -83,7 +87,7 @@ import { detailsSummary, newFamilyAnswers, photosToReview } from "./detailsSumma
 import { reachLine } from "./reach";
 import { connectingLine } from "./connecting";
 import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
-import { clearedSegments, saveDebrief, subscribeDebriefs, type Debrief } from "../data/debriefs";
+import { clearedSegments, saveDebrief, standingClears, subscribeDebriefs, type Debrief } from "../data/debriefs";
 import { DebriefSection } from "./DebriefSection";
 import type { PaperRead } from "./DebriefPaperRead";
 
@@ -291,9 +295,45 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const latestSeen = useRef<number | null | undefined>(undefined);
   const nextSeq = useRef(makeSeq()).current;
   const [adding, setAdding] = useState(false);
+  // The debrief the sighting form asked to open (a search report typed as a sighting), and the Details rail it is in.
+  const [debriefOpen, setDebriefOpen] = useState<{ segmentId: string; seq: number } | null>(null);
+  const railDetails = useRef<HTMLDetailsElement>(null);
+  const openedForReport = useRef(false);
   const [clipping, setClipping] = useState(false);
   // A view setting for this screen only: every plate of 0.1% or more on the map, not only the ones that fit.
   const [everyPercent, setEveryPercent] = useState(false);
+  // Why this browser no longer acts as command here, when its sign-in moved to another search or role (any tab).
+  const [claimsNote, setClaimsNote] = useState<string | null>(null);
+  const claimsWatch = useRef<{ stop: () => void; recheck: (urgent?: boolean) => void } | null>(null);
+  // A practice search has no join code: its lines and buttons point back to the judge's page. The incident's own mode
+  // decides once it has loaded (and is remembered after a refusal clears the view); until then its id does.
+  const knownMode = useRef<string | null>(null);
+  if (view?.incident?.mode) knownMode.current = view.incident.mode;
+  const practice = knownMode.current ? knownMode.current === "judge" : incidentId.startsWith("judge-");
+  useEffect(() => {
+    const w = watchClaims(pls.auth, { incidentId, practice }, setClaimsNote);
+    claimsWatch.current = w;
+    // Fresh claims when this tab is shown or focused again (after a practice search started in another tab or
+    // window) and every 5 minutes while it is shown, since a refused action alone may not show the line when this
+    // tab's token is older than the server's claims. watchClaims spaces the forced reads.
+    const onShow = () => {
+      if (document.visibilityState === "visible") w.recheck();
+    };
+    document.addEventListener("visibilitychange", onShow);
+    window.addEventListener("focus", onShow);
+    const every = setInterval(onShow, 5 * 60_000);
+    return () => {
+      w.stop();
+      claimsWatch.current = null;
+      document.removeEventListener("visibilitychange", onShow);
+      window.removeEventListener("focus", onShow);
+      clearInterval(every);
+    };
+  }, [pls, incidentId, practice]);
+  useEffect(() => {
+    // A refusal asks at once, past the spacing: it is the moment the line must be right.
+    if (denied) claimsWatch.current?.recheck(true);
+  }, [denied]);
   const [pin, setPin] = useState<LatLon | null>(null);
   const [writes, setWrites] = useState<Record<string, { state: WriteState; doc: EventDoc }>>({});
   // A report the server has not answered yet lives only in this browser until it is sent, so the post says it is
@@ -807,10 +847,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       <main className="panel">
         <p className="drill">{DRILL_LINE}</p>
         <h1>This browser no longer has access to the incident</h1>
-        <p>Its data was cleared from the screen. Join again with a current code.</p>
-        <button type="button" onClick={() => location.assign(location.pathname)}>
-          Join again
-        </button>
+        <p>Its data was cleared from the screen.</p>
+        <NoAccessPanel line={claimsNote} practice={knownMode.current ? (practice ? "yes" : "no") : practice ? "guess" : "no"} />
       </main>
     );
   }
@@ -844,6 +882,20 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           }}
         />
       </header>
+      {claimsNote && (
+        <p className="error" role="alert" data-testid="claims-line">
+          {claimsNote}{" "}
+          {practice ? (
+            <button type="button" onClick={() => location.assign("/judge")}>
+              Open the judge's page
+            </button>
+          ) : (
+            <button type="button" onClick={() => location.reload()}>
+              Reopen this drill
+            </button>
+          )}
+        </p>
+      )}
       {offline && (
         <p className="error" role="status">
           No connection. Showing the last data received.
@@ -863,7 +915,6 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
         <TeamsRail teams={teams} activeTeamId={activeTeamId} assignments={assignments} newTeamIds={newTeamIds} onSelect={setActiveTeamId} />
         <MapView walkers={flow} note={incident?.priorModel === "walkers" ? WALKER_SENTENCE : undefined} ripple={incident?.ipp ? { key: `prior-${incident.priorVersion}`, origin: incident.ipp } : null} onReady={setExtrasMap} basemapUrl={incident?.gridId ? `/tiles/${incident.gridId}.pmtiles` : null} segments={segments} poa={holding && last ? last.before : poa} moved={holding || !last ? undefined : last.change.changed} outlined={activeTeamId ? (assignments[activeTeamId]?.segmentIds ?? []) : undefined} beat={beat} attribution={incident?.gridAttribution} onMapClick={picker ?? (adding || clipping ? setPin : undefined)} pin={adding || clipping ? pin : null} everyPercent={everyPercent} onEveryPercent={setEveryPercent} />
         <aside className="rail right">
-          <FlagsPanel flags={flags} stale={flagsStale} labelFor={flagAuthor} targetFor={(f) => flagTarget(f, events, plans, reportClock)} timeOf={flagClock} />
           {rc.killCloud && (
             <p className="error" role="status">
               Cloud paused by command. Plans use fixed wording.
@@ -886,9 +937,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <FirstReportCard line={FIRST_REPORT_LINE} state={firstReport} onAdd={addFirstReport} />
           )}
           <ChangeBeat change={last?.change ?? null} holding={holding} onHold={setHolding} />
-          <WhatChanged draft={draft} current={latestPlan?.assignments ?? null} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
+          <WhatChanged draft={draft} historyLoaded={state.plansLoaded === true} current={latestPlan?.assignments ?? null} onSuggest={suggest} onApprove={approve} teams={teams} planStatus={(v) => planSendState(v, state.plans, state.pendingPlans ?? [])} />
           {/* After the first server answer a reorder comes from a new report: it lands on the beat's reorder step (1,100 ms). */}
           <PoaRank rows={rows} row={vs ? (vs.result.poa["ROW"] ?? 0) : null} reorderDelayMs={eventsSynced ? 1100 : 0} reach={reachLine((incident?.engineParams ?? DEFAULT_PARAMS).rings[incident?.terrain ?? "temperate_flat"], segments)} />
+          {/* Problem reports follow the rail's lead (what changed, the plan, the top segments), so the working view stays first. */}
+          <FlagsPanel flags={flags} stale={flagsStale} labelFor={flagAuthor} targetFor={(f) => flagTarget(f, events, plans, reportClock)} timeOf={flagClock} />
           {profile?.shared && <ApproachCard shared={profile.shared} photoOld={commandWarnings(formProfile, now).includes("photo_old")} />}
           {editingProfile ? (
             <ProfileForm initial={formProfile} onSave={saveProfile} onPickPlace={pickPlace} onPlaceToCheck={shareDestination} onClose={() => setEditingProfile(false)} />
@@ -913,6 +966,17 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               readNote={readNote}
               readNoteInCloud={readNoteInCloud}
               cloudPaused={rc.killCloud}
+              debriefable={standingClears(events)}
+              onOpenDebrief={(segmentId) => {
+                // The sighting form stays open with its draft; Details opens on the debrief. Opening it this way does
+                // not count as reading what Details holds, so its new-answer counts stay.
+                setDebriefOpen((p) => ({ segmentId, seq: (p?.seq ?? 0) + 1 }));
+                const d = railDetails.current;
+                if (d && !d.open) {
+                  openedForReport.current = true;
+                  d.open = true;
+                }
+              }}
               onClose={() => {
                 setAdding(false);
                 setPin(null);
@@ -965,7 +1029,17 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <ConditionsForm conditions={null} open={incident.status !== "closed"} onSave={(c) => setConditions(pls.db, incidentId, c)} />
           )}
           {/* Opened less often: command reads these when it needs them; the summary says what needs a person. */}
-          <details className="rail-details" data-testid="rail-details" onToggle={(e) => openedDetails(e.currentTarget.open)}>
+          <details
+            ref={railDetails}
+            className="rail-details"
+            data-testid="rail-details"
+            onToggle={(e) => {
+              // A toggle of a details inside this one (a photo's What ran, say) reaches here too: only its own counts.
+              if (e.target !== e.currentTarget) return;
+              if (openedForReport.current) openedForReport.current = false;
+              else openedDetails(e.currentTarget.open);
+            }}
+          >
             <summary data-testid="rail-details-summary">
               <span className="label">Details</span>
               {summary !== "Details" && <span className="muted">{summary.slice("Details".length)}</span>}
@@ -1047,9 +1121,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
                 saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
               }
               paperRead={readSheetHere}
+              openRequest={debriefOpen}
             />
             <MergeLanes lanes={lanes} />
             <MembersPanel rows={people} stale={membersStale} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />
+            {/* New join codes for an open drill only: a practice search has none, an ended search takes no new members. */}
+            {/* Only while the drill is open: the server refuses a new code for any other status (an older "found" drill too). */}
+            {incident?.mode === "drill" && incident.status === "open" && !closedHere && <JoinCodes onRotate={(role) => rotateJoinCode(pls.functions, incidentId, role)} />}
             {/* queued: a close this browser has written that the server has not confirmed (also after a reload offline). */}
             {incident && !ended && <EndSearch queued={incident.status === "closed"} onEnd={(reason) => endSearch(pls.db, incidentId, reason)} />}
           </details>
