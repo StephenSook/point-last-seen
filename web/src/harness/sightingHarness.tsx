@@ -28,6 +28,9 @@ function Harness() {
   const paused = new URLSearchParams(location.search).get("paused");
   // ?read=timeout: the laptop's model does not answer within the read's time limit.
   const timeout = new URLSearchParams(location.search).get("read") === "timeout";
+  // ?cleared=AB,AC: segments that stand cleared, so a search report placed there can open that segment's debrief.
+  const cleared = new Set((new URLSearchParams(location.search).get("cleared") ?? "").split(",").filter(Boolean));
+  const [debrief, setDebrief] = useState("");
   return (
     <main style={{ width: 340, padding: 16 }}>
       <p className="drill">Synthetic test grid, not drill data.</p>
@@ -61,6 +64,8 @@ function Harness() {
               }
             : { refused: "not-in-cloud" }
         }
+        debriefable={cleared}
+        onOpenDebrief={(segmentId) => setDebrief(segmentId)}
         onClose={() => {}}
       />
       {slow && (
@@ -69,6 +74,8 @@ function Harness() {
         </button>
       )}
       <pre data-testid="saved">{saved ? JSON.stringify(saved.position) : ""}</pre>
+      <pre data-testid="saved-note">{saved ? saved.freeText : ""}</pre>
+      <pre data-testid="debrief">{debrief}</pre>
       <pre data-testid="saved-read">{saved ? JSON.stringify(saved.readFilled ?? null) : ""}</pre>
     </main>
   );

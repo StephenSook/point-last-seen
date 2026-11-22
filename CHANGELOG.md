@@ -17,6 +17,35 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Limits: a search report placed in a cleared segment can open that segment's debrief (it no longer fills it). Source:
+  review. Verified: the hygiene guard passes in public mode.
+- Search-report rule: fewer real sightings read as reports. A quote at either end of a word is trimmed ("'saw him'"
+  holds saw); witness(es), recognized, recognised and identified are sighting words; and an en or em dash or a spaced
+  hyphen ends a clause, so "no sign - footprints by the gate" keeps its footprints. Eleven new cases (62 in all), among
+  them pins for each plural and the two-word window after nothing; the README says it. Source: review (Codex first
+  round, and lane review of the dashes). Verified: seven new cases fail on the previous rule and all 62 pass on this
+  one; engine suite and typecheck pass.
+- Search-report contract: the shared README states the word rule exactly (lowercase, curly apostrophes as ', a word is a
+  run of a-z, 0-9 and '), two cases pin it ("Segment-4 done." is a report; "'cleared'" in single quotes is not the
+  word), and the vector test checks schemaVersion and that every case names one of the README's ten clauses. Source:
+  review (before any phone ports the rule). Verified: the engine test passes (52).
+- Search-report rule: a negation now counts only inside the sighting word's own clause (split at . ! ? ; : , and line
+  breaks), so "Searched AB, no sign. Footprints at the creek." is a sighting, and hasn't, haven't, hadn't, didn't,
+  isn't, weren't and couldn't join the negations. Five new cases (a `negation_scope` clause and "hasn't been seen"); the
+  README says it. Source: review. Verified: the five cases failed first (four of them; the scoped negation already
+  held), then passed; the engine suite and typecheck pass.
+- Limits: the web sighting form's search-report check knows English words only, so a report in another language saves as
+  a sighting with no warning; it never blocks a save; only the web runs it so far. Source: review. Verified: the hygiene
+  guard passes in public mode.
+- Search-report vectors: the shared README names each field of `search-report.json` and which platforms read it (the
+  engine test and the web sighting form, for now), so a later port knows the contract. Source: review. Verified: the
+  hygiene guard passes in public mode.
+- Search-report check: `readsAsSearchReport` (`shared/engine-ts/src/searchReport.ts`) says whether a sighting note reads
+  as a search report: a search-result word or phrase, or a segment named done, with no sighting word, where a sighting
+  word within two words after a negation does not count. English only, no model.
+  `shared/test-vectors/search-report.json` holds 44 hand-written cases, one on each side of each clause, and a README
+  section gives the rule, so the phones can match it. Source: review (a team's search report typed into the sighting
+  form). Verified: the vector test failed first, then passed (45); the engine suite (434) and typecheck pass.
 - Limits: the command post also checks the browser's sign-in at once after a refused action, past the 30-second spacing.
   Source: review. Verified: the hygiene guard passes in public mode.
 - Limits: the command post checks the browser's sign-in when its tab is shown or focused and every five minutes while

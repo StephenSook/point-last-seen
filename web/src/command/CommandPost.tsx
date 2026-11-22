@@ -87,7 +87,7 @@ import { detailsSummary, newFamilyAnswers, photosToReview } from "./detailsSumma
 import { reachLine } from "./reach";
 import { connectingLine } from "./connecting";
 import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
-import { clearedSegments, saveDebrief, subscribeDebriefs, type Debrief } from "../data/debriefs";
+import { clearedSegments, saveDebrief, standingClears, subscribeDebriefs, type Debrief } from "../data/debriefs";
 import { DebriefSection } from "./DebriefSection";
 import type { PaperRead } from "./DebriefPaperRead";
 
@@ -295,6 +295,10 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const latestSeen = useRef<number | null | undefined>(undefined);
   const nextSeq = useRef(makeSeq()).current;
   const [adding, setAdding] = useState(false);
+  // The debrief the sighting form asked to open (a search report typed as a sighting), and the Details rail it is in.
+  const [debriefOpen, setDebriefOpen] = useState<{ segmentId: string; seq: number } | null>(null);
+  const railDetails = useRef<HTMLDetailsElement>(null);
+  const openedForReport = useRef(false);
   const [clipping, setClipping] = useState(false);
   // A view setting for this screen only: every plate of 0.1% or more on the map, not only the ones that fit.
   const [everyPercent, setEveryPercent] = useState(false);
@@ -962,6 +966,17 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               readNote={readNote}
               readNoteInCloud={readNoteInCloud}
               cloudPaused={rc.killCloud}
+              debriefable={standingClears(events)}
+              onOpenDebrief={(segmentId) => {
+                // The sighting form stays open with its draft; Details opens on the debrief. Opening it this way does
+                // not count as reading what Details holds, so its new-answer counts stay.
+                setDebriefOpen((p) => ({ segmentId, seq: (p?.seq ?? 0) + 1 }));
+                const d = railDetails.current;
+                if (d && !d.open) {
+                  openedForReport.current = true;
+                  d.open = true;
+                }
+              }}
               onClose={() => {
                 setAdding(false);
                 setPin(null);
@@ -1014,7 +1029,17 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <ConditionsForm conditions={null} open={incident.status !== "closed"} onSave={(c) => setConditions(pls.db, incidentId, c)} />
           )}
           {/* Opened less often: command reads these when it needs them; the summary says what needs a person. */}
-          <details className="rail-details" data-testid="rail-details" onToggle={(e) => openedDetails(e.currentTarget.open)}>
+          <details
+            ref={railDetails}
+            className="rail-details"
+            data-testid="rail-details"
+            onToggle={(e) => {
+              // A toggle of a details inside this one (a photo's What ran, say) reaches here too: only its own counts.
+              if (e.target !== e.currentTarget) return;
+              if (openedForReport.current) openedForReport.current = false;
+              else openedDetails(e.currentTarget.open);
+            }}
+          >
             <summary data-testid="rail-details-summary">
               <span className="label">Details</span>
               {summary !== "Details" && <span className="muted">{summary.slice("Details".length)}</span>}
@@ -1096,6 +1121,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
                 saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
               }
               paperRead={readSheetHere}
+              openRequest={debriefOpen}
             />
             <MergeLanes lanes={lanes} />
             <MembersPanel rows={people} stale={membersStale} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />

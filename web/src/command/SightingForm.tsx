@@ -4,7 +4,7 @@
 // no field of the stored event holds it, and phone numbers are removed from
 // the note (by the shared rule, see data/phoneNumbers) before it is stored or read.
 
-import type { ClothingColor, Direction, RouteRecord } from "@pls/engine";
+import { readsAsSearchReport, SEARCH_REPORT_LINE, type ClothingColor, type Direction, type RouteRecord } from "@pls/engine";
 import { useRef, useState, type FormEvent } from "react";
 import { receiptLines } from "../ai/receipt";
 import type { SightingCues, SightingRead } from "../ai/sightingText";
@@ -34,6 +34,10 @@ type Props = {
   onClose: () => void;
   /** Command has paused cloud reading (Remote Config kill_cloud): the form offers no cloud read and says why. */
   cloudPaused?: boolean;
+  /** Segments that stand cleared: a search report placed in one can open that segment's debrief. */
+  debriefable?: ReadonlySet<string>;
+  /** Opens that segment's debrief form below; the sighting form stays as it is, and nothing is carried or saved. */
+  onOpenDebrief?: (segmentId: string) => void;
 };
 
 const CLOUD_PAUSED = "Cloud reading is paused by command.";
@@ -43,7 +47,7 @@ function localInput(ms: number): string {
   return d.toISOString().slice(0, 16);
 }
 
-export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, readNote, readNoteInCloud, onClose, cloudPaused = false }: Props) {
+export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, readNote, readNoteInCloud, onClose, cloudPaused = false, debriefable, onOpenDebrief }: Props) {
   const [when, setWhen] = useState(() => localInput(Date.now()));
   const [direction, setDirection] = useState<Direction>("unknown");
   const [topColor, setTop] = useState<ClothingColor>("unknown");
@@ -68,6 +72,12 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   const noteNow = useRef(note);
   noteNow.current = note;
   const [error, setError] = useState<string | null>(null);
+  // The note a team's search report was typed as ("Segment 4 searched, subject not seen"): Save asked once whether it
+  // is a sighting. It only warns, in English only: a second tap saves it as typed, and an edit asks again.
+  const [reportAsked, setReportAsked] = useState<string | null>(null);
+  // The segment whose debrief this form opened below. The sighting draft stays as it is: command copies what belongs
+  // in the debrief, then cancels this sighting or saves it anyway.
+  const [debriefOpened, setDebriefOpened] = useState<string | null>(null);
 
   // The words of the note the read took its answer from (checked against the note by the read itself).
   const [quote, setQuote] = useState("");
@@ -94,6 +104,8 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   // they no longer describe it, so they go; the fields it filled stay, since they may have been checked by hand.
   function changeNote(text: string) {
     setNote(text);
+    setReportAsked(null);
+    setDebriefOpened(null);
     if (readState === "none") return;
     setReadState("none");
     setRan(null);
@@ -147,15 +159,24 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
 
   async function save(e: FormEvent) {
     e.preventDefault();
+    await saveSighting(reportAsked === note);
+  }
+
+  async function saveSighting(asked: boolean) {
     setError(null);
     const observedAtMs = new Date(when).getTime();
     if (!Number.isFinite(observedAtMs)) {
       setError("Enter the time it was seen.");
       return;
     }
-    setSaving(true);
-    // A read still running when Save is pressed fills nothing afterwards: what is saved is what was on screen.
+    // A read still running when Save is pressed fills nothing afterwards, also when Save first asks about a search
+    // report: what is saved is what was on screen.
     readSeq.current++;
+    if (!asked && readsAsSearchReport(note)) {
+      setReportAsked(note);
+      return;
+    }
+    setSaving(true);
     try {
       await onSave({ observedAtMs, position: place, direction, topColor, bottomColor, footwear, carried, reportedBy, freeText: note, ...(readFilled ? { readFilled } : {}) });
       setCallbackName("");
@@ -313,6 +334,32 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         <p className="error" role="alert">
           {error}
         </p>
+      )}
+      {reportAsked !== null && reportAsked === note && (
+        <div className="note-state" role="alert">
+          <p>{SEARCH_REPORT_LINE}</p>
+          {debriefOpened && (
+            <p role="status">{`Segment ${debriefOpened}'s debrief is open below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway.`}</p>
+          )}
+          <div className="row">
+            {placeSegmentId && onOpenDebrief && debriefable?.has(placeSegmentId) && (
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  setDebriefOpened(placeSegmentId);
+                  onOpenDebrief(placeSegmentId);
+                }}
+                disabled={saving}
+              >
+                Open segment {placeSegmentId}'s debrief
+              </button>
+            )}
+            <button type="button" className="btn ghost" onClick={() => saveSighting(true)} disabled={saving}>
+              Save as a sighting anyway
+            </button>
+          </div>
+        </div>
       )}
       <div className="row">
         <button type="submit" className="btn" disabled={saving}>
