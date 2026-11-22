@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### docs(ios): the Report a problem entry claims only the report seen to land
+- What: the form's entry said a report about the family's description was sent during the live check. Its result
+  line was hidden behind the keyboard and never seen, so the entry now says it was tried and not confirmed; only the
+  task report's "Sent to command." was read on screen.
+- Source: rereading the live check against its screenshots.
+- Verified: the entry matches the screenshots of the check (the hidden line, then the task report's result).
+
 ### docs(limits): what Report a problem on the iPhone does and does not do
 - What: LIMITS says the iPhone's Report a problem flags the task or the family's description with a reason and an
   optional note (phone numbers removed, 500 characters at most); each report is filed once and cannot be changed or
@@ -23,8 +30,9 @@ finding) and how it was verified. Newest first.
 - Source: App Review guideline 1.2 (a way to report user content).
 - Verified: on the simulator against the dev drill, a task report with a note came back "Sent to command." (the
   server took the create, with the server's time, under the rule); a report about the family's description was
-  sent before the keyboard fix; the links showed only after joining; Done closed the keyboard; Leave then deleted
-  each test account. The full app suite passes.
+  tried before the keyboard fix, but its result line was hidden behind the keyboard, so whether it landed was not
+  seen (the emulator test covers that shape); the links showed only after joining; Done closed the keyboard; Leave
+  then deleted each test account. The full app suite passes.
 
 ### feat(ios-core): one cut for the note as typed and as stored
 - What: `ContentReport.capped` cuts text to the rule's 500 code points between whole characters and changes nothing
