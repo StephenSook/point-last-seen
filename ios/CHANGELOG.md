@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(eval): the README gives run 1's numbers in plain words, with their limits
+- What: the eval README's "no numbers yet" is replaced by run 1: rules only 13 of 20 right (95% 0.43 to 0.82), on-device
+  9 of 20 (0.26 to 0.66, 17 rows read by Apple's model, 1 blocked), exact McNemar p 0.22, so not a significant
+  difference; the rules alone got more right; every miss but one was a wrong kind (the other a blocked read); the
+  on-device arm is the app's real path (3 rows went to the rules); the model read three object finds as found; and,
+  after the run, the key's writer marked n12 and n18 as rows a second labeller might label differently, with the key
+  unchanged. It is stated as measured on 20 made-up reports with a one-labeller key, not as accuracy for real
+  searches. "Running it" now says to start the practice drill, as this run did.
+- Source: the eval plan; the run on the phone.
+- Verified: every number checked against the committed result file (arms, summaries, paired counts, routes and
+  latencies) and the key's rows.
+
 ### chore(ci): the secret scan ignores the eval result's answer-key hash, by its fingerprint
 - What: a committed .gitleaksignore with one fingerprint: line 1114 of the eval result file at dac8b2c, its
   "answerKeySha256" field. That is the SHA-256 of the public answer key in the same folder, not a credential; the
