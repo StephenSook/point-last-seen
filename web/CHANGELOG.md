@@ -3107,3 +3107,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the replay's route for a read on the browser's own model said "Read on the command post's device". It now says "Read at the command post", shorter and clear beside "Read on the phone".
 - Source: review of the device wording.
 - Verified: the replay unit test and extras check were changed first; the unit test failed, then passed (55); extras replay 18/18.
+
+### fix(judge): the Measured block says iPhone report reads ran "on the phone"
+- What: the Measured block's Report reads line said "N on the device, in our own iPhone test runs", and its empty line said "On the device: none stored yet. An iPhone's practice drill ...". On the same page, "the device" now means the viewer's own (the Plan wording line, "Get this device ready"), so the iPhone line says "on the phone" and its empty line "On the phone: none stored yet.". "Device" keeps one meaning on the page.
+- Source: review of the device wording.
+- Verified: the two Measured tests were changed first and failed, then passed (7); web unit; typecheck.
