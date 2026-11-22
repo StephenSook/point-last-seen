@@ -61,10 +61,12 @@ test("each suggestion carries a closed What ran receipt: asked for, where it ran
   const receipt = page.getByTestId("suggested-plan").getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
   await expect(receipt.getByText("Ran: in the cloud (reported by the SDK).")).toBeHidden();
   await receipt.getByText("What ran", { exact: true }).click();
-  await expect(receipt).toContainText("Asked for: this device first.");
+  await expect(receipt).toContainText("Asked for: this device's built-in model first, Gemini in the cloud when it has none.");
   await expect(receipt).toContainText("Ran: in the cloud (reported by the SDK).");
   await expect(receipt).toContainText("Model: gemini-3.5-flash-lite.");
-  await expect(receipt).toContainText("Sent: 1,234 bytes of plan text.");
+  await expect(receipt).toContainText("Sent: 1,234 bytes of plan text: team ids, segment codes and fact codes, never a note or a name.");
+  await expect(receipt).toContainText("Chose: each team's main reason, from that team's own facts.");
+  await expect(receipt).toContainText("Code added a second fact when the team had one and wrote every word.");
 });
 
 test("the receipt for a plan worded on this laptop says nothing left it", async ({ page }) => {
@@ -78,7 +80,7 @@ test("the receipt for a plan worded on this laptop says nothing left it", async 
 test("a fallback plan shows only the fixed-wording mark; why the cloud was not used is in What ran", async ({ page }) => {
   await page.goto("/harness/plan.html?fallback=1");
   // No laptop notice before the plan is suggested, apart from the one line that says where wording is made.
-  await expect(page.getByText(/this laptop/).filter({ hasNotText: "Suggest plan asks this laptop's built-in model" })).toHaveCount(0);
+  await expect(page.getByText(/this laptop|this device/)).toHaveCount(0);
   await page.getByRole("button", { name: "Suggest plan" }).click();
   const plan = page.getByTestId("suggested-plan");
   await expect(plan).toContainText("Fixed wording");
@@ -129,10 +131,12 @@ test("the Plan section says whether its history has come from the server, for ch
   await expect(page.getByRole("region", { name: "Plan" })).toHaveAttribute("data-plans-loaded", "true");
 });
 
-test("before Suggest plan, the Plan section says what the model chooses, what code writes, and what it sends", async ({ page }) => {
+test("before Suggest plan, the Plan section says in one line what Suggest plan does; What ran says what ran and what was sent", async ({ page }) => {
   await page.goto("/harness/plan.html");
   const plan = page.getByRole("region", { name: "Plan" });
-  await expect(plan.getByText("Suggest plan asks this laptop's built-in model (Gemini in the cloud when it has none) to choose each team's main reason from that team's own facts. Code adds a second fact when the team has one and writes every word. It sends only team ids, segment codes and fact codes, never a note or a name.")).toBeVisible();
+  await expect(plan.getByText("Suggests which team searches where, with a reason for each team.", { exact: true })).toBeVisible();
+  // The model and what is sent are said in What ran, not on the working screen.
+  await expect(plan.getByText(/built-in model|fact codes/)).toHaveCount(0);
   await page.goto("/harness/plan.html?paused=1");
   await expect(page.getByRole("region", { name: "Plan" }).getByText("Cloud reading is paused, so Suggest plan uses fixed wording and sends nothing.")).toBeVisible();
   await expect(page.getByText("Gemini in the cloud when it has none")).toHaveCount(0);

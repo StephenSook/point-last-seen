@@ -37,11 +37,21 @@ export function draftKeyOf(draft: PlanDraft | null): string | null {
   return draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.rank, draft.assignments, draft.facts ?? null]) : null;
 }
 
-/** "What ran" for a suggestion; a model that was asked but not used is described, then why fixed wording won. */
+/**
+ * "What ran" for a suggestion: where the model ran, what was sent, and, when its choice was used, what it chose and
+ * what code wrote. A model that was asked but not used is described, then why fixed wording won. The working screen
+ * says only what Suggest plan does; these lines are where the model and what leaves the device are said.
+ */
 export function whatRan(w: WordedPlan): string[] {
-  const base = { asked: "this device first", sentBytes: w.promptBytes ?? 0, what: "plan text" };
+  const base = {
+    asked: "this device's built-in model first, Gemini in the cloud when it has none",
+    sentBytes: w.promptBytes ?? 0,
+    what: "plan text: team ids, segment codes and fact codes, never a note or a name",
+  };
   if (w.attempt) return [...receiptLines({ ...base, route: w.attempt.route }), `Not used: ${WHY[w.attempt.failure]}. The plan uses fixed wording from code.`];
-  return receiptLines({ ...base, route: w.route });
+  const lines = receiptLines({ ...base, route: w.route });
+  if (w.route.path === "rules") return lines;
+  return [...lines, "Chose: each team's main reason, from that team's own facts.", "Code added a second fact when the team had one and wrote every word."];
 }
 
 /** The suggested plan. Nothing is written before a person presses Approve. */
@@ -107,11 +117,9 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
       ) : (
         <>
           <p className="muted">Draft for the current reports.</p>
-          {/* Where the wording is made and what leaves this laptop, said before the tap (the prompt is planPrompt). */}
+          {/* One line on what Suggest plan does; the model and what leaves the device are in What ran. */}
           <p className="small muted">
-            {cloudPaused
-              ? "Cloud reading is paused, so Suggest plan uses fixed wording and sends nothing."
-              : "Suggest plan asks this laptop's built-in model (Gemini in the cloud when it has none) to choose each team's main reason from that team's own facts. Code adds a second fact when the team has one and writes every word. It sends only team ids, segment codes and fact codes, never a note or a name."}
+            {cloudPaused ? "Cloud reading is paused, so Suggest plan uses fixed wording and sends nothing." : "Suggests which team searches where, with a reason for each team."}
           </p>
           {limit && (
             <p className="error" role="status">
