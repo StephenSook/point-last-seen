@@ -1,7 +1,8 @@
 // Dev-server-only harness (web/harness/members.html; never in the production build). It renders the People panel
 // with synthetic members and a stand-in removal: ?fail=<reason> makes the call fail with that server reason. Below
 // it, the join codes with a stand-in replacement (a fixed test code): ?rotatefail=<reason> refuses it, and
-// ?mode=judge shows a practice search, which has no join codes.
+// ?mode=judge shows a practice search, which has no join codes. ?rail=1 puts both inside the command post's right
+// rail and its Details disclosure, as the post does.
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { JoinCodes } from "../command/JoinCodes";
@@ -17,9 +18,8 @@ function Harness() {
   const [removed, setRemoved] = useState<Set<string>>(new Set(q.get("removed") ? ["fam00001"] : []));
   const rows = q.get("empty") === "1" ? [] : memberRows({ srch0001: { role: "searcher", team: "T1" }, fam00001: { role: "family", team: null } },
     [{ authorUid: "srch0002", role: "searcher", teamId: "T2" }, { authorUid: "cmd00001", role: "command", teamId: null }], removed, TEAMS);
-  return (
-    <div style={{ padding: 16, background: "var(--bg-1)", maxWidth: 340 }}>
-      <p className="small">Synthetic members, not drill data.</p>
+  const panels = (
+    <>
       <MembersPanel
         rows={rows}
         stale={q.get("stale") === "1"}
@@ -38,6 +38,21 @@ function Harness() {
             return { code: role === "family" ? "0123ABCD" : "7K3M9QX2", role, replaced: 1 };
           }}
         />
+      )}
+    </>
+  );
+  return (
+    <div style={{ padding: 16, background: "var(--bg-1)", maxWidth: 340 }}>
+      <p className="small">Synthetic members, not drill data.</p>
+      {q.get("rail") === "1" ? (
+        <aside className="rail right">
+          <details className="rail-details" open>
+            <summary>Details</summary>
+            {panels}
+          </details>
+        </aside>
+      ) : (
+        panels
       )}
     </div>
   );

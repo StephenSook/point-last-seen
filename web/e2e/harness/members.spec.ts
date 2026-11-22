@@ -105,3 +105,14 @@ test("a Copy that finishes after the panel moved to another code never says that
   await page.getByRole("button", { name: "Clipboard finishes" }).click();
   await expect(codes.getByText("Copied.")).toBeVisible();
 });
+
+test("in the rail's Details, a Removed row keeps the rail's space before the next section", async ({ page }) => {
+  await page.goto("/harness/members.html?rail=1&removed=1");
+  const summary = page.locator(".rail-details > summary");
+  const people = page.locator("section[aria-labelledby='people-h']");
+  const codes = page.locator("section[aria-labelledby='codes-h']");
+  await expect(people.locator(".tag", { hasText: "Removed" })).toBeVisible();
+  const [s, a, b] = await Promise.all([summary.boundingBox(), people.boundingBox(), codes.boundingBox()]);
+  expect(Math.round(a!.y - (s!.y + s!.height))).toBe(20);
+  expect(Math.round(b!.y - (a!.y + a!.height))).toBe(20);
+});

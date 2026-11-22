@@ -2791,3 +2791,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: each sign-in is its own session, so a reply from a read started before a sign-out is dropped even when the same account signs in again; while the line comes from a reply with no readable issue time, a timed reply applies only if its read started later and its token was issued after the newest one applied.
 - Source: review (backlog issue #327).
 - Verified: three new unit tests (the same account signing out and in again; an earlier read's timed reply landing after a newer untimed one; an older token from a later read after an untimed reply, from review) failed first, then passed with the 16 existing claims tests (19); typecheck passes.
+
+### fix(command): the rail's Details sections keep their space apart
+- What: the sections under the command post rail's Details (conditions, prior, photos, debriefs, People, Join codes and the rest) were drawn touching, 0px apart, so a "Removed" tag sat against the "Join codes" heading. The 20px between them is now set with margins, because Chrome lays an open details' content out in its own box and the flex gap on the details reached only the summary.
+- Source: review of the command post recording for App Review.
+- Verified: measured 0px between sections on the live page in Chrome 159 first; a new members harness check (People and Join codes inside the rail's Details, with a Removed row) failed at 0px, then passed at 20px; the harness suite, web unit suite, typecheck and gates pass.
