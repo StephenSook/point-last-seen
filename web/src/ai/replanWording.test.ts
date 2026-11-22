@@ -462,3 +462,36 @@ describe("never where the person is, or that they will be found", () => {
     expect(checkWording(draft, withReason("Team T1 searches AC first."))).toEqual({ ok: true });
   });
 });
+
+describe("round 2: person words, rescue verbs, definitions, and codes that look like words", () => {
+  const withReason = (reason: string, summary = "Teams move to the two highest segments.", d: PlanDraft = draft) =>
+    checkWording(d, { assignments: d.assignments.map((a, i) => ({ teamId: a.teamId, taskText: "x", reason: i === 0 ? reason : "Second highest." })), summary });
+  it("refuses a person noun or a singular they, and a rescue promise in other verbs", () => {
+    for (const r of ["The hiker is still in AC.", "Search AC first because they are still there.", "Team T1 will locate them in AC.", "Someone may be sheltering in AC."]) {
+      expect(withReason(r), r).toEqual({ ok: false, reason: PERSON_CLAIM });
+    }
+    expect(withReason("Highest.", "Focusing on the highest-ranked segments will bring them home.")).toEqual({ ok: false, reason: PERSON_CLAIM });
+    expect(withReason("T1 should rescue the walker near AC.")).toEqual({ ok: false, reason: PERSON_CLAIM });
+  });
+  it("keeps their, which is about segments", () => {
+    expect(withReason("Highest.", "Teams T1 and T2 search AC and AB based on their POA.")).toEqual({ ok: true });
+  });
+  it("refuses a code defined with means, or a meaning hidden beside a ranking word", () => {
+    expect(withReason("AC means access corridor and has the highest POA.")).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+    expect(withReason("AC (access corridor, highest POA) should be searched first.")).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+    expect(withReason("The north field (AC) is next.")).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+  });
+  it("keeps a ranking phrase before a bracketed code, and ordinary capitals", () => {
+    expect(withReason("Start with the highest-probability segment (AC).")).toEqual({ ok: true });
+    const withAT: PlanDraft = { ...draft, rank: [...draft.rank, { segmentId: "AT", rank: 4, poa: 0.05, priorPoa: 0.05, deltaPoa: 0 }] };
+    expect(withReason("Highest.", "Assign Team T1 to AC and Team T2 to AB based on their POAs.", withAT)).toEqual({ ok: true });
+  });
+  it("keeps a grid square named HE", () => {
+    const withHE: PlanDraft = {
+      ...draft,
+      rank: [{ segmentId: "HE", rank: 1, poa: 0.31, priorPoa: 0.2, deltaPoa: 0.11 }, ...draft.rank.slice(1)],
+      assignments: [{ teamId: "T1", segmentIds: ["HE"] }, { teamId: "T2", segmentIds: ["AB"] }],
+    };
+    expect(withReason("Search HE first because it has the highest POA.", "Teams move to the two highest segments.", withHE)).toEqual({ ok: true });
+  });
+});

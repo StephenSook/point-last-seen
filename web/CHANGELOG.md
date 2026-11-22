@@ -2861,3 +2861,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: replaces the verb list in the person check with a rule that closes the class. A reason explains why a team searches its segments and never needs to mention who is being searched for, so any reason or summary with a word for the person (person, missing, subject, child, patient, she, her, hers, he, him, his) is refused and the plan falls back to the fixed wording. The plan carries no name for the person, so there is no name to match. The phrases that claim an outcome or a place without naming anyone ("will be found", "Team T1 will find", "likely in AC", "is located", "must be in") are still refused.
 - Source: review.
 - Verified: a new test (six reasons and one summary that mention the person in different ways) failed first, then passed (62); replayed on the 19 recorded wordings, none falls back for this; typecheck passes.
+
+### fix(ai): plan wording checks: person nouns, they, rescue verbs, "means", and words that look like codes
+- What: from the second review of the checks above.
+  - Person: the word list adds they, them, someone, anyone and common person nouns (hiker, walker, runner, hunter, climber, camper, man, woman, boy, girl, kid, toddler, elder, victim, survivor). "Their" stays allowed, since models use it for segments.
+  - Rescue promises now cover find, locate, rescue, recover and save after a modal, and "bring ... home".
+  - Codes: a definition with "means", "refers to" or "denotes" after a code is refused. Brackets beside a code pass only when every word in them is a figure or rank word, so "AC (access corridor, highest POA)" is refused while "the highest-probability segment (AC)" is kept.
+  - Initials count only for the codes a text is about (its team's own segments, or codes it names), and Team, Segment and Search split a run of capitals, so "Assign Team T1" is not read as a code.
+  - Segment codes are blanked before the person check, so a grid square named HE is not read as "he".
+- Source: review.
+- Verified: new tests for each case failed first, then passed (67); replayed on the 19 recorded wordings, the same 4 are refused as before and none newly; typecheck passes.
