@@ -89,3 +89,19 @@ and no events or plans. The mass outside the grid (ROW) went from 0.6306 with th
 temperate mountain rings (0.3, 0.8, 1.9 and 8.3 km). The start segment, HE, has an elevation (294.45 m), so the
 Downhill and level ground switch can be used.
 
+## Back to urban at prior version 4, 2026-11-22
+
+The project write-up opens with a local search and rescue lead's advice for this kind of park: "Well, I would treat it
+as Urban." The drill's map starts that way, and so does the film. The terrain was switched through the live command
+post, not by a seed: a command seat joined the drill (2026-11-22 20:36:31 UTC), chose "Urban (suburb, town, big
+park)" in the Prior section's Distance table and pressed Rebuild prior. That wrote prior version 4 at 20:38:10 UTC,
+with the near-feature layer on and the Downhill and level ground layer off (the urban table has no elevation split).
+Command cannot write the terrain note, so it was set by field path to "Urban column, as a local search and rescue lead
+advised for this kind of park; not verified for this site."
+
+Read back: terrain urban, prior version 4, 339 documents at version 4, `segment_contract.py` "339 docs at prior
+version 4, readable by the apps", and the urban rings (0.3, 1.1, 3.2 and 12.6 km). The mass outside the grid (ROW) is
+0.6306, as with the first seed's urban rings. In the same session, command approved plan 1 from Suggest plan (Team 1
+on HE, Team 2 on GT, Team 3 on HR, all trail segments within 200 m of the start), the family app shared the drill's
+made-up profile, and command sent the family one rehearsal question.
+
