@@ -2841,3 +2841,42 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Also, from review: the marker check read back to the start of the note for every word, so a 350,000-character note took about 3 seconds a pass (6 settled); it now reads only a marker's length back (72 ms a pass, 120 ms settled), with the same results.
 - Source: review (a scrubbed note scrubbed again took more).
 - Verified: new tests for settle (a scrub that never settles runs exactly four times, returns its fourth output and says so once; one that settles stops at the first unchanged pass), for a settled result in one call, for every corpus note settling on its first scrub (the ceiling of 39 is now 0, and a planted non-settling scrubber is caught), and for the paper debrief and sighting saves storing every corpus note exactly as shown, all failed first, then passed; the corpus regenerated; web unit, typecheck and gates pass with the shared-file changes applied.
+
+### fix(ai): plan wording never says what a segment code stands for
+- What: the plan wording prompt now says segment codes such as AA or CC are map grid squares, not abbreviations, and never to say what the letters stand for; and checkWording refuses any reason or summary that does: words in brackets right after a code ("AC (the north field)"), a code in brackets after words ("Upper Meadow (AC)"), or capitalized words in a row whose initials spell a code ("Customer Complaints" for CC). Such a plan falls back to the fixed wording.
+- Source: review (on Chrome's built-in model, a prompt for reasons with no figures made every reason invent a meaning for the codes).
+- Verified: new checkWording tests (each shape refused in a reason and in the summary; a code used as a code, and capitalized words that spell no code, kept; the prompt names grid squares) failed first, then passed (54); replayed on the recorded wordings, the check refuses none of the 8 runs recorded on 2026-11-21 and 3 of the 6 that invented code meanings; 6 runs on Chrome's built-in model with the new prompt line spelled out no code (local evidence, not in the repo); typecheck passes.
+
+### fix(ai): plan wording never says where the person is or that they will be found
+- What: the prompt already forbade it; checkWording now refuses it too, in any reason or the summary: an outcome promised ("will be found"), a place given as likely ("probably near the creek", "is located", "must be in"), or the missing person placed somewhere ("she is likely in AC"). The plan then falls back to the fixed wording. A segment in a ranking ("AC is in the top three") is not refused.
+- Source: review.
+- Verified: new checkWording tests (each claim refused in a reason and in the summary; a plain team reason and a ranking kept) failed first, then passed (57); replayed on the 19 recorded wordings, none is refused for this; typecheck passes.
+
+### fix(ai): plan wording checks: any verb placing the person, a promise to find them, a code defined in words
+- What: from review of the two checks above. The person check now refuses the missing person placed near any place word whatever the verb ("remains in AC", "wandered toward the creek"), and an active promise to find them ("Team T1 will find the missing person", "the best chance to find her"). The code check now refuses a code defined in words ("AC stands for access corridor", "short for") and no longer refuses brackets about a code's figures or rank ("AC (up from 20.0%)", "the highest POA (AC)"). Its patterns are built once per plan for all its codes, so a plan of 480 grid squares is checked in a few milliseconds, not 200.
+- Source: review.
+- Verified: new tests for each case (and for 480 grid squares under 100 ms) failed first, then passed (61); replayed on the 19 recorded wordings, the only refusals are a reason naming another team's segment and the 3 runs that spelled out a code; typecheck passes.
+
+### fix(ai): a plan reason or summary never mentions the missing person
+- What: replaces the verb list in the person check with a rule that closes the class. A reason explains why a team searches its segments and never needs to mention who is being searched for, so any reason or summary with a word for the person (person, missing, subject, child, patient, she, her, hers, he, him, his) is refused and the plan falls back to the fixed wording. The plan carries no name for the person, so there is no name to match. The phrases that claim an outcome or a place without naming anyone ("will be found", "Team T1 will find", "likely in AC", "is located", "must be in") are still refused.
+- Source: review.
+- Verified: a new test (six reasons and one summary that mention the person in different ways) failed first, then passed (62); replayed on the 19 recorded wordings, none falls back for this; typecheck passes.
+
+### fix(ai): plan wording checks: person nouns, they, rescue verbs, "means", and words that look like codes
+- What: from the second review of the checks above.
+  - Person: the word list adds they, them, someone, anyone and common person nouns (hiker, walker, runner, hunter, climber, camper, man, woman, boy, girl, kid, toddler, elder, victim, survivor). "Their" stays allowed, since models use it for segments.
+  - Rescue promises now cover find, locate, rescue, recover and save after a modal, and "bring ... home".
+  - Codes: a definition with "means", "refers to" or "denotes" after a code is refused. Brackets beside a code pass only when every word in them is a figure or rank word, so "AC (access corridor, highest POA)" is refused while "the highest-probability segment (AC)" is kept.
+  - Initials count only for the codes a text is about (its team's own segments, or codes it names), and Team, Segment and Search split a run of capitals, so "Assign Team T1" is not read as a code.
+  - Segment codes are blanked before the person check, so a grid square named HE is not read as "he".
+- Source: review.
+- Verified: new tests for each case failed first, then passed (67); replayed on the 19 recorded wordings, the same 4 are refused as before and none newly; typecheck passes.
+
+### fix(ai): plan wording checks: a location or rescue as a noun, and "represents"
+- What: from the third review of the checks above.
+  - The person check refuses a location as a noun ("their current location is", "whereabouts", "the position is") and an outcome promised as a noun ("a successful rescue", "reunite").
+  - The code check refuses "represents", "corresponds to", "is called" and "is named" after a code.
+  - "previously", "before", "earlier", "since", "start" and "then" count as figure words in brackets, so "AC (31.0%, previously 20.0%)" is kept.
+  - Known cost, accepted: a summary using "they" for grid squares falls back to the fixed wording, because "they" is refused to keep the person out.
+- Source: review.
+- Verified: new tests for each case failed first, then passed (70); replayed on the 19 recorded wordings, the same 4 are refused as before and none newly; typecheck passes.

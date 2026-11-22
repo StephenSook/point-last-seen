@@ -5,6 +5,25 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: the plan reason line also says a reason or the summary that says where the missing person is, or that they
+  will be found, is refused, while a segment in a ranking is not, and that such a claim in other phrasing can still
+  pass. Source: the plan wording check for claims about the person (PR #352). Verified: each example against the
+  PERSON_CLAIMS patterns in web/src/ai/replanWording.ts on this branch ("She is likely in AC." and "probably near
+  the creek" refused, "AC is in the top three." passes); the hygiene guard passes in public mode.
+- Limits: the plan reason line says the prompt calls segment codes map grid squares and a reason or summary that
+  says what a code stands for is refused (words in brackets beside a code, or capitalized words whose initials spell
+  one); a made-up meaning not written as initials ("recent inquiries") can still pass; with the grid-square line no
+  run spelled out a code. Source: the check that refuses a spelled-out code (PR #352). Verified: each sentence against
+  spellsOutCode and checkWording in web/src/ai/replanWording.ts on this branch and the evidence file; the hygiene
+  guard passes in public mode.
+- Evidence: docs/evidence/web/2026-11-22-plan-wording-grid-squares-chrome.json records plan wording on Chrome's
+  built-in model with the prompt line saying segment codes are map grid squares: 6 runs, every reply on device with
+  no Google request, 4 used and 2 on fixed wording (a reason named another team's segment; one timed out in a
+  reloaded page), and no reason or summary spelling out a code. Source: the measurement of that prompt line and the
+  check that refuses a spelled-out code. Verified: valid JSON; every reason and summary read; the replay claim
+  checked by hand (3 of the 6 figure-free runs spell out a code in capitalized initials or brackets); one finding
+  corrected with its author (a reason calling T2's segment the highest riser, though CC rose more); the hygiene guard
+  passes in public mode.
 - Limits: the plan's per-team reasons are written by a model and checked by code (only the team's own figures, each
   in its own role; a rise or fall word must match one of the team's segments); if any reason fails the plan uses
   fixed wording; the check reads words, so a direction outside its word lists or an untrue "highest" can still pass;

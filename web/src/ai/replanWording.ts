@@ -37,7 +37,7 @@ export const PLAN_WORDING_JSON = {
 
 const SYSTEM = [
   "You word a search plan that code has already decided. You never change which team searches which segment.",
-  "For each team, write reason: one short line from the table about that team's own segments only.",
+  "For each team, write reason: one short line from the table about that team's own segments only. Segment codes such as AA or CC are map grid squares, not abbreviations: never say what the letters stand for.",
   "Use plain words. Never say the person will be found or where the person is.",
   "Return JSON with assignments (teamId, reason) and a one-sentence summary.",
 ].join(" ");
@@ -97,6 +97,8 @@ export const NUMBER_NOT_IN_PLAN = "a number that is not in the plan";
 export const OUTSIDE_TEAMS_ROWS = "a reason uses a number from outside its own team's rows";
 export const EARLIER_AS_CURRENT = "a reason gives an earlier POA as the current one";
 export const CURRENT_AS_EARLIER = "a reason gives the current POA as an earlier one";
+export const PERSON_CLAIM = "a reason or the summary mentions the missing person, where they are, or that they will be found";
+export const SPELLS_OUT_A_CODE = "a reason or the summary says what a segment code stands for";
 export const WRONG_DIRECTION = "a reason says a POA moved in a direction none of its team's segments did";
 // A minus sign or dash belongs to its number, so "-31.0" or "\u221231.0" is never read as the plan's "31.0"; one joined
 // to a word before it ("AC\u201431.0%") is punctuation.
@@ -182,6 +184,92 @@ function reasonNumbersFail(draft: PlanDraft, teamId: string, reason: string): st
   return null;
 }
 
+/** The patterns that find a segment code given a meaning, built once per plan for all its codes. */
+type CodeCheck = { after: RegExp | null; before: RegExp | null; defined: RegExp | null; token: RegExp | null; codes: Set<string> };
+function codeCheck(ids: readonly string[]): CodeCheck {
+  const alt = [...ids].sort((a, b) => b.length - a.length).map(escapeRe).join("|");
+  const code = `(?<![\\p{L}\\p{N}])(?:${alt})(?![\\p{L}\\p{N}])`;
+  return {
+    after: alt ? new RegExp(`${code}\\s*\\(([^)]*)\\)`, "gu") : null,
+    before: alt ? new RegExp(`(\\p{L}+)\\s*\\(\\s*${code}\\s*\\)`, "gu") : null,
+    defined: alt ? new RegExp(`${code}\\s*,?\\s*(?:means|meaning|refers\\s+to|denotes|signifies|represents?|represented|corresponds?\\s+to|is\\s+(?:called|named))\\b`, "u") : null,
+    token: alt ? new RegExp(code, "gu") : null,
+    codes: new Set(ids),
+  };
+}
+// The only words that may sit in brackets beside a code, or just before a bracketed code: its figures and rank.
+const FIGURE_WORDS = new Set(
+  ("poa probability priority highest lowest high low higher lower rank ranked ranking top up down from to was now " +
+    "current currently prior percent rose fell risen fallen increase increased decrease decreased change changed " +
+    "segment segments square grid the of and in at first second third next most previously before earlier since start then").split(" "),
+);
+const onlyFigures = (words: string) => (words.match(/\p{L}+/gu) ?? []).every((w) => FIGURE_WORDS.has(w.toLowerCase()));
+const DEFINED = /\b(?:stands?\s+for|short\s+for|abbreviat\w*|acronym)\b/i;
+// Words that split a run of capitals: "Assign Team T1" is an instruction, not initials.
+const BREAKERS = new Set(["team", "teams", "segment", "segments", "search", "grid", "square"]);
+
+/**
+ * Whether text gives a segment code a meaning: words in brackets right after a code (AC (the north field)), a code in
+ * brackets right after words (Upper Meadow (AC)), a definition ("AC stands for", "AC means"), or capitalized words in
+ * a row whose initials spell one of this text's codes (Customer Complaints for CC). Codes are map grid squares, so any
+ * such meaning is made up. Brackets made only of figure and rank words ("AC (up from 20.0%)", "the highest POA (AC)",
+ * "the highest-probability segment (AC)") are not a meaning. Initials count only for the codes this text is about
+ * (its team's own, or ones it names), so ordinary capitals in a large grid are not read as one of its 480 codes.
+ */
+function spellsOutCode(text: string, c: CodeCheck, own: ReadonlySet<string>): boolean {
+  if (DEFINED.test(text) || c.defined?.test(text)) return true;
+  for (const m of c.after ? text.matchAll(c.after) : []) if (/\p{L}/u.test(m[1]!) && !onlyFigures(m[1]!)) return true;
+  for (const m of c.before ? text.matchAll(c.before) : []) if (!onlyFigures(m[1]!)) return true;
+  const mine = new Set([...own, ...(c.token ? (text.match(c.token) ?? []) : [])]);
+  for (const run of text.matchAll(/\p{Lu}\p{Ll}+(?:[\s-]+\p{Lu}\p{Ll}+)+/gu)) {
+    const groups: string[][] = [[]];
+    for (const w of run[0].split(/[\s-]+/)) {
+      if (BREAKERS.has(w.toLowerCase())) groups.push([]);
+      else groups[groups.length - 1]!.push(w);
+    }
+    for (const g of groups) {
+      const initials = g.map((w) => w[0]!).join("");
+      for (let i = 0; i < initials.length; i++) {
+        for (let n = 2; i + n <= initials.length; n++) if (mine.has(initials.slice(i, i + n))) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * A team reason explains why a team searches its segments; it never needs to mention who is being searched for, so
+ * any word for the missing person is refused, whatever the sentence says ("she is likely in AC", "the hiker is still
+ * in AC", "they are still there"). "Their" stays: models use it for segments. The plan carries no name for the
+ * person, so there is no name to match. Segment codes are blanked first, so a grid square named HE is not "he".
+ */
+const PERSON_WORD = new RegExp(
+  "\\b(?:person|missing|subject|child|patient|she|her|hers|herself|he|him|his|himself|they|them|themselves|someone|" +
+    "somebody|anyone|hiker|walker|runner|hunter|climber|camper|man|woman|boy|girl|kid|toddler|elder|victim|survivor)\\b",
+  "i",
+);
+/**
+ * Claims that need no word for the person: an outcome promised ("will be found", "Team T1 will locate", "bring ...
+ * home", "a successful rescue"), a location as a noun ("their current location is"), or a place given as likely
+ * ("probably near the creek", "likely in AC", "is located", "must be in"). The
+ * prompt forbids them; this refuses them, and a false refusal only falls back to the fixed wording.
+ */
+const PERSON_CLAIMS = [
+  PERSON_WORD,
+  /\b(?:will|would|should|is going to)\s+be\s+found\b/i,
+  // Where they are, as a noun: "their current location is", "the whereabouts point to".
+  /\bwhereabouts\b/i,
+  /\b(?:current|last|likely|exact|possible|probable)\s+(?:location|position)\b/i,
+  /\b(?:location|position)\s+(?:is|was|may|might|could|must|would)\b/i,
+  // An outcome promised as a noun: "a successful rescue", "a reunion".
+  /\b(?:rescue\w*|reunit\w*|reunion|success\w*)\b/i,
+  /\b(?:will|would|should|shall|can|could|(?:is|are)\s+going\s+to|(?:is|are)\s+(?:likely|sure|certain)\s+to)\s+(?:\w+\s+)?(?:find|locate|rescue|recover|save)\b/i,
+  /\bbring\w*\s+(?:\w+\s+){0,2}home\b/i,
+  /\b(?:likely|probably|possibly|presumably|certainly)\s+(?:to\s+be\s+)?(?:in|at|near|inside|around|by|hiding)\b/i,
+  /\bis\s+located\b/i,
+  /\bmust\s+be\s+(?:in|at|near|inside|around|by|there|here)\b/i,
+];
+
 export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: true } | { ok: false; reason: string } {
   if (!wording || !Array.isArray(wording.assignments)) return { ok: false, reason: "no assignments" };
   const want = draft.assignments.map((a) => a.teamId).sort();
@@ -195,6 +283,17 @@ export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: tru
     if (known.some((id) => !own.has(id) && new RegExp(`\\b${id}\\b`).test(s))) return { ok: false, reason: "a reason names another team's segment" };
   }
   if (typeof wording.summary !== "string" || wording.summary.length > 300) return { ok: false, reason: "bad summary" };
+  // A segment code is a map grid square: a reason or summary that says what it stands for has made that up.
+  const codes = codeCheck(known);
+  const ownOf = (teamId: string) => new Set(draft.assignments.find((d) => d.teamId === teamId)?.segmentIds ?? []);
+  const texts: [string, ReadonlySet<string>][] = [
+    ...wording.assignments.map((a): [string, ReadonlySet<string>] => [a.reason, ownOf(a.teamId)]),
+    [wording.summary, new Set(draft.assignments.flatMap((a) => a.segmentIds))],
+  ];
+  if (texts.some(([t, own]) => spellsOutCode(t, codes, own))) return { ok: false, reason: SPELLS_OUT_A_CODE };
+  // Never the missing person, where they are, or that they will be found: beside a task, that would read as fact.
+  const blanked = (t: string) => (codes.token ? t.replace(codes.token, " ") : t);
+  if (texts.some(([t]) => PERSON_CLAIMS.some((re) => re.test(blanked(t))))) return { ok: false, reason: PERSON_CLAIM };
   // Every number the model writes must be one it was given: an invented figure would reach command as fact.
   const given = new Set(planPrompt(draft).match(NUMBER) ?? []);
   const written = [...wording.assignments.map((a) => a.reason), wording.summary].flatMap((t) => t.match(NUMBER) ?? []);
