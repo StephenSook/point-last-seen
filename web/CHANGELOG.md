@@ -2732,3 +2732,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: one line under "Draft for the current reports." says "Suggest plan words the draft on this laptop's built-in model, or with Gemini in the cloud when it has none. It sends only team ids, segment codes and percents, never a note or a name." (what `planPrompt` holds), or, while command has paused cloud reading, "Cloud reading is paused, so Suggest plan uses fixed wording and sends nothing." Before, the screen said nothing until after the tap, when a Cloud mark and a closed What ran appeared.
 - Source: review of the deployed judge door in a fresh browser profile (a practice search's Suggest plan went to the cloud with no word beforehand).
 - Verified: a new harness test (both lines, and the cloud one absent while paused) failed first, then passed; the fallback test's no-laptop-notice check now leaves out this line. Plan harness spec (15), web unit suite, typecheck, harness suite and every gate pass.
+
+### fix(command): an older sign-in token never clears the line a newer one set
+- What: the sign-in watch keeps the issue time of the newest token it applied and ignores a token issued before it, even when its change event comes last: a refresh that started before another window moved this account to another search could return this drill's older token, which the SDK stores and announces, and that read cleared the "signed in to another search" line. A sign-out starts the count again.
+- Source: review (backlog issue #317).
+- Verified: a new unit test (the other search's 12:05 token applied, then this drill's 12:00 token ignored, then a 12:10 token applied) failed first, then passed; the claims tests (12) and typecheck pass.

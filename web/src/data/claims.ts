@@ -23,8 +23,9 @@ export function claimsLine(claims: Record<string, unknown> | null, ctx: ClaimsCo
 /**
  * Calls `onLine` with claimsLine each time this browser's sign-in changes, in any tab (the SDK shares the signed-in
  * user across tabs); `recheck` asks the server for fresh claims, for when the tab is shown or focused again or after
- * a refusal. Only the newest read decides the line (an older one that finishes late is dropped), and nothing is applied
- * after `stop`. A forced read runs at most once in 30 seconds and not while another is running, except that an urgent
+ * a refusal. Only the newest read decides the line (an older one that finishes late is dropped), a token issued before
+ * the newest one applied is ignored even when its event comes last (a refresh that started before another window moved
+ * this account to another search), and nothing is applied after `stop`. A forced read runs at most once in 30 seconds and not while another is running, except that an urgent
  * recheck (after a refusal) skips the spacing, and one that comes while a forced read runs waits for it and then runs.
  * A forced read still running after 30 seconds is treated as stalled and no longer holds the next one back.
  */
@@ -36,6 +37,8 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
   let forcing = 0;
   let lastForced = -Infinity;
   let queued = false;
+  // When the newest token this watch applied was issued (ms), so an older token can never take its place.
+  let newestIssued = -Infinity;
   const settled = (seq: number) => {
     if (forcing !== seq) return;
     forcing = 0;
@@ -48,6 +51,7 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
     const seq = ++latest;
     const user = auth.currentUser;
     if (!user) {
+      newestIssued = -Infinity;
       onLine(claimsLine(null, ctx));
       return;
     }
@@ -57,7 +61,12 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
     }
     user.getIdTokenResult(force).then(
       (r) => {
-        if (!stopped && seq === latest) onLine(claimsLine(r.claims, ctx));
+        const issued = Date.parse(r.issuedAtTime ?? "");
+        const older = Number.isFinite(issued) && issued < newestIssued;
+        if (!stopped && seq === latest && !older) {
+          if (Number.isFinite(issued)) newestIssued = issued;
+          onLine(claimsLine(r.claims, ctx));
+        }
         if (force) settled(seq);
       },
       () => {

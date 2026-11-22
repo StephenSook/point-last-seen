@@ -169,3 +169,32 @@ describe("watchClaims: a refusal's recheck is never dropped, and a stalled read 
     vi.doUnmock("firebase/auth");
   });
 });
+
+describe("watchClaims: an older token never overwrites a newer one", () => {
+  it("ignores a token issued before the newest one it applied, even when its event comes last", async () => {
+    const { vi } = await import("vitest");
+    let listener: ((u: unknown) => void) | null = null;
+    vi.doMock("firebase/auth", () => ({ onIdTokenChanged: (_a: unknown, cb: (u: unknown) => void) => ((listener = cb), () => {}) }));
+    vi.resetModules();
+    const { watchClaims } = await import("./claims");
+    const pending: ((v: { claims: Record<string, unknown>; issuedAtTime: string }) => void)[] = [];
+    const user = { getIdTokenResult: () => new Promise<{ claims: Record<string, unknown>; issuedAtTime: string }>((r) => pending.push(r)) };
+    const lines: (string | null)[] = [];
+    watchClaims({ currentUser: user } as never, drill, (l) => lines.push(l));
+    // Another window moved this account to another search: its token (issued 12:05) is applied first.
+    listener!(user);
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: "Sat, 21 Nov 2026 12:05:00 GMT" });
+    await new Promise((r) => setTimeout(r, 0));
+    // A refresh started earlier returns this drill's token (issued 12:00), and its event comes last.
+    listener!(user);
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: "Sat, 21 Nov 2026 12:00:00 GMT" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([OTHER_SEARCH_LINE]);
+    // A newer token still applies.
+    listener!(user);
+    pending[2]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: "Sat, 21 Nov 2026 12:10:00 GMT" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([OTHER_SEARCH_LINE, null]);
+    vi.doUnmock("firebase/auth");
+  });
+});
