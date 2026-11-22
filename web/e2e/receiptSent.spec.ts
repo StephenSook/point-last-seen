@@ -33,6 +33,11 @@ test("a consented cloud note read sends exactly the note the receipt counts, and
   expect(sent).toEqual([]);
 
   await page.getByRole("button", { name: "Read in the cloud" }).click();
+  // Before the tap, the consent shows the exact note the read will send, and how many numbers were removed.
+  const shown = page.getByTestId("consent-note");
+  await expect(shown).toHaveText(SENT_NOTE);
+  await expect(page.getByText("1 phone number removed.", { exact: true })).toBeVisible();
+  const shownText = await shown.textContent();
   await page.getByRole("button", { name: "I consent for this note" }).click();
   const form = page.locator(".sighting-form");
   const receipt = form.getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
@@ -45,6 +50,8 @@ test("a consented cloud note read sends exactly the note the receipt counts, and
   expect(call!.url).toMatch(/\/templates\/[^/:?]+:templateGenerateContent(\?|$)/);
   // The whole body: the template's one variable, the note with its number removed. No other field, nothing missing.
   expect(call!.body).toEqual({ inputs: { note: SENT_NOTE } });
+  // What the person approved is what was sent, character for character.
+  expect((call!.body as { inputs: { note: string } }).inputs.note).toBe(shownText);
   expect(call!.raw).not.toMatch(/0142/);
   // The receipt counts exactly the bytes of that note.
   const bytes = new TextEncoder().encode(SENT_NOTE).length;

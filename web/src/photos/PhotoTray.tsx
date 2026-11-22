@@ -163,7 +163,7 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
                     <details className="receipt">
                       <summary>What ran</summary>
                       {receiptLines({
-                        asked: r.route.reason === "consented_cloud_read" ? "the cloud, with the family's consent" : "this laptop only",
+                        asked: r.route.reason === "consented_cloud_read" ? "the cloud, with the family's consent" : "this device only",
                         route: r.route,
                         sentBytes: r.sentBytes,
                         what: "the photo, as base64",

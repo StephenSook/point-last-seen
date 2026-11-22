@@ -1,7 +1,7 @@
 import { FACT_CODES } from "../src/ai/reasonCodes";
 import { AI_HOSTS, deployedOnly, expect, joinCommand, test, withDebugToken } from "./fixtures";
 
-// What Suggest plan sends, checked against what the Plan section says it sends: "It sends only team ids, segment codes
+// What Suggest plan sends, checked against what What ran says it sent: "plan text: team ids, segment codes
 // and fact codes, never a note or a name." With no built-in model the request goes to the cloud; every line of its text
 // is the fixed heading, a team id with its segment codes and its facts (each a known fact code with segment codes), or
 // a team with no segment, and the receipt counts exactly those bytes. Nothing is approved, so nothing is written. Deployed-only: the cloud call needs
@@ -33,7 +33,6 @@ test("Suggest plan sends only team ids, segment codes and fact codes, and the re
   await joinCommand(page);
   await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   const plan = page.getByRole("region", { name: "Plan" });
-  await expect(plan.getByText("It sends only team ids, segment codes and fact codes, never a note or a name.", { exact: false })).toBeVisible();
   // Other live checks write reports to this drill at the same time; a reply for a draft that has changed meanwhile is
   // never shown (by design), so press again, up to three times.
   const suggested = page.getByTestId("suggested-plan");
@@ -62,7 +61,7 @@ test("Suggest plan sends only team ids, segment codes and fact codes, and the re
   });
   // The receipt shown counts exactly the bytes of the last request, the one whose reply is on screen.
   const bytes = new TextEncoder().encode(texts.at(-1)!).length;
-  await expect(suggested).toContainText(`Sent: ${bytes.toLocaleString("en-US")} bytes of plan text.`);
+  await expect(suggested).toContainText(`Sent: ${bytes.toLocaleString("en-US")} bytes of plan text: team ids, segment codes and fact codes, never a note or a name.`);
   // Not approved: no plan was written.
   await expect(page.getByTestId("plan-status")).toHaveCount(0);
 });

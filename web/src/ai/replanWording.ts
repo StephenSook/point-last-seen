@@ -244,8 +244,9 @@ export function planWordingJson(teams: ChoiceTeams | null): PlanWordingSchema {
 
 /**
  * How long the command post waits for a plan's wording before it uses the fixed wording. On Chrome's built-in model a
- * page's first wording took 19.8 s on a fast Mac and later ones 2 to 3 s, past the 15 s a cloud request gets
- * (evidence: docs/evidence/web/2026-11-21-plan-wording-schema-chrome.json). A cloud request keeps its own 15 s limit
- * (REPLY_TIMEOUT_MS, set on the SDK request), so a cloud fallback is no slower.
+ * page's first wording took 9.3 s and 9.5 s on a fast Mac (Apple M5 Pro) and later ones 0.9 to 2.1 s (evidence:
+ * docs/evidence/web/2026-11-22-plan-reason-per-team-schema-chrome.json and 2026-11-22-plan-reason-main-pick-chrome.json).
+ * The 60 s leaves room for a slower laptop's first wording, which was not measured. A cloud request keeps its own 15 s
+ * limit (REPLY_TIMEOUT_MS, set on the SDK request), so a cloud fallback is no slower.
  */
 export const WORDING_WAIT_MS = 60_000;

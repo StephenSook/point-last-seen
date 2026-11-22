@@ -3008,3 +3008,61 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - Accepted: a reply with a team named twice is read with its last value, which must still be one of that team's own facts, so nothing untrue is shown.
 - Source: review.
 - Verified: the changed schema test failed first, then passed (34); against the live site before the fix the check still fails with 0 of 3 used; typecheck passes; the cited lines 47 and 232 are unchanged.
+
+### fix(command): the Details summary keeps its colon beside the label
+- What: the rail's Details summary read "DETAILS : 38 °F, wet: no. 11 photos to review." because the summary row's 6 px gap fell between the label and the text that began with the colon. detailsSummaryParts now gives the label with its colon ("Details:") and the rest with its leading space, which the row drops on screen and keeps in the text, so it reads "DETAILS: 38 °F, ...".
+- Source: deployed stills, both widths, Chromium and WebKit.
+- Verified: new detailsSummaryParts tests failed first, then passed; the summary's whole text is unchanged for screen readers and for the rail-order check; typecheck passes.
+### fix(judge): the Measured block no longer says a model words the plan
+- What: the judge page's Measured block ended its plan line with "A plan is worded on the laptop only when its browser has Chrome's built-in model." Since plan reasons became fact codes, a model chooses each team's main reason and code writes every word, so that present-tense sentence was untrue. It now reads "A plan uses the laptop's model only when its browser has Chrome's built-in model.", true before and after that change. The counts and their label describe the stored runs and are unchanged.
+- Source: deployed stills.
+- Verified: the changed measured test failed first, then passed (7); typecheck passes.
+### fix(extras): a replay ruler label hung at an edge never runs into its neighbour
+- What: on a phone the judge page's replay ruler drew "05:0010:00": the first clock label sat 3 px from the left edge, so it hung inward (start-anchored), and the 48 px spacing that keeps centred labels apart no longer kept it clear of 10:00.
+  - The ruler model now gives each label its anchor, hanging a label only where a centred one would be cut off (within half a label's width of an edge).
+  - It drops a hung edge label that would come within 6 px of its neighbour; its tick stays.
+  - TimeRuler draws the model's anchor.
+- Source: deployed stills, 390 px wide, Chromium and WebKit.
+- Verified: a new ruler test (a 21-hour drill on a 205 px ruler, plus 230, 390 and 600 px) failed first, then passed (21); the extras harness specs pass (72); typecheck passes.
+### test(e2e): the live suite runs every check on the shared test drill one at a time
+- What: the live suite ran all its checks side by side on one shared test drill, so one check's report could become another's "newest report". The beat check failed once that way and then passed 3 of 3 alone, so a red run did not always mean a real failure.
+  - The suite's config now finds every spec that joins or names the drill (joinCommand, PLS_SMOKE_INCIDENT) and runs those in a "chrome-drill" project with a single worker. The rest stay parallel in "chrome".
+  - Both projects keep the harness and extras specs out, which their own configs run.
+- Source: deployed stills (a beat check failure during the parallel live run).
+- Verified:
+  - a new e2eConfig test (each drill spec only in the serial project, each other spec only in the parallel one, no harness or extras spec in either) failed first, then passed;
+  - the listing is 100 tests (46 serial, 53 parallel, setup);
+  - the whole live suite passed 100 of 100 against the live site in 2.6 minutes (1.2 minutes before);
+  - typecheck passes.
+### fix(command): a model's receipt and route mark say this device, not this laptop
+- What: the receipt shown under a plan, a sighting note, a photo or a debrief sheet read said "Asked for: this laptop first.", "Ran: on this laptop." and "Sent: no text or image left this laptop.", and the route mark said "On this laptop". The same command post opens in a phone's browser, so they now say "this device". Button labels and other lines are unchanged.
+- Source: deployed stills (the receipt at phone width).
+- Verified: the receipt, What ran and plan wording tests and the harness specs that quote these lines were changed first and failed, then passed (56 unit; harness 241/241); typecheck passes.
+
+### fix(command): the Plan section says in one line what Suggest plan does; What ran says the rest
+- What: the three sentences above Suggest plan (which model it asks, what code writes, and what it sends) were proof, not guidance, on the working screen.
+  - The Plan section now says only "Suggests which team searches where, with a reason for each team." The paused line is unchanged.
+  - What ran now carries the rest:
+    - "Asked for: this device's built-in model first, Gemini in the cloud when it has none.";
+    - "Sent: N bytes of plan text: team ids, segment codes and fact codes, never a note or a name.";
+    - and, when the model's choice was used, "Chose: each team's main reason, from that team's own facts." and "Code added a second fact when the team had one and wrote every word."
+  - The deployed payload check reads the sent-data sentence from What ran.
+- Source: the product's few-words rule for working screens, from a review of the deployed stills.
+- Verified: the changed What ran tests and plan harness checks failed first, then passed (whatRan 4; harness 241/241); typecheck passes.
+### feat(command): the cloud consent shows the exact note it sends
+- What: the consent box before a cloud note read said "The note goes to Gemini in the cloud. Phone numbers are removed first." It now shows the note exactly as the read will send it, with phone numbers already replaced by "[number removed]", and a count when any were removed ("1 phone number removed."), so the person approves the real text.
+  - The shown text comes from consentPreview, which uses the same removePhoneNumbers call the cloud read sends.
+  - A "[number removed]" mark the person typed is not counted.
+- Source: review of how consent is asked before a cloud read.
+- Verified:
+  - new unit tests failed first, then passed: the preview equals the text the cloud read sends; the count; no count when nothing was removed;
+  - two harness checks failed first, then passed (harness 242/242);
+  - the deployed receipt check now also requires the shown text to equal the note in the request body;
+  - typecheck passes; stills at 390 and 1440 px.
+### docs(ai): the plan wording wait cites the current on-device timings
+- What: the comment on WORDING_WAIT_MS justified the 60 s wait with the retired 2026-11-21 wording evidence (19.8 s first run). It now cites the current plan-reason evidence:
+  - first wordings 9.3 s and 9.5 s on the M5 Pro Mac, later ones 0.9 to 2.1 s, all on the device as the SDK reported;
+  - sources: 2026-11-22-plan-reason-per-team-schema-chrome.json and 2026-11-22-plan-reason-main-pick-chrome.json.
+  - It says the 60 s is headroom for a slower laptop's first wording, which was not measured. The value is unchanged.
+- Source: review of the comment against the current evidence.
+- Verified: each number was read from the evidence files by script; the cited lines 47 and 232 did not move; comment only.

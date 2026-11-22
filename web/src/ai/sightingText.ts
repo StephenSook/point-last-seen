@@ -9,7 +9,7 @@
 import { InferenceMode, type HybridParams, type LanguageModelCreateOptions } from "firebase/ai";
 import { groundReading, isPossibleEvidence, looksEnglish, validateReading, type ClothingColor, type Direction, type ReportReading } from "@pls/engine";
 import readingSchema from "../../../shared/schemas/report-reading.schema.json";
-import { removePhoneNumbers } from "../data/sightings";
+import { REPLACEMENT, removePhoneNumbers } from "../data/phoneNumbers";
 import { onDeviceCreateOptions } from "./gate";
 
 export type SightingCues = { direction: Direction; topColor: ClothingColor; bottomColor: ClothingColor; footwear: string; carried: string; evidenceQuote: string };
@@ -123,6 +123,17 @@ export async function readSightingText(text: string, deps: SightingTextDeps): Pr
   }
 }
 
+/**
+ * What the consent shows before a cloud read: the exact note the read sends (phone numbers removed, as
+ * readSightingTextInCloud sends it) and how many numbers were removed now, counted as the "[number removed]" marks it
+ * added, so the count matches what the person sees. A mark already in the note is not counted.
+ */
+export function consentPreview(note: string): { text: string; removed: number; removedLine: string | null } {
+  const text = removePhoneNumbers(note);
+  const marks = (t: string) => t.split(REPLACEMENT).length - 1;
+  const removed = Math.max(0, marks(text) - marks(note));
+  return { text, removed, removedLine: removed === 0 ? null : removed === 1 ? "1 phone number removed." : `${removed} phone numbers removed.` };
+}
 export type CloudConsent = { byUid: string; atMs: number };
 export type CloudSightingDeps = { generateCloud: (text: string) => Promise<Reply>; killCloud: boolean };
 
