@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: new "Note reads (web command post)" section: a note naming a place with a direction word ("north trail")
+  can get that direction as a suggested direction of travel, 2 of 2 reads on 2026-11-22, shown as a suggestion that
+  nothing saves until Command presses Save. Source: the web note-read evidence on main. Verified: both north-trail
+  reads in the evidence file's runs filled only the direction (n), on device; the form's text is in
+  `web/src/command/SightingForm.tsx`; the direction check in `shared/engine-ts/src/ground.ts` keeps a direction
+  whenever its word appears anywhere in the note; the gates and the hygiene guard in public mode pass.
 - Test matrix: a new Web sighting-note row for the 2026-11-22 run (8 made-up notes read twice: 36 of 36 stated
   fields right on the 5 person notes, 28 of 30 fields empty on the 3 that describe nobody, first read 14,011 ms),
   placed above the 2026-11-21 row, which stays as its own record. Source: the web note-read evidence on main.

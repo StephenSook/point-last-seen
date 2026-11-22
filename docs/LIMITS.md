@@ -296,6 +296,13 @@ each line says what the limit is and why.
   33 landmarks named something not drawn (Road, Parking lot). Large, clean drawn text, not real photos; not an
   accuracy rate. Evidence: docs/evidence/web/2026-11-22-photo-read-invention-chrome.json.
 
+## Note reads (web command post)
+
+- A note that names a place with a direction word in it, like "Team two finished the north trail", can get that
+  direction (north) as a suggested direction of travel: 2 of 2 reads on 2026-11-22. It shows under "Suggested from the
+  note. Check every field." and nothing is saved until Command presses Save. The code cannot tell a trail's name from
+  a walking direction. Evidence: docs/evidence/web/2026-11-22-note-read-chrome.json.
+
 ## On-device safety (Android)
 
 - The family app's note read asks for the on-device model first (PREFER_ON_DEVICE). Firebase AI Logic's
