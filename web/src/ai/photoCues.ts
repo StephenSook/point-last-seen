@@ -41,8 +41,11 @@ export function photoParams(): HybridParams {
 }
 
 
-/** Upper-cased words: runs of letters, marks and digits after NFKC, so "Café" is one word, never "CAF". */
-const wordsOf = (s: string) => s.normalize("NFKC").toUpperCase().split(/[^\p{L}\p{M}\p{N}]+/u).filter(Boolean);
+/**
+ * Upper-cased words: runs of letters, marks and decimal digits, so "Café" is one word, never "CAF". NFKC runs again
+ * after upper-casing, which can decompose a letter that has no precomposed capital.
+ */
+const wordsOf = (s: string) => s.normalize("NFKC").toUpperCase().normalize("NFKC").split(/[^\p{L}\p{M}\p{Nd}]+/u).filter(Boolean);
 
 /**
  * The words of the sign text that end inside its first `kept` code units. Words are found in the uncut text, so a

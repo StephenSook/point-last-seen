@@ -45,6 +45,9 @@ describe("cleanCues", () => {
     expect(name("JOE'S DINER", "Joe's Diner")).toBe("Joe's Diner");
     expect(name("CAFÉ ROUGE", "Caf")).toBe("");
     expect(name("CAFÉ ROUGE", "Café Rouge")).toBe("Café Rouge");
+    expect(name("CEDAR COUNTY LAKE", "Cedar Lake")).toBe("");
+    expect(name("ΟΔΟΣ 1ΗΣ ΜΑΪ́ΟΥ", "1ης Μαΐου")).toBe("1ης Μαΐου");
+    expect(name("LOT ፲", "፲")).toBe("");
   });
 
   it("never counts the part of a word left where a long sign text was cut", () => {

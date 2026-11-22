@@ -3132,3 +3132,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `cleanCues` cuts sign text at 80 UTF-16 code units. A cut inside a word left its first part looking like a whole word, so "River Park" was kept from a sign reading "... RIVER PARKS" past the limit; a cut inside a surrogate pair did the same. The sign's words are now found in the uncut text, and only words that end inside the kept text count. A place name longer than its 60-unit limit is dropped instead of kept cut.
 - Source: review (second-model pass on the whole-word place name rule).
 - Verified: the new cleanCues test (a cut inside a word, inside a combining sequence and inside a surrogate pair; a word ending exactly at the cut kept; an over-long name dropped) failed first, then passed (19); web unit; typecheck; gates; hygiene.
+
+### fix(ai): a place name's words fold the same on both sides, digits only
+- What: `cleanCues` place-name words now run NFKC again after upper-casing, so a letter with no precomposed capital (Greek "Μαΐου") folds the same in the name and on the sign; and a word is letters, marks and decimal digits only, so a lone number symbol such as the Ethiopic ten is not a word and a name made only of one is dropped. A new case checks that the name's words must be next to each other on the sign ("CEDAR COUNTY LAKE" does not keep "Cedar Lake").
+- Source: review (second-model pass on the whole-word place name rule, low findings).
+- Verified: the Greek case failed first (the number-symbol case was shown kept by the review's run of the earlier code), then all passed (19); web unit; typecheck; gates; hygiene.
