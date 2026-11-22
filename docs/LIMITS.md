@@ -162,12 +162,14 @@ each line says what the limit is and why.
   one, otherwise the cloud model. Code adds a second fact when the team has one and writes every word, so no text a
   model writes reaches the page. The facts come from the plan: the newest report, whether a segment was searched,
   nearby trails, roads, streams, water or buildings, the distance band from the last-seen point, and the POA ranking.
-  A reply that names other teams, gives a team no fact or more than one, picks a fact outside that team's own list,
-  or is not JSON is not used, and the plan shows fixed wording. When two facts are close, the model's pick can depend
+  The reply's form offers each team only its own facts, one code per team, and a reply that names other teams, gives
+  a team no fact or more than one, picks a fact outside that team's own list, or is not JSON is not used, and the plan
+  shows fixed wording. When two facts are close, the model's pick can depend
   on the order they are listed. The app always lists them in the same fixed order. Measured on Chrome's built-in
   model only: in the fixed order, one team's pick held 6 of 6 and the other's 5 of 6. Reversing the order changed one
-  team's pick (`docs/evidence/web/2026-11-22-plan-reason-main-pick-chrome.json`). The cloud model's picks were not
-  measured.
+  team's pick (`docs/evidence/web/2026-11-22-plan-reason-main-pick-chrome.json`); with each team offered only its own
+  facts, the picks were the same (`docs/evidence/web/2026-11-22-plan-reason-per-team-schema-chrome.json`). The order
+  effect was not measured on the cloud model.
 
 ## Language
 

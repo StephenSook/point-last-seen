@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: the plan reason line says the reply's form offers each team only its own facts, one code per team, cites
+  the per-team run (the same picks), and says the order effect was not measured on the cloud model. Source: the
+  per-team reply form (PR #362). Verified: each sentence against checkChoice and planWordingJson in
+  web/src/ai/replanWording.ts on that branch and the evidence file; the hygiene guard passes in public mode.
 - Evidence: docs/evidence/web/2026-11-22-plan-reason-per-team-schema-chrome.json records plan reason codes with a
   reply form that gives each team only its own facts (one property per team id), on Chrome's built-in model: 6 runs,
   all on device with no Google request and 0 fallbacks, each reply one code per team id, and the same picks as before
