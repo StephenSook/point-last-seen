@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Phone vectors: the shared README says every platform scrubs a note until it stops changing, at most four passes,
+  keeping the fourth pass's text and logging a fixed line with no note text if it still changes; the corpus is written
+  again for the web's fixpoint (39 rows change, none keeps more digits) and the README names its SHA-256. Limits: times
+  right after a date can take the date with them on the web and Android ("Seen 11/19/2026 12:12 5:55 01:42" gives
+  "Seen [number removed]:[number removed]"; 18 of the 9,130 corpus notes newly lose a date), the iPhone still scrubs
+  once, and the pending sentence counts that case on its own. Source: the scrub-fixpoint change. Verified: the corpus
+  `--write` output hashes to the README's SHA-256 and `--check` passes; comparing the corpus before and after, 39
+  rows change, none gains a digit, and exactly 18 newly lose a numeric date; the example measured with the web's
+  removePhoneNumbers on this branch; `scripts/test_phone_vectors.py`, the web phone tests and
+  `scripts/ci-local.sh --gates` pass.
 - Limits: three more ways part of a phone number can be left, measured on the web: times with a third field ("Call
   4:04 5:55:01:42" is kept whole); in a note already scrubbed once, a run of times followed by spoken digits keeps its
   first hour; a time just before spoken digits keeps its hour. Source: review of PR #342 (gaps that exist on main
