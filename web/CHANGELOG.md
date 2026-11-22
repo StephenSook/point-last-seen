@@ -2616,3 +2616,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a report sent to a debrief already being edited keeps every edit and adds the note after What worked (two reports add both); a stored debrief that arrives after a report opened the form empty fills what the form left empty and puts its What worked first, so a save keeps the team's words; and a report that arrives while a debrief is saving keeps the form open with the new note instead of closing with the save.
 - Source: review (Codex, first round on the search-report guard).
 - Verified: three new harness tests failed first, then passed; both debrief harness specs (27) pass.
+
+### fix(command): the post offers a debrief only for a segment that stands cleared, and keeps the sighting open
+- What: the post passes `standingClears` to the sighting form (a taken-back clear offers no debrief), no longer closes the sighting form on the handoff, and opening Details for the handoff no longer counts as reading it, so the new family-answer count stays. The deployed check now tries each debrief row until one stands cleared and cancels both forms.
+- Source: review (Codex, first round on the search-report guard).
+- Verified: typecheck, web unit suite (1234) and the harness suite (235) pass; the deployed check runs after the deploy.

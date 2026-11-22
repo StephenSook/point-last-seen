@@ -85,7 +85,7 @@ import { detailsSummary, newFamilyAnswers, photosToReview } from "./detailsSumma
 import { reachLine } from "./reach";
 import { connectingLine } from "./connecting";
 import { askFamily, searchStateOf, subscribeQuestions, tellFamily, type FamilyQuestion } from "../data/familyQuestions";
-import { clearedSegments, saveDebrief, subscribeDebriefs, type Debrief } from "../data/debriefs";
+import { clearedSegments, saveDebrief, standingClears, subscribeDebriefs, type Debrief } from "../data/debriefs";
 import { DebriefSection } from "./DebriefSection";
 import type { PaperRead } from "./DebriefPaperRead";
 
@@ -296,6 +296,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // A search report the sighting form sent to a cleared segment's debrief, and the Details rail that holds it.
   const [debriefPrefill, setDebriefPrefill] = useState<{ segmentId: string; note: string; seq: number } | null>(null);
   const railDetails = useRef<HTMLDetailsElement>(null);
+  const openedForReport = useRef(false);
   const [clipping, setClipping] = useState(false);
   // A view setting for this screen only: every plate of 0.1% or more on the map, not only the ones that fit.
   const [everyPercent, setEveryPercent] = useState(false);
@@ -963,12 +964,16 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               readNote={readNote}
               readNoteInCloud={readNoteInCloud}
               cloudPaused={rc.killCloud}
-              debriefable={new Set(clearedSegments(events).map((c) => c.segmentId))}
+              debriefable={standingClears(events)}
               onDebrief={(segmentId, note) => {
+                // The sighting form stays open with its draft; Details opens on the debrief. Opening it this way does
+                // not count as reading what Details holds, so its new-answer counts stay.
                 setDebriefPrefill((p) => ({ segmentId, note, seq: (p?.seq ?? 0) + 1 }));
-                if (railDetails.current) railDetails.current.open = true;
-                setAdding(false);
-                setPin(null);
+                const d = railDetails.current;
+                if (d && !d.open) {
+                  openedForReport.current = true;
+                  d.open = true;
+                }
               }}
               onClose={() => {
                 setAdding(false);
@@ -1022,7 +1027,15 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <ConditionsForm conditions={null} open={incident.status !== "closed"} onSave={(c) => setConditions(pls.db, incidentId, c)} />
           )}
           {/* Opened less often: command reads these when it needs them; the summary says what needs a person. */}
-          <details ref={railDetails} className="rail-details" data-testid="rail-details" onToggle={(e) => openedDetails(e.currentTarget.open)}>
+          <details
+            ref={railDetails}
+            className="rail-details"
+            data-testid="rail-details"
+            onToggle={(e) => {
+              if (openedForReport.current) openedForReport.current = false;
+              else openedDetails(e.currentTarget.open);
+            }}
+          >
             <summary data-testid="rail-details-summary">
               <span className="label">Details</span>
               {summary !== "Details" && <span className="muted">{summary.slice("Details".length)}</span>}
