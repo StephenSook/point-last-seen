@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(eval): the second labeller's blind labels for 10 key rows, unchanged
+- What: docs/evidence/eval/pls-drill-reports-v1-second-labeller.csv (row, report_text, second_label), the builder's
+  labels for key rows 1, 2, 3, 7, 8, 11, 13, 15, 17 and 19 (picked with seed 20261122), given without seeing the key,
+  committed byte for byte as given (CRLF line endings kept).
+- Source: the eval's second-labeller check (the README's one-labeller limit).
+- Verified: SHA-256 2b416602...; every row's report_text equals the key's text for that row; key row N is eval id nN;
+  agreement 7 of 10, Cohen's kappa 0.524, recomputed from the file and the key.
+
 ### docs(eval): the README gives run 1's numbers in plain words, with their limits
 - What: the eval README's "no numbers yet" is replaced by run 1: rules only 13 of 20 right (95% 0.43 to 0.82), on-device
   9 of 20 (0.26 to 0.66, 17 rows read by Apple's model, 1 blocked), exact McNemar p 0.22, so not a significant
