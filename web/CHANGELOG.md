@@ -2983,3 +2983,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - The timer is cancelled when the read settles first, and at stop.
 - Source: issue #336.
 - Verified: new watchClaims tests (a stalled read, a read that settles first, stop, another account, a sign-out) failed first where the behaviour changed, then passed (24); typecheck passes.
+
+### fix(extras): a replay ruler label hung at an edge never runs into its neighbour
+- What: on a phone the judge page's replay ruler drew "05:0010:00": the first clock label sat 3 px from the left edge, so it hung inward (start-anchored), and the 48 px spacing that keeps centred labels apart no longer kept it clear of 10:00.
+  - The ruler model now gives each label its anchor, hanging a label only where a centred one would be cut off (within half a label's width of an edge).
+  - It drops a hung edge label that would come within 6 px of its neighbour; its tick stays.
+  - TimeRuler draws the model's anchor.
+- Source: deployed stills, 390 px wide, Chromium and WebKit.
+- Verified: a new ruler test (a 21-hour drill on a 205 px ruler, plus 230, 390 and 600 px) failed first, then passed (21); the extras harness specs pass (72); typecheck passes.

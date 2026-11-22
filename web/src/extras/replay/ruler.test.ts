@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { T0, cameraReading, eventDoc, replayPlan, replayView, streamed } from "../testdata/replay";
 import { fromLive, type ReplayData } from "./replayData";
-import { clockLabel, durationLabel, MAX_TICKS, markTimes, nextMark, nextMarkTime, playFrom, playStops, reportCount, rulerModel, sliderScale, tickStepMs, valueText, PLAY_STOP_MS } from "./ruler";
+import { clockLabel, durationLabel, LABEL_W_PX, MAX_TICKS, markTimes, nextMark, nextMarkTime, playFrom, playStops, reportCount, rulerModel, sliderScale, tickStepMs, valueText, PLAY_STOP_MS } from "./ruler";
 import { replayWindow, type ReplayWindow } from "./stateAt";
 
 const MIN = 60_000;
@@ -67,6 +67,22 @@ describe("rulerModel", () => {
     for (let i = 1; i < labelled.length; i++) expect(labelled[i]!.x - labelled[i - 1]!.x).toBeGreaterThanOrEqual(48);
   });
 
+  it("never lets a label hung at an edge run into its neighbour, at a phone's width", () => {
+    // A phone's ruler is about 205 px across a 21-hour drill: the first label (05:00) falls 3 px from the left edge, so
+    // it hangs inward, and 10:00 sits 48 px on, centred. Their texts once touched ("05:0010:00").
+    const d = data();
+    const start = Date.UTC(2026, 10, 18, 4, 41);
+    const w = { ...replayWindow(d)!, startMs: start, endMs: start + 21.3 * 60 * MIN };
+    for (const width of [205, 230, 390, 600]) {
+      const m = rulerModel(d, w, width, "UTC");
+      const spans = m.ticks
+        .filter((t) => t.label !== null)
+        .map((t): [number, number] => (t.anchor === "start" ? [t.x, t.x + LABEL_W_PX] : t.anchor === "end" ? [t.x - LABEL_W_PX, t.x] : [t.x - LABEL_W_PX / 2, t.x + LABEL_W_PX / 2]));
+      expect(spans.length, String(width)).toBeGreaterThan(1);
+      for (const [a, b] of spans) expect(a >= 0 && b <= width, `${width}: ${a}..${b}`).toBe(true);
+      for (let i = 1; i < spans.length; i++) expect(spans[i]![0] - spans[i - 1]![1], String(width)).toBeGreaterThanOrEqual(6);
+    }
+  });
   it("marks are sorted by x and carry one kind each", () => {
     const m = model();
     expect(m.marks.map((k) => k.x)).toEqual([...m.marks.map((k) => k.x)].sort((a, b) => a - b));
