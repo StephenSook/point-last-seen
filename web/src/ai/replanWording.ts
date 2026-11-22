@@ -7,11 +7,11 @@
 // falls to a fixed template, and the route says "rules".
 
 import { InferenceMode, type HybridParams } from "firebase/ai";
-import type { DraftAssignment, PlanWording, RankedSegment, RouteRecord } from "@pls/engine";
+import type { DraftAssignment, PlanWording, RankedSegment, RouteRecord } from "@pls/engine"; import type { PlanFacts } from "./reasonCodes";
 import { onDeviceCreateOptions } from "./gate";
 import { CLOUD_MAX_OUTPUT_TOKENS } from "./limits";
 
-export type PlanDraft = { eventSetHash: string; priorVersion: number; rank: RankedSegment[]; assignments: DraftAssignment[] };
+export type PlanDraft = { eventSetHash: string; priorVersion: number; rank: RankedSegment[]; assignments: DraftAssignment[]; facts?: PlanFacts };
 
 /** Cloud replies on gemini-3.5-flash-lite took 0.8 to 1.8 s (S4 step 4 controls, 2026-11-17); 15 s leaves room for a long table. */
 export const REPLY_TIMEOUT_MS = 15_000;

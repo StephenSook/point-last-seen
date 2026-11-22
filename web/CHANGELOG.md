@@ -2880,3 +2880,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - Known cost, accepted: a summary using "they" for grid squares falls back to the fixed wording, because "they" is refused to keep the person out.
 - Source: review.
 - Verified: new tests for each case failed first, then passed (70); replayed on the 19 recorded wordings, the same 4 are refused as before and none newly; typecheck passes.
+
+### feat(ai): plan reason facts and the sentences code writes for them
+- What: a new module, web/src/ai/reasonCodes.ts.
+  - It lists the facts that hold for each team's own segments: highest POA, in the top three, rose since the starting map, POA now, not searched yet, searched and still in the top three, raised by the newest report, near a trail, road, stream, water or building (the grid's classes within 71 m), and the ISRID distance band from the last-seen point.
+  - It writes each fact's sentence from a fixed template and the plan's own values. A reason never passes the 200 characters a plan doc allows: when two facts do not fit, only the first is shown.
+  - The summary is written from the same choices.
+  - PlanDraft gains an optional facts field. Nothing uses the module yet.
+- Source: plan wording review.
+- Verified: 13 new tests pass, and breaking any of four rules (top-three cut, the 200-character fit, searched-and-still-high, the ring edge) fails at least one; typecheck passes.
