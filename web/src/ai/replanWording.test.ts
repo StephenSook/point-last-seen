@@ -27,14 +27,14 @@ const draft: PlanDraft = {
   ],
 };
 
-// The model picks reason codes from each team's own facts; code writes every sentence.
-const good = JSON.stringify({ assignments: [{ teamId: "T1", reasons: ["highest_poa", "poa_rose"] }, { teamId: "T2", reasons: ["top_three"] }] });
+// The model picks each team's main reason from its own facts; code adds a supporting fact and writes every sentence.
+const good = JSON.stringify({ assignments: [{ teamId: "T1", reasons: ["highest_poa"] }, { teamId: "T2", reasons: ["top_three"] }] });
 const goodWording = {
   assignments: [
     { teamId: "T1", taskText: "Search segment AC.", reason: "AC has the highest POA, 31.0%. AC rose from 20.0% to 31.0% since the starting map." },
-    { teamId: "T2", taskText: "Search segment AB.", reason: "AB is in the top three by POA." },
+    { teamId: "T2", taskText: "Search segment AB.", reason: "AB is in the top three by POA. AB POA now 22.0%." },
   ],
-  summary: "T1 searches AC: AC has the highest POA, 31.0%. AC rose from 20.0% to 31.0% since the starting map. T2 searches AB: AB is in the top three by POA.",
+  summary: "T1 searches AC: AC has the highest POA, 31.0%. AC rose from 20.0% to 31.0% since the starting map. T2 searches AB: AB is in the top three by POA. AB POA now 22.0%.",
 };
 function deps(over: Partial<WordingDeps>): WordingDeps {
   let t = 1000;
@@ -64,25 +64,25 @@ describe("planPrompt", () => {
 });
 
 describe("the model picks reason codes, code writes every sentence", () => {
-  it("asks the model only for each team's reason codes, from the known codes: no sentence, task line or summary", () => {
+  it("asks the model only for each team's main reason code, from the known codes: no sentence, task line or summary", () => {
     const item = PLAN_WORDING_JSON.properties.assignments.items;
     expect(item.required).toEqual(["teamId", "reasons"]);
     expect(Object.keys(item.properties)).toEqual(["teamId", "reasons"]);
-    expect(item.properties.reasons).toMatchObject({ type: "array", maxItems: 2, items: { type: "string" } });
+    expect(item.properties.reasons).toMatchObject({ type: "array", maxItems: 1, items: { type: "string" } });
     expect(PLAN_WORDING_JSON.required).toEqual(["assignments"]);
     expect("summary" in PLAN_WORDING_JSON.properties).toBe(false);
   });
-  it("renders each team's reason and the summary from the codes chosen", async () => {
+  it("renders each team's reason from the main code chosen and code's supporting fact, and the summary from the same", async () => {
     const out = await wordPlan(draft, deps({}));
     expect(out.wording).toEqual(goodWording);
-    expect(out.codes).toEqual({ T1: ["highest_poa", "poa_rose"], T2: ["top_three"] });
+    expect(out.codes).toEqual({ T1: { main: "highest_poa", support: "poa_rose" }, T2: { main: "top_three", support: "poa_now" } });
   });
   it("ignores any text the model sends anyway", async () => {
     const sly = JSON.stringify({ assignments: [{ teamId: "T1", taskText: "Search segment AD.", reason: "She is in AC.", reasons: ["highest_poa"] }, { teamId: "T2", reasons: ["top_three"] }], summary: "They will be found." });
     const out = await wordPlan(draft, deps({ generate: async () => ({ text: sly, inferenceSource: "in_cloud" }) }));
     expect(out.wording.assignments).toEqual([
-      { teamId: "T1", taskText: "Search segment AC.", reason: "AC has the highest POA, 31.0%." },
-      { teamId: "T2", taskText: "Search segment AB.", reason: "AB is in the top three by POA." },
+      { teamId: "T1", taskText: "Search segment AC.", reason: "AC has the highest POA, 31.0%. AC rose from 20.0% to 31.0% since the starting map." },
+      { teamId: "T2", taskText: "Search segment AB.", reason: "AB is in the top three by POA. AB POA now 22.0%." },
     ]);
     expect(out.wording.summary).not.toMatch(/found|She/);
   });
@@ -97,9 +97,9 @@ describe("the model picks reason codes, code writes every sentence", () => {
 
 describe("checkChoice", () => {
   const pick = (t1: unknown, t2: unknown = ["top_three"]) => checkChoice(draft, { assignments: [{ teamId: "T1", reasons: t1 }, { teamId: "T2", reasons: t2 }] });
-  it("accepts one or two of each team's own facts, in any team order", () => {
+  it("accepts one of each team's own facts, in any team order", () => {
     expect(pick(["highest_poa"])).toMatchObject({ ok: true });
-    expect(pick(["poa_rose", "highest_poa"])).toMatchObject({ ok: true });
+    expect(pick(["poa_rose"])).toMatchObject({ ok: true });
     expect(checkChoice(draft, { assignments: [{ teamId: "T2", reasons: ["poa_now"] }, { teamId: "T1", reasons: ["poa_now"] }] })).toMatchObject({ ok: true });
   });
   it("refuses a code from another team's facts, an unknown code, or a known code no segment of the team has", () => {
@@ -107,8 +107,8 @@ describe("checkChoice", () => {
     expect(pick(["near_trail"])).toEqual({ ok: false, reason: NOT_A_TEAM_FACT });
     expect(pick(["customer_complaints"])).toEqual({ ok: false, reason: NOT_A_TEAM_FACT });
   });
-  it("refuses no code, more than two, a repeated code, or codes that are not a list of text", () => {
-    for (const bad of [[], ["highest_poa", "poa_rose", "poa_now"], ["poa_now", "poa_now"], "highest_poa", [1], null]) {
+  it("refuses no code, more than one, a repeated code, or codes that are not a list of text", () => {
+    for (const bad of [[], ["highest_poa", "poa_rose"], ["poa_now", "poa_now"], "highest_poa", [1], null]) {
       expect(pick(bad).ok, JSON.stringify(bad)).toBe(false);
     }
   });

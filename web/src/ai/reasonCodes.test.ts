@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planFacts, renderReason, renderSummary, ringBand, teamFacts, type PlanFacts } from "./reasonCodes";
+import { planFacts, renderReason, renderSummary, ringBand, supportingFact, teamFacts, type PlanFacts } from "./reasonCodes";
 import type { PlanDraft } from "./replanWording";
 
 const rank = [
@@ -151,5 +151,30 @@ describe("planFacts reads each segment's facts from what the command post alread
     });
     expect(f.AC!.ring).toEqual({ innerKm: 0, outerKm: 0.3, fromPct: 0, toPct: 25 });
     expect(f.AB!.ring).toEqual({ innerKm: 1, outerKm: 2.4, fromPct: 50, toPct: 75 });
+  });
+});
+
+describe("the supporting fact code adds to the model's main reason, by a fixed priority", () => {
+  it("takes the team's first fact in priority order (newest report, search state, features, distance band, ranking) other than the main one", () => {
+    expect(supportingFact(draft, "T1", "not_yet_searched")).toBe("moved_by_last_report");
+    expect(supportingFact(draft, "T1", "moved_by_last_report")).toBe("not_yet_searched");
+    expect(supportingFact(draft, "T1", "highest_poa")).toBe("moved_by_last_report");
+    expect(supportingFact(draft, "T2", "searched_still_high")).toBe("not_yet_searched");
+    expect(supportingFact(draft, "T2", "not_yet_searched")).toBe("searched_still_high");
+  });
+  it("skips a fact that repeats the main one: POA now beside the highest POA or a rise, which already give it", () => {
+    expect(supportingFact(base, "T1", "highest_poa")).toBe("top_three");
+    expect(supportingFact(base, "T1", "poa_now")).toBe("top_three");
+    const onlyAc: PlanDraft = { ...base, assignments: [{ teamId: "T1", segmentIds: ["AC"] }] };
+    expect(supportingFact(onlyAc, "T1", "highest_poa")).toBe("poa_rose");
+    expect(supportingFact(onlyAc, "T1", "poa_rose")).toBe("highest_poa");
+    const quiet: PlanDraft = { ...base, rank: [{ segmentId: "AC", rank: 1, poa: 0.31, priorPoa: 0.31, deltaPoa: 0 }], assignments: [{ teamId: "T1", segmentIds: ["AC"] }] };
+    expect(supportingFact(quiet, "T1", "highest_poa")).toBeNull();
+  });
+  it("is none when the team has no other fact, or no segment", () => {
+    const alone: PlanDraft = { ...base, rank: [...rank, { segmentId: "AE", rank: 5, poa: 0.01, priorPoa: 0.02, deltaPoa: -0.01 }], assignments: [{ teamId: "T1", segmentIds: ["AE"] }] };
+    expect([...teamFacts(alone).get("T1")!.keys()]).toEqual(["poa_now"]);
+    expect(supportingFact(alone, "T1", "poa_now")).toBeNull();
+    expect(supportingFact(draft, "T3", "poa_now")).toBeNull();
   });
 });

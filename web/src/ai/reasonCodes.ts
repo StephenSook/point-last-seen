@@ -1,6 +1,6 @@
 // Plan reasons as facts, not free text: code finds the facts that hold for each team's own segments, the model picks
-// the one or two that matter most, and code writes every sentence from fixed templates and the plan's own values.
-// Nothing a model writes reaches the page, so there is no free text to guard.
+// the one that matters most (the team's main reason), code adds a supporting fact by a fixed priority, and code writes
+// every sentence from fixed templates and the plan's own values. Nothing a model writes reaches the page.
 
 import type { PlanDraft } from "./replanWording";
 
@@ -72,6 +72,21 @@ export function teamFacts(draft: PlanDraft): Map<string, Map<FactCode, string[]>
     out.set(a.teamId, new Map(FACT_CODES.filter((c) => found.has(c)).map((c) => [c, found.get(c)!])));
   }
   return out;
+}
+
+// Pairs that say one thing twice: the highest POA and a rise each already give the current POA.
+const REPEATS: readonly (readonly [FactCode, FactCode])[] = [["highest_poa", "poa_now"], ["poa_rose", "poa_now"]];
+const repeats = (a: FactCode, b: FactCode) => REPEATS.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+
+/**
+ * The fact code adds beside the model's main reason: the team's first fact in FACT_CODES order (the newest report,
+ * search state, features, the distance band, then the ranking) other than the main one and not repeating it. None
+ * when the team has no other fact, or no segment. A fixed rule, so no model judgment is claimed for it.
+ */
+export function supportingFact(draft: PlanDraft, teamId: string, main: FactCode): FactCode | null {
+  const facts = teamFacts(draft).get(teamId);
+  if (!facts) return null;
+  return FACT_CODES.find((c) => c !== main && facts.has(c) && !repeats(main, c)) ?? null;
 }
 
 /** "AC", "AC and CC", "AC, CC and DD", or the first three and a count of the rest. */

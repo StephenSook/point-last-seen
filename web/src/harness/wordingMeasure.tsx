@@ -83,11 +83,13 @@ async function measure(): Promise<object> {
     } catch {
       check = { ok: false, reason: "not JSON" };
     }
-    // Whether every reason shown is exactly code's sentence for the codes chosen, each code one of that team's own
-    // facts, and the summary exactly code's summary for the same choices.
+    // Whether every reason shown is exactly code's sentence for the model's main code and code's supporting fact, each
+    // one of that team's own facts, and the summary exactly code's summary for the same choices.
     const codes = w.codes ?? null;
     const facts = teamFacts(DRAFT);
-    const choices = new Map(Object.entries(codes ?? {}) as [string, FactCode[]][]);
+    const choices = new Map(
+      Object.entries(codes ?? {}).map(([t, c]): [string, FactCode[]] => [t, c.support ? [c.main, c.support] : [c.main]]),
+    );
     const reasonsMatchCodes = codes
       ? w.wording.assignments.every((a) => (choices.get(a.teamId) ?? []).every((c) => facts.get(a.teamId)?.has(c)) && a.reason === renderReason(DRAFT, a.teamId, choices.get(a.teamId) ?? []))
       : null;

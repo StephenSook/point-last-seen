@@ -2930,3 +2930,10 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the measurement page runs six wordings per page, alternating each team's facts in the command post's order (most specific first) and in reverse, and starts each page with the order the previous page did not (kept in browser storage). Each run records its order and the fact lists it sent, to show whether the model's choice follows the facts or their place in the list. The reversal is web/src/harness/reverseFacts.ts.
 - Source: measurement of the reason codes on Chrome's built-in model.
 - Verified: new reverseFacts tests (it reverses each team's facts and nothing else, also on the command post's own prompt) failed first (missing module), then passed (2); typecheck passes.
+
+### feat(ai): the model picks each team's main reason; code adds one supporting fact by a fixed rule
+- What: the model now returns one code per team (its main reason), not one or two. supportingFact adds a second fact by a fixed priority: the newest report, search state, features, the distance band, then the ranking. It skips the main code and any fact that repeats it (POA now beside the highest POA or a rise).
+  - The worded plan records each team's main and supporting codes. The measurement page checks each reason against both.
+  - In the order test, the model's lead pick held whichever order its facts were listed in, but its second pick moved with the order. So the second fact is now code's fixed rule, not a model judgment.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: new supportingFact tests and the changed plan wording tests failed first, then passed (50); typecheck passes.

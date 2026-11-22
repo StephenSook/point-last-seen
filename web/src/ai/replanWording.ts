@@ -1,13 +1,13 @@
 // Plan wording on the SDK's own hybrid mode, this laptop first: the cloud answers only when the browser has no
 // local model, and the route records which one ran (the SDK's inferenceSource), never the mode asked for. The plan itself is
-// drafted by code, and so is each team's task line ("Search segment AA."). A model only picks, for each team, the one
-// or two facts that matter most from the facts code found for that team's own segments (reasonCodes.ts), in a closed
-// schema; code writes every sentence of the reasons and the summary. A reply whose teams differ from the draft, or
-// that picks a code outside a team's own facts, falls to a fixed template, and the route says "rules". No text a
-// model writes reaches the page.
+// drafted by code, and so is each team's task line ("Search segment AA."). A model only picks, for each team, its main
+// reason: one fact from those code found for that team's own segments (reasonCodes.ts), in a closed schema. Code adds
+// a supporting fact by a fixed rule and writes every sentence of the reasons and the summary. A reply whose teams
+// differ from the draft, or that picks a code outside a team's own facts, falls to a fixed template, and the route
+// says "rules". No text a model writes reaches the page.
 
 import { InferenceMode, type HybridParams } from "firebase/ai";
-import type { DraftAssignment, PlanWording, RankedSegment, RouteRecord } from "@pls/engine"; import { FACT_CODES, renderReason, renderSummary, teamFacts, type FactCode, type PlanFacts } from "./reasonCodes";
+import type { DraftAssignment, PlanWording, RankedSegment, RouteRecord } from "@pls/engine"; import { FACT_CODES, renderReason, renderSummary, supportingFact, teamFacts, type FactCode, type PlanFacts } from "./reasonCodes";
 import { onDeviceCreateOptions } from "./gate";
 import { CLOUD_MAX_OUTPUT_TOKENS } from "./limits";
 
@@ -26,7 +26,7 @@ export const PLAN_WORDING_JSON = {
       maxItems: 12,
       items: {
         type: "object",
-        properties: { teamId: { type: "string" }, reasons: { type: "array", minItems: 0, maxItems: 2, items: { type: "string", enum: FACT_CODES } } },
+        properties: { teamId: { type: "string" }, reasons: { type: "array", minItems: 0, maxItems: 1, items: { type: "string", enum: FACT_CODES } } },
         required: ["teamId", "reasons"],
       },
     },
@@ -37,7 +37,7 @@ export const PLAN_WORDING_JSON = {
 
 const SYSTEM = [
   "Code has already decided which team searches which segment, and code writes every sentence of the plan.",
-  "For each team, choose the one or two facts from that team's own list that best explain why it searches there, most important first.",
+  "For each team, choose the one fact from that team's own list that best explains why it searches there.",
   "Use only codes from that team's own list. A team with no facts gets an empty list.",
   "Return JSON with assignments (teamId, reasons).",
 ].join(" ");
@@ -94,12 +94,12 @@ export function templateWording(draft: PlanDraft): PlanWording {
 }
 
 export const NOT_A_TEAM_FACT = "a reason code is not one of that team's own facts";
-/** The model's reply: per team, one or two reason codes (none for a team with no segment). Any other field is ignored. */
+/** The model's reply: per team, its main reason code (none for a team with no segment). Any other field is ignored. */
 type ModelChoice = { assignments: { teamId: string; reasons: unknown }[] };
 
 /**
- * Whether the reply names exactly the draft's teams, each once, and gives each team with segments one or two
- * different codes from its own facts (teamFacts), and each team without segments none. On success, the codes chosen.
+ * Whether the reply names exactly the draft's teams, each once, and gives each team with segments exactly one code
+ * from its own facts (teamFacts), and each team without segments none. On success, the codes chosen.
  */
 export function checkChoice(draft: PlanDraft, reply: unknown): { ok: true; codes: Map<string, FactCode[]> } | { ok: false; reason: string } {
   const m = reply as ModelChoice | null;
@@ -113,7 +113,7 @@ export function checkChoice(draft: PlanDraft, reply: unknown): { ok: true; codes
     const own = facts.get(a.teamId);
     const r = a.reasons;
     if (!Array.isArray(r) || !r.every((c): c is string => typeof c === "string") || new Set(r).size !== r.length) return { ok: false, reason: "reason codes are not a list of different codes" };
-    if (own ? r.length < 1 || r.length > 2 : r.length !== 0) return { ok: false, reason: "a team has the wrong number of reason codes" };
+    if (own ? r.length !== 1 : r.length !== 0) return { ok: false, reason: "a team has the wrong number of reason codes" };
     if (r.some((c) => !own?.has(c as FactCode))) return { ok: false, reason: NOT_A_TEAM_FACT };
     codes.set(a.teamId, r as FactCode[]);
   }
@@ -133,8 +133,9 @@ export type WordingDeps = {
 export type WordingAttempt = { route: RouteRecord; failure: "error" | "timeout" | "unreadable" | "rejected" | "number" };
 /** `attempt` is present only when a model was asked and its answer was not used; `route` is what worded the plan. */
 /** `promptBytes`: the UTF-8 size of the plan text a model is sent (for the receipt), when this file built it. */
-/** `codes`: the reason codes the model chose per team, present only when its choice was used. */
-export type WordedPlan = { wording: PlanWording; route: RouteRecord; notice: string | null; attempt?: WordingAttempt; promptBytes?: number; codes?: Record<string, FactCode[]> };
+/** `codes`: per team, the main reason the model chose and the supporting fact code added; only when the model's choice was used. */
+export type ChosenReason = { main: FactCode; support: FactCode | null };
+export type WordedPlan = { wording: PlanWording; route: RouteRecord; notice: string | null; attempt?: WordingAttempt; promptBytes?: number; codes?: Record<string, ChosenReason> };
 
 const UNUSED = "The model's wording could not be used. The plan below uses fixed wording.";
 
@@ -194,16 +195,25 @@ async function wordPlanInner(draft: PlanDraft, deps: WordingDeps): Promise<Worde
     }
     const checked = checkChoice(draft, parsed);
     if (!checked.ok) return template(UNUSED, { route: askedRoute(reply.inferenceSource), failure: "rejected" });
-    // Every sentence comes from code: the task lines from the plan, the reasons and the summary from the codes chosen.
+    // Every sentence comes from code: the task lines from the plan, the reasons and the summary from each team's main
+    // reason (the model's) and its supporting fact (code's fixed rule).
+    const codes: Record<string, ChosenReason> = {};
+    const choices = new Map<string, FactCode[]>();
+    for (const a of draft.assignments) {
+      const main = checked.codes.get(a.teamId)?.[0];
+      if (!main) continue;
+      const support = supportingFact(draft, a.teamId, main);
+      codes[a.teamId] = { main, support };
+      choices.set(a.teamId, support ? [main, support] : [main]);
+    }
     const wording: PlanWording = {
       assignments: draft.assignments.map((a) => ({
         teamId: a.teamId,
         taskText: taskTextFor(a),
-        reason: a.segmentIds.length > 0 ? renderReason(draft, a.teamId, checked.codes.get(a.teamId)!) : "No segment left to assign.",
+        reason: a.segmentIds.length > 0 ? renderReason(draft, a.teamId, choices.get(a.teamId)!) : "No segment left to assign.",
       })),
-      summary: renderSummary(draft, checked.codes),
+      summary: renderSummary(draft, choices),
     };
-    const codes = Object.fromEntries(checked.codes);
     if (reply.inferenceSource === "on_device") return { wording, route: route("on_device", "sdk_prefer_on_device", "chrome-built-in", t1 - t0, true, t1), notice: null, codes };
     if (reply.inferenceSource === "in_cloud") return { wording, route: route("cloud", "on_device_unavailable", deps.model, t1 - t0, true, t1), notice: null, codes };
     return { wording, route: route("unknown", "sdk_prefer_on_device", deps.model, t1 - t0, false, t1), notice: null, codes };
