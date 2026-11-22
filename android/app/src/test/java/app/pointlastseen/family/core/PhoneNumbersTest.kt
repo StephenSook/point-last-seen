@@ -136,6 +136,13 @@ class PhoneNumbersTest {
         assertEquals("Seen 14:03 14:10 then [number removed]", PhoneNumbers.remove("Seen 14:03 14:10 then [number removed]"))
     }
 
+    /** A run beside a marker takes the digits joined to it too, written or spoken, so none of the number is left. */
+    @Test fun aRunBesideAMarkerTakesItsJoinedDigits() {
+        assertEquals("Dial [number removed] [number removed]", PhoneNumbers.remove("Dial [number removed] 4:04 5:55 one two one two"))
+        assertEquals("[number removed] [number removed] tonight", PhoneNumbers.remove("one two 4:04 5:55 [number removed] tonight"))
+        assertEquals("Witness [number removed] at 14:03 14:10", PhoneNumbers.remove("Witness [number removed] at 14:03 14:10"))
+    }
+
     /** A month name beside a run of times reads an hour or minutes as a day, so the run is left to the rule as a whole. */
     @Test fun aRunOfTimesBesideAMonthNameIsLeftToTheRule() {
         assertEquals("[number removed] May 6:00 7:00", PhoneNumbers.remove("1.4045, -55.0142 14 May 6:00 7:00"))

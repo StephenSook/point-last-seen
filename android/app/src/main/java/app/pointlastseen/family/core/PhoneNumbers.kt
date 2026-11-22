@@ -175,14 +175,21 @@ object PhoneNumbers {
         for (m in timesRuns(folded)) {
             val first = startsAt[m.range.first] ?: continue
             val last = endsAt[m.range.last + 1] ?: continue
+            // A run inside a group an earlier marker check already replaced.
+            if (m.range.first < from) continue
             // A "[number removed]" right before or after the run, with no letter or digit between, stands for digits
             // joined to it, so the run goes, whatever else is beside it (Dial [number removed] 4:04 5:55 12:12). Checked
-            // first.
+            // first. The digits joined to the run, written or spoken, go with it (Dial [number removed] 4:04 5:55 one two
+            // one two), so none of the number is left.
             if (MARKER_BEFORE.containsMatchIn(folded.substring(from, m.range.first)) ||
                 MARKER_AFTER.containsMatchIn(folded.substring(m.range.last + 1))
             ) {
-                out.append(removeByRule(folded.substring(from, m.range.first))).append(REPLACEMENT)
-                from = m.range.last + 1
+                var a = first
+                var b = last
+                while (a > 0 && parts[a - 1].start >= from && joins(folded, parts[a - 1], parts[a])) a--
+                while (b + 1 < parts.size && joins(folded, parts[b], parts[b + 1])) b++
+                out.append(removeByRule(folded.substring(from, parts[a].start))).append(REPLACEMENT)
+                from = parts[b].end
                 continue
             }
             val joined = (first > 0 && joins(folded, parts[first - 1], parts[first])) ||
