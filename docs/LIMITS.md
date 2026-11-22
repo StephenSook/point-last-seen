@@ -158,6 +158,13 @@ each line says what the limit is and why.
   with no comma, and a plan's doc id is its version in exactly one form ("0016", never "00016"). The command post
   also reads each stored plan field by field (`planFromDoc`) and sets aside, naming it on the post, any record that
   is not a plan.
+- The plan's one-line reason for each team is written by a model and checked by code before it is shown: a reason
+  may use only its own team's figures, each as a current or an earlier POA, and a word saying a POA rose or fell must
+  match one of the team's own segments. If any reason fails, the plan uses fixed wording. The check reads words, so a
+  direction said in words outside its lists, or a ranking such as "highest" that is not true, can still pass. Asking
+  the model for reasons with no figures was measured and not adopted: on Chrome's built-in model, 6 of 6 runs
+  invented a meaning for the segment codes instead
+  (`docs/evidence/web/2026-11-22-plan-wording-figure-free-chrome.json`).
 
 ## Language
 
