@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Evidence: docs/evidence/web/2026-11-22-judge-door-what-leaves.json and its screenshot record the deployed judge door
+  in a fresh profile with no settings or sign-in: the public URL reaches the AI path, each screen says what leaves
+  before it leaves, and no model output was written (no Firestore write in the run). Requests keep only method, address
+  without its query string and status. Source: review of the deployed judge door. Verified:
+  web/src/command/judgeDoorEvidence.test.ts checks the file (no query strings, AI calls 200, zero writes) and that it
+  quotes the Plan section's line exactly; it fails without the file.
 - App Check on functions: a test finds every client-callable function from the exports (six: joinIncident,
   deleteIncidentMediaNow, removeMember, deleteMyAccount, rotateJoinCode, startJudgeSession), calls each with no App
   Check token and with a bad one, and requires the wrapper's own 401 before the handler runs; it also requires the

@@ -2732,3 +2732,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: one line under "Draft for the current reports." says "Suggest plan words the draft on this laptop's built-in model, or with Gemini in the cloud when it has none. It sends only team ids, segment codes and percents, never a note or a name." (what `planPrompt` holds), or, while command has paused cloud reading, "Cloud reading is paused, so Suggest plan uses fixed wording and sends nothing." Before, the screen said nothing until after the tap, when a Cloud mark and a closed What ran appeared.
 - Source: review of the deployed judge door in a fresh browser profile (a practice search's Suggest plan went to the cloud with no word beforehand).
 - Verified: a new harness test (both lines, and the cloud one absent while paused) failed first, then passed; the fallback test's no-laptop-notice check now leaves out this line. Plan harness spec (15), web unit suite, typecheck, harness suite and every gate pass.
+
+### test(evidence): the judge door evidence is checked against itself and the Plan section
+- What: `judgeDoorEvidence.test.ts` reads docs/evidence/web/2026-11-22-judge-door-what-leaves.json and asserts it holds only methods, query-free addresses and statuses, that its AI calls answered 200 with no Firestore write, and that it quotes the Plan section's line exactly as `WhatChanged.tsx` has it.
+- Source: review of the deployed judge door.
+- Verified: passes with the file (3) and fails without it.
