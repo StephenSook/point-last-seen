@@ -61,6 +61,17 @@ class PhoneVectorsTest {
         }
     }
 
+    /** Scrubbing twice is scrubbing once: for every case that runs here, scrubbing its output again changes nothing. */
+    @Test fun scrubbingAnOutputAgainChangesNothing() {
+        var checked = 0
+        for (key in kinds) for (o in vectors[key]!!.jsonArray.map { it.jsonObject }.filterNot(::pendingHere)) {
+            val out = PhoneNumbers.remove(o["input"]!!.jsonPrimitive.content)
+            assertEquals("${o["name"]!!.jsonPrimitive.content}: scrubbed again", out, PhoneNumbers.remove(out))
+            checked++
+        }
+        assertTrue("cases checked: $checked", checked >= 100)
+    }
+
     private fun pendingHere(c: JsonObject) = c["pendingOn"]?.jsonArray?.any { it.jsonPrimitive.content == "android" } == true
 
     private val kinds = listOf("mustRemove", "mustKeep", "exact")
