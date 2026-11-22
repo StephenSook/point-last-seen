@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### test(rules): the iPhone's content reports against the create rule in the emulator
+- What: functions/test/rules/contentReportsIos.test.ts writes every case of shared/test-vectors/content-report-ios.json
+  to the emulator as the searcher, with the server's time, and expects each accepted. It then breaks copies of the
+  first case the ways a client could (no server time, the phone's own time, a note over 500 code points, an extra
+  field, another role, someone else's name, no reason, a target id that does not fit the target) and expects each
+  refused, and the unbroken copy accepted, so each refusal comes from its change. The Rules workflow now also runs
+  when that vector changes.
+- Source: proving the create rule against the iPhone's own documents, as the first client to write them.
+- Verified: in CI's Rules workflow (the emulators run there); the local gates pass, including the workflow-path test.
+
 ### test(ios-core): the shared vector of what the iPhone writes for Report a problem
 - What: shared/test-vectors/content-report-ios.json holds the fields the iPhone writes for four inputs: a task report
   whose note holds a phone number, the family's description with an empty note, a note cut at 500 code points, and
