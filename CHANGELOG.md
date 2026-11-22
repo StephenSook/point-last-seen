@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: the plan reason line is rewritten for fact codes: a model (Chrome's built-in model where the browser has
+  one, otherwise the cloud model) chooses each team's main reason from that team's own facts, code adds a second fact
+  and writes every word, a reply that does not fit is not used and the plan shows fixed wording, and the pick can
+  depend on the order facts are listed, which the app keeps fixed (measured 6 of 6 and 5 of 6 in that order, one team
+  changing when reversed). Source: the reason-code change (PR #354). Verified: each sentence against
+  web/src/ai/reasonCodes.ts (FACT_CODES, teamFacts, supportingFact, renderReason) and checkChoice and wordPlan in
+  web/src/ai/replanWording.ts on that branch, and the counts against the main-pick evidence file; the hygiene guard
+  passes in public mode.
 - Evidence: three measurements of plan reasons as fact codes on Chrome's built-in model, all on device with no Google
   request and 0 fallbacks: two codes per team in the old order (6 runs, always the first ranking facts listed), two
   codes with each team's facts specific first or reversed (12 runs), and one main code per team as shipped (12 runs:

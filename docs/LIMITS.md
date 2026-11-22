@@ -158,20 +158,15 @@ each line says what the limit is and why.
   with no comma, and a plan's doc id is its version in exactly one form ("0016", never "00016"). The command post
   also reads each stored plan field by field (`planFromDoc`) and sets aside, naming it on the post, any record that
   is not a plan.
-- The plan's one-line reason for each team is written by a model and checked by code before it is shown: a reason
-  may use only its own team's figures, each as a current or an earlier POA, and a word saying a POA rose or fell must
-  match one of the team's own segments. The prompt says segment codes are map grid squares, and a reason or the
-  summary that says what a code stands for is refused: words in brackets beside a code, or capitalized words whose
-  initials spell one ("Customer Complaints" for CC). A reason or the summary that says where the missing person is
-  ("she is likely in AC", "probably near the creek") or that they will be found is refused too, though a segment in a
-  ranking ("AC is in the top three") is not. If any reason fails, the plan uses fixed wording. The checks read
-  words, so a direction said in words outside its lists, a ranking such as "highest" that is not true, a made-up
-  meaning not written as initials ("recent inquiries"), or a claim about the person in other phrasing can still pass;
-  with the grid-square line, no run spelled out
-  a code (`docs/evidence/web/2026-11-22-plan-wording-grid-squares-chrome.json`). Asking
-  the model for reasons with no figures was measured and not adopted: on Chrome's built-in model, 6 of 6 runs
-  invented a meaning for the segment codes instead
-  (`docs/evidence/web/2026-11-22-plan-wording-figure-free-chrome.json`).
+- A model chooses each team's main reason from that team's own facts: Chrome's built-in model where the browser has
+  one, otherwise the cloud model. Code adds a second fact when the team has one and writes every word, so no text a
+  model writes reaches the page. The facts come from the plan: the newest report, whether a segment was searched,
+  nearby trails, roads, streams, water or buildings, the distance band from the last-seen point, and the POA ranking.
+  A reply that names other teams, gives a team no fact or more than one, picks a fact outside that team's own list,
+  or is not JSON is not used, and the plan shows fixed wording. When two facts are close, the model's pick can depend
+  on the order they are listed. The app always lists them in the same fixed order. Measured on Chrome's built-in
+  model: in the fixed order, one team's pick held 6 of 6 and the other's 5 of 6. Reversing the order changed one
+  team's pick (`docs/evidence/web/2026-11-22-plan-reason-main-pick-chrome.json`).
 
 ## Language
 
