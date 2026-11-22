@@ -63,6 +63,22 @@ describe("planPrompt", () => {
   });
 });
 
+describe("the same plan state always gives the model the same input", () => {
+  it("lists each team's facts in one fixed order, whatever order a segment's grid features are stored in", () => {
+    const withFacts = (classes: string[]): PlanDraft => ({
+      ...draft,
+      facts: {
+        AC: { featureClasses: classes, searched: false, raisedByLastReport: true, ring: null },
+        AB: { featureClasses: [], searched: true, raisedByLastReport: false, ring: null },
+      },
+    });
+    const a = planPrompt(withFacts(["trail", "stream", "road"]));
+    expect(planPrompt(withFacts(["road", "stream", "trail"]))).toBe(a);
+    expect(planPrompt(withFacts(["trail", "stream", "road"]))).toBe(a);
+    expect(a.split("\n")[1]).toBe("T1 searches AC. Facts: moved_by_last_report (AC), not_yet_searched (AC), near_trail (AC), near_road (AC), near_stream (AC), highest_poa (AC), poa_rose (AC), poa_now (AC)");
+  });
+});
+
 describe("the model picks reason codes, code writes every sentence", () => {
   it("asks the model only for each team's main reason code, from the known codes: no sentence, task line or summary", () => {
     const item = PLAN_WORDING_JSON.properties.assignments.items;

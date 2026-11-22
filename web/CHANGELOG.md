@@ -2945,3 +2945,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - The judge-door evidence test now pins that record to the commit it read (522d88d2), whose line has since changed.
 - Source: plan wording review.
 - Verified: plan harness spec 15/15; the payload line patterns accept every line of planPrompt for a plan with facts and a team with no segment, and refuse free text and figures; what-ran and judge-door tests pass; typecheck passes.
+
+### test(ai): the same plan state always gives the model the same input
+- What: a guard that planPrompt lists each team's facts in one fixed order (FACT_CODES), whatever order a segment's grid features are stored in, so the model's main pick is never moved by a reshuffled list.
+- Source: plan wording review.
+- Verified: the test passes, and fails when the facts keep their found order instead of FACT_CODES order.
