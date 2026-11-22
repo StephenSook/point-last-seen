@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Evidence: `docs/evidence/android/a16-push-rehearsal-2026-11-22.md` records one rehearsal family push to the
+  `android-judge-5` file on a Samsung A16, with the app in the background: the question was committed at
+  20:43:35.559Z and the notice was posted on the phone at 20:43:39.867Z (4.31 s, n=1, not a typical latency).
+  Source: the film rehearsal. Verified: the question document's `createdAt` and create time read from Firestore
+  (one document on the incident), the phone's notification record read by adb with the phone clock checked
+  against UTC (4 ms), and the installed `base.apk` hash read on the phone.
+
 - Limits: new "Report reads (iPhone)" section: Apple's on-device model read three object finds as "found" in the
   2026-11-22 on-phone eval (footprints, a wrapper, a water bottle), the found-kind rule changed none of them, and a
   "found" report has no effect on the map and sends no alert. Source: the on-phone eval result. Verified: n3, n9 and
