@@ -1,5 +1,5 @@
 {
- "rule": "sha256:a8c545a5f2a3e4e44cebcdf12f1a6a828d3d85709959f44da2719973682f1692",
+ "rule": "sha256:16a4765ec0c999af7b06e3e0e6d4f1c6469781a3989182efb2d52fdabf82c1c2",
  "replacement": "[number removed]",
  "rows": [
   {"input":"Her son is at 4 0 4 5 5 5 0 1 4 2, call him.","output":"Her son is at [number removed], call him."},
@@ -131,6 +131,7 @@
   {"input":"Radio 155.160 404 5550142","output":"Radio [number removed]"},
   {"input":"Seen 14 May 5:55 01:42","output":"Seen 14 May 5:55 01:42"},
   {"input":"Seen 11/19/2026 12:12 5:55 01:42","output":"Seen 11/19/2026 12:[number removed]"},
+  {"input":"Dial [number removed] 4:04 5:55 12:12","output":"Dial [number removed] [number removed]"},
   {"input":"Ca͏ll ́5:56 ͏","output":"Ca͏ll ́5:56 ͏"},
   {"input":"16:42 11:09","output":"[number removed]"},
   {"input":"४四","output":"४四"},

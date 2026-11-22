@@ -88,6 +88,11 @@ const TIME_CUES = new Set([...PHONE_CUES, "text", "reach"]);
 // How many words before a run of times are read for a cue.
 const CUE_WINDOW = 3;
 
+// A "[number removed]" at the end of the text before a run, or at the start of the text after it, with no letter or
+// digit between.
+const MARKER_BEFORE = /\[number removed\][^\p{L}\p{N}]*$/u;
+const MARKER_AFTER = /^[^\p{L}\p{N}]*\[number removed\]/u;
+
 /** Whether part p is a word of a "[number removed]" already in s, which stands for digits that were removed. */
 function inMarker(s: string, p: Part): boolean {
   const at = s.lastIndexOf("[", p.start);
@@ -129,6 +134,13 @@ export function removePhoneNumbers(text: string): string {
     const first = startsAt.get(m.index);
     const last = endsAt.get(m.index + m[0].length);
     if (first === undefined || last === undefined) continue;
+    // A "[number removed]" right before or after the run, with no letter or digit between, stands for digits joined to
+    // it, so the run goes, whatever else is beside it (Dial [number removed] 4:04 5:55 12:12). Checked first.
+    if (MARKER_BEFORE.test(folded.substring(from, m.index)) || MARKER_AFTER.test(folded.substring(m.index + m[0].length))) {
+      out += removeByRule(folded.substring(from, m.index)) + REPLACEMENT;
+      from = m.index + m[0].length;
+      continue;
+    }
     const joined = (first > 0 && joins(folded, parts[first - 1]!, parts[first]!))
       || (last + 1 < parts.length && joins(folded, parts[last]!, parts[last + 1]!));
     // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which changes

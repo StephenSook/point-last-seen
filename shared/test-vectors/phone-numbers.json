@@ -1077,6 +1077,14 @@
         "web",
         "android"
       ]
+    },
+    {
+      "name": "marker_beside_times",
+      "input": "Dial [number removed] 4:04 5:55 12:12",
+      "output": "Dial [number removed] [number removed]",
+      "pendingOn": [
+        "ios"
+      ]
     }
   ]
 }
