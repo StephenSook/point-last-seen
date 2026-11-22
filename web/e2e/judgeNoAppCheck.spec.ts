@@ -26,6 +26,6 @@ test("with the security check failing, the judge door says why the practice sear
   );
   await expect(page).toHaveURL(/\/judge$/);
   await expect(practice.getByRole("button", { name: "Try a practice search" })).toBeEnabled();
-  await expect(page.getByRole("region", { name: "Replay the training drill" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Watch the drill replay" })).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
