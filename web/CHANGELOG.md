@@ -2791,3 +2791,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: each sign-in is its own session, so a reply from a read started before a sign-out is dropped even when the same account signs in again; while the line comes from a reply with no readable issue time, a timed reply applies only if its read started later and its token was issued after the newest one applied.
 - Source: review (backlog issue #327).
 - Verified: three new unit tests (the same account signing out and in again; an earlier read's timed reply landing after a newer untimed one; an older token from a later read after an untimed reply, from review) failed first, then passed with the 16 existing claims tests (19); typecheck passes.
+
+### docs(evidence): describe the clip of the command post removing a member
+- What: docs/evidence/web/README.md describes a 20.96 s screen recording (1920 x 1080) of the deployed command post on the App Review drill removing a test searcher ("Removed" on screen, the other searcher kept), then opening the new-code confirm and cancelling it, moment by moment, with the file's SHA-256. The clip is kept outside the repository (it takes no video files); it was made for the App Store review.
+- Source: App Store review asks to see an abusive member removed.
+- Verified: stills at 0, 25, 50, 75 and 99 percent and one a second were checked by eye (no join code, member id or personal data on screen); a fresh sign-in afterwards read Team 1 searcher active and Team 2 searcher removed.
