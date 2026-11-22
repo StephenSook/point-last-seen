@@ -97,6 +97,7 @@ export const NUMBER_NOT_IN_PLAN = "a number that is not in the plan";
 export const OUTSIDE_TEAMS_ROWS = "a reason uses a number from outside its own team's rows";
 export const EARLIER_AS_CURRENT = "a reason gives an earlier POA as the current one";
 export const CURRENT_AS_EARLIER = "a reason gives the current POA as an earlier one";
+export const PERSON_CLAIM = "a reason or the summary says where the person is or that they will be found";
 export const SPELLS_OUT_A_CODE = "a reason or the summary says what a segment code stands for";
 export const WRONG_DIRECTION = "a reason says a POA moved in a direction none of its team's segments did";
 // A minus sign or dash belongs to its number, so "-31.0" or "\u221231.0" is never read as the plan's "31.0"; one joined
@@ -204,6 +205,22 @@ function spellsOutCode(text: string, ids: readonly string[]): boolean {
   return false;
 }
 
+// The missing person, as a model would name them.
+const PERSON = String.raw`(?:she|he|they|him|her|them|the (?:missing )?(?:person|subject|child|man|woman|boy|girl|walker))`;
+const PLACE = String.raw`(?:in|at|near|inside|around|by|hiding|there|here|located|found)`;
+/**
+ * Claims about the missing person that no plan can make: an outcome promised ("will be found"), a place given as
+ * likely ("probably near the creek", "is located", "must be in"), or the person placed somewhere ("she is likely in
+ * AC"). The prompt forbids them; this refuses them, and a false refusal only falls back to the fixed wording.
+ */
+const PERSON_CLAIMS = [
+  /\b(?:will|would|should|is going to)\s+be\s+found\b/i,
+  /\b(?:likely|probably|possibly|presumably|certainly)\s+(?:to\s+be\s+)?(?:in|at|near|inside|around|by|hiding)\b/i,
+  /\bis\s+located\b/i,
+  /\bmust\s+be\s+(?:in|at|near|inside|around|by|there|here)\b/i,
+  new RegExp(`\\b${PERSON}\\s+(?:is|are|was|were|has been|have been|could be|may be|might be|must be|should be|will be)\\s+(?:\\w+\\s+){0,2}?${PLACE}\\b`, "i"),
+];
+
 export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: true } | { ok: false; reason: string } {
   if (!wording || !Array.isArray(wording.assignments)) return { ok: false, reason: "no assignments" };
   const want = draft.assignments.map((a) => a.teamId).sort();
@@ -218,7 +235,10 @@ export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: tru
   }
   if (typeof wording.summary !== "string" || wording.summary.length > 300) return { ok: false, reason: "bad summary" };
   // A segment code is a map grid square: a reason or summary that says what it stands for has made that up.
-  if ([...wording.assignments.map((a) => a.reason), wording.summary].some((t) => spellsOutCode(t, known))) return { ok: false, reason: SPELLS_OUT_A_CODE };
+  const texts = [...wording.assignments.map((a) => a.reason), wording.summary];
+  if (texts.some((t) => spellsOutCode(t, known))) return { ok: false, reason: SPELLS_OUT_A_CODE };
+  // Never where the person is or that they will be found: shown beside a task, that would read as fact.
+  if (texts.some((t) => PERSON_CLAIMS.some((re) => re.test(t)))) return { ok: false, reason: PERSON_CLAIM };
   // Every number the model writes must be one it was given: an invented figure would reach command as fact.
   const given = new Set(planPrompt(draft).match(NUMBER) ?? []);
   const written = [...wording.assignments.map((a) => a.reason), wording.summary].flatMap((t) => t.match(NUMBER) ?? []);

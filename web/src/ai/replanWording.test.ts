@@ -8,6 +8,7 @@ import {
   NUMBER_NOT_IN_PLAN,
   OUTSIDE_TEAMS_ROWS,
   SPELLS_OUT_A_CODE,
+  PERSON_CLAIM,
   WRONG_DIRECTION,
   EARLIER_AS_CURRENT,
   CURRENT_AS_EARLIER,
@@ -408,5 +409,24 @@ describe("segment codes are grid squares, never abbreviations", () => {
     const sys = String(wordingParams("m").inCloudParams?.systemInstruction ?? "");
     expect(sys).toContain("map grid squares");
     expect(sys).toMatch(/never say what the letters stand for/);
+  });
+});
+
+describe("never where the person is, or that they will be found", () => {
+  const withReason = (reason: string, summary = "Teams move to the two highest segments.") =>
+    ({ assignments: [{ teamId: "T1", taskText: "x", reason }, { teamId: "T2", taskText: "x", reason: "Second highest." }], summary });
+  it("refuses a reason that places the person in the team's own segment", () => {
+    expect(checkWording(draft, withReason("She is likely in AC."))).toEqual({ ok: false, reason: PERSON_CLAIM });
+    expect(checkWording(draft, withReason("The person is probably near the creek in AC."))).toEqual({ ok: false, reason: PERSON_CLAIM });
+    expect(checkWording(draft, withReason("AC is where the subject is located."))).toEqual({ ok: false, reason: PERSON_CLAIM });
+  });
+  it("refuses a promise that the person will be found, in a reason or the summary", () => {
+    expect(checkWording(draft, withReason("The child will be found here."))).toEqual({ ok: false, reason: PERSON_CLAIM });
+    expect(checkWording(draft, withReason("Highest.", "The missing person must be near the creek."))).toEqual({ ok: false, reason: PERSON_CLAIM });
+  });
+  it("keeps a plain team reason, and a segment that is in a ranking", () => {
+    expect(checkWording(draft, withReason("Highest POA now."))).toEqual({ ok: true });
+    expect(checkWording(draft, withReason("AC is in the top three."))).toEqual({ ok: true });
+    expect(checkWording(draft, withReason("Team T1 searches AC first."))).toEqual({ ok: true });
   });
 });
