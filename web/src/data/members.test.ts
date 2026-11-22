@@ -20,12 +20,10 @@ describe("removeErrorMessage: why a removal failed, in the words command needs",
 
 describe("memberRows: who command can remove", () => {
   const teams = [{ teamId: "T1", name: "Team 1" }, { teamId: "T2", name: "Team 2" }];
-  const ev = (authorUid: string, role: string, teamId: string | null) => ({ authorUid, role, teamId });
-  it("joins members records with event authors, never lists command, and labels by team", async () => {
+  it("lists the members records, never command, and labels by team", async () => {
     const { memberRows } = await import("./members");
     const rows = memberRows(
-      { u1: { role: "searcher", team: "T1" }, f1: { role: "family", team: null }, c1: { role: "command", team: null } },
-      [ev("u2", "searcher", "T2"), ev("c1", "command", null), ev("u1", "searcher", "T1"), ev("c2", "command", null)],
+      { u1: { role: "searcher", team: "T1" }, f1: { role: "family", team: null }, c1: { role: "command", team: null }, u2: { role: "searcher", team: "T2" } },
       new Set(),
       teams,
     );
@@ -35,36 +33,30 @@ describe("memberRows: who command can remove", () => {
       ["u2", "Team 2 searcher", false],
     ]);
   });
-  it("a members record wins over an event's role and team", async () => {
+  it("an account with no members record is not listed, so someone who left (record deleted) is gone", async () => {
     const { memberRows } = await import("./members");
-    const rows = memberRows({ u1: { role: "searcher", team: "T2" } }, [ev("u1", "searcher", "T1")], new Set(), teams);
-    expect(rows.map((r) => r.label)).toEqual(["Team 2 searcher"]);
+    const rows = memberRows({ u1: { role: "searcher", team: "T1" } }, new Set(), teams);
+    expect(rows.map((r) => r.uid)).toEqual(["u1"]);
+    expect(memberRows({}, new Set(["gone"]), teams)).toEqual([]);
   });
   it("two searchers on one team are told apart by the end of their id", async () => {
     const { memberRows } = await import("./members");
-    const rows = memberRows({ "aaaa1111": { role: "searcher", team: "T1" }, "bbbb2222": { role: "searcher", team: "T1" } }, [], new Set(), teams);
+    const rows = memberRows({ "aaaa1111": { role: "searcher", team: "T1" }, "bbbb2222": { role: "searcher", team: "T1" } }, new Set(), teams);
     expect(rows.map((r) => r.label)).toEqual(["Team 1 searcher (1111)", "Team 1 searcher (2222)"]);
   });
   it("removed members come last and say so; a team not in the list is named by its id", async () => {
     const { memberRows } = await import("./members");
-    const rows = memberRows({ u1: { role: "searcher", team: "T9" } }, [ev("f1", "family", null)], new Set(["f1"]), teams);
+    const rows = memberRows({ u1: { role: "searcher", team: "T9" }, f1: { role: "family", team: null } }, new Set(["f1"]), teams);
     expect(rows.map((r) => [r.label, r.removed])).toEqual([["T9 searcher", false], ["Family member", true]]);
   });
 });
 
 describe("memberRows: never the caller or a command account, and never two identical labels", () => {
   const teams = [{ teamId: "T1", name: "Team 1" }];
-  it("leaves out the caller and anyone ever seen as command, whatever came first", async () => {
+  it("leaves out the caller and every command record", async () => {
     const { memberRows } = await import("./members");
     const rows = memberRows(
-      { s2: { role: "command", team: null } },
-      [
-        { authorUid: "me", role: "searcher", teamId: "T1" },
-        { authorUid: "s1", role: "searcher", teamId: "T1" },
-        { authorUid: "s1", role: "command", teamId: null },
-        { authorUid: "s2", role: "searcher", teamId: "T1" },
-        { authorUid: "s3", role: "searcher", teamId: "T1" },
-      ],
+      { me: { role: "searcher", team: "T1" }, s2: { role: "command", team: null }, s3: { role: "searcher", team: "T1" } },
       new Set(),
       teams,
       "me",
@@ -73,17 +65,9 @@ describe("memberRows: never the caller or a command account, and never two ident
   });
   it("lengthens the id ending until every label is distinct", async () => {
     const { memberRows } = await import("./members");
-    const rows = memberRows({ "aa001111": { role: "searcher", team: "T1" }, "bb001111": { role: "searcher", team: "T1" } }, [], new Set(), teams, null);
+    const rows = memberRows({ "aa001111": { role: "searcher", team: "T1" }, "bb001111": { role: "searcher", team: "T1" } }, new Set(), teams, null);
     const labels = rows.map((r) => r.label);
     expect(new Set(labels).size).toBe(2);
     expect(labels).toEqual(["Team 1 searcher (aa001111)", "Team 1 searcher (bb001111)"]);
-  });
-});
-
-describe("memberRows: a members record decides; events decide only when there is none", () => {
-  it("lists an account whose record says family even though an old event of it was command", async () => {
-    const { memberRows } = await import("./members");
-    const rows = memberRows({ u1: { role: "family", team: null } }, [{ authorUid: "u1", role: "command", teamId: null }], new Set(), [], null);
-    expect(rows.map((r) => [r.uid, r.label])).toEqual([["u1", "Family member"]]);
   });
 });
