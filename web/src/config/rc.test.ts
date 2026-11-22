@@ -3,7 +3,7 @@ import { RC_DEFAULTS, parseRc } from "./rc";
 
 describe("Remote Config", () => {
   it("sets in-app defaults only for the keys the web reads", () => {
-    expect(RC_DEFAULTS).toEqual({ cloud_model_web: "gemini-3.5-flash-lite", kill_cloud: false, use_limited_use_tokens: true, sighting_template_id: "pls-sighting-note-v1", photo_template_id: "pls-photo-cues-v1" });
+    expect(RC_DEFAULTS).toEqual({ cloud_model_web: "gemini-3.5-flash-lite", kill_cloud: false, sighting_template_id: "pls-sighting-note-v1", photo_template_id: "pls-photo-cues-v1" });
   });
 
   it("every value the web parses has a reader in web code (wired, not just parsed)", () => {
@@ -29,17 +29,15 @@ describe("Remote Config", () => {
   });
 
   it("reads typed values for the web seat", () => {
-    const rc = parseRc({ cloud_model_web: "gemini-3.5-flash-lite", kill_cloud: "true", use_limited_use_tokens: "false" });
+    const rc = parseRc({ cloud_model_web: "gemini-3.5-flash-lite", kill_cloud: "true" });
     expect(rc.cloudModelWeb).toBe("gemini-3.5-flash-lite");
     expect(rc.killCloud).toBe(true);
-    expect(rc.useLimitedUseTokens).toBe(false);
   });
 
   it("falls back to the default for missing keys", () => {
     const rc = parseRc({});
     expect(rc.cloudModelWeb).toBe("gemini-3.5-flash-lite");
     expect(rc.killCloud).toBe(false);
-    expect(rc.useLimitedUseTokens).toBe(true);
   });
 
   it("keeps live paths on the flash-lite family", () => {

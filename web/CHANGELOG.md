@@ -2717,3 +2717,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `centreFeatures` puts each dot at `insidePoint`, so on the five segments whose centroid lies outside them, a click on the dot picks the segment it belongs to instead of "Outside the search area". The old test's triangle, whose centroid sat on its edge, is now a square.
 - Source: review (Codex, first round on the Place list fix).
 - Verified: a new unit test (a U-shaped segment's dot resolves to it) failed first, then passed; map tests (25), web unit suite, typecheck and harness suite pass.
+
+### fix(ai): the AI instance reads its App Check flag once, from Remote Config, never from a caller
+- What: `aiClient(app)` no longer takes the limited-use-token flag. The page's one instance reads it once from the activated Remote Config value (`activatedLimitedUseTokens`, the default when nothing is activated or the config cannot be read), so the judge page (which passed the default) and the command post (which passed the live value) can no longer build it with whichever flag asked first; `getAI` refuses a second instance with another flag (ALREADY_INITIALIZED), so a changed value applies on the next load. `WebRc.useLimitedUseTokens` is gone, since nothing reads it now.
+- Source: review (the instance kept the first caller's flag).
+- Verified: four new unit tests (judge then post share one instance and the activated "false"; an empty value and an unreadable config take the default; no caller passes a flag) failed first, then passed; web unit suite (1249), typecheck, harness suite and every gate pass.
+
+### fix(ai): the web always asks for limited-use App Check tokens
+- What: `aiClient` builds the page's one instance with `useLimitedUseAppCheckTokens: true` and reads no Remote Config value for it. Reading the key once per page (the previous commit) could still lock in an early or stale value: Remote Config loads its saved values in the background, so a page that loaded an old `false` before the newly published `true` would have kept `false`, and with replay protection enforced every cloud call on that page would fail. The web's `use_limited_use_tokens` default and `activatedLimitedUseTokens` are gone; the phones still read the key, with `true` as their default.
+- Source: review (Codex, scoped pass on the read-once fix).
+- Verified: the updated tests (a Remote Config `false` leaves it on; no web file reads the key or passes another flag; client.ts builds with `true`) failed first, then passed, and fail again with the flag set to `false`; web unit suite, typecheck and every gate pass.

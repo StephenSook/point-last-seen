@@ -7,7 +7,6 @@ import { activate, fetchAndActivate, getAll, getRemoteConfig, getValue, onConfig
 export const RC_DEFAULTS = {
   cloud_model_web: "gemini-3.5-flash-lite",
   kill_cloud: false,
-  use_limited_use_tokens: true,
   /** The server prompt template for the consented cloud read of a sighting note. */
   sighting_template_id: "pls-sighting-note-v1",
   /** The server prompt template for the consented cloud read of a family photo. */
@@ -17,7 +16,6 @@ export const RC_DEFAULTS = {
 export type WebRc = {
   cloudModelWeb: string;
   killCloud: boolean;
-  useLimitedUseTokens: boolean;
   sightingTemplateId: string;
   photoTemplateId: string;
   /** Where cloud_model_web came from: the fetched config ("remote") or the in-app default. */
@@ -55,7 +53,6 @@ export function parseRc(values: Partial<Record<keyof typeof RC_DEFAULTS, string>
   return {
     cloudModelWeb: model(values.cloud_model_web, d.cloud_model_web),
     killCloud: bool(values.kill_cloud, d.kill_cloud),
-    useLimitedUseTokens: bool(values.use_limited_use_tokens, d.use_limited_use_tokens),
     sightingTemplateId: templateId(values.sighting_template_id, d.sighting_template_id),
     photoTemplateId: templateId(values.photo_template_id, d.photo_template_id),
   };

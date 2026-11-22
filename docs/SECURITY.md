@@ -65,11 +65,13 @@ Names and places only; no value is in this repository.
 | 13 | Model Armor | DECIDED-NO. Every client uses the Gemini Developer API backend (web `GoogleAIBackend`, iOS `.googleAI()`, Android `GenerativeBackend.googleAI()`); Model Armor applies only to the Vertex AI backend | Code |
 | 14 | App Check on Firestore, Storage and functions | Firestore and Storage: ENFORCED (a request without a valid App Check token is refused): Storage since 2026-11-20 01:47:55 UTC and Firestore since 2026-11-20 21:29:29 UTC, each read back by GET the same minute. Before that both ran UNENFORCED (monitoring only) from 2026-11-19 01:33 UTC, and each was enforced only after a read of verified against unverified requests per app (Cloud Monitoring metric `firebaseappcheck.googleapis.com/services/verification_count`) showed none unverified from a real client; for Firestore that read included an iPhone release build passing App Attest. After Firestore was enforced, 64 of 64 live web specs (judge start and replay included), the daily probe and an iPhone read passed, and a Firestore REST read with no App Check token was refused (403). The daily probe reads `ops/storage` with an App Check token. Rollback: set the service's enforcement mode back. Functions: all three client-callable functions, `joinIncident`, `deleteIncidentMediaNow` and `startJudgeSession`, have `enforceAppCheck: true`; `deleteIncidentMedia` and `deleteEndedSandboxesJob` (scheduled) and `deleteClipOnConsentEnd` (a Firestore trigger) cannot be called by clients | `functions/src/index.ts` |
 
-Row 2 note: the Remote Config key `use_limited_use_tokens` (published value `true`) turns limited-use tokens on
-for the web (`aiClient(app, rc.useLimitedUseTokens)`, `web/src/ai/client.ts`), iOS
+Row 2 note: the web always asks for limited-use tokens (`aiClient(app)` builds its one instance with
+`useLimitedUseAppCheckTokens: true`, `web/src/ai/client.ts`) and reads no Remote Config key for it, so no stale or
+early value can switch it off for a page. The phones still read the Remote Config key `use_limited_use_tokens`
+(published value `true`, and `true` is the in-app default on both): iOS
 (`FirebaseAI.firebaseAI(backend: .googleAI(), useLimitedUseAppCheckTokens:)`, `ios/PLS/AI/AIClient.swift`) and
 Android (`useLimitedUseAppCheckTokens = rc().useLimitedUseTokens`, `android/.../ai/AiClient.kt`). With replay
-protection enforced, setting it to `false` would make every cloud call fail.
+protection enforced, setting it to `false` would make every cloud call on the phones fail.
 
 ## Every cloud model call
 
