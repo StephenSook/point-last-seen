@@ -159,18 +159,39 @@ export function removePhoneNumbersOnce(text: string): string {
   const endsAt = new Map(parts.map((p, i) => [p.end, i] as const));
   let out = "";
   let from = 0;
-  for (const m of folded.matchAll(TIMES_RUN)) {
+  const runs = [...folded.matchAll(TIMES_RUN)];
+  // Every part inside a run of times, so digits joined after one run never reach into another.
+  const inTimes = new Set<number>();
+  for (const m of runs) {
+    const a = startsAt.get(m.index);
+    const b = endsAt.get(m.index + m[0].length);
+    if (a !== undefined && b !== undefined) for (let i = a; i <= b; i++) inTimes.add(i);
+  }
+  for (const m of runs) {
     const first = startsAt.get(m.index);
     const last = endsAt.get(m.index + m[0].length);
     if (first === undefined || last === undefined) continue;
-    const joined = (first > 0 && joins(folded, parts[first - 1]!, parts[first]!))
-      || (last + 1 < parts.length && joins(folded, parts[last]!, parts[last + 1]!));
+    const joinedBefore = first > 0 && joins(folded, parts[first - 1]!, parts[first]!);
+    const joinedAfter = last + 1 < parts.length && joins(folded, parts[last]!, parts[last + 1]!);
+    const joined = joinedBefore || joinedAfter;
     // A "[number removed]" right before or after a run with nothing joined to it, with no letter or digit between,
     // stands for digits joined to the run, so the run goes, whatever else is beside it (Dial [number removed] 4:04 5:55
     // 12:12). A run with digits joined to it is left to the shared rule below, as it was before this check.
     if (!joined && (MARKER_BEFORE.test(folded.substring(from, m.index)) || MARKER_AFTER.test(folded.substring(m.index + m[0].length)))) {
       out += removeByRule(folded.substring(from, m.index)) + REPLACEMENT;
       from = m.index + m[0].length;
+      continue;
+    }
+    // A run right after a "[number removed]" with digits joined only after it (Dial [number removed] 4:04 5:55 one two one
+    // two) is one number with them, and the shared rule alone would leave the run's first hour. The run goes with the
+    // digits joined after it, through joined parts only and never into another run of times, keeping line breaks.
+    if (!joinedBefore && joinedAfter && MARKER_BEFORE.test(folded.substring(from, m.index))) {
+      let hi = last;
+      while (hi + 1 < parts.length && !inTimes.has(hi + 1) && joins(folded, parts[hi]!, parts[hi + 1]!)) hi++;
+      const upper = Math.max(m.index + m[0].length, parts[hi]!.end);
+      const breaks = (folded.substring(m.index, upper).match(LINE_BREAK) ?? []).length;
+      out += removeByRule(folded.substring(from, m.index)) + Array.from({ length: breaks + 1 }, () => REPLACEMENT).join("\n");
+      from = upper;
       continue;
     }
     // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which changes

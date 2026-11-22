@@ -2975,3 +2975,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: supportingFact gives no second fact when a team has no other fact, so the line before Suggest plan now says "Code adds a second fact when the team has one and writes every word", matching LIMITS.
 - Source: review.
 - Verified: plan harness spec 15/15 with the new line; typecheck passes.
+
+### fix(data): a run of times after a [number removed] goes with the spoken digits joined after it
+- What: "Dial [number removed] 4:04 5:55 one two one two" kept the first hour ("Dial [number removed] 4:[number removed]"): a run right after a marker with digits joined after it went to the shared rule, which leaves the hour. Such a run is now removed with the digits joined after it, through joined parts only and never into another run of times, keeping line breaks. Other joined groups keep their old output.
+- Source: issue #348.
+- Verified: new phone tests (the issue's case, a later time kept, line breaks kept, and three joined groups pinned to their old output) failed first where the behaviour changed, then passed (56); the rest of the web suite passes, except the corpus check, which waits for the corpus's rule hash to be regenerated. Regenerating the corpus locally changed 0 of its 9,130 rows.

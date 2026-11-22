@@ -238,13 +238,20 @@ describe("a [number removed] beside a run of times", () => {
     expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 12:12")).toBe("Dial [number removed] [number removed]");
     expect(removePhoneNumbers("4:04 5:55 12:12 [number removed] tonight")).toBe("[number removed] [number removed] tonight");
   });
-  it("leaves a run with digits joined to it to the shared rule, as before the marker rule", () => {
-    // The rule decides the joined group: no run of spoken digits or two-digit group is left beside the marker.
-    const spoken = removePhoneNumbers("Dial [number removed] 4:04 5:55 one two one two");
-    expect(spoken).not.toContain("one two one two");
-    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two 12:34 15:56 [number removed]")).not.toMatch(/\d\d/);
-    // A line break inside the joined group is kept, as the rule keeps it.
-    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two\n2 searchers canvassed Pine Street.")).toContain("\n");
+  it("takes a run right after a marker with the digits joined after it, leaving no hour behind", () => {
+    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two one two")).toBe("Dial [number removed] [number removed]");
+    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two one two, seen at 14:03 14:10.")).toBe("Dial [number removed] [number removed], seen at 14:03 14:10.");
+  });
+  it("takes the joined digits only, never part of a later time, and keeps line breaks", () => {
+    const later = removePhoneNumbers("Dial [number removed] 4:04 5:55 one two 12:34 15:56 [number removed]");
+    expect(later).not.toMatch(/\d|one|two/);
+    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two\none two")).toBe("Dial [number removed] [number removed]\n[number removed]");
+    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two\n2 searchers canvassed Pine Street.")).toBe("Dial [number removed] [number removed]\n[number removed] searchers canvassed Pine Street.");
+  });
+  it("leaves the other joined groups to the shared rule, with the same output as before", () => {
+    expect(removePhoneNumbers("[number removed] one two 4:04 5:55")).toBe("[number removed] [number removed]");
+    expect(removePhoneNumbers("Call one two 12:34 15:56 [number removed]")).toBe("Call [number removed] [number removed]");
+    expect(removePhoneNumbers("Dial 404 555 4:04 5:55 one two one two")).toBe("Dial [number removed]");
   });
   it("keeps the times when a word stands between them and the marker", () => {
     expect(removePhoneNumbers("Witness [number removed] at 14:03 14:10")).toBe("Witness [number removed] at 14:03 14:10");
