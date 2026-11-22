@@ -45,6 +45,18 @@ async function expectCode(p: Promise<unknown>, code: string): Promise<void> {
 
 const claimsOf = async (u: string) => (await admin.auth.getUser(u)).customClaims;
 
+describe("joinIncident refuses an account whose sign-in was deleted", () => {
+  it("writes no member record for a deleted user whose token is still valid (up to an hour)", async () => {
+    const u = await admin.auth.createUser({});
+    await admin.auth.deleteUser(u.uid);
+    const err = await handleJoin(u.uid, { incidentId: "I1", joinCode: CODE, role: "searcher", teamId: "T1" })
+      .then(() => null, (e: unknown) => e as { code?: string; details?: { reason?: string } });
+    expect(err?.code).toBe("unauthenticated");
+    expect(err?.details?.reason).toBe("account_deleted");
+    expect((await admin.db.doc(`incidents/I1/members/${u.uid}`).get()).exists).toBe(false);
+  });
+});
+
 describe("joinIncident (spec sections 7 and 14)", () => {
   it("rejects a wrong code and sets claims on a right one", async () => {
     await expectCode(handleJoin(uid, { incidentId: "I1", joinCode: "WRONG000", role: "searcher", teamId: "T1" }), "permission-denied");

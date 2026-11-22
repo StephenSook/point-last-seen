@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Leave refuses the old sign-in at once: in the same batch as the member records, `deleteMyAccount` creates
+  incidents/{id}/removed/{uid} holding only the time and the uid, in every incident where the account had a record
+  and the one its claims name, never overwriting command's own removal record. The rules then refuse the account's
+  ID token, still valid for up to an hour, at once, and command no longer has to remove it. `joinIncident` refuses a
+  deleted account (reason account_deleted), so its token cannot write a member record again. The uid check now
+  accepts any id that is one Firestore document id (a period included), and the batch cap counts every write.
+  Source: review (a security review of the first commit: with the record gone, command could no longer cut off the
+  leftover token; a second-model review: a deleted account's token could join again, the uid check was too strict,
+  the record cap was untested). Verified: four new emulator tests failed first, then passed, including a rules check
+  that the old token reads the incident before Leave and is refused after it (41 across the account and join
+  files); the functions typecheck and the full emulator suite (388) pass.
 - Leave deletes the member record: `deleteMyAccount` (functions/src/account.ts) deletes the caller's
   incidents/{id}/members/{uid} in every incident that has one, in one batch, before it deletes the Auth user, so a
   search the account joined earlier and one whose command removed it (claims cleared) are covered, and a failed Auth

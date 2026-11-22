@@ -3,7 +3,8 @@ import { getStorage } from "firebase-admin/storage";
 import { handleDeleteMyAccount } from "../src/account";
 import { handleDeleteMedia } from "../src/media";
 import { handleRemoveMember } from "../src/members";
-import { admin, adminApp, clearFirestore, closeClients } from "./helpers";
+import { doc, getDoc } from "firebase/firestore";
+import { admin, adminApp, assertFails, assertSucceeds, clearFirestore, closeClients, dbAs } from "./helpers";
 
 async function expectCode(p: Promise<unknown>, code: string): Promise<void> {
   const err = await p.then(() => null, (e: unknown) => e);
@@ -91,7 +92,7 @@ describe("deleteMyAccount: the caller's member records go before its sign-in", (
     await admin.auth.setCustomUserClaims(uid, {});
     await handleDeleteMyAccount(admin.db, admin.auth, uid);
     expect(await exists(`incidents/I1/members/${uid}`)).toBe(false);
-    expect(await exists(`incidents/I1/removed/${uid}`)).toBe(true);
+    expect((await admin.db.doc(`incidents/I1/removed/${uid}`).get()).get("removedBy")).toBe("cmd");
     expect(await userGone(uid)).toBe(true);
   });
   it("deletes only the caller's record: another member's stays", async () => {
@@ -129,6 +130,35 @@ describe("deleteMyAccount: the caller's member records go before its sign-in", (
     expect(err?.code).toBe("failed-precondition");
     expect(err?.details?.reason).toBe("command_account");
     expect(await exists(`incidents/I1/members/${uid}`)).toBe(true);
+    expect(await userGone(uid)).toBe(false);
+  });
+  it("refuses the old sign-in at once: a record under removed/ with only the time, so the rules deny its token", async () => {
+    const uid = await searcherIn("I1");
+    const asOld = dbAs(uid, { inc: "I1", role: "searcher", team: "T1" });
+    await assertSucceeds(getDoc(doc(asOld, "incidents/I1")));
+    await handleDeleteMyAccount(admin.db, admin.auth, uid);
+    const rec = await admin.db.doc(`incidents/I1/removed/${uid}`).get();
+    expect(Object.keys(rec.data() ?? {}).sort()).toEqual(["removedAt", "removedBy"]);
+    expect(rec.get("removedBy")).toBe(uid);
+    await assertFails(getDoc(doc(asOld, "incidents/I1")));
+  });
+  it("deletes the record of an account whose id has a period (a custom or imported sign-in)", async () => {
+    const u = await admin.auth.createUser({ uid: "searcher.legacy" });
+    await admin.auth.setCustomUserClaims(u.uid, { inc: "I1", role: "searcher", team: "T1" });
+    await admin.db.doc(`incidents/I1/members/${u.uid}`).set({ role: "searcher", team: "T1", joinedAt: new Date() });
+    expect(await handleDeleteMyAccount(admin.db, admin.auth, u.uid)).toEqual({ ok: true });
+    expect(await exists(`incidents/I1/members/${u.uid}`)).toBe(false);
+  });
+  it("fails the call, deleting nothing, when the writes would not fit in one batch", async () => {
+    await admin.db.doc("incidents/I2").set({ name: "Two", mode: "drill", status: "open" });
+    const uid = await searcherIn("I1");
+    await admin.db.doc(`incidents/I2/members/${uid}`).set({ role: "searcher", team: "T1", joinedAt: new Date() });
+    const err = await handleDeleteMyAccount(admin.db, admin.auth, uid, { maxWrites: 3 })
+      .then(() => null, (e: unknown) => e as { code?: string; details?: { reason?: string } });
+    expect(err?.code).toBe("resource-exhausted");
+    expect(err?.details?.reason).toBe("too_many_records");
+    expect(await exists(`incidents/I1/members/${uid}`)).toBe(true);
+    expect(await exists(`incidents/I2/members/${uid}`)).toBe(true);
     expect(await userGone(uid)).toBe(false);
   });
   it("fails the call, deleting nothing, when there are more incidents than it checks", async () => {

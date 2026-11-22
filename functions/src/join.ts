@@ -143,6 +143,13 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
     if (!t.exists) denied();
     team = teamId!;
   }
+  // A deleted account's ID token stays valid for up to an hour; it must not write a member record again after
+  // deleteMyAccount removed them all (account.ts).
+  const signedUp = await getAuth().getUser(uid).then(() => true, (e: unknown) => {
+    if ((e as { code?: string }).code === "auth/user-not-found") return false;
+    throw e;
+  });
+  if (!signedUp) throw new HttpsError("unauthenticated", "This sign-in was deleted. Sign in again to join.", { reason: "account_deleted" });
   if (!(await commitJoin(db, { codeRef, incidentId: id, role, team, uid }))) denied();
   await getAuth().setCustomUserClaims(uid, { inc: id, role, team });
   return { ok: true, incidentId: id };
