@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### feat(ios): Block on this phone on the Ready check and after a report about the description
+- What: under the person's description on the Ready check, "Block on this phone" (with a confirmation saying it hides
+  the description on this phone for this search, that command still has it, and that it can be shown again) hides the
+  approach card; the section then says "You blocked the family's description on this phone." with "Show again". Right
+  after a Report a problem about the family's description, the form offers "Also block it on this phone".
+- Source: App Review guideline 1.2 (the ability to block abusive users).
+- Verified: a wording test failed first (no such words) and passes; the block model's tests pass; the full app suite
+  passes.
+
 ### feat(ios): the model can block the family's description on this phone
 - What: `blockFamilyDescription()` hides the family's description of the person on this phone, for the loaded search,
   and `showFamilyDescriptionAgain()` undoes it. The choice is kept on the phone (`pls.blockedFamilyDescriptions`), so it

@@ -9,6 +9,8 @@ struct ReportProblemView: View {
     static let lead = "Command sees what you flag and why."
     static let noteHint = "Optional, up to 500 characters. Phone numbers are removed before it is sent."
     static let linkLabel = "Report a problem"
+    static let blockAfterLabel = "Also block it on this phone"
+    static let blockedAfterLine = "Blocked on this phone."
 
     @Bindable var model: AppModel
     @Environment(\.fieldTheme) private var theme
@@ -87,6 +89,20 @@ struct ReportProblemView: View {
                 if let result {
                     Text(result.line).font(.title3.weight(.semibold))
                         .accessibilityIdentifier("report-result")
+                }
+                // After a report about the family's description, the searcher can also stop seeing it here.
+                if done, target == .familyDescription, model.canBlockFamilyDescription {
+                    if model.familyDescriptionBlocked {
+                        Text(Self.blockedAfterLine).font(.title3.weight(.semibold))
+                            .accessibilityIdentifier("report-blocked")
+                    } else {
+                        Button { model.blockFamilyDescription() } label: {
+                            Label(Self.blockAfterLabel, systemImage: "hand.raised").frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(theme.accentColor)
+                        .accessibilityIdentifier("report-block")
+                    }
                 }
             }
             .padding()
