@@ -25,7 +25,7 @@ fun AboutPhoneScreen(
             else "Notes and clips are read in the cloud through Firebase AI Logic.",
         )
         Note("Cloud model: $modelName")
-        Note("App Check: $appCheck")
+        Note(Copy.appCheckProvider(appCheck))
         Note("Version $version")
         Note("License: Apache-2.0")
         OtherAction("Back", onClick = onBack)
