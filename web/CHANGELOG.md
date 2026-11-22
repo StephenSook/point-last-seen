@@ -2816,3 +2816,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the web corpus test counts the notes whose output a second scrub changes and fails above 39, the count on 2026-11-22 with the marker fix (46 before it; the read-past rule brought it to 37, and the rule that a marker beside a run removes the run adds back two runs a first pass leaves beside its own marker). They are notes whose first pass folds characters (NFKC, a carriage return) and so skips the run-of-times step, and runs after a date whose first hour the first pass leaves. A planted row checks the count can fail.
 - Source: review.
 - Verified: the test passes at 39 and failed with the ceiling at 36 on the 37 rows before the beside-marker rule; the planted row is caught.
+
+### fix(data): a run beside a [number removed] takes the digits joined to it, written or spoken
+- What: when a run of times sits right beside a "[number removed]", the replacement now also takes every digit part joined to the run, written or spoken. "Dial [number removed] 4:04 5:55 one two one two" used to leave "one two one two" (the last four digits of a number); it now gives "Dial [number removed] [number removed]". The run loop also skips a later match that starts inside a group already replaced.
+- Source: second review of #342.
+- Verified: new phoneNumbers tests (joined spoken digits after the run, joined digits before it, the plain case, and times with a word between them and the marker) failed first where they should, then passed; the corpus regenerated with only its rule hash changed; web unit, typecheck and gates pass with the shared-file changes applied.

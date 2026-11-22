@@ -133,12 +133,18 @@ export function removePhoneNumbers(text: string): string {
   for (const m of folded.matchAll(TIMES_RUN)) {
     const first = startsAt.get(m.index);
     const last = endsAt.get(m.index + m[0].length);
-    if (first === undefined || last === undefined) continue;
+    // A run inside a group an earlier marker check already replaced.
+    if (first === undefined || last === undefined || m.index < from) continue;
     // A "[number removed]" right before or after the run, with no letter or digit between, stands for digits joined to
-    // it, so the run goes, whatever else is beside it (Dial [number removed] 4:04 5:55 12:12). Checked first.
+    // it, so the run goes, whatever else is beside it (Dial [number removed] 4:04 5:55 12:12), and so does every digit
+    // part joined to the run, written or spoken (Dial [number removed] 4:04 5:55 one two one two). Checked first.
     if (MARKER_BEFORE.test(folded.substring(from, m.index)) || MARKER_AFTER.test(folded.substring(m.index + m[0].length))) {
-      out += removeByRule(folded.substring(from, m.index)) + REPLACEMENT;
-      from = m.index + m[0].length;
+      let a = first;
+      let b = last;
+      while (a > 0 && parts[a - 1]!.start >= from && joins(folded, parts[a - 1]!, parts[a]!)) a--;
+      while (b + 1 < parts.length && joins(folded, parts[b]!, parts[b + 1]!)) b++;
+      out += removeByRule(folded.substring(from, parts[a]!.start)) + REPLACEMENT;
+      from = parts[b]!.end;
       continue;
     }
     const joined = (first > 0 && joins(folded, parts[first - 1]!, parts[first]!))

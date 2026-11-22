@@ -232,3 +232,14 @@ describe("removePhoneNumbers: a run made only of clock times", () => {
     gone("⁴:⁰⁴ ⁵:⁵⁵ ⁶:⁴²", ["04", "5:55", "6:42"]);
   });
 });
+
+describe("a [number removed] beside a run of times", () => {
+  it("takes the run and every digit joined to it, written or spoken", () => {
+    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two one two")).toBe("Dial [number removed] [number removed]");
+    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 12:12")).toBe("Dial [number removed] [number removed]");
+    expect(removePhoneNumbers("one two 4:04 5:55 [number removed] tonight")).toBe("[number removed] [number removed] tonight");
+  });
+  it("keeps the times when a word stands between them and the marker", () => {
+    expect(removePhoneNumbers("Witness [number removed] at 14:03 14:10")).toBe("Witness [number removed] at 14:03 14:10");
+  });
+});
