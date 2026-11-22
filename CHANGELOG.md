@@ -5,6 +5,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Content reports from the iPhone: `shared/test-vectors/content-report-ios.json` (hand-written, pinned) holds what the
+  iPhone writes for Report a problem, and the shared README describes it; `functions/test/rules/contentReportsIos.test.ts`
+  writes every case to the emulator against the content report create rule and checks that broken copies of the first
+  case are refused (no server time, the phone's own time, a note over 500 code points, an extra field, another role,
+  someone else's name, no reason, a target id that does not fit the target); `rules.yml` also runs when that vector
+  changes; the content report schema's iOS parity pointer names `ios/PLSCore/Sources/PLSCore/ContentReport.swift`
+  instead of a pending one. Source: the iPhone's Report a problem (PR #324). Verified: on merge commit 89fa09a3 the
+  Rules run (functions typecheck and `test:rules`, which runs the new test) and the Swift core run passed;
+  `scripts/check_schema_parity.py` checks content-report's 7 fields on ts, ios and android with 0 failures.
+- Limits: the iPhone's "Report a problem" (what it files, that a report is filed once and cannot be changed, the
+  offline case, no flag on another searcher's report, none in the practice drill) and "Block on this phone" (hides the
+  description on that iPhone only, sends nothing, and what it does not hide); the iPhone's leave button is named
+  "Leave and delete this sign-in". Source: PR #324. Verified: the hygiene guard passes in public mode.
 - Production checklist: names bash scripts/predeploy.sh as the step before every hosting deploy. Source: review.
   Verified: the hygiene guard passes in public mode.
 - Pre-deploy checks: scripts/predeploy.sh runs every check before a hosting deploy in one command (clean tree at
