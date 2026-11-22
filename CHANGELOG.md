@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: the phone-number section lists the six kept-number gaps in plain words and the new counts (128 shared cases;
+  each platform passes 117). Source: issue #298. Verified: scripts/test_phone_vectors.py checks the counts against the
+  file; the hygiene guard passes in public mode.
 - Phone vectors: six known gaps where a phone number is kept are now shared cases pending on every platform (a slash
   between two times, a digit from another script or a spoken digit inside a time, superscript times, times after a date,
   and letters for some digits as in 1-800-GET-HELP), so a platform that closes one sees it as un-pend; the corpus is
