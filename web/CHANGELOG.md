@@ -3112,3 +3112,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the Measured block's Report reads line said "N on the device, in our own iPhone test runs", and its empty line said "On the device: none stored yet. An iPhone's practice drill ...". On the same page, "the device" now means the viewer's own (the Plan wording line, "Get this device ready"), so the iPhone line says "on the phone" and its empty line "On the phone: none stored yet.". "Device" keeps one meaning on the page.
 - Source: review of the device wording.
 - Verified: the two Measured tests were changed first and failed, then passed (7); web unit; typecheck.
+
+### test(harness): a page that checks the photo read for invented text
+- What: a dev-server-only measurement page, `web/harness/photo-invention.html` (`src/harness/photoInvention.tsx`), draws eight synthetic scenes (four with known sign text, four with none, one a blank sign board), reads each twice with `readPhotoOnDevice` and `photoGenerator` (the same path as CommandPost's `readPhotoHere`) on a bare Firebase app, and reports per read the model's reply, the cues `cleanCues` kept, the sign-text words the drawing never showed and how much of the true sign text was read (`src/harness/photoTruth.ts`), plus every request to a Google or Firebase host. No product change.
+- Source: review of the photo read (its timing had been measured, invented text had not).
+- Verified: `src/harness/photoTruth.test.ts` (3 tests) failed first (module missing), then passed; the dev-page cloud scan passes on the new page; web unit 1441; typecheck; gates; hygiene.
