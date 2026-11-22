@@ -130,7 +130,7 @@ export type WordingDeps = {
 };
 
 /** A model asked for wording whose answer was not used: where it ran (as far as the SDK said) and why. */
-export type WordingAttempt = { route: RouteRecord; failure: "error" | "timeout" | "unreadable" | "rejected" | "number" };
+export type WordingAttempt = { route: RouteRecord; failure: "error" | "timeout" | "unreadable" | "rejected" };
 /** `attempt` is present only when a model was asked and its answer was not used; `route` is what worded the plan. */
 /** `promptBytes`: the UTF-8 size of the plan text a model is sent (for the receipt), when this file built it. */
 /** `codes`: per team, the main reason the model chose and the supporting fact code added; only when the model's choice was used. */

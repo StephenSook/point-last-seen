@@ -2937,3 +2937,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - In the order test, the model's lead pick held whichever order its facts were listed in, but its second pick moved with the order. So the second fact is now code's fixed rule, not a model judgment.
 - Source: measurement of the reason codes on Chrome's built-in model.
 - Verified: new supportingFact tests and the changed plan wording tests failed first, then passed (50); typecheck passes.
+
+### fix(command): the Plan section says what the model chooses and what code writes
+- What: the line shown before Suggest plan is now "Suggest plan asks this laptop's built-in model (Gemini in the cloud when it has none) to choose each team's main reason from that team's own facts. Code adds a second fact and writes every word. It sends only team ids, segment codes and fact codes, never a note or a name."
+  - "What ran" names a refused answer as one that named other teams or a fact that team does not have. The failure for a number not in the plan is gone, since no model text is used.
+  - The plan harness check and the deployed payload check (planPayload.spec.ts) follow. Every line Suggest plan sends must now be the heading, a team with its segments and known fact codes, or a team with no segment.
+  - The judge-door evidence test now pins that record to the commit it read (522d88d2), whose line has since changed.
+- Source: plan wording review.
+- Verified: plan harness spec 15/15; the payload line patterns accept every line of planPrompt for a plan with facts and a team with no segment, and refuse free text and figures; what-ran and judge-door tests pass; typecheck passes.

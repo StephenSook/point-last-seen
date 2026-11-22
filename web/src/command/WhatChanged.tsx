@@ -26,8 +26,7 @@ const WHY: Record<NonNullable<WordedPlan["attempt"]>["failure"], string> = {
   error: "the model call failed",
   timeout: "the model took too long",
   unreadable: "its answer could not be read",
-  rejected: "its wording failed the checks",
-  number: "it used a number that is not in the plan",
+  rejected: "its answer named other teams or a fact that team does not have",
 };
 
 /**
@@ -112,7 +111,7 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
           <p className="small muted">
             {cloudPaused
               ? "Cloud reading is paused, so Suggest plan uses fixed wording and sends nothing."
-              : "Suggest plan words the draft on this laptop's built-in model, or with Gemini in the cloud when it has none. It sends only team ids, segment codes and percents, never a note or a name."}
+              : "Suggest plan asks this laptop's built-in model (Gemini in the cloud when it has none) to choose each team's main reason from that team's own facts. Code adds a second fact and writes every word. It sends only team ids, segment codes and fact codes, never a note or a name."}
           </p>
           {limit && (
             <p className="error" role="status">
