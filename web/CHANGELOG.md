@@ -3067,6 +3067,19 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review of the comment against the current evidence.
 - Verified: each number was read from the evidence files by script; the cited lines 47 and 232 did not move; comment only.
 
+### fix(web): user-facing copy says this device, not this laptop
+- What: every user-visible "this laptop" or "the laptop" now says "this device" or "the device", since judges may open the site on any device and the receipts already say device. This covers:
+  - buttons ("Get this device ready", "Read on this device", "Use this device's camera");
+  - status lines, the debrief sheet read lines, and the printed debrief sheet line;
+  - the judge page heading and lines, and the Measured block;
+  - the replay's route ("Read on the command post's device", beside "Read on the phone");
+  - the public llms.txt.
+  Function names, comments and the dev-only measurement pages are unchanged.
+- Source: review of the judge-facing wording.
+- Verified:
+  - every spec and unit test that quotes these strings was changed first and failed (5 unit tests, 22 harness checks), then passed (unit 1438; harness 242/242);
+  - three harness status filters that still said laptop were changed too, so they cannot match nothing;
+  - typecheck passes; no user-visible "laptop" remains in web/src outside comments, identifiers and dev pages.
 ### feat(map): the map says when the next new report will play its beat
 - What: the map's wrap gets data-beat-armed="true" once the map is ready and has seen a first report.
   - The post passes no report to the map before the server's first answer. The map plays the beat only for a report after the first one it sees, so a report written before then only shows the final map.
@@ -3084,3 +3097,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - It now waits for data-beat-armed="true" before writing.
 - Source: the live beat check, red in two full runs and 3 of 3 short runs.
 - Verified: typecheck; the live run is checked after deploy, since the mark ships with this change.
+
+### fix(command): the cloud consent says "Phone numbers removed." with no count
+- What: the consent box said "1 phone number removed." or "N phone numbers removed.". The count came from the marks the scrub left, which need not match the numbers typed (a number split across lines leaves two, two numbers joined by a comma leave one), so it now says "Phone numbers removed." with no number, only when something was removed. A mark already in the note, typed plainly or in full-width brackets that the scrub folds to plain ones, no longer reads as a removal.
+- Source: review of the consent preview.
+- Verified: the unit tests (including a full-width mark) and the harness and live checks were changed first; the unit tests failed, then passed (24); sighting harness 28/28; typecheck passes. The harness's "no hint" check now matches the exact line, so it cannot pass on a case difference.
+
+### fix(extras): the replay says a browser read was "Read at the command post"
+- What: the replay's route for a read on the browser's own model said "Read on the command post's device". It now says "Read at the command post", shorter and clear beside "Read on the phone".
+- Source: review of the device wording.
+- Verified: the replay unit test and extras check were changed first; the unit test failed, then passed (55); extras replay 18/18.

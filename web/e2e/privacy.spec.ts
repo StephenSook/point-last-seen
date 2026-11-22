@@ -14,12 +14,12 @@ test("with LanguageModel hidden, private reads send nothing to Firebase hosts", 
   await joinCommand(page);
   await openDetails(page);
   await page.locator('input[type="file"]').setInputFiles({ name: "sign.jpg", mimeType: "image/jpeg", buffer: await syntheticSignJpeg(page) });
-  await page.getByRole("button", { name: "Read on this laptop" }).first().click();
-  await expect(page.getByText("This laptop has no local model. Nothing was sent.").first()).toBeVisible();
+  await page.getByRole("button", { name: "Read on this device" }).first().click();
+  await expect(page.getByText("This device has no local model. Nothing was sent.").first()).toBeVisible();
   await page.getByRole("button", { name: "Add sighting" }).click();
   await page.getByLabel("Note").fill("saw a woman in a blue coat by the creek");
   await page.getByRole("button", { name: "Read the note" }).click();
-  await expect(page.getByText("This laptop has no local model. Nothing was sent.").last()).toBeVisible();
+  await expect(page.getByText("This device has no local model. Nothing was sent.").last()).toBeVisible();
   expect(hits).toEqual([]);
 });
 
@@ -43,7 +43,7 @@ test("positive control: a consented cloud read sends exactly one AI Logic reques
   // The cloud read needs the family's consent for this photo: given as the family app gives it.
   const sha = await page.locator(".photo").first().getAttribute("data-sha256");
   await familyConsentToPhoto(incident, sha ?? "");
-  await page.getByRole("button", { name: "Read on this laptop" }).first().click();
+  await page.getByRole("button", { name: "Read on this device" }).first().click();
   await page.getByRole("button", { name: "Read in the cloud" }).first().click();
   await page.getByRole("button", { name: "Send this photo to the cloud" }).first().click();
   await expect(page.getByTestId("photo-cues").first()).toBeVisible();

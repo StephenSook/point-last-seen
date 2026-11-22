@@ -27,7 +27,7 @@ test("a published run replays in one section, labelled as a training drill", { t
   await expect(page.getByText("No published run yet.")).toHaveCount(0);
   await expect(page.getByText(/once the sandbox is live/)).toHaveCount(0);
   // With no built-in model, the laptop line points at the replay that is there.
-  await page.getByRole("button", { name: "Get this laptop ready" }).click();
+  await page.getByRole("button", { name: "Get this device ready" }).click();
   await expect(page.getByTestId("d2-state")).toHaveText("This browser has no built-in model. Nothing private was sent. The replay above shows a recorded drill run.");
 });
 

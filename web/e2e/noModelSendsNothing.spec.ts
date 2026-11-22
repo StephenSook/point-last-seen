@@ -17,9 +17,9 @@ test("with no built-in model, the on-device-only reads send nothing to any model
   const sent: string[] = [];
   page.on("request", (r) => { if (MODEL_REQUEST.test(r.url())) sent.push(`${r.method()} ${r.url().split("?")[0]}`); });
 
-  // The judge's page: Get this laptop ready.
+  // The judge's page: Get this device ready.
   await page.goto("/judge");
-  await page.getByRole("button", { name: "Get this laptop ready" }).click();
+  await page.getByRole("button", { name: "Get this device ready" }).click();
   await expect(page.getByTestId("d2-state")).toHaveAttribute("data-state", "no-model");
   expect(sent).toEqual([]);
 
@@ -30,7 +30,7 @@ test("with no built-in model, the on-device-only reads send nothing to any model
   const form = page.locator(".sighting-form");
   await form.getByLabel(/^Note/).fill("Training drill. A man in a red coat by the creek, heading north.");
   await form.getByRole("button", { name: "Read the note" }).click();
-  await expect(form.getByText("This laptop has no local model. Nothing was sent.")).toBeVisible({ timeout: 30_000 });
+  await expect(form.getByText("This device has no local model. Nothing was sent.")).toBeVisible({ timeout: 30_000 });
   expect(sent).toEqual([]);
   await form.getByRole("button", { name: "Cancel" }).click();
 
@@ -39,6 +39,6 @@ test("with no built-in model, the on-device-only reads send nothing to any model
   const sheet = page.getByRole("button", { name: "Read the paper sheet" }).first();
   await sheet.click();
   await page.getByLabel("Photo of the sheet").setInputFiles({ name: "sheet.png", mimeType: "image/png", buffer: PNG });
-  await expect(page.getByText("This laptop has no on-device model that reads images, so the sheet was not read. Add the debrief by hand.")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("This device has no on-device model that reads images, so the sheet was not read. Add the debrief by hand.")).toBeVisible({ timeout: 30_000 });
   expect(sent).toEqual([]);
 });

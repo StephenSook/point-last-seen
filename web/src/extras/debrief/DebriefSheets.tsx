@@ -68,7 +68,7 @@ export function DebriefSheets({ sheets }: { sheets: readonly DebriefSheetModel[]
           <Lines field="clues" lines={4} value={s.sample?.clues ?? null} />
           <Lines field="hazards" lines={3} value={s.sample?.hazards ?? null} />
           <footer className="extras-debrief-footer">
-            <span>Write no one's name or phone number on this sheet. Command reads it on its laptop and checks every field before saving.</span>
+            <span>Write no one's name or phone number on this sheet. Command reads it on its device and checks every field before saving.</span>
             <span>{s.pageLine}</span>
           </footer>
         </article>

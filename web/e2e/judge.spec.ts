@@ -6,7 +6,7 @@ test("with no built-in model D2 shows the no-model message and sends nothing", a
   page.on("request", (r) => { if (AI_HOSTS.test(r.url())) hits.push(r.url()); });
   await page.goto("/judge");
   await expect(page.getByRole("heading", { name: "Judge's door" })).toBeVisible();
-  await page.getByRole("button", { name: "Get this laptop ready" }).click();
+  await page.getByRole("button", { name: "Get this device ready" }).click();
   await expect(page.getByTestId("d2-state")).toHaveAttribute("data-state", "no-model");
   // The site publishes a drill run, so the line points at its replay.
   await expect(page.getByTestId("d2-state")).toHaveText("This browser has no built-in model. Nothing private was sent. The replay above shows a recorded drill run.");

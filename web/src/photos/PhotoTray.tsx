@@ -30,7 +30,7 @@ const STATE_LINE: Record<DeviceState, string> = {
   "no-model": "This browser has no built-in model. Photos stay unread here unless you choose a cloud read for one.",
   downloadable: "This browser can download a built-in model.",
   text: "This browser's model cannot read images, so no model read these photos.",
-  image: "This laptop can read photos here.",
+  image: "This device can read photos here.",
 };
 export { PHOTO_DELETED };
 
@@ -39,7 +39,7 @@ const COULD_NOT: Record<string, string> = {
   "no-consent": "The family has not agreed to a cloud reading of this photo, so no AI model in the cloud reads it.",
   mismatch: "This photo's file does not match its name, so it was not sent.",
   "consent-unchecked": "Could not check the family's consent with the server. Nothing was sent.",
-  "not-on-device": "Couldn't read on this laptop. The result was discarded.",
+  "not-on-device": "Couldn't read on this device. The result was discarded.",
   timeout: "Couldn't read in time.",
   invalid: "Couldn't read this photo.",
   "cloud-paused": "Cloud reads are paused by command.",
@@ -99,7 +99,7 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
       <h2 id="photos-h" className="label">Family photos</h2>
       <div className="row">
         <button type="button" className="btn ghost" onClick={() => void onCheckDevice()}>
-          Get this laptop ready
+          Get this device ready
         </button>
         <label className="btn ghost file">
           Add photos
@@ -122,17 +122,17 @@ export function PhotoTray({ photos, loadError, deviceState, onCheckDevice, downl
               <Thumb bytes={p.bytes} />
               <div className="row">
                 <button type="button" className="btn ghost" onClick={() => run(p, "laptop")} disabled={busy !== null}>
-                  Read on this laptop
+                  Read on this device
                 </button>
               </div>
               {readingHere === p.sha256 && (
                 <p role="status" className="muted">
-                  Reading on this laptop. The first read can take up to a minute.
+                  Reading on this device. The first read can take up to a minute.
                 </p>
               )}
               {r && "noModel" in r && (
                 <div role="status" className="note-state">
-                  <p>This laptop has no local model. Nothing was sent.</p>
+                  <p>This device has no local model. Nothing was sent.</p>
                   <button type="button" className="btn ghost" onClick={() => set(p.sha256, { consent: true })} disabled={busy !== null}>
                     Read in the cloud
                   </button>

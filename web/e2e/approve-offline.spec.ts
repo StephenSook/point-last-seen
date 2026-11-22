@@ -14,7 +14,7 @@ test("with the link down, Approve shows the plan at once and sends it when the l
     await page.getByRole("button", { name: "Suggest plan" }).click();
     await expect(page.getByTestId("suggested-plan")).toBeVisible({ timeout: 40_000 });
     await page.getByRole("button", { name: "Approve" }).click();
-    await expect(page.getByTestId("plan-status")).toHaveText(/^Approved on this laptop as plan v\d+\. Sending\.$/, { timeout: 3_000 });
+    await expect(page.getByTestId("plan-status")).toHaveText(/^Approved on this device as plan v\d+\. Sending\.$/, { timeout: 3_000 });
     await expect(page.getByRole("button", { name: "Suggest plan" })).toBeEnabled();
   } finally {
     await context.setOffline(false);

@@ -83,7 +83,7 @@ const NO_CONSENT: ClipConsents = { personInClip: false, footageOwner: false, clo
 
 const HELD = {
   "no-motion": "Nothing moves in this clip. Nothing was sent.",
-  "no-person": "No person found on this laptop. Nothing was sent.",
+  "no-person": "No person found on this device. Nothing was sent.",
   // A flagged window read in the cloud gave no usable sighting (no one, or a reply that could not be used);
   // triaging again would flag the same seconds.
   "window-miss": "No usable reading from the flagged seconds. Nothing changed.",
@@ -299,7 +299,7 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
       )}
       <div className="row">
         <button type="submit" className="btn" disabled={!ready || busy !== false}>
-          {busy === "checking" ? "Checking on this laptop" : busy === "reading" ? "Reading" : "Read clip"}
+          {busy === "checking" ? "Checking on this device" : busy === "reading" ? "Reading" : "Read clip"}
         </button>
         <button type="button" className="btn ghost" onClick={onClose} disabled={busy !== false}>
           Cancel

@@ -6,7 +6,7 @@ test("a family answer shows at once and the buttons stay usable while the save i
   await expect(rows).toHaveCount(2);
   await rows.nth(0).getByRole("button", { name: "Yes", exact: true }).click();
   await expect(rows.nth(0).getByText("Family said: yes")).toBeVisible({ timeout: 500 });
-  await expect(rows.nth(1).getByRole("button", { name: "Read on this laptop" })).toBeEnabled();
+  await expect(rows.nth(1).getByRole("button", { name: "Read on this device" })).toBeEnabled();
   await expect(rows.nth(1).getByRole("button", { name: "No", exact: true })).toBeEnabled();
 });
 
@@ -21,7 +21,7 @@ test("a refused save says so beside the photo and brings the answer buttons back
 test("a cloud read of a photo that was deleted is refused with that reason", async ({ page }) => {
   await page.goto("/harness/photos.html?deleted=1");
   const row = page.locator(".photo").nth(0);
-  await row.getByRole("button", { name: "Read on this laptop" }).click();
+  await row.getByRole("button", { name: "Read on this device" }).click();
   await row.getByRole("button", { name: "Read in the cloud" }).click();
   await row.getByRole("button", { name: "Send this photo to the cloud" }).click();
   await expect(row.getByText("This photo was deleted.")).toBeVisible();
@@ -45,7 +45,7 @@ test("a family answer is not saved when the photo cannot be checked, and says so
 test("a photo the family did not agree to read in the cloud is not read by a cloud model", async ({ page }) => {
   await page.goto("/harness/photos.html?consent=none");
   const row = page.locator(".photo").nth(0);
-  await row.getByRole("button", { name: "Read on this laptop" }).click();
+  await row.getByRole("button", { name: "Read on this device" }).click();
   await row.getByRole("button", { name: "Read in the cloud" }).click();
   await expect(row.getByText("Sent only if the family agreed to a cloud reading when they shared it.")).toBeVisible();
   await row.getByRole("button", { name: "Send this photo to the cloud" }).click();
@@ -61,7 +61,7 @@ test("each photo row carries its own hash, the name its consent record has", asy
 test("a cloud photo read carries a closed What ran receipt with the bytes of the photo sent", async ({ page }) => {
   await page.goto("/harness/photos.html?read=cloud");
   const row = page.locator(".photo").first();
-  await row.getByRole("button", { name: "Read on this laptop" }).click();
+  await row.getByRole("button", { name: "Read on this device" }).click();
   await row.getByRole("button", { name: "Read in the cloud" }).click();
   await row.getByRole("button", { name: "Send this photo to the cloud" }).click();
   const receipt = row.getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });
@@ -75,7 +75,7 @@ test("a cloud photo read carries a closed What ran receipt with the bytes of the
 test("while a photo is read on this laptop, the tray says so and that the first read can take a minute", async ({ page }) => {
   await page.goto("/harness/photos.html?read=laptop&slow=1");
   const row = page.locator("li.photo").first();
-  await row.getByRole("button", { name: "Read on this laptop" }).click();
-  await expect(row.getByRole("status").filter({ hasText: "Reading on this laptop" })).toHaveText("Reading on this laptop. The first read can take up to a minute.");
-  await expect(row.getByRole("status").filter({ hasText: "Reading on this laptop" })).toHaveCount(0, { timeout: 5_000 });
+  await row.getByRole("button", { name: "Read on this device" }).click();
+  await expect(row.getByRole("status").filter({ hasText: "Reading on this device" })).toHaveText("Reading on this device. The first read can take up to a minute.");
+  await expect(row.getByRole("status").filter({ hasText: "Reading on this device" })).toHaveCount(0, { timeout: 5_000 });
 });

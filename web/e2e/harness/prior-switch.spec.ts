@@ -15,8 +15,8 @@ test("Walkers asks first, runs, and states the measured time and the planning-on
   await s.getByRole("button", { name: "Run walkers" }).click();
   await expect(page.getByTestId("asked")).toHaveText('{"model":"walkers","attract":false,"lowMobility":true}');
   await expect(s.getByRole("button", { name: "Walkers" })).toHaveAttribute("aria-pressed", "true");
-  await expect(s).toContainText("10,000 walkers in 1.84 s on this laptop.");
-  await expect(s.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v6. Sending.");
+  await expect(s).toContainText("10,000 walkers in 1.84 s on this device.");
+  await expect(s.getByRole("status")).toHaveText("Prior rebuilt on this device as v6. Sending.");
 });
 
 test("without the site's route graph Walkers is unavailable and says why", async ({ page }) => {
@@ -45,7 +45,7 @@ test("an older write refused while the next run is going leaves no alert beside 
   await page.goto("/harness/prior-switch.html?race=1");
   await page.getByRole("button", { name: "Walkers" }).click();
   await page.getByRole("button", { name: "Run walkers" }).click();
-  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v6. Sending.");
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this device as v6. Sending.");
   await page.getByRole("button", { name: "Rings" }).click();
   await page.getByRole("button", { name: "Use rings" }).click();
   await page.getByRole("button", { name: "Refuse the first write" }).click();
@@ -58,7 +58,7 @@ test("an earlier write refused while the next run fails does not stay on Sending
   await page.goto("/harness/prior-switch.html?race=fail");
   await page.getByRole("button", { name: "Walkers" }).click();
   await page.getByRole("button", { name: "Run walkers" }).click();
-  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v6. Sending.");
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this device as v6. Sending.");
   await page.getByRole("button", { name: "Rings" }).click();
   await page.getByRole("button", { name: "Use rings" }).click();
   await page.getByRole("button", { name: "Refuse the first write" }).click();

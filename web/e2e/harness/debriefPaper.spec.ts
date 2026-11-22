@@ -76,7 +76,7 @@ test("a sheet for another segment is flagged and cannot be saved here until its 
 
 test("a refused read says why, saves nothing and keeps nothing", async ({ page }) => {
   const row = await readSheet(page, "refuse");
-  await expect(row.getByRole("alert")).toHaveText("This laptop has no on-device model that reads images, so the sheet was not read. Add the debrief by hand.");
+  await expect(row.getByRole("alert")).toHaveText("This device has no on-device model that reads images, so the sheet was not read. Add the debrief by hand.");
   await expect(row.getByLabel("Minutes searched", { exact: true })).toHaveCount(0);
   await expect(page.getByTestId("saved")).toHaveText("");
 });
@@ -152,7 +152,7 @@ test("the laptop camera is asked for only on a click, and every track stops when
   const row = page.getByTestId("debrief-AA");
   await row.getByRole("button", { name: "Read the paper sheet" }).click();
   expect((await cam(page)).calls).toBe(0);
-  await row.getByRole("button", { name: "Use the laptop camera" }).click();
+  await row.getByRole("button", { name: "Use this device's camera" }).click();
   await expect(row.getByRole("button", { name: "Take the photo" })).toBeEnabled();
   expect(await cam(page)).toMatchObject({ calls: 1, tracks: 1, ended: false });
   await row.getByRole("button", { name: "Take the photo" }).click();
@@ -165,7 +165,7 @@ test("closing the read with the camera open stops every track", async ({ page })
   await page.goto("/harness/debrief.html?paper=sample");
   const row = page.getByTestId("debrief-AA");
   await row.getByRole("button", { name: "Read the paper sheet" }).click();
-  await row.getByRole("button", { name: "Use the laptop camera" }).click();
+  await row.getByRole("button", { name: "Use this device's camera" }).click();
   await expect(row.getByRole("button", { name: "Take the photo" })).toBeEnabled();
   await row.getByRole("button", { name: "Cancel" }).click();
   await expect(row.getByRole("button", { name: "Read the paper sheet" })).toBeVisible();
@@ -177,7 +177,7 @@ test("a photo picked while the camera is being asked for wins, and the camera st
   await page.goto("/harness/debrief.html?paper=sample");
   const row = page.getByTestId("debrief-AA");
   await row.getByRole("button", { name: "Read the paper sheet" }).click();
-  await row.getByRole("button", { name: "Use the laptop camera" }).click();
+  await row.getByRole("button", { name: "Use this device's camera" }).click();
   await row.getByLabel("Photo of the sheet").setInputFiles({ name: "sheet.png", mimeType: "image/png", buffer: PNG });
   await expect(row.getByLabel("Minutes searched", { exact: true })).toHaveValue("45");
   await page.evaluate(() => (window as unknown as { __grant: () => void }).__grant());
@@ -218,14 +218,14 @@ test("closing the Details that holds the section stops every camera track", asyn
   await page.goto("/harness/debrief.html?paper=sample&details=1");
   const row = page.getByTestId("debrief-AA");
   await row.getByRole("button", { name: "Read the paper sheet" }).click();
-  await row.getByRole("button", { name: "Use the laptop camera" }).click();
+  await row.getByRole("button", { name: "Use this device's camera" }).click();
   await expect(row.getByRole("button", { name: "Take the photo" })).toBeEnabled();
   expect(await cam(page)).toMatchObject({ calls: 1, tracks: 1, ended: false });
   await page.locator("summary", { hasText: "Details" }).click();
   await expect.poll(() => cam(page)).toMatchObject({ calls: 1, tracks: 1, ended: true });
   // Opened again, the read offers a photo or the camera; the camera is not running.
   await page.locator("summary", { hasText: "Details" }).click();
-  await expect(row.getByRole("button", { name: "Use the laptop camera" })).toBeVisible();
+  await expect(row.getByRole("button", { name: "Use this device's camera" })).toBeVisible();
   await expect(row.getByRole("button", { name: "Take the photo" })).toHaveCount(0);
 });
 
@@ -239,7 +239,7 @@ test("while it reads, the paper read says the first read can be slow, so a long 
   const row = page.getByTestId("debrief-AA");
   await row.getByRole("button", { name: "Read the paper sheet" }).click();
   await row.getByLabel("Photo of the sheet").setInputFiles({ name: "sheet.png", mimeType: "image/png", buffer: PNG });
-  await expect(row.getByRole("status")).toHaveText("Reading the sheet on this laptop. The first read can take up to a minute.");
+  await expect(row.getByRole("status")).toHaveText("Reading the sheet on this device. The first read can take up to a minute.");
   await expect(row.getByLabel("Minutes searched", { exact: true })).toHaveValue("45");
 });
 
@@ -248,7 +248,7 @@ test("closing the Details while the camera is still being asked for drops that r
   await page.goto("/harness/debrief.html?paper=sample&details=1");
   const row = page.getByTestId("debrief-AA");
   await row.getByRole("button", { name: "Read the paper sheet" }).click();
-  await row.getByRole("button", { name: "Use the laptop camera" }).click();
+  await row.getByRole("button", { name: "Use this device's camera" }).click();
   // The browser fires "toggle" a moment after the click: wait for it, so the page has seen the close before the
   // person answers the camera prompt, as happens when they answer it seconds later.
   await page.evaluate(() => {
@@ -259,7 +259,7 @@ test("closing the Details while the camera is still being asked for drops that r
   await page.evaluate(() => (window as unknown as { __closed: Promise<void> }).__closed);
   // Opened again before the browser answers: asking again already works.
   await page.locator("summary", { hasText: "Details" }).click();
-  await expect(row.getByRole("button", { name: "Use the laptop camera" })).toBeEnabled();
+  await expect(row.getByRole("button", { name: "Use this device's camera" })).toBeEnabled();
   await page.evaluate(() => (window as unknown as { __grant: () => void }).__grant());
   await expect.poll(() => cam(page)).toMatchObject({ calls: 1, tracks: 1, ended: true });
   await expect(row.getByRole("button", { name: "Take the photo" })).toHaveCount(0);
@@ -270,9 +270,9 @@ test("a photo chosen while the camera is being asked for leaves the camera butto
   await page.goto("/harness/debrief.html?paper=refuse");
   const row = page.getByTestId("debrief-AA");
   await row.getByRole("button", { name: "Read the paper sheet" }).click();
-  await row.getByRole("button", { name: "Use the laptop camera" }).click();
+  await row.getByRole("button", { name: "Use this device's camera" }).click();
   await row.getByLabel("Photo of the sheet").setInputFiles({ name: "sheet.png", mimeType: "image/png", buffer: PNG });
   await expect(row.getByRole("alert")).toContainText("the sheet was not read");
   // The browser never answered the first request; asking again still works.
-  await expect(row.getByRole("button", { name: "Use the laptop camera" })).toBeEnabled();
+  await expect(row.getByRole("button", { name: "Use this device's camera" })).toBeEnabled();
 });

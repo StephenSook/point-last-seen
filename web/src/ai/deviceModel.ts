@@ -1,4 +1,4 @@
-// "Get this laptop ready": which of the judge page's states this browser is
+// "Get this device ready": which of the judge page's states this browser is
 // in, and the model download a person starts with a click.
 
 import { availabilityOf, onDeviceCreateOptions } from "./gate";
@@ -30,7 +30,7 @@ export async function downloadDeviceModel(onPct: (pct: number) => void, initiali
 }
 
 /**
- * "Get this laptop ready" in one place for the post and the judge page: read the
+ * "Get this device ready" in one place for the post and the judge page: read the
  * state; when Chrome can download the model, start the download from this click
  * with percents (null when it ends), then read the state again. A failed download
  * is reported, so the page never loops back to the same "press to download" line.

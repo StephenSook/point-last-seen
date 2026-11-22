@@ -15,11 +15,11 @@ describe("d2Copy", () => {
   // The check only asks Chrome what the model can take; it reads nothing, so the lines say "ready", never "read".
   // A practice search has no photos and the page shows none, so no line names sample photos.
   it("(b) text only: the model is ready for the note and cannot read photos", () => {
-    expect(d2Copy("text", { replay: false })).toEqual({ lines: ["The built-in model on this laptop is ready for the sighting note.", "It cannot read photos on this laptop."] });
+    expect(d2Copy("text", { replay: false })).toEqual({ lines: ["The built-in model on this device is ready for the sighting note.", "It cannot read photos on this device."] });
   });
 
   it("(c) image input: ready for the note and photos", () => {
-    expect(d2Copy("image", { replay: false })).toEqual({ lines: ["The built-in model on this laptop is ready for the sighting note and photos."] });
+    expect(d2Copy("image", { replay: false })).toEqual({ lines: ["The built-in model on this device is ready for the sighting note and photos."] });
   });
 
   it("downloadable: says the model can be downloaded first", () => {

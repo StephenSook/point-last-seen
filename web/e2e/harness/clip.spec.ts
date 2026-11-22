@@ -90,7 +90,7 @@ const how = async (page: import("@playwright/test").Page) => JSON.parse((await p
 
 test("triage: no person on this laptop sends nothing, and Read in the cloud anyway records why", async ({ page }) => {
   await fillAndRead(page, "/harness/clip.html?triage=no-person");
-  await expect(page.getByRole("status")).toHaveText("No person found on this laptop. Nothing was sent.");
+  await expect(page.getByRole("status")).toHaveText("No person found on this device. Nothing was sent.");
   await expect(page.getByTestId("asked")).toHaveText("");
   await page.getByRole("button", { name: "Read in the cloud anyway" }).click();
   await expect(page.getByTestId("asked")).not.toHaveText("");
