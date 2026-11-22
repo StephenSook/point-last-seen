@@ -2767,3 +2767,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: other live checks write reports to the test drill at the same time, and a reply for a draft that changed meanwhile is never shown (by design), so the check presses Suggest plan up to three times; it now checks every request those presses sent (one content, one text part, only headings, team lines and segment lines) and compares the receipt with the last one, whose reply is on screen.
 - Source: live suite after the deploy of 4c9587de (the check passed alone and timed out in the full suite).
 - Verified: passes in the full live suite (96 of 96).
+
+### test(e2e): with no built-in model, the on-device-only reads send nothing to any model
+- What: a deployed-only check (`e2e/noModelSendsNothing.spec.ts`) removes `window.LanguageModel` before load and presses each on-device-only path up to its no-model answer, short of any consent or cloud button: Get this laptop ready on the judge's page, Read the note, and the paper debrief sheet read. No request may go to a model host, carry a model method (`:generateContent`, `:countTokens`) or reach the unresolvable fallback host the private reads use, since the SDK sends even an ONLY_ON_DEVICE call to the cloud when the browser has no LanguageModel (firebase-js-sdk #10635) and only the gate stops it.
+- Source: review (another team showed the SDK's cloud fallback with no LanguageModel).
+- Verified: passes on the live site; against a scratch build of main whose note read skipped the gate (served to the test browser at the live address, nothing deployed), it failed with `POST https://on-device-only.invalid/.../gemini-3.5-flash-lite:generateContent`. The scratch copy was deleted.
