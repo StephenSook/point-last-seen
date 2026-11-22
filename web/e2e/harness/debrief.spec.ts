@@ -129,3 +129,14 @@ test("opening a debrief while its paper sheet is open leaves the sheet as it is"
   await expect(cancel).toBeVisible();
   await expect(row.getByLabel("What worked (optional)")).toHaveCount(0);
 });
+
+test("a debrief saved from another screen while this form is open is never overwritten by this form's save", async ({ page }) => {
+  await page.goto("/harness/debrief.html?open=AA");
+  const row = page.getByTestId("debrief-AA");
+  await row.getByLabel("Time it took (minutes)").fill("30");
+  await page.getByRole("button", { name: "Another screen saves" }).click();
+  await row.getByRole("button", { name: "Save debrief" }).click();
+  await expect(row.getByRole("alert")).toHaveText("This debrief was saved from another screen while you edited. Cancel and open it again to see it.");
+  await expect(page.getByTestId("saved")).toHaveText("");
+});
+

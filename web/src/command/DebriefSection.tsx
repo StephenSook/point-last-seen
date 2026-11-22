@@ -35,6 +35,13 @@ export function DebriefSection({ cleared, debriefs, teams, onSave, paperRead, op
   );
 }
 
+const CHANGED_ELSEWHERE = "This debrief was saved from another screen while you edited. Cancel and open it again to see it.";
+
+/** What a stored debrief says, for telling whether it changed since a form opened on it (not when it was stamped). */
+function debriefWords(d: Debrief | undefined): string {
+  return d ? JSON.stringify([d.tookMinutes, d.worked ?? "", d.didNotWork ?? "", d.coverageStatedPct ?? null, d.clues ?? "", d.hazards ?? "", d.byUid]) : "none";
+}
+
 function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead, openSeq }: { segmentId: string; cleared: ClearedSegment | undefined; debrief: Debrief | undefined; teams: Props["teams"]; onSave: Props["onSave"]; paperRead: PaperRead | undefined; openSeq: number | undefined }) {
   const [editing, setEditing] = useState(false);
   const [paper, setPaper] = useState(false);
@@ -65,6 +72,10 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead, ope
     workedBox.current?.focus();
   });
 
+  // The stored debrief as the form opened on it: a save refuses if another screen has saved it since, rather than
+  // overwrite what that screen wrote with this form's older copy.
+  const openedWith = useRef("");
+
   function open() {
     setMinutes(debrief ? String(debrief.tookMinutes) : "");
     setWorked(debrief?.worked ?? "");
@@ -73,10 +84,15 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead, ope
     setClues(debrief?.clues ?? "");
     setHazards(debrief?.hazards ?? "");
     setError(null);
+    openedWith.current = debriefWords(debrief);
     setEditing(true);
   }
 
   async function save() {
+    if (debriefWords(debrief) !== openedWith.current) {
+      setError(CHANGED_ELSEWHERE);
+      return;
+    }
     const parsed = parseDebriefForm({ minutes, worked, didNotWork, coverage, clues, hazards });
     if (!parsed.ok) {
       setError(parsed.message);

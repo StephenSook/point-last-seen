@@ -51,6 +51,8 @@ const wrap = (section: ReactNode) => (inDetails ? <details open><summary>Details
 function Harness() {
   const [saved, setSaved] = useState<string>("");
   const [stored, setStored] = useState(initial);
+  // "Another screen saves": a debrief for the ?open segment (or AA) is saved from another tab while this one may have
+  // its form open.
   const [openReq, setOpenReq] = useState(openSegment ? { segmentId: openSegment, seq: 1 } : null);
   const [jpeg, setJpeg] = useState("");
   const [reads, setReads] = useState(0);
@@ -83,6 +85,15 @@ function Harness() {
       />)}
       <button type="button" onClick={() => setOpenReq((r) => ({ segmentId: openSegment ?? "AA", seq: (r?.seq ?? 0) + 1 }))}>
         Ask to open
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          const id = openSegment ?? "AA";
+          setStored((s) => ({ ...s, [id]: { segmentId: id, tookMinutes: 20, hazards: "Ice on the steps", byUid: "other", createdAtMs: 3, clearedEventId: null } }));
+        }}
+      >
+        Another screen saves
       </button>
       <pre data-testid="saved">{saved}</pre>
       <pre data-testid="read-jpeg">{jpeg}</pre>
