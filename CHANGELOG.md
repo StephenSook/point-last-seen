@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Production checklist: a row for the judge practice-search quota names the daily probe as the guaranteed run of the
+  quota check and the hourly `judge-quota.yml` as best-effort, and says the failed run's email is the alert. Source:
+  review (an infrastructure check before judging). Verified: the hygiene guard passes in public mode.
 - Daily probe: `probe.yml` also runs `scripts/judge_quota_probe.py`, which fails when fewer than 10 of the day's 50
   judge practice searches are left, so a low quota is caught at least once a day; the hourly `judge-quota.yml` stays
   as a best-effort extra, since GitHub had started none of its hourly runs 4 h after it was added. Source: review (an
