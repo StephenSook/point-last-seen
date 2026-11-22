@@ -7,7 +7,7 @@
 import { readsAsSearchReport, SEARCH_REPORT_LINE, type ClothingColor, type Direction, type RouteRecord } from "@pls/engine";
 import { useRef, useState, type FormEvent } from "react";
 import { receiptLines } from "../ai/receipt";
-import type { SightingCues, SightingRead } from "../ai/sightingText";
+import { consentPreview, type SightingCues, type SightingRead } from "../ai/sightingText";
 import type { SightingInput } from "../data/sightings";
 import type { LatLon } from "../map/geo";
 
@@ -190,6 +190,8 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
     }
   }
 
+  // The exact note a consented cloud read would send, shown in the consent box.
+  const shown = readState === "consent" ? consentPreview(note) : null;
   return (
     <form className="sighting-form" onSubmit={save} aria-labelledby="sighting-h">
       <h2 id="sighting-h" className="label">Add sighting</h2>
@@ -250,7 +252,10 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
             <p>{CLOUD_PAUSED}</p>
           ) : (
             <>
-              <p>The note goes to Gemini in the cloud. Phone numbers are removed first.</p>
+              {/* The exact note the cloud read sends (consentPreview), so the person approves the real payload. */}
+              <p>This goes to Gemini in the cloud:</p>
+              <p className="small consent-note" data-testid="consent-note">{shown?.text}</p>
+              {shown?.removedLine && <p className="small muted">{shown.removedLine}</p>}
               <button type="button" className="btn ghost" onClick={readInCloud} disabled={busy !== null}>
                 {busy === "cloud" ? "Reading" : "I consent for this note"}
               </button>

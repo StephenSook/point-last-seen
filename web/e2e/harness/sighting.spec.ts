@@ -36,13 +36,24 @@ test("a read of the unchanged note fills the fields", async ({ page }) => {
   await expect(page.getByRole("combobox", { name: "Top", includeHidden: true })).toHaveValue("red");
 });
 
+test("the consent shows the note as it will be sent, with its phone number removed and counted", async ({ page }) => {
+  await page.goto("/harness/sighting.html?read=cloud");
+  await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate, call 404 555 0142 if seen");
+  await page.getByRole("button", { name: "Read the note" }).click();
+  await page.getByRole("button", { name: "Read in the cloud" }).click();
+  await expect(page.getByTestId("consent-note")).toHaveText("red jacket by the gate, call [number removed] if seen");
+  await expect(page.getByText("1 phone number removed.", { exact: true })).toBeVisible();
+});
+
 test("a cloud note read carries a closed What ran receipt with the bytes of the note sent", async ({ page }) => {
   await page.goto("/harness/sighting.html?read=cloud");
   await page.getByRole("textbox", { name: "Note" }).fill("red jacket by the gate");
   await page.getByRole("button", { name: "Read the note" }).click();
   await page.getByRole("button", { name: "Read in the cloud" }).click();
-  // The web removes phone numbers by the shared rule (every shared case passes), so the consent says so plainly.
-  await expect(page.getByText("The note goes to Gemini in the cloud. Phone numbers are removed first.")).toBeVisible();
+  // The consent shows the exact note the cloud read sends; with no number in it there is no count.
+  await expect(page.getByText("This goes to Gemini in the cloud:")).toBeVisible();
+  await expect(page.getByTestId("consent-note")).toHaveText("red jacket by the gate");
+  await expect(page.getByText(/phone numbers? removed\./)).toHaveCount(0);
   await page.getByRole("button", { name: "I consent for this note" }).click();
   await expect(page.getByRole("combobox", { name: "Top", includeHidden: true })).toHaveValue("red");
   const receipt = page.getByRole("group").filter({ has: page.getByText("What ran", { exact: true }) });

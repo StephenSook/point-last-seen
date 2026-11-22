@@ -157,6 +157,8 @@ button, input, select { font: inherit; color: inherit; }
 .sighting-form .callback { border: 1px solid var(--line); padding: 8px; display: grid; gap: 6px; }
 .sighting-form .callback legend { color: var(--fg-3); font-size: 13px; }
 .note-state { display: grid; gap: 6px; }
+/* The exact note a cloud read sends, as consented: its line breaks kept, set apart from the form's own words. */
+.consent-note { white-space: pre-wrap; overflow-wrap: anywhere; border-left: 2px solid var(--line, #4a4644); padding-left: 8px; }
 .sightings { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .sighting { background: var(--bg-2); padding: 8px; display: grid; gap: 4px; }
 .sighting p { margin: 0; }

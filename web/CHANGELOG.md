@@ -3049,3 +3049,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - The deployed payload check reads the sent-data sentence from What ran.
 - Source: the product's few-words rule for working screens, from a review of the deployed stills.
 - Verified: the changed What ran tests and plan harness checks failed first, then passed (whatRan 4; harness 241/241); typecheck passes.
+### feat(command): the cloud consent shows the exact note it sends
+- What: the consent box before a cloud note read said "The note goes to Gemini in the cloud. Phone numbers are removed first." It now shows the note exactly as the read will send it, with phone numbers already replaced by "[number removed]", and a count when any were removed ("1 phone number removed."), so the person approves the real text.
+  - The shown text comes from consentPreview, which uses the same removePhoneNumbers call the cloud read sends.
+  - A "[number removed]" mark the person typed is not counted.
+- Source: review of how consent is asked before a cloud read.
+- Verified:
+  - new unit tests failed first, then passed: the preview equals the text the cloud read sends; the count; no count when nothing was removed;
+  - two harness checks failed first, then passed (harness 242/242);
+  - the deployed receipt check now also requires the shown text to equal the note in the request body;
+  - typecheck passes; stills at 390 and 1440 px.
