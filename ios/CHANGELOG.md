@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a re-read of the ended search keeps which refusals came before the end
+- What: when the phone sees a search it already shows as ended end again (a later read of the closed search, the
+  listener, a push), the refusals from before the end stay the ones recorded the first time. A report refused since
+  then keeps reading "Not taken: the search had ended." instead of turning back into a retry line.
+- Source: third review of the ended-search change.
+- Verified: a test where a report is refused after the end and the phone then reads the closed search again failed
+  before the change and passes after; the test fake now holds a held write's callback so it can be answered later;
+  the full app suite passes.
+
 ### fix(ios): an end during the read still holds the words after a Leave
 - What: words read while their mission was dropped wait for review, except after the searcher's own Leave. The
   exception now covers only a read that began right before that Leave. When command ended the search during the read

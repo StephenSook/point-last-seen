@@ -429,7 +429,7 @@ final class AppModel {
             // A search that is no longer open keeps its reports on screen, with the line saying why, unless a newer load
             // or another account took over while this read ran.
             if case let .notOpen(line) = failure, generation == missionGeneration, isCurrent(session) {
-                endedSearch = EndedSearch(incidentId: incidentId, line: line, owner: session.uid, refusedBefore: refusedNow(incidentId))
+                endedSearch = endedRecord(incidentId: incidentId, line: line, owner: session.uid)
             }
             return .failed(failure)
         } catch MissionReadError.accessDenied {
@@ -532,6 +532,16 @@ final class AppModel {
         return !ended.refusedBefore.contains(eventId)
     }
 
+    /// What the phone keeps when it sees a search ended. Seen again by the same account (a later read of the closed
+    /// search), the refusals from before stay the ones recorded the first time: a report refused since then was
+    /// refused by the end.
+    private func endedRecord(incidentId: String, line: String, owner: String?) -> EndedSearch {
+        if let held = endedSearch, held.incidentId == incidentId, held.owner == owner {
+            return EndedSearch(incidentId: incidentId, line: line, owner: owner, refusedBefore: held.refusedBefore)
+        }
+        return EndedSearch(incidentId: incidentId, line: line, owner: owner, refusedBefore: refusedNow(incidentId))
+    }
+
     /// The reports of an incident already refused, by event id.
     private func refusedNow(_ incidentId: String) -> Set<String> {
         Set(store?.entries.filter { e in
@@ -551,8 +561,9 @@ final class AppModel {
     /// Command ended the search this phone is in: the mission goes, so nothing more can be sent to it, the phone says
     /// so in the command post's words, and that search's reports stay on screen, read-only.
     private func searchEnded(incidentId: String, line: String) {
+        let record = endedRecord(incidentId: incidentId, line: line, owner: uid())
         dropMissionNow()
-        endedSearch = EndedSearch(incidentId: incidentId, line: line, owner: uid(), refusedBefore: refusedNow(incidentId))
+        endedSearch = record
         joinMessage = line
     }
 

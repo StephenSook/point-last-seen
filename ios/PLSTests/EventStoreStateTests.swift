@@ -14,10 +14,23 @@ final class FakeEventServer: EventServer {
     private(set) var listenedTo: [String] = []
     private var onSnapshot: (@MainActor ([ServerEventCopy]) -> Void)?
 
+    /// The callbacks of held writes, so a test can answer them later.
+    private var held: [@MainActor ((any Error)?) -> Void] = []
+
     func write(_ doc: EventDoc, completion: @escaping @MainActor ((any Error)?) -> Void) {
         writes.append(doc.eventId)
-        if holdWrites { return }
+        if holdWrites {
+            held.append(completion)
+            return
+        }
         completion(writeErrors.isEmpty ? nil : writeErrors.removeFirst())
+    }
+
+    /// Back in signal: every held write is answered with this error (nil: written).
+    func answerHeldWrites(_ error: (any Error)?) {
+        let waiting = held
+        held = []
+        waiting.forEach { $0(error) }
     }
 
     func listen(incidentId: String, onSnapshot: @escaping @MainActor ([ServerEventCopy]) -> Void) -> AnyObject? {
