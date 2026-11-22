@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Security note (row 2): the web always asks for limited-use tokens and reads no Remote Config key for them; the phones
+  still read use_limited_use_tokens, which defaults to true on both. Source: review. Verified: the hygiene guard passes
+  in public mode.
 - Security note (row 2): the web reads use_limited_use_tokens once per page with activatedLimitedUseTokens
   (web/src/config/rc.ts), so a changed value applies on the next load. Source: review. Verified: the hygiene guard
   passes in public mode.
