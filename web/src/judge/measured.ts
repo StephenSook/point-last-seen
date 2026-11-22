@@ -72,7 +72,7 @@ export function measuredLines(f: Measured, nowMs: number): MeasuredView {
     blockLine("Report reads", f.window, f.reads, "", "on the device, in our own iPhone test runs", "by the cloud model", "by fixed rules with no model",
       "On the device: none stored yet. An iPhone's practice drill keeps its reads on the phone; a drill report read on the phone is stored with its route."),
     blockLine("Plan wording", f.wordingWindow, f.wording, " plans", "written by the laptop's own model", "by the cloud model", "in fixed wording with no model",
-      "On the laptop: none stored yet. A plan is worded on the laptop only when its browser has Chrome's built-in model."),
+      "On the laptop: none stored yet. A plan uses the laptop's model only when its browser has Chrome's built-in model."),
     `Cloud model spend, ${day(`${f.spend.from}T00:00:00Z`)} to ${day(f.generatedAt)}: $${f.spend.usd.toFixed(2)} over ${f.spend.days} days ($${f.spend.usdPerDay} a day), from Firebase AI Logic's token counts.`,
   ];
   const asOf = `Computed on ${new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })} by scripts/measured_export.py from the route records each read and plan stores.`;

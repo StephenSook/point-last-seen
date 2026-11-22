@@ -37,7 +37,7 @@ describe("measuredLines: the judge page's Measured block, from the committed fil
     const m = measuredLines({ ...file, reads: block(3, 1200, 2, 2760, 50), wording: block(0, null, 2, 1524.5, 28) }, AT);
     if (m.state !== "ok") throw new Error(m.state);
     expect(m.lines[0]).toBe("Report reads, Nov 19 to Nov 21: 55. 3 on the device, in our own iPhone test runs (median 1.2 s), 2 by the cloud model (median 2.8 s), 50 by fixed rules with no model.");
-    expect(m.lines[1]).toBe("Plan wording, Nov 18 to Nov 21: 30 plans. 2 by the cloud model (median 1.5 s), 28 in fixed wording with no model. On the laptop: none stored yet. A plan is worded on the laptop only when its browser has Chrome's built-in model.");
+    expect(m.lines[1]).toBe("Plan wording, Nov 18 to Nov 21: 30 plans. 2 by the cloud model (median 1.5 s), 28 in fixed wording with no model. On the laptop: none stored yet. A plan uses the laptop's model only when its browser has Chrome's built-in model.");
   });
 
   it("counts reads with no route recorded, so the parts add up to the total", () => {

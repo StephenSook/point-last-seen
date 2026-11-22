@@ -3013,3 +3013,7 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the rail's Details summary read "DETAILS : 38 °F, wet: no. 11 photos to review." because the summary row's 6 px gap fell between the label and the text that began with the colon. detailsSummaryParts now gives the label with its colon ("Details:") and the rest with its leading space, which the row drops on screen and keeps in the text, so it reads "DETAILS: 38 °F, ...".
 - Source: deployed stills, both widths, Chromium and WebKit.
 - Verified: new detailsSummaryParts tests failed first, then passed; the summary's whole text is unchanged for screen readers and for the rail-order check; typecheck passes.
+### fix(judge): the Measured block no longer says a model words the plan
+- What: the judge page's Measured block ended its plan line with "A plan is worded on the laptop only when its browser has Chrome's built-in model." Since plan reasons became fact codes, a model chooses each team's main reason and code writes every word, so that present-tense sentence was untrue. It now reads "A plan uses the laptop's model only when its browser has Chrome's built-in model.", true before and after that change. The counts and their label describe the stored runs and are unchanged.
+- Source: deployed stills.
+- Verified: the changed measured test failed first, then passed (7); typecheck passes.
