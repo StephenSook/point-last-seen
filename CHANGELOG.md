@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- CI: the gates job's Python test list, and its mirror in scripts/ci-local.sh, run ios/scripts/test_eval_key_kit.py
+  (the eval answer-key kit's 13 tests). Source: the kit's new test file. Verified:
+  `scripts/test_ci_local.py::test_every_python_test_file_runs_in_ci` failed without the line, naming the file, then
+  passed; the kit's tests pass from the repo root; `scripts/ci-local.sh --gates` passes.
 - Limits: the plan's per-team reasons are written by a model and checked by code (only the team's own figures, each
   in its own role; a rise or fall word must match one of the team's segments); if any reason fails the plan uses
   fixed wording; the check reads words, so a direction outside its word lists or an untrue "highest" can still pass;
