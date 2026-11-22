@@ -1,0 +1,11 @@
+row,report_text,second_label
+1,"Team 1 finished AB, full sweep, nothing found.",cleared
+2,"Cleared AK and AN along the road, no sign of him.",cleared
+3,"Footprints in the mud by the creek in AF, small shoe, heading downstream.",clue
+7,"Radio check from Team 3, moving to staging.",cleared
+8,"Cleared CB and CC around the pond edge, nothing.",cleared
+11,Found a water bottle with a name sticker at the edge of the open field.,clue
+13,"Heading back to command, my radio battery is low.",cleared
+15,We have him. Subject located in the woods in CE.,found
+17,"Searched the trees in CK and CL, voice and visual, nothing heard.",cleared
+19,"Cleared BX along the creek, about 80 percent coverage.",unclear

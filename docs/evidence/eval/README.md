@@ -66,6 +66,15 @@ key's SHA-256 (`f98c6f5d...`).
   unchanged, and relabelling both would not change which arm got more right.
 - The limits below apply: 20 made-up reports, a key written by the builder's AI assistant, one labeller.
 
+## Second labeller, 2026-11-22
+
+A second labeller, the builder, labelled 10 rows (picked with seed 20261122) without seeing the key, on 2026-11-22:
+they agreed on 7 of 10 (Cohen's kappa 0.52). The three differences are n7 and n13 (key unclear, builder cleared)
+and n19 (key cleared, builder unclear). After seeing the comparison, the builder said the labels had been given
+quickly and agreed with the key on all three; that later view is not counted, because it came after seeing the key.
+Before labelling, the builder had heard that n3 and n11 were object finds, so those two rows were not fully blind.
+The key is unchanged. The labels are in `pls-drill-reports-v1-second-labeller.csv`, as given.
+
 ## Running it
 
 1. Install a debug build on the iPhone, start the practice drill (or join a drill), and turn on Airplane Mode.
@@ -77,9 +86,9 @@ key's SHA-256 (`f98c6f5d...`).
 
 ## Limits
 
-- One labeller: the builder's AI assistant wrote the key, so it reflects one reader's judgement of each
-  report. Results are reported as from one labeller unless a second person labels 10 of the 20 rows blind and
-  the two keys are compared.
+- One labeller wrote the key: the builder's AI assistant, so it reflects one reader's judgement of each report. A
+  second labeller checked 10 of the 20 rows blind and agreed on 7 (Cohen's kappa 0.52, above); the other 10 rows
+  have one label only.
 - About 20 rows give wide intervals: a difference between the arms has to be large to show.
 - The reports are drill sentences, not words from a real search.
 
