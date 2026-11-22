@@ -58,7 +58,10 @@ REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one fo
                    # A known gap, pending on every platform (#298): a colon breaks the run, so times after a cue survive.
                    "5:55 01:42", "5:55 01:42", "5:55 07:14", "5:55 01:42",
                    # The same number twice in one note: every copy goes, not only the first.
-                   "404-555-0142"]
+                   "404-555-0142",
+                   # Known gaps, pending on every platform and listed in docs/LIMITS.md (#298): a number kept whole.
+                   "4:04/5:55 06:42", "4:04 5:\u06655 01:42", "4:04 cinco:55 01:42",
+                   "\u2074:\u2070\u2074 \u2075:\u2075\u2075 \u2076:\u2074\u00b2", "1-800-GET-HELP"]
 # A date in a note is search information, not a phone number, so every platform keeps it; so are coordinates
 # (without a leading +), a ZIP+4 code, a grouped count under seven digits, a street number and a number with a unit.
 REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "2026-11-19", "11/19", "Nov 19",
@@ -100,7 +103,9 @@ REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number remove
                   # A frequency joined to any other digits goes with the run.
                   ("Radio 155.160 404 5550142", "Radio [number removed]"),
                   # The same known gap beside a kept date (#298).
-                  ("Seen 14 May 5:55 01:42", "Seen 14 May [number removed]")]
+                  ("Seen 14 May 5:55 01:42", "Seen 14 May [number removed]"),
+                  # A known gap, pending on every platform (#298): a date before a run of times keeps its first hour.
+                  ("Seen 11/19/2026 12:12 5:55 01:42", "Seen 11/19/2026 [number removed]")]
 
 
 def number_chars(text: str) -> bool:
