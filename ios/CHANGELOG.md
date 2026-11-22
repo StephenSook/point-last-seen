@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### feat(ios): Report a problem on the task screen and the Ready check
+- What: a "Report a problem" link under the report controls (about the task) and under the approach card on the
+  Ready check (about the family's description) opens one form: what it is about (when both can be reported), four
+  reasons in the command post's words, an optional note (it stops at 500 characters as typed; phone numbers are
+  removed before it is sent), and Send. Send closes the keyboard so the line saying what became of the report shows;
+  the keyboard also has its own Done key, since Return starts a new line. The links show only while there is
+  something to report, so never in the practice drill.
+- Source: App Review guideline 1.2 (a way to report user content).
+- Verified: on the simulator against the dev drill, a task report with a note came back "Sent to command." (the
+  server took the create, with the server's time, under the rule); a report about the family's description was
+  sent before the keyboard fix; the links showed only after joining; Done closed the keyboard; Leave then deleted
+  each test account. The full app suite passes.
+
 ### feat(ios-core): one cut for the note as typed and as stored
 - What: `ContentReport.capped` cuts text to the rule's 500 code points between whole characters and changes nothing
   else. The Report a problem note field uses it as the searcher types, and `cleanNote` uses it after removing phone

@@ -38,6 +38,8 @@ struct ReadyCheckView: View {
                         if let profile = model.mission?.sharedProfile, let notes = try? BundledConstants.approachNotes() {
                             ApproachCardView(card: ApproachCard.build(profile: profile, notes: notes, aids: try? BundledConstants.trackingAids()))
                         }
+                        // Flag the family's description to command.
+                        ReportProblemLink(model: model, target: .familyDescription)
                     }
                 }
                 section("Screen") {

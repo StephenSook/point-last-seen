@@ -87,6 +87,8 @@ struct TaskView: View {
                         PhotoPicker { image in Task { _ = await model.submitPhoto(image) } }.ignoresSafeArea()
                     }
                 }
+                // Flag the team's task to command (it shows only while command's plan gave one).
+                ReportProblemLink(model: model, target: .task)
                 if model.sending {
                     ProgressView("Reading your report")
                 }
