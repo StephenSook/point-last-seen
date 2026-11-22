@@ -23,20 +23,26 @@ test("Suggest plan on the cloud path uses the model's choice at least two times 
   const plan = page.getByRole("region", { name: "Plan" });
   const suggested = page.getByTestId("suggested-plan");
   let used = 0;
+  let shown = 0;
   const notUsed: string[] = [];
-  for (let i = 0; i < 3; i++) {
+  // Other live checks write reports to this drill at the same time; a suggestion for a draft that changed meanwhile is
+  // withdrawn (by design), so such a press is pressed again, up to six presses for three suggestions shown.
+  for (let press = 0; press < 6 && shown < 3; press++) {
     const before = replies.length;
     await expect(plan.getByRole("button", { name: "Suggest plan" })).toBeEnabled({ timeout: 60_000 });
     await plan.getByRole("button", { name: "Suggest plan" }).click();
-    // The press is over when the button stops saying Suggesting; the suggestion on screen is then this press's.
+    // The press is over when the button stops saying Suggesting; the suggestion on screen, if any, is then this press's.
     await expect(plan.getByRole("button", { name: "Suggest plan" })).toBeVisible({ timeout: 90_000 });
-    await expect(suggested).toBeVisible({ timeout: 30_000 });
-    await expect.poll(() => replies.length, { timeout: 30_000 }).toBeGreaterThan(before);
+    if (!(await suggested.isVisible())) continue;
+    shown++;
+    // A reply is read after its headers; a request that timed out before them has none, and its press still counts.
+    await expect.poll(() => replies.length, { timeout: 5_000 }).toBeGreaterThan(before).catch(() => undefined);
     // The route mark says where the wording came from: "rules" is the fixed wording, used when the model's was not.
     const path = await suggested.getByTestId("route-glyph").getAttribute("data-path");
-    if (path === "rules") notUsed.push(replies.at(-1) ?? "");
+    if (path === "rules") notUsed.push(replies.length > before ? replies.at(-1)! : "(no reply reached the page)");
     else used++;
   }
+  expect(shown, "three suggestions shown").toBe(3);
   await info.attach("cloud replies not used", { body: notUsed.join("\n---\n") || "(none)", contentType: "text/plain" });
   expect(used, `replies not used:\n${notUsed.join("\n---\n")}`).toBeGreaterThanOrEqual(2);
   // Not approved: no plan was written.

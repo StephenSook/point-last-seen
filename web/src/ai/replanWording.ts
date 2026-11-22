@@ -33,7 +33,7 @@ export const PLAN_WORDING_JSON: PlanWordingSchema = {
 /** Each team with a fact to choose, with its own fact codes in FACT_CODES order. */
 export type ChoiceTeams = Readonly<Record<string, readonly FactCode[]>>;
 // The per-plan form, built from the plan's facts.
-export type PlanWordingSchema = { type: "object"; properties: Record<string, { type: "string"; enum: readonly FactCode[] }>; required: readonly string[] };
+export type PlanWordingSchema = { type: "object"; properties: Record<string, { type: "string"; enum: readonly FactCode[] }>; required: readonly string[]; additionalProperties?: false };
 
 const SYSTEM = [
   "Code has already decided which team searches which segment, and code writes every sentence of the plan.",
@@ -238,7 +238,7 @@ export function planWordingJson(teams: ChoiceTeams | null): PlanWordingSchema {
   return {
     type: "object",
     properties: Object.fromEntries(Object.entries(teams).map(([t, codes]) => [t, { type: "string", enum: [...codes] }])),
-    required: Object.keys(teams),
+    required: Object.keys(teams), additionalProperties: false, // closed: no other team and no other field
   };
 }
 

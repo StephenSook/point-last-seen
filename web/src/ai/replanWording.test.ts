@@ -87,6 +87,8 @@ describe("the model picks reason codes, code writes every sentence", () => {
       type: "object",
       properties: { T1: { type: "string", enum: ["highest_poa", "poa_rose", "poa_now"] }, T2: { type: "string", enum: ["top_three", "poa_now"] } },
       required: ["T1", "T2"],
+      // Closed, so a constrained reply cannot add a team or any other field.
+      additionalProperties: false,
     });
   });
   it("renders each team's reason from the main code chosen and code's supporting fact, and the summary from the same", async () => {

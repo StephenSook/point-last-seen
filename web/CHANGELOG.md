@@ -2999,3 +2999,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a deployed check (e2e/planUsed.spec.ts) presses Suggest plan three times with no built-in model, reads the route mark of each suggestion, and requires at least two to be the model's choice, not fixed wording. Each reply that was not used is recorded in the failure and attached to the report. Nothing is approved.
 - Source: deployed stills (the cloud path fell back on every press, and no check noticed).
 - Verified: against the live site before the schema fix it fails with 0 of 3 used and records the six "highest_poa" picks; after the fix it is run with the live suite.
+
+### fix(ai): the plan's reply schema is closed, and the cloud-path check tolerates a busy drill
+- What: from review of the per-team schema.
+  - The per-plan schema adds additionalProperties: false, so a constrained reply cannot add a team or any other field; such a reply would have fitted the schema and then been refused.
+  - The live cloud-path check now presses Suggest plan again when a suggestion is withdrawn because another check changed the shared drill meanwhile (up to six presses for three suggestions shown).
+  - It now counts a press whose request ended before any reply by its route mark, instead of failing the poll.
+  - Accepted: a reply with a team named twice is read with its last value, which must still be one of that team's own facts, so nothing untrue is shown.
+- Source: review.
+- Verified: the changed schema test failed first, then passed (34); against the live site before the fix the check still fails with 0 of 3 used; typecheck passes; the cited lines 47 and 232 are unchanged.
