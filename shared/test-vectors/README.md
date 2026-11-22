@@ -193,9 +193,8 @@ a digit between, written or spoken (or a counted `double` or `triple`), is read 
 read past the same way and are never a cue, since they stand for digits that were removed (`Witness [number removed]
 at 14:03 14:10` stays, `marker_then_times`). For the same reason a `[number removed]` right before or after a run,
 with no letter or digit between, is digits joined to the run, and the run is removed (`Dial [number removed] 4:04 5:55
-12:12` gives `Dial [number removed] [number removed]`, `marker_beside_times`), together with every digit part joined to
-the run, written or spoken (`Dial [number removed] 4:04 5:55 one two one two` gives `Dial [number removed] [number
-removed]`); this is checked before anything else about the run. The text between decided runs follows the rule above unchanged. A note that NFKC changes skips this step entirely, since
+12:12` gives `Dial [number removed] [number removed]`, `marker_beside_times`). This holds for a run with nothing joined
+to it; a run with digits joined to it, written or spoken, is left to the rule above, as it was before. The text between decided runs follows the rule above unchanged. A note that NFKC changes skips this step entirely, since
 folding can turn other characters (superscript or full-width digits) into the ASCII digits a run is made of. A number
 written as rising times with no cue (`2:12 5:55 6:42`) stays; `docs/LIMITS.md` says so.
 
@@ -223,7 +222,7 @@ sequences and emoji modifiers).
 `tools/vectors/phone_corpus.ts` builds it; `npx tsx tools/vectors/phone_corpus_cli.ts --write` rewrites the file and
 `--check` exits 1 unless the file is exactly what `--write` would write. A change to the web rule changes `rule`, so the
 web test fails until the file is written again. The file's SHA-256 is
-`d890a367c4047f4dfdd31957e9f6083e54a2ff70443056312ff3d44ba15843d0`.
+`76c7e28cbb4a8821287c88f29833631937880babb13fb73da0a3d79dbaed117a`.
 
 ## language.json (hand-written)
 

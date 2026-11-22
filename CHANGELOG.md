@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Phone vectors: the shared README says a "[number removed]" beside a run of times takes the run only when nothing
+  is joined to it; a run with digits joined to it, written or spoken, is left to the shared rule as before #342. The
+  corpus is written again (only its rule hash changed; no row moved) and the README names its SHA-256. Source:
+  PR #342 and its third review (the joined-digit widening caused regressions). Verified: the corpus `--write` output
+  hashes to the README's SHA-256 and `--check` passes; `scripts/test_phone_vectors.py`, the web phone tests and
+  `scripts/ci-local.sh --gates` pass.
 - Phone vectors: `marker_beside_times` is no longer pending on the iPhone, which passes it today; `marker_then_times`
   stays pending there. The shared README says a run beside a "[number removed]" also takes every digit part joined to
   it, written or spoken ("Dial [number removed] 4:04 5:55 one two one two"), and names the regenerated corpus's
