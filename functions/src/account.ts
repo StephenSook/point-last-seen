@@ -67,12 +67,15 @@ export async function handleDeleteMyAccount(db: Firestore, auth: Pick<Auth, "del
   const reach = new Set(found.map(s => s.ref.parent.parent!.id));
   const claimed = user?.customClaims?.["inc"];
   if (typeof claimed === "string" && ID.test(claimed) && incidents.some(i => i.id === claimed)) reach.add(claimed);
-  // Only where the incident still exists and its retention purge has not started: a record written under a drill
-  // being deleted would outlive it (retention.ts), and a token for a deleted incident reaches nothing anyway.
+  // Only where the incident still exists and no retention purge of it is unfinished: a record written under a drill
+  // being deleted would outlive it, and a token for a deleted incident reaches nothing anyway. A finished or abandoned
+  // purge leaves its record for good as a tombstone (retention.ts), so a tombstone beside a live incident (the id in
+  // use again) does not stop the record.
   const ids = [...reach];
   const [incDocs, purges, removed] = await Promise.all([readAll(db, ids.map(id => db.doc(`incidents/${id}`))),
     readAll(db, ids.map(id => db.doc(`${PURGES}/${id}`))), readAll(db, ids.map(id => db.doc(`incidents/${id}/removed/${uid}`)))]);
-  const toRefuse = removed.filter((s, i) => !s.exists && incDocs[i]!.exists && !purges[i]!.exists);
+  const unfinished = (p: DocumentSnapshot) => p.exists && p.get("doneAt") === undefined && p.get("staleAt") === undefined;
+  const toRefuse = removed.filter((s, i) => !s.exists && incDocs[i]!.exists && !unfinished(purges[i]!));
   if (found.length + toRefuse.length > maxWrites) throw tooMany("too_many_records");
   if (found.length + toRefuse.length > 0) {
     const batch = db.batch();

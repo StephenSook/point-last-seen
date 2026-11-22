@@ -152,6 +152,17 @@ describe("deleteMyAccount: the caller's member records go before its sign-in", (
     expect(await exists(`incidents/I2/removed/${uid}`)).toBe(false);
     expect(await userGone(uid)).toBe(true);
   });
+  it("still refuses the old sign-in where a finished or abandoned purge left its tombstone and the id is in use again", async () => {
+    for (const [id, mark] of [["I2", { doneAt: new Date() }], ["I3", { staleAt: new Date() }]] as const) {
+      await admin.db.doc(`incidents/${id}`).set({ name: "Reused", mode: "drill", status: "open" });
+      await admin.db.doc(`${PURGES}/${id}`).set({ startedAt: new Date(), ...mark });
+    }
+    const uid = await searcherIn("I2");
+    await admin.db.doc(`incidents/I3/members/${uid}`).set({ role: "searcher", team: "T1", joinedAt: new Date() });
+    await handleDeleteMyAccount(admin.db, admin.auth, uid);
+    expect(await exists(`incidents/I2/removed/${uid}`)).toBe(true);
+    expect(await exists(`incidents/I3/removed/${uid}`)).toBe(true);
+  });
   it("writes no refusal record under an incident whose document is gone (only children left)", async () => {
     const uid = await searcherIn("I1");
     await admin.db.doc(`incidents/I9/members/${uid}`).set({ role: "searcher", team: "T1", joinedAt: new Date() });

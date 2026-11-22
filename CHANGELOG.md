@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Leave still refuses the old sign-in beside a purge tombstone: only an unfinished retention purge (no doneAt or
+  staleAt) stops `deleteMyAccount` writing the removed/{uid} record, since a finished or abandoned purge keeps its
+  record for good and the id can be in use again by a live incident. Source: review (a security review of the
+  previous commit: any purge record skipped the refusal, so the old token kept its hour of access in a reused id).
+  Verified: a new emulator test with a done and a stale tombstone beside live incidents failed first, then passed
+  (22 in the file); the functions typecheck and the full emulator suite (392) pass.
 - Leave writes no refusal record under a drill being deleted: `deleteMyAccount` creates the removed/{uid} record only
   where the incident document exists and its retention purge has not started, since a record under a drill being
   purged would outlive it; the member record and the Auth user still go. `joinIncident` checks for a deleted account
