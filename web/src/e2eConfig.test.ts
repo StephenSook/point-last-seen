@@ -44,3 +44,34 @@ describe("the harness and extras configs take their port from the environment", 
     await expect(load("../e2e/harness.config.ts")).rejects.toThrow(/PLS_HARNESS_PORT/);
   });
 });
+
+describe("the live suite runs every check on the shared test drill one at a time", () => {
+  type Project = { name: string; workers?: number; testMatch?: unknown; testIgnore?: unknown; dependencies?: string[] };
+  const matches = (pattern: unknown, file: string) =>
+    (Array.isArray(pattern) ? pattern : [pattern]).some((p) => (p instanceof RegExp ? p.test(file) : typeof p === "string" && p.endsWith("/**") && file.includes(`/e2e/${p.slice(0, -3)}/`)));
+  it("puts each spec that joins or names the drill in one serial project, and the rest in the parallel one", async () => {
+    const { readdirSync, readFileSync } = await import("node:fs");
+    const dir = new URL("../e2e/", import.meta.url);
+    const specs = readdirSync(dir).filter((f) => f.endsWith(".spec.ts"));
+    const onDrill = specs.filter((f) => /joinCommand\(|PLS_SMOKE_INCIDENT/.test(readFileSync(new URL(f, dir), "utf8")));
+    expect(onDrill.length).toBeGreaterThan(10);
+    const cfg = (await load("../e2e/playwright.config.ts")) as Cfg & { projects: Project[] };
+    const serial = cfg.projects.find((p) => p.name === "chrome-drill")!;
+    const parallel = cfg.projects.find((p) => p.name === "chrome")!;
+    expect(serial.workers).toBe(1);
+    expect(serial.dependencies).toEqual(["setup"]);
+    for (const f of specs) {
+      const path = new URL(f, dir).pathname;
+      const inSerial = matches(serial.testMatch, path);
+      const inParallel = !matches(parallel.testIgnore, path);
+      expect([f, inSerial, inParallel]).toEqual([f, onDrill.includes(f), !onDrill.includes(f)]);
+    }
+    // Harness and extras specs (run by their own configs) are in neither project.
+    for (const sub of ["harness", "extras"]) {
+      for (const f of readdirSync(new URL(`${sub}/`, dir)).filter((n) => n.endsWith(".spec.ts"))) {
+        const path = new URL(`${sub}/${f}`, dir).pathname;
+        expect([`${sub}/${f}`, matches(serial.testMatch, path), matches(parallel.testIgnore, path)]).toEqual([`${sub}/${f}`, false, true]);
+      }
+    }
+  });
+});

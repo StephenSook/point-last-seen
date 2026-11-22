@@ -3008,3 +3008,14 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - Accepted: a reply with a team named twice is read with its last value, which must still be one of that team's own facts, so nothing untrue is shown.
 - Source: review.
 - Verified: the changed schema test failed first, then passed (34); against the live site before the fix the check still fails with 0 of 3 used; typecheck passes; the cited lines 47 and 232 are unchanged.
+
+### test(e2e): the live suite runs every check on the shared test drill one at a time
+- What: the live suite ran all its checks side by side on one shared test drill, so one check's report could become another's "newest report". The beat check failed once that way and then passed 3 of 3 alone, so a red run did not always mean a real failure.
+  - The suite's config now finds every spec that joins or names the drill (joinCommand, PLS_SMOKE_INCIDENT) and runs those in a "chrome-drill" project with a single worker. The rest stay parallel in "chrome".
+  - Both projects keep the harness and extras specs out, which their own configs run.
+- Source: deployed stills (a beat check failure during the parallel live run).
+- Verified:
+  - a new e2eConfig test (each drill spec only in the serial project, each other spec only in the parallel one, no harness or extras spec in either) failed first, then passed;
+  - the listing is 100 tests (46 serial, 53 parallel, setup);
+  - the whole live suite passed 100 of 100 against the live site in 2.6 minutes (1.2 minutes before);
+  - typecheck passes.
