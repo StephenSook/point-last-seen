@@ -73,4 +73,8 @@ object Copy {
 
     const val GET_MODEL = "Get the on-device model"
     const val MODEL_FAILED = "The on-device model could not be downloaded. Try again on Wi-Fi."
+
+    /** The App Check provider this build uses. It names the provider; it does not say a check passed. */
+    fun appCheckProvider(provider: String): String =
+        "App Check provider: " + if (provider == "play_integrity") "Play Integrity" else provider
 }

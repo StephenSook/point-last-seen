@@ -33,6 +33,7 @@ class AboutPhoneScreenTest {
         rule.onNodeWithText("This phone has no on-device model.").assertIsDisplayed()
         rule.onNodeWithText("Notes and clips are read in the cloud through Firebase AI Logic.").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Cloud model: gemini-3.5-flash-lite").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("App Check provider: debug").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("License: Apache-2.0").performScrollTo().assertIsDisplayed()
     }
 

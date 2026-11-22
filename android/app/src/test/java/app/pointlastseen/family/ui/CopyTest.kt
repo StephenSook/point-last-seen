@@ -97,4 +97,10 @@ class CopyTest {
     @Test fun leavingAnOpenSearchAsksInPlainWords() {
         assertEquals("Leave this search? You will need a new code from the search lead to join again.", Copy.LEAVE_CONFIRM)
     }
+
+    /** About names the App Check provider in words, and as a provider, not as a passed check. */
+    @Test fun aboutNamesTheAppCheckProvider() {
+        assertEquals("App Check provider: Play Integrity", Copy.appCheckProvider("play_integrity"))
+        assertEquals("App Check provider: debug", Copy.appCheckProvider("debug"))
+    }
 }
