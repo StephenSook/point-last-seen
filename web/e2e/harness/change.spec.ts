@@ -71,6 +71,25 @@ test("a new report replays the beat: the old lightness first, the new one when t
   expect(await chipOpacity()).toBe("1");
 });
 
+test("the map says the beat is armed once it is ready and has seen a first report, which it does not play", async ({ page }) => {
+  await page.goto("/harness/change.html?late=1");
+  const map = page.getByTestId("map").locator("xpath=..");
+  await expect(page.getByTestId("map")).toHaveAttribute("data-map-state", "idle", { timeout: 20_000 });
+  // No report yet (the post passes none before the server's first answer): not armed.
+  await expect(map).not.toHaveAttribute("data-beat-armed", /.*/);
+  await page.getByRole("button", { name: "Server answers" }).click();
+  await expect(map).toHaveAttribute("data-beat-armed", "true");
+  // The first report seen is only recorded.
+  await expect(map).not.toHaveAttribute("data-beat", /.*/);
+  await page.getByRole("button", { name: "Report again" }).click();
+  await expect(map).toHaveAttribute("data-beat", "playing");
+});
+
+test("with a report from the start, the map is armed once it has loaded", async ({ page }) => {
+  await page.goto("/harness/change.html");
+  await expect(page.getByTestId("map").locator("xpath=..")).toHaveAttribute("data-beat-armed", "true", { timeout: 20_000 });
+});
+
 test("with reduced motion a new report shows the final lightness at once", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/harness/change.html");

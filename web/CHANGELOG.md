@@ -3066,3 +3066,14 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - It says the 60 s is headroom for a slower laptop's first wording, which was not measured. The value is unchanged.
 - Source: review of the comment against the current evidence.
 - Verified: each number was read from the evidence files by script; the cited lines 47 and 232 did not move; comment only.
+
+### feat(map): the map says when the next new report will play its beat
+- What: the map's wrap gets data-beat-armed="true" once the map is ready and has seen a first report.
+  - The post passes no report to the map before the server's first answer. The map plays the beat only for a report after the first one it sees, so a report written before then only shows the final map.
+  - The mark lets a check wait for the moment a new report will play, instead of guessing with a fixed wait.
+  - A first report seen before the map was ready arms it when the map loads.
+- Source: the live beat check failing after a plan approval. Measured on the live site: the check wrote its report about 0.7 s after the post drew from its cache, before the server's first answer, and the beat did not play (0 of 3). With a 3 s wait it played 3 of 3.
+- Verified: two new change-harness checks failed first, then passed:
+  - not armed before the first report; armed after it, which plays nothing; the next report plays;
+  - armed once the map has loaded.
+  All 9 change checks and typecheck pass.

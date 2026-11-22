@@ -1,5 +1,6 @@
 // Dev-server-only harness (web/harness/change.html): the map and the change banner
-// for a synthetic report that moves probability toward cell CD (?confirm=1: a sighting awaiting confirmation). No Firebase.
+// for a synthetic report that moves probability toward cell CD (?confirm=1: a sighting awaiting confirmation; ?late=1:
+// no report until "Server answers" is pressed, as the post passes none before the server's first answer). No Firebase.
 
 import type { EventDoc } from "@pls/engine";
 import { useState } from "react";
@@ -21,10 +22,12 @@ const CHANGE = new URLSearchParams(location.search).get("confirm") === "1" ? cha
 // The synthetic report sits in cell DE, south-east of CD.
 const ORIGIN = HARNESS_SEGMENTS.find((s) => s.segmentId === "DE")!.centroid;
 const DIST = beatDistances(ORIGIN, CHANGE.changed.map((c) => c.segmentId), HARNESS_SEGMENTS);
+const LATE = new URLSearchParams(location.search).get("late") === "1";
 
 function Harness() {
   const [holding, setHolding] = useState(false);
   const [reports, setReports] = useState(1);
+  const [answered, setAnswered] = useState(!LATE);
   return (
     <div style={{ position: "fixed", inset: 0, display: "grid", gridTemplateColumns: "1fr 320px" }}>
       <div style={{ display: "grid", gridTemplateRows: "auto 1fr" }}>
@@ -34,11 +37,16 @@ function Harness() {
           segments={HARNESS_SEGMENTS}
           poa={holding ? HARNESS_POA : AFTER}
           moved={holding ? undefined : CHANGE.changed}
-          beat={{ key: String(reports), before: HARNESS_POA, change: CHANGE, distanceM: DIST, origin: ORIGIN }}
+          beat={answered ? { key: String(reports), before: HARNESS_POA, change: CHANGE, distanceM: DIST, origin: ORIGIN } : null}
         />
       </div>
       <aside className="rail right">
         <ChangeBeat change={CHANGE} holding={holding} onHold={setHolding} />
+        {!answered && (
+          <button type="button" className="btn ghost" onClick={() => setAnswered(true)}>
+            Server answers
+          </button>
+        )}
         <button type="button" className="btn ghost" onClick={() => setReports((n) => n + 1)}>
           Report again
         </button>
