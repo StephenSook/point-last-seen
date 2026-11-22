@@ -2636,3 +2636,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: after command saves that segment's debrief, the sighting form says "Segment XX's debrief was saved. Cancel this sighting, or save it as a sighting too." instead of "not saved yet", and the debrief button stays, so a debrief cancelled by mistake can be opened again with the note.
 - Source: review (Codex, second round on the search-report guard).
 - Verified: a new harness test failed first, then passed; the sighting harness spec (28) passes.
+
+### fix(command): the post reports a saved debrief to the sighting, and nested toggles leave Details' counts alone
+- What: a debrief save for the handoff's segment tells the sighting form it was saved; and the Details rail ignores toggles of details inside it (a photo's What ran, say), which reached its handler and marked the family's answers read.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: typecheck, web unit suite (1235) and the harness suite (240) pass.

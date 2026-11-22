@@ -297,6 +297,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const [debriefPrefill, setDebriefPrefill] = useState<{ segmentId: string; note: string; seq: number } | null>(null);
   const railDetails = useRef<HTMLDetailsElement>(null);
   const openedForReport = useRef(false);
+  // The segment whose debrief command saved since the last handoff, so the sighting form can say so.
+  const [debriefSavedTo, setDebriefSavedTo] = useState<string | null>(null);
   const [clipping, setClipping] = useState(false);
   // A view setting for this screen only: every plate of 0.1% or more on the map, not only the ones that fit.
   const [everyPercent, setEveryPercent] = useState(false);
@@ -965,10 +967,12 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               readNoteInCloud={readNoteInCloud}
               cloudPaused={rc.killCloud}
               debriefable={standingClears(events)}
+              debriefSavedTo={debriefSavedTo}
               onDebrief={(segmentId, note) => {
                 // The sighting form stays open with its draft; Details opens on the debrief. Opening it this way does
                 // not count as reading what Details holds, so its new-answer counts stay.
                 setDebriefPrefill((p) => ({ segmentId, note, seq: (p?.seq ?? 0) + 1 }));
+                setDebriefSavedTo(null);
                 const d = railDetails.current;
                 if (d && !d.open) {
                   openedForReport.current = true;
@@ -1032,6 +1036,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             className="rail-details"
             data-testid="rail-details"
             onToggle={(e) => {
+              // A toggle of a details inside this one (a photo's What ran, say) reaches here too: only its own counts.
+              if (e.target !== e.currentTarget) return;
               if (openedForReport.current) openedForReport.current = false;
               else openedDetails(e.currentTarget.open);
             }}
@@ -1113,9 +1119,10 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               cleared={clearedSegments(events)}
               debriefs={debriefs}
               teams={teams}
-              onSave={(segmentId, input, existing, clearedEventId) =>
-                saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
-              }
+              onSave={async (segmentId, input, existing, clearedEventId) => {
+                await saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId);
+                if (segmentId === debriefPrefill?.segmentId) setDebriefSavedTo(segmentId);
+              }}
               paperRead={readSheetHere}
               prefill={debriefPrefill}
             />
