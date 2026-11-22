@@ -2747,3 +2747,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: issue times count whole seconds, so two tokens can share one; a later token still wins whatever order the reads finish in, but within the same second the newer read now wins, as it did before the issue-time rule, so an earlier read can no longer bring back a line a newer one cleared.
 - Source: review (Codex, second round on the token-order fix).
 - Verified: a new unit test (two tokens of the same second finishing out of order) failed first, then passed; the claims tests (16) and typecheck pass.
+
+### test(e2e): Suggest plan sends only what the Plan section says it sends
+- What: a deployed-only check (`e2e/planPayload.spec.ts`) removes the built-in model on the test drill, presses Suggest plan and reads the one model request: every line of its text is a fixed heading, a team id with its segment codes, or a segment code with its percents (so no note or name), and the receipt's "Sent: N bytes of plan text." counts exactly that text. Nothing is approved, so nothing is written. With #308's note check, both cloud payloads a judge can send are compared with what the screen says.
+- Source: review of the deployed judge door (compare the shown cloud payload with the request).
+- Verified: passes on the live site; a copy whose segment-line pattern never matches fails on a real line ("AD 1.1% (was 1.1%)").
