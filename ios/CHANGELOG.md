@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### test(ios-core): the corpus leaves out rows of gaps only the iPhone has, which must still differ
+- What: PhoneCorpusTests no longer compares a row whose input is a shared case (mustRemove, mustKeep or exact)
+  pending on ios and not on web: the web has closed that gap, so the iPhone must still differ from the web's output
+  there, and a row that matches fails with "un-pend <name>". A case pending on web too stays compared, since the web's
+  output has the same gap (today 11 such cases, all pending on every platform, already match). Every other row is
+  still compared.
+- Source: review (shared exact cases the web passes and the phones do not yet, pending on ios).
+- Verified: a planted in-memory row of a pending case that matches the web fails with its name, and one that still
+  differs does not (failed first, then passes); a case pending on web too is not left out (failed first, then
+  passes); the corpus and shared vector tests pass (11 tests).
+
 ### test(ios-core): the iPhone rule gives the web rule's output on the whole shared corpus
 - What: a core test runs every note of shared/test-vectors/phone-numbers-corpus.json (every shared case's input and
   9,000 fixed-seed notes) through the iPhone's scrub and expects the stored web output, code point for code point. It
