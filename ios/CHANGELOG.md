@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### feat(ios-core): one cut for the note as typed and as stored
+- What: `ContentReport.capped` cuts text to the rule's 500 code points between whole characters and changes nothing
+  else. The Report a problem note field uses it as the searcher types, and `cleanNote` uses it after removing phone
+  numbers and trimming, so the field and the stored note stop at the same place.
+- Source: building the Report a problem form.
+- Verified: a core test of the typing cut (no trimming, no phone removal, a five-scalar emoji kept whole or dropped
+  whole) failed first (no function) and passes; the note tests still pass; the full core suite passes (470).
+
 ### feat(ios): the model files a Report a problem content report to command
 - What: `AppModel.reportProblem(about:reason:note:)` files a content report about the team's task (named by its
   plan's document id) or the family's description (no id) to the loaded search, as this phone's searcher, through

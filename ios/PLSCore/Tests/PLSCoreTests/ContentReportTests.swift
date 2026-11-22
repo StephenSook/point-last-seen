@@ -69,6 +69,15 @@ import Testing
         #expect(ContentReport.cleanNote("  edge  ") == "edge")
     }
 
+    /// The note field stops at the rule's limit as the searcher types, the same cut the stored note gets, without
+    /// trimming or removing anything else.
+    @Test func typingStopsAtTheLimitBetweenWholeCharacters() {
+        let family = "\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}"
+        #expect(ContentReport.capped(" call 404-555-0123 ") == " call 404-555-0123 ")
+        #expect(ContentReport.capped(String(repeating: "y", count: 499) + family) == String(repeating: "y", count: 499))
+        #expect(ContentReport.capped(String(repeating: "y", count: 495) + family + "z") == String(repeating: "y", count: 495) + family)
+    }
+
     @Test func theTargetIdFitsTheTarget() throws {
         let make = { (t: ContentReport.Target, id: String?) in
             ContentReport(authorUid: "uid-1", role: .searcher, target: t, targetId: id, reason: .other, note: nil)

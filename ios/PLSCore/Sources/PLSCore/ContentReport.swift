@@ -83,17 +83,24 @@ public struct ContentReport: Equatable, Sendable {
     /// The note as it is stored: phone numbers removed, the ends trimmed, and at most `noteMax` code points, cut
     /// between whole characters; nil when nothing is left.
     public static func cleanNote(_ raw: String) -> String? {
-        let scrubbed = PhoneNumbers.scrub(raw).trimmingCharacters(in: .whitespacesAndNewlines)
+        let note = capped(PhoneNumbers.scrub(raw).trimmingCharacters(in: .whitespacesAndNewlines))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return note.isEmpty ? nil : note
+    }
+
+    /// The text cut to `noteMax` code points between whole characters, nothing else changed: the note field stops
+    /// there as the searcher types.
+    public static func capped(_ text: String) -> String {
+        guard text.unicodeScalars.count > noteMax else { return text }
         var kept = ""
         var scalars = 0
-        for character in scrubbed {
+        for character in text {
             let size = character.unicodeScalars.count
             guard scalars + size <= noteMax else { break }
             kept.append(character)
             scalars += size
         }
-        let note = kept.trimmingCharacters(in: .whitespacesAndNewlines)
-        return note.isEmpty ? nil : note
+        return kept
     }
 
     /// A new report id: 32 lowercase hex digits.
