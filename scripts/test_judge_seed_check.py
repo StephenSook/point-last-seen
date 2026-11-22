@@ -29,7 +29,10 @@ def world(**over):
         "incidents/drill-x/teams": [doc("incidents/drill-x/teams/T1", teamId=s("T1")), doc("incidents/drill-x/teams/T2", teamId=s("T2"))],
         "incidents/drill-x/segments": [doc("incidents/drill-x/segments/AA", priorPoa={"doubleValue": 0.4}),
                                        doc("incidents/drill-x/segments/ROW", priorPoa={"doubleValue": 0.1})],
-        "incidents/drill-x/events": [doc("incidents/drill-x/events/e1"), doc("incidents/drill-x/events/e2")],
+        "incidents/drill-x/events": [doc("incidents/drill-x/events/e1", deviceId=s("devAAAA1"), type=s("sighting")),
+                                     doc("incidents/drill-x/events/e2", deviceId=s("devBBBB2"), type=s("clue"))],
+        "incidents/drill-x/contentReports": [],
+        "incidents/drill-x/members": [],
     }
     w.update(over)
     return w
@@ -107,3 +110,56 @@ def test_the_committed_baseline_is_for_the_judge_seed_the_function_names():
     committed = json.loads((ROOT / "scripts/judge_seed_baseline.json").read_text())
     assert committed["seed"] == seed
     assert committed["profileShared"].get("clothingLastWorn") == "blue coat" and "trackingAids" not in committed["profileShared"]
+
+
+def sha(v):
+    return jsc._sha_text(v)
+
+
+def test_writers_are_kept_as_hashes_so_no_device_id_reaches_the_baseline(tmp_path):
+    snap = jsc.snapshot(fetcher(world()), "drill-x", {"createdAt", "name", "status"})
+    assert snap["writers"] == sorted([sha("devAAAA1"), sha("devBBBB2")])
+    assert snap["contentReports"] == {"count": 0, "sha256": jsc._sha([])} and snap["members"] == []
+    baseline = tmp_path / "baseline.json"
+    assert jsc.run(fetcher(world()), TS, baseline, write=True) == 0
+    text = baseline.read_text()
+    assert "devAAAA1" not in text and "devBBBB2" not in text and sha("devAAAA1") in text
+
+
+def test_an_event_or_report_from_an_unknown_device_fails_with_its_prefix_named():
+    base = jsc.snapshot(fetcher(world()), "drill-x", {"createdAt", "name", "status"})
+    w = world()
+    w["incidents/drill-x/events"] = w["incidents/drill-x/events"] + [
+        doc("incidents/drill-x/events/e3", deviceId=s("Xt6F1lzzzz"), type=s("cleared"))]
+    w["incidents/drill-x/contentReports"] = [
+        doc("incidents/drill-x/contentReports/r1", authorUid=s("e1M8Ptzzzz"), target=s("task"))]
+    lines = jsc.diff(base, jsc.snapshot(fetcher(w), "drill-x", {"createdAt", "name", "status"}))
+    joined = "\n".join(lines)
+    assert "events: 2 -> 3" in joined and "contentReports: 0 -> 1" in joined
+    assert any("Xt6F1l" in l and "not a seed writer" in l and "event cleared" in l for l in lines)
+    assert any("e1M8Pt" in l and "not a seed writer" in l and "content report task" in l for l in lines)
+    assert "Xt6F1lzzzz" not in joined and "e1M8Ptzzzz" not in joined
+
+
+def test_a_new_event_from_a_known_device_drifts_without_naming_a_stranger():
+    base = jsc.snapshot(fetcher(world()), "drill-x", {"createdAt", "name", "status"})
+    w = world()
+    w["incidents/drill-x/events"] = w["incidents/drill-x/events"] + [
+        doc("incidents/drill-x/events/e3", deviceId=s("devAAAA1"), type=s("sighting"))]
+    lines = jsc.diff(base, jsc.snapshot(fetcher(w), "drill-x", {"createdAt", "name", "status"}))
+    assert lines == ["events: 2 -> 3"]
+
+
+def test_a_member_from_an_unknown_device_warns_with_its_prefix_but_never_fails(tmp_path, capsys):
+    baseline = tmp_path / "baseline.json"
+    assert jsc.run(fetcher(world()), TS, baseline, write=True) == 0
+    w = world()
+    w["incidents/drill-x/members"] = [doc("incidents/drill-x/members/BGecFrzzzz", role=s("searcher"), team=s("T1"),
+                                          joinedAt={"timestampValue": "2026-11-22T04:06:03.126Z"})]
+    capsys.readouterr()
+    assert jsc.run(fetcher(w), TS, baseline, write=False) == 0
+    out = capsys.readouterr().out
+    assert "WARN" in out and "BGecFr" in out and "searcher" in out and "BGecFrzzzz" not in out
+    assert "ok," in out
+    base = json.loads(baseline.read_text())
+    assert jsc.diff(base, jsc.snapshot(fetcher(w), "drill-x", {"createdAt", "name", "status"})) == []

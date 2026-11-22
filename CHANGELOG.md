@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Judge seed check: `scripts/judge_seed_check.py` also counts the seed drill's content reports, and fails on any event
+  or content report written by a device that is not a seed writer, naming the device's first six characters and what
+  it wrote ("Xt6F1l (event cleared x1) is not a seed writer"). A member who joined from a device the baseline does not
+  know prints a WARN line with the same prefix and never fails the check, since real people can join the drill. The
+  baseline keeps only a SHA-256 of each device id. Source: review (a simulator test run wrote a cleared event and
+  three content reports into the seed drill; the content reports went unseen for three hours). Verified: the four new
+  tests in `scripts/test_judge_seed_check.py` failed first (no `writers` key, no content report count, no WARN line),
+  then passed (10); `scripts/ci-local.sh --gates` passes.
 - Content reports from the iPhone: `shared/test-vectors/content-report-ios.json` (hand-written, pinned) holds what the
   iPhone writes for Report a problem, and the shared README describes it; `functions/test/rules/contentReportsIos.test.ts`
   writes every case to the emulator against the content report create rule and checks that broken copies of the first
