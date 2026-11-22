@@ -118,3 +118,19 @@ def test_the_picture_names_every_segment_inside_its_segment():
         x, y = kit.label_point(s["geometry"]["coordinates"], s["centroid"])
         assert kit.polygon_contains(s["geometry"]["coordinates"], x, y), s["segmentId"]
     assert "OpenStreetMap" in svg
+
+
+# The key in the repo (pls-drill-reports-v1) and the sheet it was converted from, frozen before any model run.
+SOURCE = os.path.join(kit.EVAL_DIR, kit.KEY_NAME + "-key.csv")
+SOURCE_SHA256 = "da0926c0d4407a05728acd9d21e83573fa177a777e2abf1729fbf60cd4534732"
+WRITER = "AI assistant (Claude Opus 5.5), at the builder's request"
+
+
+def test_the_key_in_the_repo_is_its_frozen_sheet_converted_unedited():
+    with open(SOURCE, "rb") as f:
+        source = f.read()
+    assert hashlib.sha256(source).hexdigest() == SOURCE_SHA256
+    with open(kit.KEY_FILE, encoding="utf-8", newline="") as f:
+        key = f.read()
+    assert json.loads(key)["writtenBy"] == WRITER
+    assert kit.key_from_sheet(source.decode("utf-8-sig"), WRITER) == key

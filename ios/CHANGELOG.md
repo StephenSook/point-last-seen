@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### test(ios-core): the eval's answer key, its frozen sheet, and its pinned SHA-256
+- What: docs/evidence/eval/pls-drill-reports-v1-key.csv is the answer key's sheet as written, before any model run,
+  by the builder's AI assistant at the builder's request (20 reports: 6 cleared, 6 clue, 3 sighting, 3 unclear, 2
+  found; 3 with no segment, 13 with one, 4 with two; all 10 place features). pls-drill-reports-v1.json is that sheet
+  converted by eval_key_kit.py with --written-by "AI assistant (Claude Opus 5.5), at the builder's request".
+  EvalKeyPinTests pins the key's SHA-256 (f98c6f5d...) and checks its writer, grid and 20 rows; a kit test checks
+  the sheet's SHA-256 (da0926c0...) and that converting it gives the key byte for byte, so the key was not edited.
+- Source: review (the answer key, with a record of who wrote it).
+- Verified: the kit test failed first (no sheet), then passes; all 21 kit tests pass; the core EvalKeyPin and
+  EvalScorer tests pass; gates pass. No reader was run on these reports.
+
 ### feat(ios): the eval screen names who wrote the answers as the key gives it
 - What: the eval screen reads "answers written by: <writer>." with the key's writtenBy as written, so a key written by
   someone other than a person reads right. The EvalAnswerKey doc comments no longer say a person always writes it.
