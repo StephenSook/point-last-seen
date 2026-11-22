@@ -116,7 +116,7 @@ public enum EvalScorer {
     }
 }
 
-/// The answer key a person writes for the eval, before any model run: numbered report texts, each
+/// The eval's answer key, written before any model run: numbered report texts, each
 /// with its kind, up to two segment ids (an empty list means no segment is expected) and a feature.
 public struct EvalAnswerKey: Codable, Sendable, Equatable {
     public struct Row: Codable, Sendable, Equatable {
@@ -128,7 +128,8 @@ public struct EvalAnswerKey: Codable, Sendable, Equatable {
     }
 
     public var answerKey: String
-    /// "person": the answers were written by a person, not a model.
+    /// Who wrote the answers ("person", or the writer named when the key was made), shown on the eval screen and
+    /// kept in the result file.
     public var writtenBy: String
     public var grid: String
     public var rows: [Row]

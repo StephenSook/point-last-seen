@@ -36,7 +36,7 @@ struct EvalView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Report-reading eval (debug builds only)").font(.title3.bold())
                 if let loaded = Self.loadKey() {
-                    Text("\(loaded.key.answerKey): \(loaded.key.rows.count) reports, answers written by a \(loaded.key.writtenBy).")
+                    Text("\(loaded.key.answerKey): \(loaded.key.rows.count) reports, answers written by: \(loaded.key.writtenBy).")
                     if model.mission == nil { Text("Join a drill first: the reader needs its grid.") }
                     Button("Run both arms") { Task { await run(loaded.key, sha256: loaded.sha256) } }
                         .disabled(running || model.mission == nil)

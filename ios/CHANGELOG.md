@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### feat(ios): the eval screen names who wrote the answers as the key gives it
+- What: the eval screen reads "answers written by: <writer>." with the key's writtenBy as written, so a key written by
+  someone other than a person reads right. The EvalAnswerKey doc comments no longer say a person always writes it.
+- Source: review (the key's record must say who wrote it).
+- Verified: the app builds and BlockWordsTests pass on the simulator; the core EvalScorer tests pass; gates pass. The
+  line itself was read in the source (no test covers this debug screen's text).
+
 ### feat(ios): the answer-key kit records who wrote the answers
 - What: eval_key_kit.py convert takes --written-by, the text it writes as the key's writtenBy (default: person), so a
   key written by someone other than a person says so. A blank writer, one with a space at either end, or one on two
