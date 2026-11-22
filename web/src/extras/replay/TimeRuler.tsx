@@ -98,7 +98,7 @@ export function TimeRuler({ data, w, tMs, onChange, timeZone, play }: {
             <g key={t.tMs}>
               <line className="extras-ruler-tick" x1={t.x} x2={t.x} y1={SCALE_Y} y2={SCALE_Y + (t.label ? 6 : 3)} />
               {/* A label at either edge hangs inward, so it is never cut off. */}
-              {t.label && <text className="extras-ruler-label" x={t.x} y={H - 4} textAnchor={t.x < 20 ? "start" : t.x > W - 20 ? "end" : "middle"}>{t.label}</text>}
+              {t.label && <text className="extras-ruler-label" x={t.x} y={H - 4} textAnchor={t.anchor}>{t.label}</text>}
             </g>
           ))}
           {m.spans.map((s) => <rect key={s.eventId} className="extras-ruler-span" x={s.x0} y={SCALE_Y + 8} width={Math.max(1, s.x1 - s.x0)} height={4} />)}

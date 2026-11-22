@@ -3017,3 +3017,10 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the judge page's Measured block ended its plan line with "A plan is worded on the laptop only when its browser has Chrome's built-in model." Since plan reasons became fact codes, a model chooses each team's main reason and code writes every word, so that present-tense sentence was untrue. It now reads "A plan uses the laptop's model only when its browser has Chrome's built-in model.", true before and after that change. The counts and their label describe the stored runs and are unchanged.
 - Source: deployed stills.
 - Verified: the changed measured test failed first, then passed (7); typecheck passes.
+### fix(extras): a replay ruler label hung at an edge never runs into its neighbour
+- What: on a phone the judge page's replay ruler drew "05:0010:00": the first clock label sat 3 px from the left edge, so it hung inward (start-anchored), and the 48 px spacing that keeps centred labels apart no longer kept it clear of 10:00.
+  - The ruler model now gives each label its anchor, hanging a label only where a centred one would be cut off (within half a label's width of an edge).
+  - It drops a hung edge label that would come within 6 px of its neighbour; its tick stays.
+  - TimeRuler draws the model's anchor.
+- Source: deployed stills, 390 px wide, Chromium and WebKit.
+- Verified: a new ruler test (a 21-hour drill on a 205 px ruler, plus 230, 390 and 600 px) failed first, then passed (21); the extras harness specs pass (72); typecheck passes.

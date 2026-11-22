@@ -7,7 +7,8 @@ import type { ReplayWindow } from "./stateAt";
 export type MarkKind = "report" | "sighting" | "camera" | "plan" | "prior";
 
 export type RulerModel = {
-  ticks: { tMs: number; x: number; label: string | null }[];
+  /** `anchor`: where a label's text sits on its tick; a label at either edge hangs inward so it is never cut off. */
+  ticks: { tMs: number; x: number; label: string | null; anchor: "start" | "middle" | "end" }[];
   marks: { id: string; x: number; kind: MarkKind; label: string }[];
   /** Sent to arrived: time without signal. */
   spans: { eventId: string; x0: number; x1: number; minutes: number }[];
@@ -18,6 +19,10 @@ export type RulerModel = {
 const MIN = 60_000;
 /** Labelled ticks sit at least this far apart, so clock labels never overlap. */
 const LABEL_GAP_PX = 48;
+/** A clock label's width ("HH:MM" in the ruler's 11 px monospace), for where a label hung at an edge reaches. */
+export const LABEL_W_PX = 34;
+/** The least space left between two labels' texts. */
+const LABEL_SPACE_PX = 6;
 const MIN_BAND_PX = 2;
 /** A wait shorter than this is ordinary latency, not time without signal. */
 const SPAN_MIN_MS = MIN;
@@ -95,8 +100,19 @@ export function rulerModel(data: ReplayData, w: ReplayWindow, widthPx: number, t
   const labelEvery = Math.max(1, Math.ceil(LABEL_GAP_PX / ((step / span) * widthPx)));
   const ticks: RulerModel["ticks"] = [];
   for (let t = Math.ceil(w.startMs / step) * step; t <= w.endMs; t += step) {
-    ticks.push({ tMs: t, x: x(t), label: Math.round(t / step) % labelEvery === 0 ? clockLabel(t, timeZone) : null });
+    const tx = x(t);
+    const anchor = tx < LABEL_W_PX / 2 ? "start" : tx > widthPx - LABEL_W_PX / 2 ? "end" : "middle";
+    ticks.push({ tMs: t, x: tx, label: Math.round(t / step) % labelEvery === 0 ? clockLabel(t, timeZone) : null, anchor });
   }
+  // A label hung inward at an edge reaches half a label further in than a centred one, so the 48 px spacing no longer
+  // keeps it clear of its neighbour: such a label is dropped, and its tick stays.
+  const reach = (t: RulerModel["ticks"][number]) =>
+    t.anchor === "start" ? [t.x, t.x + LABEL_W_PX] : t.anchor === "end" ? [t.x - LABEL_W_PX, t.x] : [t.x - LABEL_W_PX / 2, t.x + LABEL_W_PX / 2];
+  const labelled = ticks.filter((t) => t.label !== null);
+  const [first, second] = labelled;
+  if (first && second && first.anchor === "start" && reach(second)[0]! - reach(first)[1]! < LABEL_SPACE_PX) first.label = null;
+  const [last, before] = [labelled[labelled.length - 1], labelled[labelled.length - 2]];
+  if (last && before && last.anchor === "end" && before.label !== null && reach(last)[0]! - reach(before)[1]! < LABEL_SPACE_PX) last.label = null;
 
   const marks: RulerModel["marks"] = [];
   const spans: RulerModel["spans"] = [];
