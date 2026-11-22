@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Evidence: docs/evidence/web/2026-11-22-plan-wording-figure-free-chrome.json records plan wording on Chrome's
+  built-in model with a prompt asking for reasons with no figures (changed locally, never committed): 2 sessions of 3
+  runs, all on device with no Google request, and all 12 reasons give the segment codes a meaning they do not have.
+  Source: a measurement of that prompt before adopting it (it was not adopted). Verified: the file is valid JSON in
+  the shape of the 2026-11-21 plan-wording files; each of its 12 reasons and 6 summaries was read; the hygiene guard
+  passes in public mode.
 - Phone corpus: written again for the web rule's faster marker check (it reads back only a marker's length); only
   its rule hash changed, every row is the same, and the shared README names the new SHA-256. Source: review of
   PR #349 (a long note took about 3 s a pass). Verified: the 9,130 rows compare equal before and after; the file
