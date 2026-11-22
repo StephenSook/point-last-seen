@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### test(ios-core): the eval's answer key is pinned by its SHA-256
+- What: EvalKeyPinTests checks docs/evidence/eval/pls-drill-reports-v1.json against a pinned SHA-256, and that it says
+  a person wrote it for the piedmont-park-dev grid with at most two segment ids a row. Until the person's key is
+  committed the pin is nil and the test checks there is no key file, so a key added without a pin fails, and so does
+  a pin with no key. The core test target now depends on swift-crypto for the hash.
+- Source: the eval README (a run always names the exact key it scored against).
+- Verified: it passes with no key file; with a stray key file and no pin, it fails with the message to set the pin;
+  the full core suite passes.
+
 ### docs(eval): the blank answer-key sheet and the grid picture to label with
 - What: docs/evidence/eval/KEY-TEMPLATE.csv is the blank sheet for the eval's answer key: 20 empty rows under
   report_text, expected_kind, segment_ids and place_feature, with the allowed kinds, segment ids (AA to AZ, BA to BZ,
