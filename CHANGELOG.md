@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: the plan reason line says the prompt calls segment codes map grid squares and a reason or summary that
+  says what a code stands for is refused (words in brackets beside a code, or capitalized words whose initials spell
+  one); a made-up meaning not written as initials ("recent inquiries") can still pass; with the grid-square line no
+  run spelled out a code. Source: the check that refuses a spelled-out code (PR #352). Verified: each sentence against
+  spellsOutCode and checkWording in web/src/ai/replanWording.ts on this branch and the evidence file; the hygiene
+  guard passes in public mode.
 - Evidence: docs/evidence/web/2026-11-22-plan-wording-grid-squares-chrome.json records plan wording on Chrome's
   built-in model with the prompt line saying segment codes are map grid squares: 6 runs, every reply on device with
   no Google request, 4 used and 2 on fixed wording (a reason named another team's segment; one timed out in a
