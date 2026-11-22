@@ -188,6 +188,8 @@ export type FactInputs = {
   segments: readonly { segmentId: string; centroid: LatLon; featureClasses?: readonly string[] }[];
   /** The posterior's cumulative POD per segment: above 0 means a team has searched it. */
   cumulativePod: Readonly<Record<string, number>>;
+  /** Segments a team reported clearing that the engine may not have credited (it credits one segment per clear). */
+  searchedIds?: readonly string[];
   /** The segments the newest report raised. */
   raisedIds: readonly string[];
   /** The ring model's last-seen point, radii and masses; null when the map does not use the ring model. */
@@ -197,12 +199,13 @@ export type FactInputs = {
 /** Each segment's facts from what the command post already has: the grid's features, the posterior and the newest report. */
 export function planFacts(input: FactInputs): Record<string, SegmentFacts> {
   const raised = new Set(input.raisedIds);
+  const reported = new Set(input.searchedIds ?? []);
   return Object.fromEntries(
     input.segments.map((s) => [
       s.segmentId,
       {
         featureClasses: [...(s.featureClasses ?? [])],
-        searched: (input.cumulativePod[s.segmentId] ?? 0) > 0,
+        searched: (input.cumulativePod[s.segmentId] ?? 0) > 0 || reported.has(s.segmentId),
         raisedByLastReport: raised.has(s.segmentId),
         ring: input.ring ? ringBand(metresBetween(input.ring.ipp, s.centroid) / 1000, input.ring.radiiKm, input.ring.masses) : null,
       },

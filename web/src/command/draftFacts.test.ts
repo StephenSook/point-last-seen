@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PARAMS } from "@pls/engine";
+import { DEFAULT_PARAMS, type EventDoc } from "@pls/engine";
 import { draftFacts } from "./draftFacts";
 import { draftKeyOf } from "./WhatChanged";
 
@@ -29,6 +29,32 @@ describe("the plan draft's facts, from what the command post already has", () =>
     expect(none.AC!.ring).toBeNull();
     const walkers = draftFacts({ incident: { ipp: { lat: 34.0, lon: -84.0 }, priorModel: "walkers" }, params: DEFAULT_PARAMS, segments, cumulativePod: {}, changed: null });
     expect(walkers.AC!.ring).toBeNull();
+  });
+});
+
+describe("a segment counts as searched when a team reported clearing it, not only when the engine credited it", () => {
+  const ev = (o: Record<string, unknown>) => ({ role: "field", authorUid: "u1", targetEventId: null, clientTimeMs: 1, seq: 1, effect: null, ...o }) as unknown as EventDoc;
+  const clear = (eventId: string, segmentIds: string[], effectSegment?: string) =>
+    ev({ eventId, type: "cleared", reading: { kind: "cleared", segmentIds }, effect: effectSegment ? { kind: "cleared", segmentId: effectSegment } : null });
+  const facts = (events: EventDoc[], pod: Record<string, number> = {}) =>
+    draftFacts({ incident: {}, params: DEFAULT_PARAMS, segments, cumulativePod: pod, changed: null, events });
+  it("counts every segment a clear names, though the engine credits only the first", () => {
+    const f = facts([clear("c1", ["AC", "AB"], "AC")], { AC: 0.4 });
+    expect([f.AC!.searched, f.AB!.searched]).toEqual([true, true]);
+  });
+  it("counts a clear the engine gave no credit, and the segment an unnamed clear was credited to", () => {
+    expect(facts([clear("c1", ["AB"])]).AB!.searched).toBe(true);
+    expect(facts([clear("c1", [], "AB")]).AB!.searched).toBe(true);
+  });
+  it("drops a clear retracted by command or its own author, but not by anyone else", () => {
+    const c = clear("c1", ["AB"]);
+    expect(facts([c, ev({ eventId: "r1", type: "retraction", targetEventId: "c1", role: "command", authorUid: "cmd" })]).AB!.searched).toBe(false);
+    expect(facts([c, ev({ eventId: "r1", type: "retraction", targetEventId: "c1", authorUid: "u1" })]).AB!.searched).toBe(false);
+    expect(facts([c, ev({ eventId: "r1", type: "retraction", targetEventId: "c1", authorUid: "u2" })]).AB!.searched).toBe(true);
+  });
+  it("is still searched from cumulative POD alone, and not searched with neither", () => {
+    expect(facts([], { AB: 0.2 }).AB!.searched).toBe(true);
+    expect(facts([]).AB!.searched).toBe(false);
   });
 });
 

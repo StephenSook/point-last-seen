@@ -2950,3 +2950,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a guard that planPrompt lists each team's facts in one fixed order (FACT_CODES), whatever order a segment's grid features are stored in, so the model's main pick is never moved by a reshuffled list.
 - Source: plan wording review.
 - Verified: the test passes, and fails when the facts keep their found order instead of FACT_CODES order.
+
+### fix(command): a segment a team reported clearing counts as searched in plan reasons
+- What: the engine credits a clear to one segment only (its first known one), and a sound-only clear to none. A clear naming AA and AB therefore left AB with no POD, so a reason could say "AB has not been searched yet" after a team reported searching it. draftFacts now marks a segment searched when its cumulative POD is above 0, or when a stored, unretracted clear names it or was credited to it (reportedSearched). A retraction counts from command or the clear's own author, as in the engine.
+- Source: review.
+- Verified: new draftFacts tests (a two-segment clear, an uncredited clear, an unnamed clear credited to a segment, retractions by command, by the author and by someone else) failed first, then passed (26 with the fact tests); typecheck passes.

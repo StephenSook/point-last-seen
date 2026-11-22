@@ -526,9 +526,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // The draft for this event set: the engine's team assignment, computed on this laptop.
   const draft: PlanDraft | null = useMemo(() => {
     if (!vs || !incident || teams.length === 0) return null;
-    const facts = engineIn ? draftFacts({ incident, params: engineIn.params, segments, cumulativePod: vs.result.cumulativePod, changed: last?.change.changed ?? null }) : undefined;
+    const facts = engineIn ? draftFacts({ incident, params: engineIn.params, segments, cumulativePod: vs.result.cumulativePod, changed: last?.change.changed ?? null, events: events as unknown as EventDoc[] }) : undefined;
     return { ...localDraft(vs.hash, incident.priorVersion, vs.rank, teams.map((t) => t.teamId), latestPlan?.assignments ?? []), facts };
-  }, [vs, incident, teams, latestPlan, engineIn, segments, last]);
+  }, [vs, incident, teams, latestPlan, engineIn, segments, last, events]);
 
   // One hybrid-inference trace per model call (path, reason, platform, stage and latency only).
   const sink = useMemo(() => {
