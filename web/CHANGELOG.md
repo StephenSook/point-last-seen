@@ -2732,3 +2732,18 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: one line under "Draft for the current reports." says "Suggest plan words the draft on this laptop's built-in model, or with Gemini in the cloud when it has none. It sends only team ids, segment codes and percents, never a note or a name." (what `planPrompt` holds), or, while command has paused cloud reading, "Cloud reading is paused, so Suggest plan uses fixed wording and sends nothing." Before, the screen said nothing until after the tap, when a Cloud mark and a closed What ran appeared.
 - Source: review of the deployed judge door in a fresh browser profile (a practice search's Suggest plan went to the cloud with no word beforehand).
 - Verified: a new harness test (both lines, and the cloud one absent while paused) failed first, then passed; the fallback test's no-laptop-notice check now leaves out this line. Plan harness spec (15), web unit suite, typecheck, harness suite and every gate pass.
+
+### fix(command): an older sign-in token never clears the line a newer one set
+- What: the sign-in watch keeps the issue time of the newest token it applied and ignores a token issued before it, even when its change event comes last: a refresh that started before another window moved this account to another search could return this drill's older token, which the SDK stores and announces, and that read cleared the "signed in to another search" line. A sign-out starts the count again.
+- Source: review (backlog issue #317).
+- Verified: a new unit test (the other search's 12:05 token applied, then this drill's 12:00 token ignored, then a 12:10 token applied) failed first, then passed; the claims tests (12) and typecheck pass.
+
+### fix(command): the newest sign-in token wins by when it was issued, per account
+- What: the watch now applies a token when it was issued no earlier than the newest one applied, whatever order the reads finish in, so a newer forced refresh is no longer dropped because an older token's read started later; it starts again when the signed-in account changes (another account's older cached token still applies) and drops a token for an account no longer signed in. A reply with no readable issue time still falls back to the newest read.
+- Source: review (Codex, first round on the token-order fix).
+- Verified: three new unit tests (another account; a newer forced refresh finishing after an older read; a token for an account that left) failed first, then passed; the claims tests (15) and typecheck pass.
+
+### fix(command): within one second, the newer sign-in read wins
+- What: issue times count whole seconds, so two tokens can share one; a later token still wins whatever order the reads finish in, but within the same second the newer read now wins, as it did before the issue-time rule, so an earlier read can no longer bring back a line a newer one cleared.
+- Source: review (Codex, second round on the token-order fix).
+- Verified: a new unit test (two tokens of the same second finishing out of order) failed first, then passed; the claims tests (16) and typecheck pass.

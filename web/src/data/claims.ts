@@ -23,8 +23,11 @@ export function claimsLine(claims: Record<string, unknown> | null, ctx: ClaimsCo
 /**
  * Calls `onLine` with claimsLine each time this browser's sign-in changes, in any tab (the SDK shares the signed-in
  * user across tabs); `recheck` asks the server for fresh claims, for when the tab is shown or focused again or after
- * a refusal. Only the newest read decides the line (an older one that finishes late is dropped), and nothing is applied
- * after `stop`. A forced read runs at most once in 30 seconds and not while another is running, except that an urgent
+ * a refusal. The newest token decides the line, by when it was issued, for the account signed in now: a token issued
+ * before the newest one applied is ignored even when its read comes last (a refresh that started before another window
+ * moved this account to another search), a newer one applies even if a later read started first, a token for an account
+ * no longer signed in is dropped, and another account starts again. A reply with no readable issue time falls back to
+ * the newest read. Nothing is applied after `stop`. A forced read runs at most once in 30 seconds and not while another is running, except that an urgent
  * recheck (after a refusal) skips the spacing, and one that comes while a forced read runs waits for it and then runs.
  * A forced read still running after 30 seconds is treated as stalled and no longer holds the next one back.
  */
@@ -36,6 +39,11 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
   let forcing = 0;
   let lastForced = -Infinity;
   let queued = false;
+  // When the newest token this watch applied was issued (ms), and for which account, so an older token can never take
+  // its place; another account starts again.
+  let newestIssued = -Infinity;
+  let newestSeq = 0;
+  let owner: string | null | undefined = null;
   const settled = (seq: number) => {
     if (forcing !== seq) return;
     forcing = 0;
@@ -48,8 +56,16 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
     const seq = ++latest;
     const user = auth.currentUser;
     if (!user) {
+      newestIssued = -Infinity;
+      newestSeq = 0;
+      owner = null;
       onLine(claimsLine(null, ctx));
       return;
+    }
+    if (user.uid !== owner) {
+      owner = user.uid;
+      newestIssued = -Infinity;
+      newestSeq = 0;
     }
     if (force) {
       forcing = seq;
@@ -57,7 +73,16 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
     }
     user.getIdTokenResult(force).then(
       (r) => {
-        if (!stopped && seq === latest) onLine(claimsLine(r.claims, ctx));
+        const issued = Date.parse(r.issuedAtTime ?? "");
+        const signedIn = auth.currentUser?.uid === user.uid;
+        // A token issued later wins whatever order the reads finish in; within the same second (the issue time's
+        // resolution) the newer read does, as it does when there is no readable issue time.
+        const newest = Number.isFinite(issued) ? issued > newestIssued || (issued === newestIssued && seq > newestSeq) : seq === latest;
+        if (!stopped && signedIn && newest) {
+          if (Number.isFinite(issued)) newestIssued = issued;
+          newestSeq = seq;
+          onLine(claimsLine(r.claims, ctx));
+        }
         if (force) settled(seq);
       },
       () => {
