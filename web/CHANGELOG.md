@@ -3080,3 +3080,20 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - every spec and unit test that quotes these strings was changed first and failed (5 unit tests, 22 harness checks), then passed (unit 1438; harness 242/242);
   - three harness status filters that still said laptop were changed too, so they cannot match nothing;
   - typecheck passes; no user-visible "laptop" remains in web/src outside comments, identifiers and dev pages.
+### feat(map): the map says when the next new report will play its beat
+- What: the map's wrap gets data-beat-armed="true" once the map is ready and has seen a first report.
+  - The post passes no report to the map before the server's first answer. The map plays the beat only for a report after the first one it sees, so a report written before then only shows the final map.
+  - The mark lets a check wait for the moment a new report will play, instead of guessing with a fixed wait.
+  - A first report seen before the map was ready arms it when the map loads.
+- Source: the live beat check failing after a plan approval. Measured on the live site: the check wrote its report about 0.7 s after the post drew from its cache, before the server's first answer, and the beat did not play (0 of 3). With a 3 s wait it played 3 of 3.
+- Verified: two new change-harness checks failed first, then passed:
+  - not armed before the first report; armed after it, which plays nothing; the next report plays;
+  - armed once the map has loaded.
+  All 9 change checks and typecheck pass.
+
+### test(e2e): the live beat check writes its report only once the post is armed
+- What: the beat check waited only for the post to draw, then wrote its report. The post draws at once from the browser's cache, so the report could land before the server's first answer, and then no beat plays, by design.
+  - The check failed that way in full runs, every time right after the approve-offline check (whose plan leaves the run's saved cache behind the server).
+  - It now waits for data-beat-armed="true" before writing.
+- Source: the live beat check, red in two full runs and 3 of 3 short runs.
+- Verified: typecheck; the live run is checked after deploy, since the mark ships with this change.

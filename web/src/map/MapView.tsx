@@ -155,6 +155,8 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
       m.addLayer({ id: "moved-casing", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.edgeCasing, "line-width": 6 } });
       m.addLayer({ id: "moved-line", type: "line", source: "segments", filter: movedFilter([]), paint: { "line-color": MAP_INK.moved, "line-width": 2 } });
       ready.current = true;
+      // A first report seen before the map was ready still arms the beat for the next one.
+      if (lastBeatKey.current !== undefined) el.current?.parentElement?.setAttribute("data-beat-armed", "true");
       setLoadedMap(m);
       readyRef.current?.(m);
     });
@@ -417,6 +419,9 @@ export function MapView({ segments, poa, onMapClick, pin = null, attribution, mo
     if (!beat) return;
     const prev = lastBeatKey.current;
     lastBeatKey.current = beat.key;
+    // Armed: the map is ready and has seen a first report, so the next new report plays the beat. Checks wait for this
+    // before writing a report (one written earlier is the first report seen, which only shows the final map).
+    if (ready.current) el.current?.parentElement?.setAttribute("data-beat-armed", "true");
     if (!m || prev === undefined || prev === beat.key || !ready.current) return;
     beatRun.current?.cancel();
     const index = new Map(segments.map((s, i) => [s.segmentId, i]));
