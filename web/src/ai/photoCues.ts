@@ -41,9 +41,19 @@ export function photoParams(): HybridParams {
 }
 
 
-const squash = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+/** Upper-cased words: runs of letters, marks and digits after NFKC, so "Café" is one word, never "CAF". */
+const wordsOf = (s: string) => s.normalize("NFKC").toUpperCase().split(/[^\p{L}\p{M}\p{N}]+/u).filter(Boolean);
 
-/** Closed lists checked, landmarks capped, and a place name kept only when the sign text shows it. */
+/** Whether the name's words appear in the sign text as whole words, in order; a name with no letter or digit never does. */
+function signShows(signText: string, name: string): boolean {
+  const sign = wordsOf(signText);
+  const want = wordsOf(name);
+  if (want.length === 0) return false;
+  for (let i = 0; i + want.length <= sign.length; i++) if (want.every((w, j) => sign[i + j] === w)) return true;
+  return false;
+}
+
+/** Closed lists checked, landmarks capped, and a place name kept only when the sign text shows it as whole words. */
 export function cleanCues(c: PhotoCues): PhotoCues | null {
   if (!c || !PLACE_TYPES.includes(c.placeType) || !OUTDOORS.includes(c.outdoors)) return null;
   const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
@@ -51,7 +61,7 @@ export function cleanCues(c: PhotoCues): PhotoCues | null {
   const name = text(c.placeName, P.placeName.maxLength);
   return {
     placeType: c.placeType,
-    placeName: name !== "" && squash(signText).includes(squash(name)) ? name : "",
+    placeName: signShows(signText, name) ? name : "",
     signText,
     landmarks: (Array.isArray(c.landmarks) ? c.landmarks : []).filter((l): l is string => typeof l === "string").slice(0, P.landmarks.maxItems).map((l) => l.slice(0, P.landmarks.items.maxLength)),
     outdoors: c.outdoors,

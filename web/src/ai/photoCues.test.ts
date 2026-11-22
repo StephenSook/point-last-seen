@@ -34,6 +34,24 @@ describe("cleanCues", () => {
     expect(cleanCues({ ...cues, signText: "HARRIS HARDWARE, OPEN 8-6", placeName: "Harris Hardware" } as never)?.placeName).toBe("Harris Hardware");
   });
 
+  it("keeps a place name only as whole words of the sign text, in order, ignoring case", () => {
+    const name = (signText: string, placeName: string) => cleanCues({ ...cues, signText, placeName } as never)?.placeName;
+    expect(name("SPARKS RD", "Park")).toBe("");
+    expect(name("PARKVIEW AVE", "Park")).toBe("");
+    expect(name("OAK PARK", "Oak Pa")).toBe("");
+    expect(name("LAKE CEDAR PARK", "Cedar Lake")).toBe("");
+    expect(name("CEDAR LAKE PARK", "Cedar Lake")).toBe("Cedar Lake");
+    expect(name("BEAR CREEK\nTRAILHEAD\nNO CAMPING", "Bear Creek Trailhead")).toBe("Bear Creek Trailhead");
+    expect(name("JOE'S DINER", "Joe's Diner")).toBe("Joe's Diner");
+    expect(name("CAFÉ ROUGE", "Caf")).toBe("");
+    expect(name("CAFÉ ROUGE", "Café Rouge")).toBe("Café Rouge");
+  });
+
+  it("drops a place name with no letter or digit", () => {
+    expect(cleanCues({ ...cues, signText: "MAPLE AVE", placeName: "!!!" } as never)?.placeName).toBe("");
+    expect(cleanCues({ ...cues, signText: "MAPLE AVE", placeName: " - " } as never)?.placeName).toBe("");
+  });
+
   it("refuses values outside the closed lists and keeps at most three landmarks", () => {
     expect(cleanCues({ ...cues, placeType: "castle" } as never)).toBeNull();
     expect(cleanCues({ ...cues, outdoors: "maybe" } as never)).toBeNull();
