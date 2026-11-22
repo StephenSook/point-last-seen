@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Evidence: three measurements of plan reasons as fact codes on Chrome's built-in model, all on device with no Google
+  request and 0 fallbacks: two codes per team in the old order (6 runs, always the first ranking facts listed), two
+  codes with each team's facts specific first or reversed (12 runs), and one main code per team as shipped (12 runs:
+  in the shipped order one team picked the same fact 6 of 6 and the other 5 of 6; reversed, the second team's pick
+  changed, so the run missed its own bar of 10 of 12). Source: the reason-code change (PR #354). Verified: each file
+  read in full and valid JSON; every count in the findings recounted from the runs.
 - Limits: the plan reason line also says a reason or the summary that says where the missing person is, or that they
   will be found, is refused, while a segment in a ranking is not, and that such a claim in other phrasing can still
   pass. Source: the plan wording check for claims about the person (PR #352). Verified: each example against the

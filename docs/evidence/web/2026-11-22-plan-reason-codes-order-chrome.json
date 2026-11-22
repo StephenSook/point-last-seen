@@ -1,0 +1,382 @@
+{
+  "what": "Whether the on-device model's reason-code choice follows the facts or their place in the list: 12 runs on Chrome's built-in model, each team's facts in the command post's order (most specific first) in 6 and reversed in 6, alternating, on two newly opened pages that start with opposite orders.",
+  "date": "2026-11-22",
+  "commit": "2c38ebd2",
+  "page": "web/harness/wording-measure.html on the dev server (127.0.0.1:5175), wordPlan with the wording's own on-device options (ONLY_ON_DEVICE); the reversal is web/src/harness/reverseFacts.ts",
+  "browser": "Google Chrome stable on a Mac (Apple M5 Pro); version not recorded",
+  "plan": "made-up: T1 searches CC, T2 searches CD; made-up facts (CC near a stream and a trail, not searched, raised by the newest report, 0.3 to 1.0 km band; CD near a road and a building, searched, within 0.3 km)",
+  "factsSent": {
+    "T1 specific first": [
+      "moved_by_last_report",
+      "not_yet_searched",
+      "near_trail",
+      "near_stream",
+      "in_ring",
+      "highest_poa",
+      "poa_rose",
+      "poa_now"
+    ],
+    "T1 reversed": [
+      "poa_now",
+      "poa_rose",
+      "highest_poa",
+      "in_ring",
+      "near_stream",
+      "near_trail",
+      "not_yet_searched",
+      "moved_by_last_report"
+    ],
+    "T2 specific first": [
+      "searched_still_high",
+      "near_road",
+      "near_building",
+      "in_ring",
+      "top_three",
+      "poa_rose",
+      "poa_now"
+    ],
+    "T2 reversed": [
+      "poa_now",
+      "poa_rose",
+      "top_three",
+      "in_ring",
+      "near_building",
+      "near_road",
+      "searched_still_high"
+    ]
+  },
+  "promptBytes": 378,
+  "googleRequests": {
+    "page 1": 0,
+    "page 2": 0
+  },
+  "runs": [
+    {
+      "page": "page 1 (specific first)",
+      "order": "specific first",
+      "replyMs": 9701,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "not_yet_searched",
+          "highest_poa"
+        ],
+        "T2": [
+          "searched_still_high",
+          "in_ring"
+        ]
+      }
+    },
+    {
+      "page": "page 1 (specific first)",
+      "order": "reversed",
+      "replyMs": 1667,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "moved_by_last_report",
+          "not_yet_searched"
+        ],
+        "T2": [
+          "searched_still_high",
+          "top_three"
+        ]
+      }
+    },
+    {
+      "page": "page 1 (specific first)",
+      "order": "specific first",
+      "replyMs": 1673,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "moved_by_last_report",
+          "not_yet_searched"
+        ],
+        "T2": [
+          "searched_still_high",
+          "near_road"
+        ]
+      }
+    },
+    {
+      "page": "page 1 (specific first)",
+      "order": "reversed",
+      "replyMs": 1613,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "not_yet_searched",
+          "highest_poa"
+        ],
+        "T2": [
+          "searched_still_high",
+          "top_three"
+        ]
+      }
+    },
+    {
+      "page": "page 1 (specific first)",
+      "order": "specific first",
+      "replyMs": 1674,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "moved_by_last_report",
+          "not_yet_searched"
+        ],
+        "T2": [
+          "searched_still_high",
+          "near_road"
+        ]
+      }
+    },
+    {
+      "page": "page 1 (specific first)",
+      "order": "reversed",
+      "replyMs": 1674,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "moved_by_last_report",
+          "not_yet_searched"
+        ],
+        "T2": [
+          "searched_still_high",
+          "top_three"
+        ]
+      }
+    },
+    {
+      "page": "page 2 (reversed first)",
+      "order": "reversed",
+      "replyMs": 1682,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "poa_now",
+          "not_yet_searched"
+        ],
+        "T2": [
+          "poa_now",
+          "searched_still_high"
+        ]
+      }
+    },
+    {
+      "page": "page 2 (reversed first)",
+      "order": "specific first",
+      "replyMs": 1683,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "moved_by_last_report",
+          "not_yet_searched"
+        ],
+        "T2": [
+          "searched_still_high",
+          "near_road"
+        ]
+      }
+    },
+    {
+      "page": "page 2 (reversed first)",
+      "order": "reversed",
+      "replyMs": 1643,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "poa_now",
+          "not_yet_searched"
+        ],
+        "T2": [
+          "poa_now",
+          "searched_still_high"
+        ]
+      }
+    },
+    {
+      "page": "page 2 (reversed first)",
+      "order": "specific first",
+      "replyMs": 1638,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "not_yet_searched",
+          "highest_poa"
+        ],
+        "T2": [
+          "searched_still_high",
+          "near_road"
+        ]
+      }
+    },
+    {
+      "page": "page 2 (reversed first)",
+      "order": "reversed",
+      "replyMs": 1677,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "moved_by_last_report",
+          "not_yet_searched"
+        ],
+        "T2": [
+          "searched_still_high",
+          "top_three"
+        ]
+      }
+    },
+    {
+      "page": "page 2 (reversed first)",
+      "order": "specific first",
+      "replyMs": 1682,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": [
+          "moved_by_last_report",
+          "not_yet_searched"
+        ],
+        "T2": [
+          "searched_still_high",
+          "near_road"
+        ]
+      }
+    }
+  ],
+  "byOrder": {
+    "T1 specific first": {
+      "pairs": {
+        "highest_poa+not_yet_searched": 2,
+        "moved_by_last_report+not_yet_searched": 4
+      },
+      "codes": {
+        "not_yet_searched": 6,
+        "highest_poa": 2,
+        "moved_by_last_report": 4
+      },
+      "listPositionsChosen": {
+        "1": 4,
+        "2": 6,
+        "6": 2
+      }
+    },
+    "T1 reversed": {
+      "pairs": {
+        "moved_by_last_report+not_yet_searched": 3,
+        "highest_poa+not_yet_searched": 1,
+        "not_yet_searched+poa_now": 2
+      },
+      "codes": {
+        "moved_by_last_report": 3,
+        "not_yet_searched": 6,
+        "highest_poa": 1,
+        "poa_now": 2
+      },
+      "listPositionsChosen": {
+        "1": 2,
+        "3": 1,
+        "7": 6,
+        "8": 3
+      }
+    },
+    "T2 specific first": {
+      "pairs": {
+        "in_ring+searched_still_high": 1,
+        "near_road+searched_still_high": 5
+      },
+      "codes": {
+        "searched_still_high": 6,
+        "in_ring": 1,
+        "near_road": 5
+      },
+      "listPositionsChosen": {
+        "1": 6,
+        "2": 5,
+        "4": 1
+      }
+    },
+    "T2 reversed": {
+      "pairs": {
+        "searched_still_high+top_three": 4,
+        "poa_now+searched_still_high": 2
+      },
+      "codes": {
+        "searched_still_high": 6,
+        "top_three": 4,
+        "poa_now": 2
+      },
+      "listPositionsChosen": {
+        "1": 2,
+        "3": 4,
+        "7": 6
+      }
+    }
+  },
+  "findings": [
+    "12 of 12 runs ran on this laptop's built-in model and were used: 0 fallbacks. Every code was one of its team's facts, every reason was code's sentence for the codes, and every summary matched the reasons. No run sent a Google or Firebase request.",
+    "Each team's lead fact did not follow position: T1 chose not_yet_searched in 12 of 12 runs (2nd of 8 in one order, 7th of 8 in the other), and T2 chose searched_still_high in 12 of 12 (1st of 7 in one order, last in the other).",
+    "The second fact partly followed position: T1 paired it with moved_by_last_report 4 of 6 times specific first and 3 of 6 reversed, but with poa_now (first in the reversed list) 2 of 6 reversed and never specific first; T2 paired it with near_road (2nd specific first) 5 of 6 specific first and never reversed, and with top_three (3rd reversed) 4 of 6 or poa_now (1st reversed) 2 of 6 reversed.",
+    "A page's first wording took 9.7 s; the other eleven 1.6 to 1.7 s."
+  ]
+}
