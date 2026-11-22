@@ -265,6 +265,14 @@ describe("settle: the rule runs until the text stops changing, at most MAX_PASSE
     const out = settle("a", (t) => (calls++, "b"), () => caps++);
     expect([calls, out, caps]).toEqual([2, "b", 0]);
   });
+  it("settles a very long note in well under two seconds", () => {
+    // 350,000 characters of times: the marker check once read back to the note's start for every word, and this took
+    // about six seconds; it now reads only a marker's length back.
+    const note = "At 1:00 2:00. ".repeat(25000);
+    const t = performance.now();
+    expect(removePhoneNumbers(note)).toBe(note);
+    expect(performance.now() - t).toBeLessThan(2000);
+  });
   it("gives a settled text in one call", () => {
     const once = removePhoneNumbers("Seen 11/19/2026 12:12 5:55 01:42");
     expect(once).toBe("Seen [number removed]:[number removed]");

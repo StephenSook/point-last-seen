@@ -95,8 +95,12 @@ const MARKER_AFTER = /^[^\p{L}\p{N}]*\[number removed\]/u;
 
 /** Whether part p is a word of a "[number removed]" already in s, which stands for digits that were removed. */
 function inMarker(s: string, p: Part): boolean {
-  const at = s.lastIndexOf("[", p.start);
-  return at >= 0 && s.startsWith(REPLACEMENT, at) && p.end <= at + REPLACEMENT.length;
+  // A marker word starts at most REPLACEMENT.length characters after the marker's "[", so only that far back is read
+  // (a search back to the start of the note made a long note's scrub take seconds).
+  for (let at = p.start; at >= 0 && at > p.start - REPLACEMENT.length; at--) {
+    if (s[at] === "[") return s.startsWith(REPLACEMENT, at) && p.end <= at + REPLACEMENT.length;
+  }
+  return false;
 }
 
 /** Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it, or a "#". */
