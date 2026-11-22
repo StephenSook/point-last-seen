@@ -2588,6 +2588,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (Codex, third round on the sign-in line).
 - Verified: three new render tests (drill, practice, mode guessed from the id) failed first, then passed; web unit suite and typecheck pass.
 
+### test(e2e): the receipt's Sent line is checked against the request that left
+- What: a deployed check, `web/e2e/receiptSent.spec.ts`, types a sighting note with a phone number in it. With no built-in model it reads the note, and no request reaches an AI host. After the consent tap the cloud read sends exactly one request, to the server prompt template, whose whole body is `{"inputs":{"note":...}}` with the number removed and no other field. The receipt counts exactly that note's bytes ("Sent: 94 bytes of the note, with phone numbers removed."), and no digit of the number is in the request.
+- Source: review (make the receipt's honesty something a test proves).
+- Verified: the check passes twice on the deployed site (build b890674b, the test drill); web typecheck and the hygiene guard pass; the sighting is cancelled, never saved.
+
 ### feat(data): command can ask for a new searcher or family join code
 - What: `web/src/data/joinCodes.ts` calls the `rotateJoinCode` callable, checks its answer (eight join-code characters for the role asked, and a whole count of replaced codes), and gives a plain sentence for every refusal the server names (not_command, practice_search, not_open, collision, bad_role, bad_incident_id, not_signed_in), a refused sign-in or App Check token, and a dropped link.
 - Source: review (command needs a way to replace a code that got out).
