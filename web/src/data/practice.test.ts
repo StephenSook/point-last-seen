@@ -31,7 +31,8 @@ describe("practiceErrorMessage", () => {
     expect(practiceErrorMessage(fbErr("functions/unavailable", "x"))).toBe("No connection. Try again when the link is back.");
     // The server's own "still being set up" answer (a second start during setup, or a released copy) is retryable at once.
     expect(practiceErrorMessage(fbErr("functions/unavailable", "Your practice search is still being set up. Try again in a moment."))).toBe("Your practice search is still being set up. Try again in a moment.");
-    expect(practiceErrorMessage(fbErr("functions/unauthenticated", "x"))).toBe("This browser could not be checked. Reload and try again.");
+    // App Check (or the anonymous sign-in) failed: say what failed, that nothing private was sent, and what still works.
+    expect(practiceErrorMessage(fbErr("functions/unauthenticated", "x"))).toBe("This browser did not pass the site's security check, so a practice search cannot start. Nothing private was sent. Reload and try again; the drill replay on this page plays without it.");
     expect(practiceErrorMessage(new Error("boom"))).toBe("The practice search could not start. Try again.");
   });
 });

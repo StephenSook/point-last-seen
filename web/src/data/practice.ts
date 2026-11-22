@@ -54,7 +54,8 @@ export function practiceErrorMessage(e: unknown): string {
   if ((code.endsWith("resource-exhausted") || code.endsWith("failed-precondition")) && refusal && message !== "") return message;
   if (isSettingUp(e)) return message || SETTING_UP;
   if (code.endsWith("unavailable")) return NO_CONNECTION;
-  if (code.endsWith("unauthenticated")) return "This browser could not be checked. Reload and try again.";
+  // App Check (or the anonymous sign-in) failed: the server refuses before any practice search exists.
+  if (code.endsWith("unauthenticated")) return "This browser did not pass the site's security check, so a practice search cannot start. Nothing private was sent. Reload and try again; the drill replay on this page plays without it.";
   return "The practice search could not start. Try again.";
 }
 
