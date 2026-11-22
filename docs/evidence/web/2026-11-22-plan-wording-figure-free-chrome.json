@@ -1,0 +1,97 @@
+{
+  "what": "Plan wording with a prompt asking for reasons with no figures and no rise or fall words, on Chrome's built-in model",
+  "date": "2026-11-22",
+  "browser": "Google Chrome stable on a Mac (version not recorded), built-in model available",
+  "page": "web/harness/wording-measure.html on the dev server (http://127.0.0.1:5175), wordingOnDeviceGenerator (ONLY_ON_DEVICE), bare Firebase app with no App Check and no sign-in, on main f2cf4b3b with only the wording prompt changed locally (not committed)",
+  "promptChange": [
+    "For each team, write reason: one short line about why that team's own segments, in plain words.",
+    "Never write a number or a percent, and never say that a value rose, fell or changed: the plan already shows those."
+  ],
+  "draft": "the harness's made-up plan: T1 has CC, T2 has CD (CC 1.41% was 0.62%, CD 1.39% was 0.61%)",
+  "googleRequests": [],
+  "sessions": [
+    {
+      "session": 1,
+      "runs": [
+        {
+          "run": 1,
+          "inferenceSource": "on_device",
+          "replyMs": 2060,
+          "accepted": true,
+          "reasons": [
+            "T1 is responsible for customer-related issues.",
+            "T2 handles content-related issues."
+          ],
+          "summary": "T1 focuses on customer concerns while T2 addresses content matters based on the assigned segments."
+        },
+        {
+          "run": 2,
+          "inferenceSource": "on_device",
+          "replyMs": 2030,
+          "accepted": true,
+          "reasons": [
+            "T1 focuses on Customer Communications.",
+            "T2 focuses on Customer Data."
+          ],
+          "summary": "T1 is responsible for Customer Communications, while T2 is responsible for Customer Data, based on their assigned segments."
+        },
+        {
+          "run": 3,
+          "inferenceSource": "on_device",
+          "replyMs": 1992,
+          "accepted": true,
+          "reasons": [
+            "T1 focuses on customer-related segments.",
+            "T2 focuses on product-related segments."
+          ],
+          "summary": "Teams T1 and T2 are assigned to their respective segment areas based on pre-determined responsibilities."
+        }
+      ]
+    },
+    {
+      "session": 2,
+      "runs": [
+        {
+          "run": 1,
+          "inferenceSource": "on_device",
+          "replyMs": 61478,
+          "accepted": true,
+          "reasons": [
+            "T1 already focuses on customer-related issues.",
+            "T2 is responsible for product-related inquiries."
+          ],
+          "summary": "T1 handles customer-facing segments, while T2 manages segments related to the product."
+        },
+        {
+          "run": 2,
+          "inferenceSource": "on_device",
+          "replyMs": 4397,
+          "accepted": true,
+          "reasons": [
+            "T1 focuses on Customer Complaints, which are now a higher priority.",
+            "T2 handles Order Disputes, which are also a higher priority."
+          ],
+          "summary": "T1 is responsible for investigating Customer Complaints, and T2 is investigating Order Disputes due to recent changes in priority."
+        },
+        {
+          "run": 3,
+          "inferenceSource": "on_device",
+          "replyMs": 2824,
+          "accepted": true,
+          "reasons": [
+            "T1 focuses on customer-related segments.",
+            "T2 focuses on product-related segments."
+          ],
+          "summary": "The search plan assigns team T1 to Customer Contact (CC) segments and team T2 to Customer Development (CD) segments, based on the defined segment focus."
+        }
+      ]
+    }
+  ],
+  "findings": [
+    "6 of 6 runs ran on device as the SDK reported, with no request to a Google or Firebase host.",
+    "0 of 6 runs would fall back under a rule refusing any figure or rise or fall word in a reason: no reason held one.",
+    "0 of 12 reasons said anything true about its segment: every one gave the codes CC and CD a meaning they do not have (customer, content, product, complaints, order disputes), and one summary expanded them as Customer Contact (CC) and Customer Development (CD).",
+    "The prompt was not adopted; today's prompt and the per-team figure check stay."
+  ],
+  "n": 6
+}
