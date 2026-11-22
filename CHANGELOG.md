@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Kennesaw seed record: new section for the switch back to urban terrain at prior version 4, made through the live
+  command post so the drill's map starts the way the write-up's quoted search and rescue lead would treat the park,
+  with the new terrain note and the plan approved before the drill. Source: the drill's terrain decision. Verified:
+  the incident reads terrain urban, prior version 4 and the new note; `segment_contract.py` reports 339 docs at prior
+  version 4, readable by the apps; the urban rings and the 0.6306 outside-grid mass were read from the live
+  incident; the gates and the hygiene guard in public mode pass.
 - Limits: new "Report reads (iPhone)" section: Apple's on-device model read three object finds as "found" in the
   2026-11-22 on-phone eval (footprints, a wrapper, a water bottle), the found-kind rule changed none of them, and a
   "found" report has no effect on the map and sends no alert. Source: the on-phone eval result. Verified: n3, n9 and
