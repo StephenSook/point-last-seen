@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### feat(ios): the answer-key kit records who wrote the answers
+- What: eval_key_kit.py convert takes --written-by, the text it writes as the key's writtenBy (default: person), so a
+  key written by someone other than a person says so. A blank writer, one with a space at either end, or one on two
+  lines is refused.
+- Source: review (the key's record must say who wrote it).
+- Verified: three new kit tests (the writer in the key, the refused writers, convert with the flag) failed first, then
+  pass; all 20 kit tests pass.
+
 ### test(ios-core): the eval's answer key is pinned by its SHA-256
 - What: EvalKeyPinTests checks docs/evidence/eval/pls-drill-reports-v1.json against a pinned SHA-256, and that it says
   a person wrote it for the piedmont-park-dev grid with at most two segment ids a row. Until the person's key is

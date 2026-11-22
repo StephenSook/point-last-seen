@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """The answer-key kit for the iPhone report-reading eval (docs/evidence/eval/README.md).
 
-A person writes the key, before any model run. This script only helps with the form, and never writes a report or an
-answer itself:
+The key is written before any model run, by a person or by whoever convert's --written-by names. This script only
+helps with the form, and never writes a report or an answer itself:
 
   template   writes the blank fill-in sheet, docs/evidence/eval/KEY-TEMPLATE.csv (20 empty rows).
   picture    draws the piedmont-park-dev grid with its segment ids and feature classes, for labelling without the app
              (docs/evidence/eval/piedmont-park-dev-grid.svg, and .png when rsvg-convert is installed).
   convert    turns a filled sheet into docs/evidence/eval/pls-drill-reports-v1.json, taking each value exactly as
-             written, and prints the file's SHA-256 to pin in EvalKeyPinTests. It refuses to replace a key that exists:
-             a key is never edited after a run; a changed key gets a new name.
+             written, and prints the file's SHA-256 to pin in EvalKeyPinTests. --written-by records who wrote the
+             answers (default: person). It refuses to replace a key that exists: a key is never edited after a run; a
+             changed key gets a new name.
 
 Standard library only. Run from the repository root.
 """
@@ -173,8 +174,11 @@ class SheetError(Exception):
     pass
 
 
-def key_from_sheet(text):
-    """The key JSON's text from a filled sheet, each value exactly as written. Raises SheetError naming the row."""
+def key_from_sheet(text, written_by="person"):
+    """The key JSON's text from a filled sheet, each value exactly as written, with written_by as the key's writtenBy.
+    Raises SheetError naming the row."""
+    if not written_by.strip() or written_by != written_by.strip() or any(c in written_by for c in "\r\n"):
+        raise SheetError("--written-by must name who wrote the answers, on one line with no space at either end")
     lines = [line for line in text.splitlines() if not line.lstrip().startswith("#")]
     reader = csv.reader(lines)
     header = next(reader, None)
@@ -205,7 +209,7 @@ def key_from_sheet(text):
         rows.append({"n": len(rows) + 1, "text": text_cell, "kind": kind, "segments": segment_list, "feature": feature})
     if not rows:
         raise SheetError("no filled rows")
-    key = {"answerKey": KEY_NAME, "writtenBy": "person", "grid": GRID_ID, "rows": rows}
+    key = {"answerKey": KEY_NAME, "writtenBy": written_by, "grid": GRID_ID, "rows": rows}
     return json.dumps(key, ensure_ascii=False, indent=2) + "\n"
 
 
@@ -216,6 +220,8 @@ def main(argv=None):
     sub.add_parser("picture")
     convert = sub.add_parser("convert")
     convert.add_argument("sheet")
+    convert.add_argument("--written-by", default="person",
+                         help="who wrote the answers, recorded in the key as writtenBy (default: person)")
     args = parser.parse_args(argv)
     if args.command == "template":
         with open(TEMPLATE, "w", encoding="utf-8", newline="") as f:
@@ -237,7 +243,7 @@ def main(argv=None):
     with open(args.sheet, encoding="utf-8-sig", newline="") as f:
         sheet = f.read()
     try:
-        text = key_from_sheet(sheet)
+        text = key_from_sheet(sheet, args.written_by)
     except SheetError as e:
         print(f"not converted: {e}", file=sys.stderr)
         return 1

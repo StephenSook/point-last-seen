@@ -59,6 +59,25 @@ def test_a_filled_sheet_becomes_the_key_with_every_value_as_written():
     assert text.endswith("}\n")
 
 
+def test_the_key_names_who_wrote_it():
+    text = kit.key_from_sheet(sheet(["Fixture", "clue", "AB", "none"]), written_by="A fixture writer, at a request")
+    assert json.loads(text)["writtenBy"] == "A fixture writer, at a request"
+
+
+@pytest.mark.parametrize("who", ["", "  ", " Fixture writer", "Fixture writer ", "Fixture\nwriter"])
+def test_a_blank_padded_or_two_line_writer_is_refused(who):
+    with pytest.raises(kit.SheetError, match="written-by"):
+        kit.key_from_sheet(sheet(["Fixture", "clue", "AB", "none"]), written_by=who)
+
+
+def test_convert_records_the_writer_it_is_given(tmp_path, monkeypatch):
+    monkeypatch.setattr(kit, "KEY_FILE", str(tmp_path / "key.json"))
+    filled = tmp_path / "sheet.csv"
+    filled.write_text(sheet(["Fixture", "cleared", "BO", "trail"]), encoding="utf-8")
+    assert kit.main(["convert", str(filled), "--written-by", "A fixture writer"]) == 0
+    assert json.loads((tmp_path / "key.json").read_text(encoding="utf-8"))["writtenBy"] == "A fixture writer"
+
+
 @pytest.mark.parametrize("row, why", [
     (["Fixture", "lost", "AB", "none"], "expected_kind"),
     (["Fixture", "clue", "AB AC AD", "none"], "at most"),
