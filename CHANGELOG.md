@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: the plan reason line says the order figures were measured on Chrome's built-in model only, and that the
+  cloud model's picks were not measured. Source: review. Verified: the main-pick evidence file records only
+  on-device runs (path on_device in all 12); the hygiene guard passes in public mode.
 - Test matrix: a row for plan reason codes on Chrome's built-in model (2026-11-22, 12 main-reason picks, 0 fallbacks,
   one team's pick changing with the order), naming the command post's PREFER_ON_DEVICE call and the run's
   ONLY_ON_DEVICE options, each with its code line. Source: the reason-code change (PR #354). Verified:

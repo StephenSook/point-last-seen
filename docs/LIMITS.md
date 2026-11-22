@@ -165,8 +165,9 @@ each line says what the limit is and why.
   A reply that names other teams, gives a team no fact or more than one, picks a fact outside that team's own list,
   or is not JSON is not used, and the plan shows fixed wording. When two facts are close, the model's pick can depend
   on the order they are listed. The app always lists them in the same fixed order. Measured on Chrome's built-in
-  model: in the fixed order, one team's pick held 6 of 6 and the other's 5 of 6. Reversing the order changed one
-  team's pick (`docs/evidence/web/2026-11-22-plan-reason-main-pick-chrome.json`).
+  model only: in the fixed order, one team's pick held 6 of 6 and the other's 5 of 6. Reversing the order changed one
+  team's pick (`docs/evidence/web/2026-11-22-plan-reason-main-pick-chrome.json`). The cloud model's picks were not
+  measured.
 
 ## Language
 
