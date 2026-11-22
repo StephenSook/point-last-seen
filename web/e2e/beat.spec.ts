@@ -8,6 +8,9 @@ test("a new report plays the beat once on the live post, and a reload does not r
   await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   const wrap = page.getByTestId("map").locator("xpath=..");
   await expect(wrap).not.toHaveAttribute("data-beat", /.+/); // nothing plays on load
+  // Write only once the post is armed: it draws at once from this browser's cache, but plays no beat until the
+  // server's first answer, and a report written before then is the first one it sees, which only shows the final map.
+  await expect(wrap).toHaveAttribute("data-beat-armed", "true", { timeout: 30_000 });
   await page.getByRole("button", { name: "Add sighting" }).click();
   await page.getByRole("combobox", { name: /^Place\b/ }).selectOption({ index: 1 });
   await page.getByLabel(/^Note/).fill("Drill check: seen near the first segment. Training drill inject.");
