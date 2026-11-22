@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: the plan reason line also says a reason or the summary that says where the missing person is, or that they
+  will be found, is refused, while a segment in a ranking is not, and that such a claim in other phrasing can still
+  pass. Source: the plan wording check for claims about the person (PR #352). Verified: each example against the
+  PERSON_CLAIMS patterns in web/src/ai/replanWording.ts on this branch ("She is likely in AC." and "probably near
+  the creek" refused, "AC is in the top three." passes); the hygiene guard passes in public mode.
 - Limits: the plan reason line says the prompt calls segment codes map grid squares and a reason or summary that
   says what a code stands for is refused (words in brackets beside a code, or capitalized words whose initials spell
   one); a made-up meaning not written as initials ("recent inquiries") can still pass; with the grid-square line no

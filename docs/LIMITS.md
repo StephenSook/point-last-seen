@@ -162,9 +162,12 @@ each line says what the limit is and why.
   may use only its own team's figures, each as a current or an earlier POA, and a word saying a POA rose or fell must
   match one of the team's own segments. The prompt says segment codes are map grid squares, and a reason or the
   summary that says what a code stands for is refused: words in brackets beside a code, or capitalized words whose
-  initials spell one ("Customer Complaints" for CC). If any reason fails, the plan uses fixed wording. The check reads
-  words, so a direction said in words outside its lists, a ranking such as "highest" that is not true, or a made-up
-  meaning not written as initials ("recent inquiries") can still pass; with the grid-square line, no run spelled out
+  initials spell one ("Customer Complaints" for CC). A reason or the summary that says where the missing person is
+  ("she is likely in AC", "probably near the creek") or that they will be found is refused too, though a segment in a
+  ranking ("AC is in the top three") is not. If any reason fails, the plan uses fixed wording. The checks read
+  words, so a direction said in words outside its lists, a ranking such as "highest" that is not true, a made-up
+  meaning not written as initials ("recent inquiries"), or a claim about the person in other phrasing can still pass;
+  with the grid-square line, no run spelled out
   a code (`docs/evidence/web/2026-11-22-plan-wording-grid-squares-chrome.json`). Asking
   the model for reasons with no figures was measured and not adopted: on Chrome's built-in model, 6 of 6 runs
   invented a meaning for the segment codes instead
