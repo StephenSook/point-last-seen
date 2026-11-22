@@ -3142,3 +3142,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the cut-word check found word spans in the raw sign text, but NFKC turns some symbols into letters or digits ("№" to "No", "Ⓐ" to "A", "🄰" to "A"), so the spans disagreed with the folded words: "7 Coffee" was kept from "№7 COFFEE", "North Plaza" from "NORTH Ⓐ PLAZA", and a cut inside "🄰" still left "PARK". Now the kept text and the uncut text fold the same way, and the kept text's last word is dropped only when it differs from the uncut text's word in that place. The combining-mark test now cuts between the letter and its accent, as it meant to.
 - Source: review (second-model pass on the cut-word fix).
 - Verified: the new cases (number sign, circled letter, a cut inside a squared letter, a word ending exactly before a parenthesized digit) failed first, then passed (19); web unit; typecheck; gates; hygiene.
+
+### test(harness): score a note read against the fields its note states
+- What: `src/harness/noteScore.ts`, `scoreNote`: a stated direction or colour is right only on its exact value; stated footwear or a carried item is right ignoring case, outer spaces and a leading article; a field the note does not state counts as filled when the reading gives anything but "unknown" or an empty string; a skipped field counts neither way; a refused read misses every stated field and fills nothing. No product change.
+- Source: review (the note-read measurement had no note that describes nobody, and did not score footwear or carried).
+- Verified: `src/harness/noteScore.test.ts` (5 tests) failed first (module missing), then passed; web unit; typecheck.
