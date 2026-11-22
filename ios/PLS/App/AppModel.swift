@@ -53,6 +53,8 @@ final class AppModel {
     @ObservationIgnored private(set) var speech: Task<Void, Never>?
     /// Notification permission, and where "asked once" is kept.
     private let alerts: AlertPermission
+    /// Files Report a problem's content reports; Firestore unless a test supplies one.
+    private let contentReports: ContentReportWriter
     private let defaults: UserDefaults
     static let alertsAskedKey = "pls.alertsAsked"
     static let topicsKey = "pls.pushTopics"
@@ -112,13 +114,15 @@ final class AppModel {
          pushTopics: PushTopics? = nil,
          alerts: AlertPermission? = nil,
          defaults: UserDefaults = .standard,
-         accountEvents: AccountEvents? = nil) {
+         accountEvents: AccountEvents? = nil,
+         contentReports: ContentReportWriter? = nil) {
         self.accountEvents = accountEvents ?? FirebaseAccountEvents()
         self.signIn = signIn
         self.joinBackend = joinBackend ?? FirebaseJoinBackend(signIn: { await signIn.ensure() })
         self.missionReader = missionReader ?? FirestoreMissionReader()
         self.pushTopics = pushTopics ?? FirebasePushTopics()
         self.alerts = alerts ?? SystemAlerts()
+        self.contentReports = contentReports ?? FirestoreContentReportWriter()
         self.defaults = defaults
         self.appVersion = appVersion
         self.speaker = speaker ?? AssignmentSpeaker()
@@ -549,6 +553,27 @@ final class AppModel {
             return true
         }.map(\.eventId) ?? [])
     }
+    /// What Report a problem can be about now: the team's task while command's plan gave one, and the family's
+    /// description while the search has one. Nothing in the practice drill (no report leaves the phone) or with no
+    /// search loaded.
+    var reportTargets: [ContentReport.Target] {
+        guard practice == nil, let mission, !mission.isPractice else { return [] }
+        var targets: [ContentReport.Target] = []
+        if mission.planVersion != nil { targets.append(.task) }
+        if mission.sharedProfile != nil { targets.append(.familyDescription) }
+        return targets
+    }
+
+    /// Files a report about the task or the family's description to command, as this phone's searcher: the note loses
+    /// its phone numbers and is cut to the rule's limit before it leaves the phone.
+    func reportProblem(about target: ContentReport.Target, reason: ContentReport.Reason, note: String) async -> ReportProblemResult {
+        guard reportTargets.contains(target), let mission, let author = uid(), mission.ownerUid == author else { return .unavailable }
+        let targetId = target == .task ? mission.planVersion.map(ContentReport.taskId) : nil
+        guard let report = ContentReport(authorUid: author, role: .searcher, target: target, targetId: targetId, reason: reason,
+                                         note: note) else { return .failed }
+        return ReportProblemResult(await contentReports.file(report, reportId: ContentReport.newReportId(), incidentId: mission.incidentId))
+    }
+
     /// Ready check offers Leave while a search is loaded, read again, or ended on screen.
     var offersLeave: Bool { mission != nil || canRetryMission || endedSearch != nil }
     private(set) var endedSearch: EndedSearch?

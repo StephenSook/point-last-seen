@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### feat(ios): the model files a Report a problem content report to command
+- What: `AppModel.reportProblem(about:reason:note:)` files a content report about the team's task (named by its
+  plan's document id) or the family's description (no id) to the loaded search, as this phone's searcher, through
+  `FirestoreContentReportWriter`. The writer creates `incidents/{id}/contentReports/{reportId}` once, with the server's
+  time in `createdAt`. `reportTargets` lists what can be reported now: the task while a plan gave one, and the
+  family's description while there is one; nothing in the practice drill or with no search loaded. The reporter is
+  told "Sent to command.", or that the report waits on the phone for signal (no server answer within 8 seconds;
+  Firestore keeps the write and sends it later), or that the rules refused it, or to try again.
+- Source: App Review guideline 1.2 (a way to report user content).
+- Verified: the new tests failed first (nothing to call) and pass: the targets with and without a search, what is
+  written (incident, report id, author, role, target id, the note without its phone number), the family's
+  description with no id, nothing written without a search, each outcome's line, and the Firestore error mapping
+  (permission denied is a refusal; others can be tried again). The full app suite passes.
+
 ### test(rules): the iPhone's content reports against the create rule in the emulator
 - What: functions/test/rules/contentReportsIos.test.ts writes every case of shared/test-vectors/content-report-ios.json
   to the emulator as the searcher, with the server's time, and expects each accepted. It then breaks copies of the
