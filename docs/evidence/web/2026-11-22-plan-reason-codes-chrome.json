@@ -1,0 +1,228 @@
+{
+  "what": "Plan reasons as reason codes on Chrome's built-in model: the model picks one or two fact codes per team from that team's own list; code writes every sentence and the summary.",
+  "date": "2026-11-22",
+  "commit": "f4778c18",
+  "page": "web/harness/wording-measure.html on the dev server (127.0.0.1:5175), wordPlan with the wording's own on-device options (ONLY_ON_DEVICE)",
+  "browser": "Google Chrome stable on a Mac (Apple M5 Pro); version not recorded",
+  "plan": "made-up: T1 searches CC, T2 searches CD; made-up facts (CC near a stream and a trail, not searched, raised by the newest report, 0.3 to 1.0 km band; CD near a road and a building, searched, within 0.3 km)",
+  "teamFacts": {
+    "T1": [
+      "highest_poa",
+      "top_three",
+      "poa_rose",
+      "poa_now",
+      "not_yet_searched",
+      "moved_by_last_report",
+      "near_trail",
+      "near_stream",
+      "in_ring"
+    ],
+    "T2": [
+      "top_three",
+      "poa_rose",
+      "poa_now",
+      "searched_still_high",
+      "near_road",
+      "near_building",
+      "in_ring"
+    ]
+  },
+  "bar": "fallback 10% or less; every rendered reason a real fact of its team; the summary matches the reasons exactly",
+  "sessions": [
+    {
+      "page": "newly opened tab 1",
+      "availability": "available",
+      "googleRequests": 0,
+      "runs": [
+        {
+          "replyMs": 7936,
+          "latencyMs": 7937,
+          "path": "on_device",
+          "sdkReported": true,
+          "accepted": true,
+          "check": "ok",
+          "codes": {
+            "T1": [
+              "highest_poa",
+              "top_three"
+            ],
+            "T2": [
+              "top_three",
+              "poa_rose"
+            ]
+          },
+          "reasonsMatchCodes": true,
+          "summaryMatchesReasons": true,
+          "notice": null,
+          "attempt": null,
+          "raw": "{\"assignments\":[ {\"teamId\": \"T1\", \"reasons\": [\"highest_poa\", \"top_three\"]}, {\"teamId\": \"T2\", \"reasons\": [\"top_three\", \"poa_rose\"]}]}",
+          "reasons": [
+            "CC has the highest POA, 1.4%. CC is in the top three by POA.",
+            "CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map."
+          ],
+          "summary": "T1 searches CC: CC has the highest POA, 1.4%. CC is in the top three by POA. T2 searches CD: CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map.",
+          "promptBytes": 394
+        },
+        {
+          "replyMs": 1531,
+          "latencyMs": 1531,
+          "path": "on_device",
+          "sdkReported": true,
+          "accepted": true,
+          "check": "ok",
+          "codes": {
+            "T1": [
+              "highest_poa",
+              "top_three"
+            ],
+            "T2": [
+              "top_three",
+              "poa_rose"
+            ]
+          },
+          "reasonsMatchCodes": true,
+          "summaryMatchesReasons": true,
+          "notice": null,
+          "attempt": null,
+          "raw": "{\"assignments\": [{\"teamId\": \"T1\", \"reasons\": [\"highest_poa\", \"top_three\"]}, {\"teamId\": \"T2\", \"reasons\": [\"top_three\", \"poa_rose\"]}]}",
+          "reasons": [
+            "CC has the highest POA, 1.4%. CC is in the top three by POA.",
+            "CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map."
+          ],
+          "summary": "T1 searches CC: CC has the highest POA, 1.4%. CC is in the top three by POA. T2 searches CD: CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map.",
+          "promptBytes": 394
+        },
+        {
+          "replyMs": 1530,
+          "latencyMs": 1529,
+          "path": "on_device",
+          "sdkReported": true,
+          "accepted": true,
+          "check": "ok",
+          "codes": {
+            "T1": [
+              "highest_poa",
+              "top_three"
+            ],
+            "T2": [
+              "top_three",
+              "poa_rose"
+            ]
+          },
+          "reasonsMatchCodes": true,
+          "summaryMatchesReasons": true,
+          "notice": null,
+          "attempt": null,
+          "raw": "{\"assignments\": [{\"teamId\": \"T1\", \"reasons\": [\"highest_poa\", \"top_three\"]}, {\"teamId\": \"T2\", \"reasons\": [\"top_three\", \"poa_rose\"]}]}",
+          "reasons": [
+            "CC has the highest POA, 1.4%. CC is in the top three by POA.",
+            "CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map."
+          ],
+          "summary": "T1 searches CC: CC has the highest POA, 1.4%. CC is in the top three by POA. T2 searches CD: CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map.",
+          "promptBytes": 394
+        }
+      ]
+    },
+    {
+      "page": "newly opened tab 2",
+      "availability": "available",
+      "googleRequests": 0,
+      "runs": [
+        {
+          "replyMs": 1592,
+          "latencyMs": 1592,
+          "path": "on_device",
+          "sdkReported": true,
+          "accepted": true,
+          "check": "ok",
+          "codes": {
+            "T1": [
+              "highest_poa",
+              "top_three"
+            ],
+            "T2": [
+              "top_three",
+              "poa_rose"
+            ]
+          },
+          "reasonsMatchCodes": true,
+          "summaryMatchesReasons": true,
+          "notice": null,
+          "attempt": null,
+          "raw": "{\"assignments\": [{\"teamId\": \"T1\", \"reasons\": [\"highest_poa\", \"top_three\"]}, {\"teamId\": \"T2\", \"reasons\": [\"top_three\", \"poa_rose\"]}]}",
+          "reasons": [
+            "CC has the highest POA, 1.4%. CC is in the top three by POA.",
+            "CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map."
+          ],
+          "summary": "T1 searches CC: CC has the highest POA, 1.4%. CC is in the top three by POA. T2 searches CD: CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map.",
+          "promptBytes": 394
+        },
+        {
+          "replyMs": 1534,
+          "latencyMs": 1534,
+          "path": "on_device",
+          "sdkReported": true,
+          "accepted": true,
+          "check": "ok",
+          "codes": {
+            "T1": [
+              "highest_poa",
+              "top_three"
+            ],
+            "T2": [
+              "top_three",
+              "poa_rose"
+            ]
+          },
+          "reasonsMatchCodes": true,
+          "summaryMatchesReasons": true,
+          "notice": null,
+          "attempt": null,
+          "raw": "{\"assignments\": [{\"teamId\": \"T1\", \"reasons\": [\"highest_poa\", \"top_three\"]}, {\"teamId\": \"T2\", \"reasons\": [\"top_three\", \"poa_rose\"]}]}",
+          "reasons": [
+            "CC has the highest POA, 1.4%. CC is in the top three by POA.",
+            "CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map."
+          ],
+          "summary": "T1 searches CC: CC has the highest POA, 1.4%. CC is in the top three by POA. T2 searches CD: CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map.",
+          "promptBytes": 394
+        },
+        {
+          "replyMs": 1537,
+          "latencyMs": 1536,
+          "path": "on_device",
+          "sdkReported": true,
+          "accepted": true,
+          "check": "ok",
+          "codes": {
+            "T1": [
+              "highest_poa",
+              "top_three"
+            ],
+            "T2": [
+              "top_three",
+              "poa_rose"
+            ]
+          },
+          "reasonsMatchCodes": true,
+          "summaryMatchesReasons": true,
+          "notice": null,
+          "attempt": null,
+          "raw": "{\"assignments\": [{\"teamId\": \"T1\", \"reasons\": [\"highest_poa\", \"top_three\"]}, {\"teamId\": \"T2\", \"reasons\": [\"top_three\", \"poa_rose\"]}]}",
+          "reasons": [
+            "CC has the highest POA, 1.4%. CC is in the top three by POA.",
+            "CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map."
+          ],
+          "summary": "T1 searches CC: CC has the highest POA, 1.4%. CC is in the top three by POA. T2 searches CD: CD is in the top three by POA. CD rose from 0.6% to 1.4% since the starting map.",
+          "promptBytes": 394
+        }
+      ]
+    }
+  ],
+  "findings": [
+    "6 of 6 runs ran on this laptop's built-in model (SDK-reported on_device) and were used: 0 fallbacks.",
+    "Every chosen code was one of that team's own facts, every reason shown was exactly code's sentence for the codes chosen, and every summary was exactly code's summary for the same choices.",
+    "No run sent a Google or Firebase request.",
+    "All 6 runs chose the same codes: the first ranking facts in each team's list (T1 highest_poa and top_three; T2 top_three and poa_rose). None chose a search, report, feature or distance fact, and T1's two facts overlap (the highest POA is also in the top three).",
+    "A page's first wording took 7.9 s; the others 1.5 to 1.6 s."
+  ]
+}

@@ -31,9 +31,21 @@ export function claimsLine(claims: Record<string, unknown> | null, ctx: ClaimsCo
  * applies only from the newest read, and while the line comes from such a reply, a timed reply applies only if its read
  * started later and its token was issued after the newest token applied. Nothing is applied after `stop`. A forced read runs at most once in 30 seconds and not while another is running, except that an urgent
  * recheck (after a refusal) skips the spacing, and one that comes while a forced read runs waits for it and then runs.
- * A forced read still running after 30 seconds is treated as stalled and no longer holds the next one back.
+ * A forced read still running after 30 seconds is treated as stalled and no longer holds the next one back: an urgent
+ * recheck waiting for it then runs on its own (`later` schedules that), and a new sign-in session (a sign-out or
+ * another account) is never held back by an older session's read; a recheck waiting when another account signs in
+ * runs at once for it, and one waiting at a sign-out is dropped, since there is no account to read.
  */
-export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: string | null) => void, now: () => number = Date.now): { stop: () => void; recheck: (urgent?: boolean) => void } {
+export function watchClaims(
+  auth: Auth,
+  ctx: ClaimsContext,
+  onLine: (line: string | null) => void,
+  now: () => number = Date.now,
+  later: (fn: () => void, ms: number) => () => void = (fn, ms) => {
+    const t = setTimeout(fn, ms);
+    return () => clearTimeout(t);
+  },
+): { stop: () => void; recheck: (urgent?: boolean) => void } {
   const SPACING_MS = 30_000;
   let stopped = false;
   let latest = 0;
@@ -41,6 +53,12 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
   let forcing = 0;
   let lastForced = -Infinity;
   let queued = false;
+  // The timer that runs a waiting urgent recheck once the forced read it waits for counts as stalled.
+  let cancelWait: (() => void) | null = null;
+  const clearWait = () => {
+    cancelWait?.();
+    cancelWait = null;
+  };
   // When the newest token this watch applied was issued (ms), and for which account, so an older token can never take
   // its place; another account starts again.
   let newestIssued = -Infinity;
@@ -53,12 +71,14 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
   const settled = (seq: number) => {
     if (forcing !== seq) return;
     forcing = 0;
+    clearWait();
     if (queued && !stopped) {
       queued = false;
       read(true);
     }
   };
-  const read = (force: boolean) => {
+  const read = (asked: boolean) => {
+    let force = asked;
     const seq = ++latest;
     const user = auth.currentUser;
     if (!user) {
@@ -67,6 +87,10 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
       newestUntimed = false;
       owner = null;
       session++;
+      // The old session's read no longer holds anything back, and with no account there is nothing to recheck.
+      forcing = 0;
+      queued = false;
+      clearWait();
       onLine(claimsLine(null, ctx));
       return;
     }
@@ -76,6 +100,14 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
       newestSeq = 0;
       newestUntimed = false;
       session++;
+      // A new session: an older session's forced read no longer holds this one back, and a recheck waiting for it
+      // runs now, as this read.
+      forcing = 0;
+      clearWait();
+      if (queued) {
+        queued = false;
+        force = true;
+      }
     }
     const readSession = session;
     if (force) {
@@ -111,13 +143,24 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
   return {
     stop: () => {
       stopped = true;
+      clearWait();
       unsubscribe();
     },
     recheck: (urgent = false) => {
       if (stopped) return;
       const since = now() - lastForced;
       if (forcing !== 0 && since < SPACING_MS) {
-        if (urgent) queued = true;
+        if (urgent && !queued) {
+          queued = true;
+          // If the forced read it waits for stalls, run once that read counts as stalled.
+          const waitingFor = forcing;
+          cancelWait = later(() => {
+            cancelWait = null;
+            if (stopped || !queued || forcing !== waitingFor) return;
+            queued = false;
+            read(true);
+          }, SPACING_MS - since);
+        }
         return;
       }
       if (!urgent && since < SPACING_MS) return;

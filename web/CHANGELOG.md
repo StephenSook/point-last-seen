@@ -2841,3 +2841,145 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Also, from review: the marker check read back to the start of the note for every word, so a 350,000-character note took about 3 seconds a pass (6 settled); it now reads only a marker's length back (72 ms a pass, 120 ms settled), with the same results.
 - Source: review (a scrubbed note scrubbed again took more).
 - Verified: new tests for settle (a scrub that never settles runs exactly four times, returns its fourth output and says so once; one that settles stops at the first unchanged pass), for a settled result in one call, for every corpus note settling on its first scrub (the ceiling of 39 is now 0, and a planted non-settling scrubber is caught), and for the paper debrief and sighting saves storing every corpus note exactly as shown, all failed first, then passed; the corpus regenerated; web unit, typecheck and gates pass with the shared-file changes applied.
+
+### fix(ai): plan wording never says what a segment code stands for
+- What: the plan wording prompt now says segment codes such as AA or CC are map grid squares, not abbreviations, and never to say what the letters stand for; and checkWording refuses any reason or summary that does: words in brackets right after a code ("AC (the north field)"), a code in brackets after words ("Upper Meadow (AC)"), or capitalized words in a row whose initials spell a code ("Customer Complaints" for CC). Such a plan falls back to the fixed wording.
+- Source: review (on Chrome's built-in model, a prompt for reasons with no figures made every reason invent a meaning for the codes).
+- Verified: new checkWording tests (each shape refused in a reason and in the summary; a code used as a code, and capitalized words that spell no code, kept; the prompt names grid squares) failed first, then passed (54); replayed on the recorded wordings, the check refuses none of the 8 runs recorded on 2026-11-21 and 3 of the 6 that invented code meanings; 6 runs on Chrome's built-in model with the new prompt line spelled out no code (local evidence, not in the repo); typecheck passes.
+
+### fix(ai): plan wording never says where the person is or that they will be found
+- What: the prompt already forbade it; checkWording now refuses it too, in any reason or the summary: an outcome promised ("will be found"), a place given as likely ("probably near the creek", "is located", "must be in"), or the missing person placed somewhere ("she is likely in AC"). The plan then falls back to the fixed wording. A segment in a ranking ("AC is in the top three") is not refused.
+- Source: review.
+- Verified: new checkWording tests (each claim refused in a reason and in the summary; a plain team reason and a ranking kept) failed first, then passed (57); replayed on the 19 recorded wordings, none is refused for this; typecheck passes.
+
+### fix(ai): plan wording checks: any verb placing the person, a promise to find them, a code defined in words
+- What: from review of the two checks above. The person check now refuses the missing person placed near any place word whatever the verb ("remains in AC", "wandered toward the creek"), and an active promise to find them ("Team T1 will find the missing person", "the best chance to find her"). The code check now refuses a code defined in words ("AC stands for access corridor", "short for") and no longer refuses brackets about a code's figures or rank ("AC (up from 20.0%)", "the highest POA (AC)"). Its patterns are built once per plan for all its codes, so a plan of 480 grid squares is checked in a few milliseconds, not 200.
+- Source: review.
+- Verified: new tests for each case (and for 480 grid squares under 100 ms) failed first, then passed (61); replayed on the 19 recorded wordings, the only refusals are a reason naming another team's segment and the 3 runs that spelled out a code; typecheck passes.
+
+### fix(ai): a plan reason or summary never mentions the missing person
+- What: replaces the verb list in the person check with a rule that closes the class. A reason explains why a team searches its segments and never needs to mention who is being searched for, so any reason or summary with a word for the person (person, missing, subject, child, patient, she, her, hers, he, him, his) is refused and the plan falls back to the fixed wording. The plan carries no name for the person, so there is no name to match. The phrases that claim an outcome or a place without naming anyone ("will be found", "Team T1 will find", "likely in AC", "is located", "must be in") are still refused.
+- Source: review.
+- Verified: a new test (six reasons and one summary that mention the person in different ways) failed first, then passed (62); replayed on the 19 recorded wordings, none falls back for this; typecheck passes.
+
+### fix(ai): plan wording checks: person nouns, they, rescue verbs, "means", and words that look like codes
+- What: from the second review of the checks above.
+  - Person: the word list adds they, them, someone, anyone and common person nouns (hiker, walker, runner, hunter, climber, camper, man, woman, boy, girl, kid, toddler, elder, victim, survivor). "Their" stays allowed, since models use it for segments.
+  - Rescue promises now cover find, locate, rescue, recover and save after a modal, and "bring ... home".
+  - Codes: a definition with "means", "refers to" or "denotes" after a code is refused. Brackets beside a code pass only when every word in them is a figure or rank word, so "AC (access corridor, highest POA)" is refused while "the highest-probability segment (AC)" is kept.
+  - Initials count only for the codes a text is about (its team's own segments, or codes it names), and Team, Segment and Search split a run of capitals, so "Assign Team T1" is not read as a code.
+  - Segment codes are blanked before the person check, so a grid square named HE is not read as "he".
+- Source: review.
+- Verified: new tests for each case failed first, then passed (67); replayed on the 19 recorded wordings, the same 4 are refused as before and none newly; typecheck passes.
+
+### fix(ai): plan wording checks: a location or rescue as a noun, and "represents"
+- What: from the third review of the checks above.
+  - The person check refuses a location as a noun ("their current location is", "whereabouts", "the position is") and an outcome promised as a noun ("a successful rescue", "reunite").
+  - The code check refuses "represents", "corresponds to", "is called" and "is named" after a code.
+  - "previously", "before", "earlier", "since", "start" and "then" count as figure words in brackets, so "AC (31.0%, previously 20.0%)" is kept.
+  - Known cost, accepted: a summary using "they" for grid squares falls back to the fixed wording, because "they" is refused to keep the person out.
+- Source: review.
+- Verified: new tests for each case failed first, then passed (70); replayed on the 19 recorded wordings, the same 4 are refused as before and none newly; typecheck passes.
+
+### feat(ai): plan reason facts and the sentences code writes for them
+- What: a new module, web/src/ai/reasonCodes.ts.
+  - It lists the facts that hold for each team's own segments: highest POA, in the top three, rose since the starting map, POA now, not searched yet, searched and still in the top three, raised by the newest report, near a trail, road, stream, water or building (the grid's classes within 71 m), and the ISRID distance band from the last-seen point.
+  - It writes each fact's sentence from a fixed template and the plan's own values. A reason never passes the 200 characters a plan doc allows: when two facts do not fit, only the first is shown.
+  - The summary is written from the same choices.
+  - PlanDraft gains an optional facts field. Nothing uses the module yet.
+- Source: plan wording review.
+- Verified: 13 new tests pass, and breaking any of four rules (top-three cut, the 200-character fit, searched-and-still-high, the ring edge) fails at least one; typecheck passes.
+
+### feat(ai): the model picks each team's reason codes and code writes every sentence
+- What: plan wording no longer asks a model for any text.
+  - The prompt lists each team's segments and the facts code found for them, with the segments each fact holds for.
+  - The model returns, per team, one or two codes from that team's own list (none for a team with no segment), in a closed schema whose codes are the known fact codes.
+  - checkChoice refuses a reply whose teams differ from the draft, or that picks no code, more than two, a repeated code, or a code outside the team's own facts; the plan then uses the fixed wording.
+  - Code renders each reason and the summary from the codes chosen, and the worded plan keeps the codes.
+  - The free-text checks (figures, directions, code meanings, the missing person) are removed with their tests, since no model text reaches the page.
+  - The measurement page checks a reply with checkChoice.
+- Source: plan wording review.
+- Verified: new tests for the prompt, the schema, the rendering and checkChoice failed first, then passed (45 with the fact tests); a reply carrying extra text renders only code's sentences; typecheck passes.
+
+### feat(command): the plan draft carries each segment's facts, and a suggestion follows them
+- What: the command post fills the draft's facts with web/src/command/draftFacts.ts. Each segment gets:
+  - its grid features;
+  - whether a team has searched it (cumulative POD above 0);
+  - whether the newest report raised it;
+  - its distance band from the last-seen point, from the ring model's radii for the incident's terrain column (flat when unset), and only when the map uses the ring model.
+  - A suggestion's key (draftKeyOf) now includes the facts, so a reason written from old facts is withdrawn when a search or a report changes them.
+- Source: plan wording review.
+- Verified: new draftFacts and draftKeyOf tests failed first (missing module), then passed (4); typecheck passes.
+
+### test(harness): the wording measurement page records reason codes and checks the sentences
+- What: the measurement page's made-up plan now has made-up facts for its segments. Each run records the codes the model chose, whether every reason shown is exactly code's sentence for those codes (each one of that team's own facts), and whether the summary is exactly code's summary for the same choices.
+- Source: plan wording review.
+- Verified: typecheck passes; the page is a dev-server page, measured in Chrome.
+
+### fix(ai): a plan reason never offers "top three" for the segment with the highest POA
+- What: teamFacts no longer lists top_three for the segment that holds highest_poa, so a team's two reasons cannot say one thing twice ("CC has the highest POA, 1.4%. CC is in the top three by POA."), as every measured run did.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: new and changed reasonCodes tests failed first, then passed; typecheck passes.
+
+### feat(ai): a team's facts are listed most specific first
+- What: FACT_CODES, and so each team's list in the prompt, now runs from the most specific fact to the most general: the newest report, not yet searched, searched and still high, the features, the distance band, then the ranking every segment has. In every measured run the model chose the first ranking facts listed; this order is what the next measurement compares against its reverse.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: a new reasonCodes test of the order failed first, then passed (51 with the plan wording tests); typecheck passes.
+
+### test(harness): the wording measurement page compares the facts' order with its reverse
+- What: the measurement page runs six wordings per page, alternating each team's facts in the command post's order (most specific first) and in reverse, and starts each page with the order the previous page did not (kept in browser storage). Each run records its order and the fact lists it sent, to show whether the model's choice follows the facts or their place in the list. The reversal is web/src/harness/reverseFacts.ts.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: new reverseFacts tests (it reverses each team's facts and nothing else, also on the command post's own prompt) failed first (missing module), then passed (2); typecheck passes.
+
+### feat(ai): the model picks each team's main reason; code adds one supporting fact by a fixed rule
+- What: the model now returns one code per team (its main reason), not one or two. supportingFact adds a second fact by a fixed priority: the newest report, search state, features, the distance band, then the ranking. It skips the main code and any fact that repeats it (POA now beside the highest POA or a rise).
+  - The worded plan records each team's main and supporting codes. The measurement page checks each reason against both.
+  - In the order test, the model's lead pick held whichever order its facts were listed in, but its second pick moved with the order. So the second fact is now code's fixed rule, not a model judgment.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: new supportingFact tests and the changed plan wording tests failed first, then passed (50); typecheck passes.
+
+### fix(command): the Plan section says what the model chooses and what code writes
+- What: the line shown before Suggest plan is now "Suggest plan asks this laptop's built-in model (Gemini in the cloud when it has none) to choose each team's main reason from that team's own facts. Code adds a second fact and writes every word. It sends only team ids, segment codes and fact codes, never a note or a name."
+  - "What ran" names a refused answer as one that named other teams or a fact that team does not have. The failure for a number not in the plan is gone, since no model text is used.
+  - The plan harness check and the deployed payload check (planPayload.spec.ts) follow. Every line Suggest plan sends must now be the heading, a team with its segments and known fact codes, or a team with no segment.
+  - The judge-door evidence test now pins that record to the commit it read (522d88d2), whose line has since changed.
+- Source: plan wording review.
+- Verified: plan harness spec 15/15; the payload line patterns accept every line of planPrompt for a plan with facts and a team with no segment, and refuse free text and figures; what-ran and judge-door tests pass; typecheck passes.
+
+### test(ai): the same plan state always gives the model the same input
+- What: a guard that planPrompt lists each team's facts in one fixed order (FACT_CODES), whatever order a segment's grid features are stored in, so the model's main pick is never moved by a reshuffled list.
+- Source: plan wording review.
+- Verified: the test passes, and fails when the facts keep their found order instead of FACT_CODES order.
+
+### fix(command): a segment a team reported clearing counts as searched in plan reasons
+- What: the engine credits a clear to one segment only (its first known one), and a sound-only clear to none. A clear naming AA and AB therefore left AB with no POD, so a reason could say "AB has not been searched yet" after a team reported searching it. draftFacts now marks a segment searched when its cumulative POD is above 0, or when a stored, unretracted clear names it or was credited to it (reportedSearched). A retraction counts from command or the clear's own author, as in the engine.
+- Source: review.
+- Verified: new draftFacts tests (a two-segment clear, an uncredited clear, an unnamed clear credited to a segment, retractions by command, by the author and by someone else) failed first, then passed (26 with the fact tests); typecheck passes.
+
+### fix(ai): a searched segment's reason says it is in the top three now, not still
+- What: "AD was searched and is still in the top three" could be false: a segment searched while fourth may enter the top three only after a later clue. The sentence is now "AD was searched and is in the top three now."
+- Source: review.
+- Verified: the changed reasonCodes test failed first, then passed; typecheck passes.
+
+### fix(ai): the distance-band reason names the segment's centre
+- What: the band is measured from the last-seen point to the segment's centre, and a 125 m cell can cross a band's edge (a centre 250 m away puts part of the cell 312 m away). "AA is within 0.3 km of the last-seen point" could be false for part of AA. The sentence is now "AA's centre is within 0.3 km of the last-seen point, in the ISRID first 25% distance band".
+- Source: review.
+- Verified: the changed reasonCodes tests failed first, then passed, including the 200-character fit; typecheck passes.
+
+### fix(command): the newest report is chosen by each phone's corrected clock
+- What: the report list orders reports by each phone's clock corrected by its measured offset, but lastReportChange picked "the newest report" by the phone's own time. A report sent at 10:00 from a phone one minute fast could outrank one sent at 10:00:20, so the change banner and a plan reason ("The newest report raised AA") could name the wrong report. lastReportChange now takes the incident's clock offsets per device and the command post passes them; a phone with no measured offset keeps its own time.
+- Source: review.
+- Verified: a new viewState test (a fast phone's earlier report against a later one) failed first, then passed (13), and with no offsets the order is unchanged; typecheck passes.
+
+### fix(command): the Plan line says code adds a second fact only when the team has one
+- What: supportingFact gives no second fact when a team has no other fact, so the line before Suggest plan now says "Code adds a second fact when the team has one and writes every word", matching LIMITS.
+- Source: review.
+- Verified: plan harness spec 15/15 with the new line; typecheck passes.
+
+### fix(data): an urgent sign-in recheck queued behind a stalled read runs on its own
+- What: in watchClaims, an urgent recheck (after a refusal) that arrived while a forced read was running waited for that read to settle. If the read stalled, the recheck never ran until something else asked, so the sign-in line could stay out of date.
+  - A timer now runs the waiting recheck once that read counts as stalled (30 seconds after it started).
+  - A new sign-in session is never held back by an older session's read. When another account signs in, a waiting recheck runs at once as that account's forced read. At a sign-out it is dropped, since there is no account to read.
+  - The timer is cancelled when the read settles first, and at stop.
+- Source: issue #336.
+- Verified: new watchClaims tests (a stalled read, a read that settles first, stop, another account, a sign-out) failed first where the behaviour changed, then passed (24); typecheck passes.

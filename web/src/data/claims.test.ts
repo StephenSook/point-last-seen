@@ -170,6 +170,99 @@ describe("watchClaims: a refusal's recheck is never dropped, and a stalled read 
   });
 });
 
+describe("watchClaims: an urgent recheck queued behind a stalled read runs on its own", () => {
+  async function setup() {
+    const { vi } = await import("vitest");
+    let listener: (() => void) | null = null;
+    vi.doMock("firebase/auth", () => ({ onIdTokenChanged: (_a: unknown, cb: () => void) => ((listener = cb), () => {}) }));
+    vi.resetModules();
+    const { watchClaims } = await import("./claims");
+    const forced: { uid: string; force: boolean }[] = [];
+    const releases: (() => void)[] = [];
+    const userFor = (uid: string) => ({
+      uid,
+      getIdTokenResult: (force?: boolean) => (forced.push({ uid, force: force === true }), new Promise<{ claims: Record<string, unknown> }>((r) => { releases.push(() => r({ claims: { inc: "drill-test-1", role: "command" } })); })),
+    });
+    const auth = { currentUser: userFor("a") as unknown };
+    const clock = { t: 1_000_000 };
+    const timers: { at: number; fn: () => void; cancelled: boolean }[] = [];
+    const later = (fn: () => void, ms: number) => {
+      const t = { at: clock.t + ms, fn, cancelled: false };
+      timers.push(t);
+      return () => { t.cancelled = true; };
+    };
+    const advance = (ms: number) => {
+      clock.t += ms;
+      for (const t of timers) if (!t.cancelled && t.at <= clock.t) { t.cancelled = true; t.fn(); }
+    };
+    const w = watchClaims(auth as never, drill, () => {}, () => clock.t, later);
+    const fire = () => listener?.();
+    return { vi, w, forced, releases, advance, auth, userFor, fire, timers };
+  }
+
+  it("runs once the forced read it waits for has run 30 seconds, without waiting for that read to settle", async () => {
+    const { vi, w, forced, advance } = await setup();
+    w.recheck();
+    advance(5_000);
+    w.recheck(true);
+    expect(forced.filter((f) => f.force)).toHaveLength(1);
+    advance(24_000);
+    expect(forced.filter((f) => f.force)).toHaveLength(1);
+    advance(1_000);
+    expect(forced.filter((f) => f.force)).toHaveLength(2);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("runs only once when the read it waited for settles first", async () => {
+    const { vi, w, forced, releases, advance } = await setup();
+    w.recheck();
+    advance(5_000);
+    w.recheck(true);
+    releases[0]!();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(forced.filter((f) => f.force)).toHaveLength(2);
+    advance(30_000);
+    expect(forced.filter((f) => f.force)).toHaveLength(2);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("does nothing after stop", async () => {
+    const { vi, w, forced, advance } = await setup();
+    w.recheck();
+    advance(5_000);
+    w.recheck(true);
+    w.stop();
+    advance(30_000);
+    expect(forced.filter((f) => f.force)).toHaveLength(1);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("runs at once for the account signed in after the stalled read's session ends", async () => {
+    const { vi, w, forced, auth, userFor, fire } = await setup();
+    w.recheck();
+    w.recheck(true);
+    expect(forced.filter((f) => f.force)).toEqual([{ uid: "a", force: true }]);
+    auth.currentUser = userFor("b");
+    fire();
+    expect(forced.filter((f) => f.force)).toEqual([{ uid: "a", force: true }, { uid: "b", force: true }]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("is dropped by a sign-out, which shows the signed-out line, and the next sign-in is not held back by the old read", async () => {
+    const { vi, w, forced, auth, userFor, fire } = await setup();
+    w.recheck();
+    w.recheck(true);
+    auth.currentUser = null;
+    fire();
+    auth.currentUser = userFor("b");
+    fire();
+    expect(forced.filter((f) => f.force)).toEqual([{ uid: "a", force: true }]);
+    w.recheck(true);
+    expect(forced.filter((f) => f.force)).toEqual([{ uid: "a", force: true }, { uid: "b", force: true }]);
+    vi.doUnmock("firebase/auth");
+  });
+});
+
 describe("watchClaims: an older token never overwrites a newer one", () => {
   it("ignores a token issued before the newest one it applied, even when its event comes last", async () => {
     const { vi } = await import("vitest");

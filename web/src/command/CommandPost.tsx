@@ -33,6 +33,7 @@ import { useOnline } from "../data/useOnline";
 import { makeSeq } from "../data/seq";
 import { buildConfirmation, buildRetraction, buildSightingEvent, type CommandWriter, type SightingInput, placeFamilySighting } from "../data/sightings";
 import { beatDistances, type LatLon, segmentChoices, segmentContaining } from "../map/geo";
+import { draftFacts } from "./draftFacts";
 import { commandWarnings, profileFromDocs, subscribeProfile, writeProfile } from "../data/profile";
 import { ApproachCard } from "./ApproachCard";
 import { ProfileForm } from "./ProfileForm";
@@ -507,7 +508,10 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     () => (engineIn ? viewState(engineIn.prior, events as unknown as EventDoc[], engineIn.priorIds, engineIn.params, engineIn.priorVersion) : null),
     [engineIn, events],
   );
-  const last = useMemo(() => (engineIn ? lastReportChange(engineIn.prior, events as unknown as EventDoc[], engineIn.priorIds, engineIn.params) : null), [engineIn, events]);
+  const last = useMemo(
+    () => (engineIn ? lastReportChange(engineIn.prior, events as unknown as EventDoc[], engineIn.priorIds, engineIn.params, view?.clockOffsets ?? {}) : null),
+    [engineIn, events, view?.clockOffsets],
+  );
   const [holding, setHolding] = useState(false);
   const beat = useMemo(() => {
     // Until the server has answered, the events may be a partial cached set: no beat yet.
@@ -525,8 +529,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   // The draft for this event set: the engine's team assignment, computed on this laptop.
   const draft: PlanDraft | null = useMemo(() => {
     if (!vs || !incident || teams.length === 0) return null;
-    return localDraft(vs.hash, incident.priorVersion, vs.rank, teams.map((t) => t.teamId), latestPlan?.assignments ?? []);
-  }, [vs, incident, teams, latestPlan]);
+    const facts = engineIn ? draftFacts({ incident, params: engineIn.params, segments, cumulativePod: vs.result.cumulativePod, changed: last?.change.changed ?? null, events: events as unknown as EventDoc[] }) : undefined;
+    return { ...localDraft(vs.hash, incident.priorVersion, vs.rank, teams.map((t) => t.teamId), latestPlan?.assignments ?? []), facts };
+  }, [vs, incident, teams, latestPlan, engineIn, segments, last, events]);
 
   // One hybrid-inference trace per model call (path, reason, platform, stage and latency only).
   const sink = useMemo(() => {

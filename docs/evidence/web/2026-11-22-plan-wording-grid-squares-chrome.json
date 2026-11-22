@@ -1,0 +1,96 @@
+{
+  "what": "Plan wording with the prompt line saying segment codes are map grid squares and must never be spelled out, on Chrome's built-in model",
+  "date": "2026-11-22",
+  "browser": "Google Chrome stable on a Mac (version not recorded), built-in model available",
+  "page": "web/harness/wording-measure.html on the dev server (http://127.0.0.1:5175), wordingOnDeviceGenerator (ONLY_ON_DEVICE), bare Firebase app with no App Check and no sign-in, on main f2cf4b3b plus branch fix/codes-are-grid-squares (uncommitted at the time of the run)",
+  "promptChange": [
+    "Segment codes such as AA or CC are map grid squares, not abbreviations: never say what the letters stand for."
+  ],
+  "draft": "the harness's made-up plan: T1 has CC, T2 has CD (CC 1.41% was 0.62%, CD 1.39% was 0.61%; BO 0.92% was 1.83%)",
+  "googleRequests": [],
+  "sessions": [
+    {
+      "session": 1,
+      "runs": [
+        {
+          "run": 1,
+          "inferenceSource": "on_device",
+          "replyMs": 3819,
+          "accepted": true,
+          "reasons": [
+            "CC is a high-priority segment.",
+            "CD is a high-priority segment."
+          ],
+          "summary": "Teams T1 and T2 are assigned segments CC and CD respectively due to their high priority based on recent data changes."
+        },
+        {
+          "run": 2,
+          "inferenceSource": "on_device",
+          "replyMs": 2741,
+          "accepted": true,
+          "reasons": [
+            "CC has a high percentage of the recent inquiries.",
+            "CD has a high percentage of the recent inquiries."
+          ],
+          "summary": "The search plan assigns teams T1 and T2 to segments CC and CD respectively, based on recent inquiry data highlighting a significant volume in those areas."
+        },
+        {
+          "run": 3,
+          "inferenceSource": "on_device",
+          "replyMs": 2404,
+          "accepted": false,
+          "failure": "a reason names another team's segment",
+          "reasons": [
+            "CC has a higher percentage than BO.",
+            "CD has a higher percentage than BO."
+          ],
+          "summary": "Teams T1 and T2 are assigned to segments CC and CD respectively, based on their respective percentage increases compared to BO."
+        }
+      ]
+    },
+    {
+      "session": 2,
+      "note": "the same tab reloaded after session 1; its first wording ran to the page's 180,000 ms limit",
+      "runs": [
+        {
+          "run": 1,
+          "inferenceSource": null,
+          "replyMs": null,
+          "accepted": false,
+          "failure": "timeout",
+          "reasons": null,
+          "summary": null
+        },
+        {
+          "run": 2,
+          "inferenceSource": "on_device",
+          "replyMs": 79626,
+          "accepted": true,
+          "reasons": [
+            "T1 is searching the segment with the highest percentage increase.",
+            "T2 is searching the segment with the highest percentage increase."
+          ],
+          "summary": "T1 and T2 are assigned to segments with the highest recent percentage increases, based on the provided data."
+        },
+        {
+          "run": 3,
+          "inferenceSource": "on_device",
+          "replyMs": 2596,
+          "accepted": true,
+          "reasons": [
+            "CC has a high percentage of recent activity.",
+            "CD has a high percentage of recent activity."
+          ],
+          "summary": "Team T1 will focus on segment CC due to recent activity, while Team T2 will focus on segment CD due to recent activity."
+        }
+      ]
+    }
+  ],
+  "findings": [
+    "Every reply that came back ran on device as the SDK reported, with no request to a Google or Firebase host.",
+    "4 of 6 runs were used; 2 fell back to fixed wording: one reason named another team's segment, and one wording ran out of time in a reloaded page.",
+    "No reason or summary spelled out a segment code. Of the 4 runs used, 1 said nothing made up; 1 called T2's segment the one with the highest increase, which is CC's; 1 gave the segments a made-up meaning (recent inquiries) and 1 a vague one (recent activity).",
+    "The check that refuses a spelled-out code refused none of these runs and none of the 8 recorded on 2026-11-21, and would have refused 3 of the 6 runs in 2026-11-22-plan-wording-figure-free-chrome.json."
+  ],
+  "n": 6
+}

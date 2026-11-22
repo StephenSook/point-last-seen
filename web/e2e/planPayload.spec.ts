@@ -1,16 +1,21 @@
+import { FACT_CODES } from "../src/ai/reasonCodes";
 import { AI_HOSTS, deployedOnly, expect, joinCommand, test, withDebugToken } from "./fixtures";
 
 // What Suggest plan sends, checked against what the Plan section says it sends: "It sends only team ids, segment codes
-// and percents, never a note or a name." With no built-in model the wording goes to the cloud in one request; every line
-// of its text is a fixed heading, a team id with its segment codes, or a segment code with its percents, and the
-// receipt counts exactly those bytes. Nothing is approved, so nothing is written. Deployed-only: the cloud call needs
+// and fact codes, never a note or a name." With no built-in model the request goes to the cloud; every line of its text
+// is the fixed heading, a team id with its segment codes and its facts (each a known fact code with segment codes), or
+// a team with no segment, and the receipt counts exactly those bytes. Nothing is approved, so nothing is written. Deployed-only: the cloud call needs
 // the live AI Logic project.
 
-const HEADINGS = new Set(["Assignments decided by code:", "Segments by POA, highest first:"]);
-const TEAM_LINE = /^[A-Za-z0-9_-]+: ?(?:[A-Z]{2}(?:, [A-Z]{2})*)?$/;
-const SEGMENT_LINE = /^[A-Z]{2} \d+\.\d% \(was \d+\.\d%\)$/;
+const HEADINGS = new Set(["Teams, their segments, and the facts code found for those segments:"]);
+const IDS = String.raw`[A-Z]{2}(?:, [A-Z]{2})*`;
+const FACT = String.raw`([a-z_]+) \(${IDS}\)`;
+const TEAM_LINE = new RegExp(`^[A-Za-z0-9_-]+ searches ${IDS}\\. Facts: ${FACT}(?:, ${FACT})*$`);
+const NO_SEGMENT_LINE = /^[A-Za-z0-9_-]+ has no segment\. Facts: none\.$/;
+const KNOWN = new Set<string>(FACT_CODES);
+const factCodes = (line: string) => [...line.slice(line.indexOf("Facts: ") + 7).matchAll(/([a-z_]+) \(/g)].map((m) => m[1]!);
 
-test("Suggest plan sends only team ids, segment codes and percents, and the receipt counts exactly that text", async ({ page }) => {
+test("Suggest plan sends only team ids, segment codes and fact codes, and the receipt counts exactly that text", async ({ page }) => {
   deployedOnly();
   await withDebugToken(page);
   await page.addInitScript(() => { delete (window as { LanguageModel?: unknown }).LanguageModel; });
@@ -28,7 +33,7 @@ test("Suggest plan sends only team ids, segment codes and percents, and the rece
   await joinCommand(page);
   await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
   const plan = page.getByRole("region", { name: "Plan" });
-  await expect(plan.getByText("It sends only team ids, segment codes and percents, never a note or a name.", { exact: false })).toBeVisible();
+  await expect(plan.getByText("It sends only team ids, segment codes and fact codes, never a note or a name.", { exact: false })).toBeVisible();
   // Other live checks write reports to this drill at the same time; a reply for a draft that has changed meanwhile is
   // never shown (by design), so press again, up to three times.
   const suggested = page.getByTestId("suggested-plan");
@@ -50,8 +55,9 @@ test("Suggest plan sends only team ids, segment codes and percents, and the rece
     expect(parts).toHaveLength(1);
     const text = parts[0]!.text ?? "";
     const lines = text.split("\n");
-    expect(lines.length).toBeGreaterThan(3);
-    for (const line of lines) expect(HEADINGS.has(line) || TEAM_LINE.test(line) || SEGMENT_LINE.test(line), line).toBe(true);
+    expect(lines.some((l) => TEAM_LINE.test(l))).toBe(true);
+    for (const line of lines) expect(HEADINGS.has(line) || TEAM_LINE.test(line) || NO_SEGMENT_LINE.test(line), line).toBe(true);
+    for (const line of lines.filter((l) => TEAM_LINE.test(l))) for (const c of factCodes(line)) expect(KNOWN.has(c), c).toBe(true);
     return text;
   });
   // The receipt shown counts exactly the bytes of the last request, the one whose reply is on screen.

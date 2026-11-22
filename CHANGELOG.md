@@ -9,6 +9,51 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   (the eval answer-key kit's 13 tests). Source: the kit's new test file. Verified:
   `scripts/test_ci_local.py::test_every_python_test_file_runs_in_ci` failed without the line, naming the file, then
   passed; the kit's tests pass from the repo root; `scripts/ci-local.sh --gates` passes.
+- Docs: the README's Android row and the production checklist name android-judge-5
+  (`point-last-seen-family-8fcc0803.apk`, built from main 8fcc0803) instead of android-judge-4. The judge page and the
+  README link GitHub's `/releases/latest`, which now redirects to android-judge-5, so no link changed. Source: a new
+  judge build was published. Verified: a signed-out request for /releases/latest answers 302 to the android-judge-5 tag;
+  the hygiene guard passes.
+- Limits: the plan reason line says the order figures were measured on Chrome's built-in model only, and that the
+  cloud model's picks were not measured. Source: review. Verified: the main-pick evidence file records only
+  on-device runs (path on_device in all 12); the hygiene guard passes in public mode.
+- Test matrix: a row for plan reason codes on Chrome's built-in model (2026-11-22, 12 main-reason picks, 0 fallbacks,
+  one team's pick changing with the order), naming the command post's PREFER_ON_DEVICE call and the run's
+  ONLY_ON_DEVICE options, each with its code line. Source: the reason-code change (PR #354). Verified:
+  `scripts/test_test_matrix.py` passes (both code lines hold their calls, the evidence file is tracked).
+- Limits: the plan reason line is rewritten for fact codes: a model (Chrome's built-in model where the browser has
+  one, otherwise the cloud model) chooses each team's main reason from that team's own facts, code adds a second fact
+  and writes every word, a reply that does not fit is not used and the plan shows fixed wording, and the pick can
+  depend on the order facts are listed, which the app keeps fixed (measured 6 of 6 and 5 of 6 in that order, one team
+  changing when reversed). Source: the reason-code change (PR #354). Verified: each sentence against
+  web/src/ai/reasonCodes.ts (FACT_CODES, teamFacts, supportingFact, renderReason) and checkChoice and wordPlan in
+  web/src/ai/replanWording.ts on that branch, and the counts against the main-pick evidence file; the hygiene guard
+  passes in public mode.
+- Evidence: three measurements of plan reasons as fact codes on Chrome's built-in model, all on device with no Google
+  request and 0 fallbacks: two codes per team in the old order (6 runs, always the first ranking facts listed), two
+  codes with each team's facts specific first or reversed (12 runs), and one main code per team as shipped (12 runs:
+  in the shipped order one team picked the same fact 6 of 6 and the other 5 of 6; reversed, the second team's pick
+  changed, so the run missed its own bar of 10 of 12). Source: the reason-code change (PR #354). Verified: each file
+  read in full and valid JSON; every count in the findings recounted from the runs.
+- Limits: the plan reason line also says a reason or the summary that says where the missing person is, or that they
+  will be found, is refused, while a segment in a ranking is not, and that such a claim in other phrasing can still
+  pass. Source: the plan wording check for claims about the person (PR #352). Verified: each example against the
+  PERSON_CLAIMS patterns in web/src/ai/replanWording.ts on this branch ("She is likely in AC." and "probably near
+  the creek" refused, "AC is in the top three." passes); the hygiene guard passes in public mode.
+- Limits: the plan reason line says the prompt calls segment codes map grid squares and a reason or summary that
+  says what a code stands for is refused (words in brackets beside a code, or capitalized words whose initials spell
+  one); a made-up meaning not written as initials ("recent inquiries") can still pass; with the grid-square line no
+  run spelled out a code. Source: the check that refuses a spelled-out code (PR #352). Verified: each sentence against
+  spellsOutCode and checkWording in web/src/ai/replanWording.ts on this branch and the evidence file; the hygiene
+  guard passes in public mode.
+- Evidence: docs/evidence/web/2026-11-22-plan-wording-grid-squares-chrome.json records plan wording on Chrome's
+  built-in model with the prompt line saying segment codes are map grid squares: 6 runs, every reply on device with
+  no Google request, 4 used and 2 on fixed wording (a reason named another team's segment; one timed out in a
+  reloaded page), and no reason or summary spelling out a code. Source: the measurement of that prompt line and the
+  check that refuses a spelled-out code. Verified: valid JSON; every reason and summary read; the replay claim
+  checked by hand (3 of the 6 figure-free runs spell out a code in capitalized initials or brackets); one finding
+  corrected with its author (a reason calling T2's segment the highest riser, though CC rose more); the hygiene guard
+  passes in public mode.
 - Limits: the plan's per-team reasons are written by a model and checked by code (only the team's own figures, each
   in its own role; a rise or fall word must match one of the team's segments); if any reason fails the plan uses
   fixed wording; the check reads words, so a direction outside its word lists or an untrue "highest" can still pass;
