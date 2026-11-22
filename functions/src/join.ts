@@ -123,6 +123,13 @@ export async function handleJoin(uid: string | null, data: JoinRequest): Promise
   if (!CODE_FORMAT.test(normalizeJoinCode(joinCode))) denied();
   const db = getFirestore();
   await spendAttempt(db, uid);
+  // Before the code is looked at, so a deleted account learns nothing about one. A deleted account's ID token stays valid for up to an hour; it must not write a member record again after
+  // deleteMyAccount removed them all (account.ts).
+  const signedUp = await getAuth().getUser(uid).then(() => true, (e: unknown) => {
+    if ((e as { code?: string }).code === "auth/user-not-found") return false;
+    throw e;
+  });
+  if (!signedUp) throw new HttpsError("unauthenticated", "This sign-in was deleted. Sign in again to join.", { reason: "account_deleted" });
   const codeRef = db.doc(`joinCodes/${hashJoinCode(joinCode)}`);
   const code = await codeRef.get();
   const id = code.get("incidentId");

@@ -79,7 +79,7 @@ export const removeMember = onCall<{ incidentId?: unknown; uid?: unknown }>(
  */
 export const deleteMyAccount = onCall(
   { enforceAppCheck: true, region: "us-central1", maxInstances: 5 },
-  request => handleDeleteMyAccount(getAuth(), request.auth?.uid ?? null),
+  request => handleDeleteMyAccount(getFirestore(), getAuth(), request.auth?.uid ?? null),
 );
 
 /** Command gives its incident's searchers or family a new join code; every old code of that role stops working (codes.ts). */

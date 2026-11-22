@@ -12,6 +12,13 @@ cd "$(dirname "$0")"
 adb="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
 classes="${1:-app.pointlastseen.family.live.DrillE2ETest,app.pointlastseen.family.live.ClipRulesLiveTest}"
 incident="${PLS_DRILL_INCIDENT:-drill-test-1}"
+# The tests write, and real families and judges join the judge seed incident, so it is refused before its code is read.
+# Its id comes from shared/constants/judge-seed.json, so a renamed seed stays refused; an unreadable file refuses too.
+seed="$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["incidentId"])' ../shared/constants/judge-seed.json)" || seed=""
+if [ -z "$seed" ] || [ "$incident" = "$seed" ]; then
+  echo "run-drill-e2e: refusing incident '$incident': it is the judge seed incident (or the seed id could not be read); the live tests write, so run them on the test incident" >&2
+  exit 2
+fi
 file=/data/local/tmp/pls-drill-code
 trap '"$adb" shell "unlink $file" > /dev/null 2>&1 || true' EXIT
 security find-generic-password -w -s pls-drill-family-code -a "$incident" | "$adb" shell "umask 077; cat > $file"

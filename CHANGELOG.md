@@ -15,6 +15,49 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   rows change, none gains a digit, and exactly 18 newly lose a numeric date; the example measured with the web's
   removePhoneNumbers on this branch; `scripts/test_phone_vectors.py`, the web phone tests and
   `scripts/ci-local.sh --gates` pass.
+- Limits: the Leave line names the two cases it leaves: an account that joins another search at the same moment it
+  leaves can keep its own member record there, and a search joined before member records existed (2026-11-21) gets
+  no refusal record unless the sign-in still names it, though any sign-in from then has long expired. Source: review
+  (two second-model findings accepted as limits). Verified: the hygiene guard passes in public mode.
+- Leave still refuses the old sign-in beside a purge tombstone: only an unfinished retention purge (no doneAt or
+  staleAt) stops `deleteMyAccount` writing the removed/{uid} record, since a finished or abandoned purge keeps its
+  record for good and the id can be in use again by a live incident. Source: review (a security review of the
+  previous commit: any purge record skipped the refusal, so the old token kept its hour of access in a reused id).
+  Verified: a new emulator test with a done and a stale tombstone beside live incidents failed first, then passed
+  (22 in the file); the functions typecheck and the full emulator suite (392) pass.
+- Leave writes no refusal record under a drill being deleted: `deleteMyAccount` creates the removed/{uid} record only
+  where the incident document exists and its retention purge has not started, since a record under a drill being
+  purged would outlive it; the member record and the Auth user still go. `joinIncident` checks for a deleted account
+  right after its rate limit, before it looks at the code, so a deleted account learns nothing about one. Source:
+  review (a second-model review round). Verified: three new emulator tests failed first (the join one also on the
+  old check order, with a well-formed code), then passed (44 across the account and join files); the functions
+  typecheck and the full emulator suite (391) pass.
+- Limits: "Leave and delete this sign-in" deletes the member record in every search the account joined (one whose
+  command removed it included), so it leaves People; a record holding only the time refuses the old sign-in at once;
+  reports and command's removal record stay; past 1,000 searches the delete fails and changes nothing; the Android
+  family app has no way to delete its sign-in. Source: the deleteMyAccount change and the command post's People list
+  (PR #346). Verified: each sentence matches functions/src/account.ts and its tests; the hygiene guard passes in
+  public mode.
+- Leave refuses the old sign-in at once: in the same batch as the member records, `deleteMyAccount` creates
+  incidents/{id}/removed/{uid} holding only the time and the uid, in every incident where the account had a record
+  and the one its claims name, never overwriting command's own removal record. The rules then refuse the account's
+  ID token, still valid for up to an hour, at once, and command no longer has to remove it. `joinIncident` refuses a
+  deleted account (reason account_deleted), so its token cannot write a member record again. The uid check now
+  accepts any id that is one Firestore document id (a period included), and the batch cap counts every write.
+  Source: review (a security review of the first commit: with the record gone, command could no longer cut off the
+  leftover token; a second-model review: a deleted account's token could join again, the uid check was too strict,
+  the record cap was untested). Verified: four new emulator tests failed first, then passed, including a rules check
+  that the old token reads the incident before Leave and is refused after it (41 across the account and join
+  files); the functions typecheck and the full emulator suite (388) pass.
+- Leave deletes the member record: `deleteMyAccount` (functions/src/account.ts) deletes the caller's
+  incidents/{id}/members/{uid} in every incident that has one, in one batch, before it deletes the Auth user, so a
+  search the account joined earlier and one whose command removed it (claims cleared) are covered, and a failed Auth
+  delete leaves a retry that still finishes. Command's removed/{uid} record and the caller's reports stay. An account
+  that is command by its claims or by any member record is refused and keeps everything; with more than 1,000
+  incidents to check or more than 500 records the call fails and deletes nothing. Source: review (App Review 5.1.1(v):
+  three test accounts left with "Leave and delete this sign-in" and their member records stayed). Verified: eight new
+  emulator tests in functions/test/deleteMyAccount.test.ts failed first, then passed (16 in the file); the functions
+  typecheck and the full emulator suite (384) pass.
 - Limits: three more ways part of a phone number can be left, measured on the web: times with a third field ("Call
   4:04 5:55:01:42" is kept whole); in a note already scrubbed once, a run of times followed by spoken digits keeps its
   first hour; a time just before spoken digits keeps its hour. Source: review of PR #342 (gaps that exist on main
