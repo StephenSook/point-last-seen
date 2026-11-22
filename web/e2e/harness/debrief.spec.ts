@@ -117,3 +117,38 @@ test("a search report sent to a segment that already has a debrief is added afte
   await expect(page.getByTestId("debrief-AB").getByLabel("What worked (optional)")).toHaveValue("Line search along the creek Swept the creek bank twice, no trace.");
   await expect(page.getByTestId("debrief-AB").getByLabel("Time it took (minutes)")).toHaveValue("30");
 });
+
+test("a search report sent to a debrief already being edited keeps the edits, and a second one is added after the first", async ({ page }) => {
+  await page.goto("/harness/debrief.html");
+  const row = page.getByTestId("debrief-AB");
+  await row.getByRole("button", { name: "Edit debrief" }).click();
+  await row.getByLabel("Time it took (minutes)").fill("45");
+  await row.getByLabel("Hazards: what and where (optional)").fill("Fast water and a loose rock");
+  await page.getByRole("button", { name: "Send a search report" }).click();
+  await page.getByRole("button", { name: "Send a search report" }).click();
+  await expect(row.getByLabel("Time it took (minutes)")).toHaveValue("45");
+  await expect(row.getByLabel("Hazards: what and where (optional)")).toHaveValue("Fast water and a loose rock");
+  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Line search along the creek Combed the bank, no sign. Combed the bank, no sign.");
+});
+
+test("a team debrief that arrives after a search report opened the form fills what the form left empty", async ({ page }) => {
+  await page.goto("/harness/debrief.html?late=1&prefill=AB");
+  const row = page.getByTestId("debrief-AB");
+  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Swept the creek bank twice, no trace.");
+  await page.getByRole("button", { name: "Team debrief arrives" }).click();
+  await expect(row.getByLabel("Time it took (minutes)")).toHaveValue("30");
+  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Line search along the creek Swept the creek bank twice, no trace.");
+  await expect(row.getByLabel("Hazards: what and where (optional)")).toHaveValue("Fast water at the ford");
+  await expect(row.getByLabel("Clues: what and where (optional)")).toHaveValue("Wrapper by the footbridge");
+});
+
+test("a search report that arrives while a debrief is saving keeps the form open with the new note", async ({ page }) => {
+  await page.goto("/harness/debrief.html?save=slow");
+  const row = page.getByTestId("debrief-AB");
+  await row.getByRole("button", { name: "Edit debrief" }).click();
+  await row.getByRole("button", { name: "Save debrief" }).click();
+  await page.getByRole("button", { name: "Send a search report" }).click();
+  await page.getByRole("button", { name: "Save finishes" }).click();
+  await expect(page.getByTestId("saved")).toContainText('"segmentId":"AB"');
+  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Line search along the creek Combed the bank, no sign.");
+});

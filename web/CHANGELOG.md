@@ -2611,3 +2611,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: "Add it to segment XX's debrief" now leaves the sighting form open with its note and fields and says "The note is in segment XX's debrief, not saved yet. Save it there and cancel this sighting, or save it as a sighting anyway.", so a sighting is never lost when its debrief is not saved or cannot hold the note. A read still running at the first Save tap is dropped there too, so a field cannot change between the warning and "Save as a sighting anyway".
 - Source: review (Codex, first round: a real sighting could be lost through the debrief path).
 - Verified: the updated handoff test and a new late-read test failed first, then passed; the sighting harness spec (27) passes.
+
+### fix(command): a search report never erases a debrief draft or a team's stored debrief
+- What: a report sent to a debrief already being edited keeps every edit and adds the note after What worked (two reports add both); a stored debrief that arrives after a report opened the form empty fills what the form left empty and puts its What worked first, so a save keeps the team's words; and a report that arrives while a debrief is saving keeps the form open with the new note instead of closing with the save.
+- Source: review (Codex, first round on the search-report guard).
+- Verified: three new harness tests failed first, then passed; both debrief harness specs (27) pass.

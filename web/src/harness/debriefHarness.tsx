@@ -5,7 +5,7 @@
 // ?paper=refuse a laptop with no on-device model; the read's own cleaning runs on the reply. ?details=1 puts the
 // section inside a closed-able Details, as the command post's rail does. No Firebase.
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import type { RouteRecord } from "@pls/engine";
 import { readDebriefSheetOnDevice } from "../ai/debriefSheetRead";
@@ -19,8 +19,12 @@ const params = new URLSearchParams(location.search);
 const fail = params.get("save") === "fail";
 const paper = params.get("paper");
 const inDetails = params.get("details") === "1";
-// ?prefill=AA or AB: a search report the sighting form sent to that segment's debrief (once, at load).
+// ?prefill=AA or AB: a search report the sighting form sent to that segment's debrief at load; "Send a search report"
+// sends another. ?late=1: AB's stored debrief arrives only when "Team debrief arrives" is pressed. ?save=slow: a save
+// finishes only when "Save finishes" is pressed.
 const prefillSegment = params.get("prefill");
+const late = params.get("late") === "1";
+const slowSave = params.get("save") === "slow";
 const cleared = [
   { segmentId: "AA", eventId: "a".repeat(32), deviceId: "d1", teamId: "T1" },
   { segmentId: "AB", eventId: "b".repeat(32), deviceId: "d2", teamId: "T2" },
@@ -50,7 +54,9 @@ const wrap = (section: ReactNode) => (inDetails ? <details open><summary>Details
 
 function Harness() {
   const [saved, setSaved] = useState<string>("");
-  const [stored, setStored] = useState(initial);
+  const [stored, setStored] = useState<Record<string, Debrief>>(late ? {} : initial);
+  const [prefill, setPrefill] = useState(prefillSegment ? { segmentId: prefillSegment, note: "Swept the creek bank twice, no trace.", seq: 1 } : null);
+  const finishSave = useRef<(() => void) | null>(null);
   const [jpeg, setJpeg] = useState("");
   const [reads, setReads] = useState(0);
   const paperRead: PaperRead | undefined = paper
@@ -74,12 +80,22 @@ function Harness() {
         teams={teams}
         onSave={async (segmentId: string, input: DebriefInput, existing: boolean, clearedEventId: string | null) => {
           if (fail) throw new Error("refused");
+          if (slowSave) await new Promise<void>((r) => { finishSave.current = r; });
           setSaved(JSON.stringify({ segmentId, input, existing, clearedEventId }));
           setStored((s) => ({ ...s, [segmentId]: { ...input, segmentId, byUid: "harness", createdAtMs: 2, clearedEventId } }));
         }}
         paperRead={paperRead}
-        prefill={prefillSegment ? { segmentId: prefillSegment, note: "Swept the creek bank twice, no trace.", seq: 1 } : null}
+        prefill={prefill}
       />)}
+      <button type="button" onClick={() => setPrefill((p) => ({ segmentId: prefillSegment ?? "AB", note: "Combed the bank, no sign.", seq: (p?.seq ?? 0) + 1 }))}>
+        Send a search report
+      </button>
+      <button type="button" onClick={() => setStored((s) => ({ ...s, AB: initial["AB"]! }))}>
+        Team debrief arrives
+      </button>
+      <button type="button" onClick={() => finishSave.current?.()}>
+        Save finishes
+      </button>
       <pre data-testid="saved">{saved}</pre>
       <pre data-testid="read-jpeg">{jpeg}</pre>
       <pre data-testid="read-count">{reads}</pre>

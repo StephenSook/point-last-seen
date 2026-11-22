@@ -48,17 +48,38 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead, pre
 
   const workedBox = useRef<HTMLTextAreaElement>(null);
   const focusWorked = useRef(false);
+  const editingNow = useRef(editing);
+  editingNow.current = editing;
+  // How many search reports this row has taken, and whether its form opened before the stored debrief had loaded.
+  const reportsTaken = useRef(0);
+  const openedEmpty = useRef(false);
 
-  // A search report from the sighting form: open the form as Add or Edit would, add the note after what What worked
-  // already says, and put the cursor there so command sees it and fills in the rest.
+  // A search report from the sighting form: open the form as Add or Edit would (or keep the one already open, with its
+  // edits), add the note after what What worked already says, and put the cursor there so command fills in the rest.
   useEffect(() => {
     if (!prefill) return;
-    open();
-    setPaper(false);
+    if (!editingNow.current) {
+      open();
+      setPaper(false);
+    }
     setWorked((w) => (w ? `${w} ${prefill.note}` : prefill.note));
+    reportsTaken.current++;
     focusWorked.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill?.seq]);
+
+  // The stored debrief arrived after the form opened empty (a team's own, say): fill what the form left empty and put
+  // its What worked first, so a save keeps the team's words instead of clearing them.
+  useEffect(() => {
+    if (!editing || !debrief || !openedEmpty.current) return;
+    openedEmpty.current = false;
+    setMinutes((v) => (v.trim() ? v : String(debrief.tookMinutes)));
+    setWorked((v) => (debrief.worked ? (v ? `${debrief.worked} ${v}` : debrief.worked) : v));
+    setDidNotWork((v) => (v.trim() ? v : debrief.didNotWork ?? ""));
+    setCoverage((v) => (v.trim() ? v : debrief.coverageStatedPct !== undefined ? String(debrief.coverageStatedPct) : ""));
+    setClues((v) => (v.trim() ? v : debrief.clues ?? ""));
+    setHazards((v) => (v.trim() ? v : debrief.hazards ?? ""));
+  }, [debrief, editing]);
   useEffect(() => {
     if (!focusWorked.current || !workedBox.current) return;
     focusWorked.current = false;
@@ -74,6 +95,7 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead, pre
     setClues(debrief?.clues ?? "");
     setHazards(debrief?.hazards ?? "");
     setError(null);
+    openedEmpty.current = debrief === undefined;
     setEditing(true);
   }
 
@@ -85,9 +107,13 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead, pre
     }
     setSaving(true);
     setError(null);
+    // What this save writes is now the stored debrief: it is not merged back in when it arrives.
+    openedEmpty.current = false;
+    const taken = reportsTaken.current;
     try {
       await onSave(segmentId, parsed.value, debrief !== undefined, debrief?.clearedEventId ?? cleared?.eventId ?? null);
-      setEditing(false);
+      // A search report that came in during the save stays on screen, unsaved, instead of closing with the form.
+      if (reportsTaken.current === taken) setEditing(false);
     } catch {
       setError("The debrief was not saved. Try again.");
     } finally {
