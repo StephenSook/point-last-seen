@@ -98,8 +98,8 @@ export const OUTSIDE_TEAMS_ROWS = "a reason uses a number from outside its own t
 export const EARLIER_AS_CURRENT = "a reason gives an earlier POA as the current one";
 export const CURRENT_AS_EARLIER = "a reason gives the current POA as an earlier one";
 export const WRONG_DIRECTION = "a reason says a POA moved in a direction none of its team's segments did";
-// A minus sign belongs to its number, so "-31.0" is never read as the plan's "31.0".
-const NUMBER = /-?\d+(?:\.\d+)?/g;
+// A minus sign or dash belongs to its number, so "-31.0" or "\u221231.0" is never read as the plan's "31.0".
+const NUMBER = /[-\u2010-\u2015\u2212\ufe58\ufe63\uff0d]?\d+(?:\.\d+)?/g;
 const numbersIn = (t: string) => t.match(NUMBER) ?? [];
 const escapeRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -123,15 +123,21 @@ function teamRows(draft: PlanDraft, teamId: string): { ids: string[]; now: Set<s
 
 const EARLIER_CUES = new Set(["was", "were", "from", "prior", "previously", "before", "earlier", "had"]);
 const CURRENT_CUES = new Set(["now", "currently", "current", "is", "at", "to"]);
-const RISE_WORDS = new Set(["rose", "rise", "rises", "rising", "risen", "up", "increased", "increase", "increases", "increasing", "higher", "grew", "grows", "growing", "climbed", "climbs", "gained", "gains", "jumped"]);
-const FALL_WORDS = new Set(["fell", "fall", "falls", "falling", "fallen", "dropped", "drop", "drops", "dropping", "down", "decreased", "decrease", "decreases", "decreasing", "lower", "lowered", "declined", "declines", "shrank", "lost", "slipped"]);
-const wordsIn = (t: string) => t.toLowerCase().match(/[a-z]+/g) ?? [];
+// Words that say a POA moved. "higher" and "lower" are left out: they usually compare two segments, not one over time.
+const RISE_WORDS = new Set(["rose", "rise", "rises", "rising", "risen", "up", "increased", "increase", "increases", "increasing", "grew", "grow", "grows", "growing", "climbed", "climb", "climbs", "gained", "gain", "gains", "jumped", "jump", "soared", "surged", "spiked"]);
+const FALL_WORDS = new Set(["fell", "fall", "falls", "falling", "fallen", "dropped", "drop", "drops", "dropping", "down", "decreased", "decrease", "decreases", "decreasing", "lowered", "declined", "decline", "declines", "shrank", "shrunk", "lost", "slipped", "slid", "dipped", "dip", "dips", "sank", "sunk", "eased", "plunged", "plummeted", "tumbled"]);
+const NEGATIONS = new Set(["not", "no", "never", "nor", "without", "cannot"]);
+const wordsIn = (t: string) => t.toLowerCase().replace(/\u2019/g, "'").match(/[a-z]+(?:'[a-z]+)?/g) ?? [];
+// A clause ends at one of these; a cue in an earlier clause says nothing about the next figure.
+const CLAUSE_END = /[.!?;:,\n]/;
 
-/** Whether the up to three words since the last number mark the next one as earlier or current; an earlier cue wins. */
-function cueBefore(words: string): "earlier" | "current" | null {
-  const last = wordsIn(words).slice(-3);
-  if (last.some((w) => EARLIER_CUES.has(w))) return "earlier";
-  if (last.some((w) => CURRENT_CUES.has(w))) return "current";
+/** Whether the words of the clause since the last number mark the next one as earlier or current; an earlier cue wins. */
+function cueBefore(since: string): "earlier" | "current" | null {
+  let start = since.length;
+  while (start > 0 && !CLAUSE_END.test(since[start - 1]!)) start--;
+  const words = wordsIn(since.slice(start));
+  if (words.some((w) => EARLIER_CUES.has(w))) return "earlier";
+  if (words.some((w) => CURRENT_CUES.has(w))) return "current";
   return null;
 }
 
@@ -139,12 +145,16 @@ function cueBefore(words: string): "earlier" | "current" | null {
  * A reason sits beside that team's task, so each number in it must be one of the team's own figures, in its own role:
  * a value that is only a "was" figure needs an earlier cue ("was", "from") just before it, and a value that is only a
  * current figure must not have one; a value that is both may appear either way. The team's own id and segment ids
- * are read past, so "T1" never supplies a 1. A word saying a POA rose or fell needs one of the team's segments that did.
+ * are read past (in any case), so "T1" never supplies a 1; an id with no letter is not, so it can never hide a figure.
+ * A word saying a POA rose or fell needs one of the team's segments that did, and a negated one ("did not rise") is
+ * always refused.
  */
 function reasonNumbersFail(draft: PlanDraft, teamId: string, reason: string): string | null {
   const { ids, now, was, rose, fell } = teamRows(draft, teamId);
   // Same length, so the cue windows keep their places.
-  const scan = ids.reduce((t, id) => t.replace(new RegExp(`\\b${escapeRe(id)}\\b`, "g"), (x) => " ".repeat(x.length)), reason);
+  const scan = ids
+    .filter((id) => /\p{L}/u.test(id))
+    .reduce((t, id) => t.replace(new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(id)}(?![\\p{L}\\p{N}])`, "giu"), (x) => " ".repeat(x.length)), reason);
   let since = 0;
   for (const m of scan.matchAll(NUMBER)) {
     const n = m[0];
@@ -155,7 +165,12 @@ function reasonNumbersFail(draft: PlanDraft, teamId: string, reason: string): st
     if (!was.has(n) && cue === "earlier") return CURRENT_AS_EARLIER;
   }
   const words = wordsIn(reason);
-  if ((words.some((w) => RISE_WORDS.has(w)) && !rose) || (words.some((w) => FALL_WORDS.has(w)) && !fell)) return WRONG_DIRECTION;
+  for (const [i, w] of words.entries()) {
+    const rise = RISE_WORDS.has(w);
+    if (!rise && !FALL_WORDS.has(w)) continue;
+    const negated = words.slice(Math.max(0, i - 2), i).some((v) => NEGATIONS.has(v) || v.endsWith("n't"));
+    if (negated || (rise ? !rose : !fell)) return WRONG_DIRECTION;
+  }
   return null;
 }
 

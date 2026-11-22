@@ -333,6 +333,26 @@ describe("a reason's numbers belong to that team's own rows", () => {
   it("refuses a minus sign the plan never gave", () => {
     expect(checkWording(draft, withReason("POA now -31.0%."))).toEqual({ ok: false, reason: NUMBER_NOT_IN_PLAN });
   });
+  it("reads a cue only within its own clause, but all of it", () => {
+    expect(checkWording(draft, withReason("POA was high. Now 31.0%."))).toEqual({ ok: true });
+    expect(checkWording(draft, withReason("POA was estimated at about 31.0%."))).toEqual({ ok: false, reason: CURRENT_AS_EARLIER });
+  });
+  it("refuses a Unicode minus or dash before a figure", () => {
+    expect(checkWording(draft, withReason("POA now \u221231.0%."))).toEqual({ ok: false, reason: NUMBER_NOT_IN_PLAN });
+  });
+  it("refuses a negated or other direction word that does not match, and reads a comparison as no direction", () => {
+    expect(checkWording(draft, withReason("POA dipped from 20.0% to 31.0%."))).toEqual({ ok: false, reason: WRONG_DIRECTION });
+    expect(checkWording(draft, withReason("AC's POA did not rise."))).toEqual({ ok: false, reason: WRONG_DIRECTION });
+    const t2 = (reason: string) => ({ assignments: [{ teamId: "T1", taskText: "x", reason: "Highest." }, { teamId: "T2", taskText: "x", reason }], summary: "s" });
+    expect(checkWording(draft, t2("At 22.0%, AB has a higher POA than the unassigned segment."))).toEqual({ ok: true });
+  });
+  it("reads the team's own id past in any case and beside brackets, and a digits-only id never hides a figure", () => {
+    expect(checkWording(draft, withReason("Team t1 gets AC at 31.0%."))).toEqual({ ok: true });
+    expect(checkWording(draft, withReason("(T1) gets AC at 31.0%."))).toEqual({ ok: true });
+    const numeric: PlanDraft = { ...draft, assignments: [{ teamId: "1", segmentIds: ["AC"] }, { teamId: "2", segmentIds: ["AB"] }] };
+    const w = { assignments: [{ teamId: "1", taskText: "x", reason: "POA now 1%." }, { teamId: "2", taskText: "x", reason: "Second." }], summary: "s" };
+    expect(checkWording(numeric, w)).toEqual({ ok: false, reason: OUTSIDE_TEAMS_ROWS });
+  });
   it("accepts a team's own figures in their own roles", () => {
     expect(checkWording(draft, withReason("POA now 31.0%, up from 20.0%."))).toEqual({ ok: true });
     expect(checkWording(draft, withReason("Rose to 31.0% from 20.0%."))).toEqual({ ok: true });
