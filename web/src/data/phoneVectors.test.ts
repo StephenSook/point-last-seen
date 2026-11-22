@@ -80,4 +80,13 @@ describe("shared phone-number cases on the web scrubber", () => {
       expect(removePhoneNumbers(c.input)).toBe(c.output);
     });
   }
+
+  // Scrubbing twice equals scrubbing once: a note is scrubbed when it is read and again when it is saved, and a
+  // second pass must never take anything more (README, section phone-numbers.json, "Scrubbing twice").
+  for (const x of all.filter((y) => runs(y.c))) {
+    it(`twice is once: ${x.c.name}`, () => {
+      const once = removePhoneNumbers(x.c.input);
+      expect(removePhoneNumbers(once)).toBe(once);
+    });
+  }
 });

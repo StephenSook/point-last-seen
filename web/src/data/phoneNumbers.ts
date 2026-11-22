@@ -88,13 +88,26 @@ const TIME_CUES = new Set([...PHONE_CUES, "text", "reach"]);
 // How many words before a run of times are read for a cue.
 const CUE_WINDOW = 3;
 
+// A "[number removed]" at the end of the text before a run, or at the start of the text after it, with no letter or
+// digit between.
+const MARKER_BEFORE = /\[number removed\][^\p{L}\p{N}]*$/u;
+const MARKER_AFTER = /^[^\p{L}\p{N}]*\[number removed\]/u;
+
+/** Whether part p is a word of a "[number removed]" already in s, which stands for digits that were removed. */
+function inMarker(s: string, p: Part): boolean {
+  const at = s.lastIndexOf("[", p.start);
+  return at >= 0 && s.startsWith(REPLACEMENT, at) && p.end <= at + REPLACEMENT.length;
+}
+
 /** Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it, or a "#". */
 function cuedRun(s: string, parts: Part[], first: number): boolean {
   // A part carrying digits (written, spoken, or a counted double or triple) is read past and is not one of the three
-  // words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued.
+  // words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued. So are the words of a "[number removed]"
+  // already in the note, which stands for removed digits: its "number" is never a cue, and a note scrubbed again reads
+  // the same words before the run as it did the first time (Witness [number removed] at 14:03 14:10 stays).
   let j = first - 1;
   for (let words = 0; j >= 0 && words < CUE_WINDOW; j--) {
-    if (parts[j]!.digits > 0) continue;
+    if (parts[j]!.digits > 0 || inMarker(s, parts[j]!)) continue;
     if (TIME_CUES.has(word(s, parts[j]!))) return true;
     words++;
   }
@@ -123,6 +136,14 @@ export function removePhoneNumbers(text: string): string {
     if (first === undefined || last === undefined) continue;
     const joined = (first > 0 && joins(folded, parts[first - 1]!, parts[first]!))
       || (last + 1 < parts.length && joins(folded, parts[last]!, parts[last + 1]!));
+    // A "[number removed]" right before or after a run with nothing joined to it, with no letter or digit between,
+    // stands for digits joined to the run, so the run goes, whatever else is beside it (Dial [number removed] 4:04 5:55
+    // 12:12). A run with digits joined to it is left to the shared rule below, as it was before this check.
+    if (!joined && (MARKER_BEFORE.test(folded.substring(from, m.index)) || MARKER_AFTER.test(folded.substring(m.index + m[0].length)))) {
+      out += removeByRule(folded.substring(from, m.index)) + REPLACEMENT;
+      from = m.index + m[0].length;
+      continue;
+    }
     // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which changes
     // how the shared rule groups the digits around it, so such a run stays with the text around it.
     const month = (i: number) => i >= 0 && i < parts.length && !parts[i]!.written && MONTHS.has(word(folded, parts[i]!));

@@ -983,6 +983,13 @@
     {
       "name": "call_came_from_a_place",
       "input": "Call came from 33.7866, -84.3733"
+    },
+    {
+      "name": "marker_then_times",
+      "input": "Witness [number removed] at 14:03 14:10",
+      "pendingOn": [
+        "ios"
+      ]
     }
   ],
   "exact": [
@@ -1070,6 +1077,11 @@
         "web",
         "android"
       ]
+    },
+    {
+      "name": "marker_beside_times",
+      "input": "Dial [number removed] 4:04 5:55 12:12",
+      "output": "Dial [number removed] [number removed]"
     }
   ]
 }

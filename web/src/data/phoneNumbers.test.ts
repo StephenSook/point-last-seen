@@ -232,3 +232,21 @@ describe("removePhoneNumbers: a run made only of clock times", () => {
     gone("⁴:⁰⁴ ⁵:⁵⁵ ⁶:⁴²", ["04", "5:55", "6:42"]);
   });
 });
+
+describe("a [number removed] beside a run of times", () => {
+  it("takes a run that has nothing joined to it", () => {
+    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 12:12")).toBe("Dial [number removed] [number removed]");
+    expect(removePhoneNumbers("4:04 5:55 12:12 [number removed] tonight")).toBe("[number removed] [number removed] tonight");
+  });
+  it("leaves a run with digits joined to it to the shared rule, as before the marker rule", () => {
+    // The rule decides the joined group: no run of spoken digits or two-digit group is left beside the marker.
+    const spoken = removePhoneNumbers("Dial [number removed] 4:04 5:55 one two one two");
+    expect(spoken).not.toContain("one two one two");
+    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two 12:34 15:56 [number removed]")).not.toMatch(/\d\d/);
+    // A line break inside the joined group is kept, as the rule keeps it.
+    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two\n2 searchers canvassed Pine Street.")).toContain("\n");
+  });
+  it("keeps the times when a word stands between them and the marker", () => {
+    expect(removePhoneNumbers("Witness [number removed] at 14:03 14:10")).toBe("Witness [number removed] at 14:03 14:10");
+  });
+});
