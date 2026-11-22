@@ -2880,3 +2880,98 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - Known cost, accepted: a summary using "they" for grid squares falls back to the fixed wording, because "they" is refused to keep the person out.
 - Source: review.
 - Verified: new tests for each case failed first, then passed (70); replayed on the 19 recorded wordings, the same 4 are refused as before and none newly; typecheck passes.
+
+### feat(ai): plan reason facts and the sentences code writes for them
+- What: a new module, web/src/ai/reasonCodes.ts.
+  - It lists the facts that hold for each team's own segments: highest POA, in the top three, rose since the starting map, POA now, not searched yet, searched and still in the top three, raised by the newest report, near a trail, road, stream, water or building (the grid's classes within 71 m), and the ISRID distance band from the last-seen point.
+  - It writes each fact's sentence from a fixed template and the plan's own values. A reason never passes the 200 characters a plan doc allows: when two facts do not fit, only the first is shown.
+  - The summary is written from the same choices.
+  - PlanDraft gains an optional facts field. Nothing uses the module yet.
+- Source: plan wording review.
+- Verified: 13 new tests pass, and breaking any of four rules (top-three cut, the 200-character fit, searched-and-still-high, the ring edge) fails at least one; typecheck passes.
+
+### feat(ai): the model picks each team's reason codes and code writes every sentence
+- What: plan wording no longer asks a model for any text.
+  - The prompt lists each team's segments and the facts code found for them, with the segments each fact holds for.
+  - The model returns, per team, one or two codes from that team's own list (none for a team with no segment), in a closed schema whose codes are the known fact codes.
+  - checkChoice refuses a reply whose teams differ from the draft, or that picks no code, more than two, a repeated code, or a code outside the team's own facts; the plan then uses the fixed wording.
+  - Code renders each reason and the summary from the codes chosen, and the worded plan keeps the codes.
+  - The free-text checks (figures, directions, code meanings, the missing person) are removed with their tests, since no model text reaches the page.
+  - The measurement page checks a reply with checkChoice.
+- Source: plan wording review.
+- Verified: new tests for the prompt, the schema, the rendering and checkChoice failed first, then passed (45 with the fact tests); a reply carrying extra text renders only code's sentences; typecheck passes.
+
+### feat(command): the plan draft carries each segment's facts, and a suggestion follows them
+- What: the command post fills the draft's facts with web/src/command/draftFacts.ts. Each segment gets:
+  - its grid features;
+  - whether a team has searched it (cumulative POD above 0);
+  - whether the newest report raised it;
+  - its distance band from the last-seen point, from the ring model's radii for the incident's terrain column (flat when unset), and only when the map uses the ring model.
+  - A suggestion's key (draftKeyOf) now includes the facts, so a reason written from old facts is withdrawn when a search or a report changes them.
+- Source: plan wording review.
+- Verified: new draftFacts and draftKeyOf tests failed first (missing module), then passed (4); typecheck passes.
+
+### test(harness): the wording measurement page records reason codes and checks the sentences
+- What: the measurement page's made-up plan now has made-up facts for its segments. Each run records the codes the model chose, whether every reason shown is exactly code's sentence for those codes (each one of that team's own facts), and whether the summary is exactly code's summary for the same choices.
+- Source: plan wording review.
+- Verified: typecheck passes; the page is a dev-server page, measured in Chrome.
+
+### fix(ai): a plan reason never offers "top three" for the segment with the highest POA
+- What: teamFacts no longer lists top_three for the segment that holds highest_poa, so a team's two reasons cannot say one thing twice ("CC has the highest POA, 1.4%. CC is in the top three by POA."), as every measured run did.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: new and changed reasonCodes tests failed first, then passed; typecheck passes.
+
+### feat(ai): a team's facts are listed most specific first
+- What: FACT_CODES, and so each team's list in the prompt, now runs from the most specific fact to the most general: the newest report, not yet searched, searched and still high, the features, the distance band, then the ranking every segment has. In every measured run the model chose the first ranking facts listed; this order is what the next measurement compares against its reverse.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: a new reasonCodes test of the order failed first, then passed (51 with the plan wording tests); typecheck passes.
+
+### test(harness): the wording measurement page compares the facts' order with its reverse
+- What: the measurement page runs six wordings per page, alternating each team's facts in the command post's order (most specific first) and in reverse, and starts each page with the order the previous page did not (kept in browser storage). Each run records its order and the fact lists it sent, to show whether the model's choice follows the facts or their place in the list. The reversal is web/src/harness/reverseFacts.ts.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: new reverseFacts tests (it reverses each team's facts and nothing else, also on the command post's own prompt) failed first (missing module), then passed (2); typecheck passes.
+
+### feat(ai): the model picks each team's main reason; code adds one supporting fact by a fixed rule
+- What: the model now returns one code per team (its main reason), not one or two. supportingFact adds a second fact by a fixed priority: the newest report, search state, features, the distance band, then the ranking. It skips the main code and any fact that repeats it (POA now beside the highest POA or a rise).
+  - The worded plan records each team's main and supporting codes. The measurement page checks each reason against both.
+  - In the order test, the model's lead pick held whichever order its facts were listed in, but its second pick moved with the order. So the second fact is now code's fixed rule, not a model judgment.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: new supportingFact tests and the changed plan wording tests failed first, then passed (50); typecheck passes.
+
+### fix(command): the Plan section says what the model chooses and what code writes
+- What: the line shown before Suggest plan is now "Suggest plan asks this laptop's built-in model (Gemini in the cloud when it has none) to choose each team's main reason from that team's own facts. Code adds a second fact and writes every word. It sends only team ids, segment codes and fact codes, never a note or a name."
+  - "What ran" names a refused answer as one that named other teams or a fact that team does not have. The failure for a number not in the plan is gone, since no model text is used.
+  - The plan harness check and the deployed payload check (planPayload.spec.ts) follow. Every line Suggest plan sends must now be the heading, a team with its segments and known fact codes, or a team with no segment.
+  - The judge-door evidence test now pins that record to the commit it read (522d88d2), whose line has since changed.
+- Source: plan wording review.
+- Verified: plan harness spec 15/15; the payload line patterns accept every line of planPrompt for a plan with facts and a team with no segment, and refuse free text and figures; what-ran and judge-door tests pass; typecheck passes.
+
+### test(ai): the same plan state always gives the model the same input
+- What: a guard that planPrompt lists each team's facts in one fixed order (FACT_CODES), whatever order a segment's grid features are stored in, so the model's main pick is never moved by a reshuffled list.
+- Source: plan wording review.
+- Verified: the test passes, and fails when the facts keep their found order instead of FACT_CODES order.
+
+### fix(command): a segment a team reported clearing counts as searched in plan reasons
+- What: the engine credits a clear to one segment only (its first known one), and a sound-only clear to none. A clear naming AA and AB therefore left AB with no POD, so a reason could say "AB has not been searched yet" after a team reported searching it. draftFacts now marks a segment searched when its cumulative POD is above 0, or when a stored, unretracted clear names it or was credited to it (reportedSearched). A retraction counts from command or the clear's own author, as in the engine.
+- Source: review.
+- Verified: new draftFacts tests (a two-segment clear, an uncredited clear, an unnamed clear credited to a segment, retractions by command, by the author and by someone else) failed first, then passed (26 with the fact tests); typecheck passes.
+
+### fix(ai): a searched segment's reason says it is in the top three now, not still
+- What: "AD was searched and is still in the top three" could be false: a segment searched while fourth may enter the top three only after a later clue. The sentence is now "AD was searched and is in the top three now."
+- Source: review.
+- Verified: the changed reasonCodes test failed first, then passed; typecheck passes.
+
+### fix(ai): the distance-band reason names the segment's centre
+- What: the band is measured from the last-seen point to the segment's centre, and a 125 m cell can cross a band's edge (a centre 250 m away puts part of the cell 312 m away). "AA is within 0.3 km of the last-seen point" could be false for part of AA. The sentence is now "AA's centre is within 0.3 km of the last-seen point, in the ISRID first 25% distance band".
+- Source: review.
+- Verified: the changed reasonCodes tests failed first, then passed, including the 200-character fit; typecheck passes.
+
+### fix(command): the newest report is chosen by each phone's corrected clock
+- What: the report list orders reports by each phone's clock corrected by its measured offset, but lastReportChange picked "the newest report" by the phone's own time. A report sent at 10:00 from a phone one minute fast could outrank one sent at 10:00:20, so the change banner and a plan reason ("The newest report raised AA") could name the wrong report. lastReportChange now takes the incident's clock offsets per device and the command post passes them; a phone with no measured offset keeps its own time.
+- Source: review.
+- Verified: a new viewState test (a fast phone's earlier report against a later one) failed first, then passed (13), and with no offsets the order is unchanged; typecheck passes.
+
+### fix(command): the Plan line says code adds a second fact only when the team has one
+- What: supportingFact gives no second fact when a team has no other fact, so the line before Suggest plan now says "Code adds a second fact when the team has one and writes every word", matching LIMITS.
+- Source: review.
+- Verified: plan harness spec 15/15 with the new line; typecheck passes.

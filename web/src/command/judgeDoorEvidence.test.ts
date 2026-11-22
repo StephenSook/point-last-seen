@@ -29,11 +29,13 @@ describe("the judge door evidence of what leaves the device", () => {
     expect(ev.firestoreWrites).toBe(0);
   });
 
-  it("quotes the plan line exactly as the Plan section shows it", () => {
-    const src = readFileSync(new URL("./WhatChanged.tsx", import.meta.url), "utf8");
+  it("quotes the plan line exactly as the Plan section showed it at the commit it read", () => {
+    // The judge door was read at deployed commit 522d88d2, before plan reasons became fact codes; this is the line that
+    // commit showed. The Plan section has since changed it, so the record is of that commit only.
     const line = "Suggest plan words the draft on this laptop's built-in model, or with Gemini in the cloud when it has none. It sends only team ids, segment codes and percents, never a note or a name.";
-    expect(src).toContain(`"${line}"`);
+    expect((ev as unknown as { page: string }).page).toContain("522d88d20fd29b41d8a15427d082fe08144ffece");
     expect(ev.findings.some((f) => f.includes(line))).toBe(true);
+    expect(readFileSync(new URL("./WhatChanged.tsx", import.meta.url), "utf8")).not.toContain(`"${line}"`);
     expect(readFileSync(new URL(`../../../docs/evidence/web/${ev.screenshot}`, import.meta.url)).length).toBeGreaterThan(10_000);
   });
 });

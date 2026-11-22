@@ -75,6 +75,15 @@ describe("lastReportChange", () => {
     expect(lastReportChange(prior, [], [], DEFAULT_PARAMS)).toBeNull();
   });
 
+  it("picks the newest report by each phone's corrected clock, as the report list orders them", () => {
+    // Phone A runs one minute fast: its clue says 10:01:00 but was sent at 10:00:00. Phone B's clue at 10:00:20 is newer.
+    const fast = at(base, "clue-fast", 36_060_000, { type: "clue", deviceId: "phone-a", isTrainingInject: true, effect: { kind: "clue", influences: { AC: "strong_for" }, authenticity: "high" } });
+    const later = at(base, "clue-later", 36_020_000, { type: "clue", deviceId: "phone-b", isTrainingInject: true, effect: { kind: "clue", influences: { AB: "strong_for" }, authenticity: "high" } });
+    expect(lastReportChange(prior, [fast, later], [], DEFAULT_PARAMS, { "phone-a": -60_000 })!.causeEventId).toBe("clue-later");
+    // With no offsets known, each phone's own time is used, as before.
+    expect(lastReportChange(prior, [fast, later], [], DEFAULT_PARAMS)!.causeEventId).toBe("clue-fast");
+  });
+
   // A sighting command confirmed with a place is the new last known point: the prior was rebuilt from it.
   const sighting = at(base, "seen-1", 20_000, {
     type: "sighting", role: "command", observedAtMs: 20_000 - 10 * 60_000,

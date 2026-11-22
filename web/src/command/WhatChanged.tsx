@@ -26,9 +26,16 @@ const WHY: Record<NonNullable<WordedPlan["attempt"]>["failure"], string> = {
   error: "the model call failed",
   timeout: "the model took too long",
   unreadable: "its answer could not be read",
-  rejected: "its wording failed the checks",
-  number: "it used a number that is not in the plan",
+  rejected: "its answer named other teams or a fact that team does not have",
 };
+
+/**
+ * What a suggestion was worded for: the event set, the prior, the ranked probabilities, the assignments and the facts
+ * the reasons may cite. A suggestion is shown only while this is unchanged.
+ */
+export function draftKeyOf(draft: PlanDraft | null): string | null {
+  return draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.rank, draft.assignments, draft.facts ?? null]) : null;
+}
 
 /** "What ran" for a suggestion; a model that was asked but not used is described, then why fixed wording won. */
 export function whatRan(w: WordedPlan): string[] {
@@ -46,10 +53,10 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
   const [busy, setBusy] = useState<"suggest" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approved, setApproved] = useState<number | null>(null);
-  // A suggestion belongs to the draft it was worded for: the event set, the prior, the ranked
-  // probabilities the model reads and the assignments. If any of them changes (for example the plan
-  // history arrives, or another seat's rebuild reaches the segments first), it is withdrawn.
-  const draftKey = draft ? JSON.stringify([draft.eventSetHash, draft.priorVersion, draft.rank, draft.assignments]) : null;
+  // A suggestion belongs to the draft it was worded for (draftKeyOf). If any of it changes (for example the plan
+  // history arrives, another seat's rebuild reaches the segments first, or a search marks a segment searched), it is
+  // withdrawn.
+  const draftKey = draftKeyOf(draft);
   // A draft the plans rule cannot hold is said so here, before a suggestion is asked for.
   const limit = draft ? planLimitLine(draft) : null;
   const suggested = reply && reply.key === draftKey && !limit ? reply.worded : null;
@@ -104,7 +111,7 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
           <p className="small muted">
             {cloudPaused
               ? "Cloud reading is paused, so Suggest plan uses fixed wording and sends nothing."
-              : "Suggest plan words the draft on this laptop's built-in model, or with Gemini in the cloud when it has none. It sends only team ids, segment codes and percents, never a note or a name."}
+              : "Suggest plan asks this laptop's built-in model (Gemini in the cloud when it has none) to choose each team's main reason from that team's own facts. Code adds a second fact when the team has one and writes every word. It sends only team ids, segment codes and fact codes, never a note or a name."}
           </p>
           {limit && (
             <p className="error" role="status">

@@ -16,9 +16,9 @@ describe("whatRan", () => {
       "Not used: the model took too long. The plan uses fixed wording from code.",
     ]);
   });
-  it("says when the model's answer used a number that is not in the plan", () => {
-    const lines = whatRan({ wording, notice: null, promptBytes: 900, route: route({}), attempt: { failure: "number", route: route({ path: "cloud", sdkReported: true, model: "gemini-3.5-flash-lite", reason: "on_device_unavailable" }) } });
-    expect(lines.at(-1)).toBe("Not used: it used a number that is not in the plan. The plan uses fixed wording from code.");
+  it("says when the model's answer named other teams or a fact a team does not have", () => {
+    const lines = whatRan({ wording, notice: null, promptBytes: 900, route: route({}), attempt: { failure: "rejected", route: route({ path: "cloud", sdkReported: true, model: "gemini-3.5-flash-lite", reason: "on_device_unavailable" }) } });
+    expect(lines.at(-1)).toBe("Not used: its answer named other teams or a fact that team does not have. The plan uses fixed wording from code.");
   });
   it("says no model was asked when the cloud was paused", () => {
     expect(whatRan({ wording, notice: null, promptBytes: 900, route: route({}) })).toEqual(["No model was asked: fixed wording from code.", "Sent: no text or image."]);
