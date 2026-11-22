@@ -2621,3 +2621,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the post passes `standingClears` to the sighting form (a taken-back clear offers no debrief), no longer closes the sighting form on the handoff, and opening Details for the handoff no longer counts as reading it, so the new family-answer count stays. The deployed check now tries each debrief row until one stands cleared and cancels both forms.
 - Source: review (Codex, first round on the search-report guard).
 - Verified: typecheck, web unit suite (1234) and the harness suite (235) pass; the deployed check runs after the deploy.
+
+### fix(data): a debrief links only to a clear that stands
+- What: `clearedSegments` leaves out clears command took back, so a segment's debrief links to its latest standing clear and a segment whose every clear was taken back has none; `standingClears` is now its set of segment ids.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: a new unit test (the latest clear taken back links the earlier one; all taken back lists none) failed first, then passed (16).
