@@ -400,6 +400,26 @@ describe("segment codes are grid squares, never abbreviations", () => {
   it("refuses a summary that spells out a code by its initials", () => {
     expect(checkWording(draft, withReason("Highest.", "T1 covers Alpha Creek, T2 the next."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
   });
+  it("refuses a code defined in words", () => {
+    expect(checkWording(draft, withReason("AC stands for access corridor and has the highest POA."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+    expect(checkWording(draft, withReason("AC is short for the access corridor."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+  });
+  it("keeps a figure or a ranking in brackets beside a code", () => {
+    expect(checkWording(draft, withReason("AC (up from 20.0%) has the highest current POA."))).toEqual({ ok: true });
+    expect(checkWording(draft, withReason("AC (highest current POA) is the priority."))).toEqual({ ok: true });
+  });
+  it("checks a plan of 480 grid squares quickly", () => {
+    const ids = Array.from({ length: 480 }, (_, i) => String.fromCharCode(65 + Math.floor(i / 26) % 26) + String.fromCharCode(65 + (i % 26)) + (i >= 676 ? "X" : ""));
+    const big: PlanDraft = {
+      eventSetHash: "x", priorVersion: 1,
+      rank: ids.map((segmentId, i) => ({ segmentId, rank: i + 1, poa: 0.001, priorPoa: 0.001, deltaPoa: 0 })),
+      assignments: Array.from({ length: 12 }, (_, i) => ({ teamId: `T${i + 1}`, segmentIds: [ids[i]!] })),
+    };
+    const w = { assignments: big.assignments.map((a) => ({ teamId: a.teamId, taskText: "x", reason: `${a.segmentIds[0]} is a priority segment.` })), summary: "Teams cover the top-ranked segments." };
+    const t = performance.now();
+    expect(checkWording(big, w)).toEqual({ ok: true });
+    expect(performance.now() - t).toBeLessThan(100);
+  });
   it("keeps a code used as a code, and capitalized words that spell no code", () => {
     expect(checkWording(draft, withReason("AC is a high-priority segment."))).toEqual({ ok: true });
     expect(checkWording(draft, withReason("Team T1 searches AC first."))).toEqual({ ok: true });
@@ -423,6 +443,12 @@ describe("never where the person is, or that they will be found", () => {
   it("refuses a promise that the person will be found, in a reason or the summary", () => {
     expect(checkWording(draft, withReason("The child will be found here."))).toEqual({ ok: false, reason: PERSON_CLAIM });
     expect(checkWording(draft, withReason("Highest.", "The missing person must be near the creek."))).toEqual({ ok: false, reason: PERSON_CLAIM });
+  });
+  it("refuses the person placed somewhere with any verb, and an active promise to find them", () => {
+    expect(checkWording(draft, withReason("The missing person remains in AC."))).toEqual({ ok: false, reason: PERSON_CLAIM });
+    expect(checkWording(draft, withReason("She probably wandered toward the creek."))).toEqual({ ok: false, reason: PERSON_CLAIM });
+    expect(checkWording(draft, withReason("Team T1 will find the missing person in AC."))).toEqual({ ok: false, reason: PERSON_CLAIM });
+    expect(checkWording(draft, withReason("T1 has the best chance to find her."))).toEqual({ ok: false, reason: PERSON_CLAIM });
   });
   it("keeps a plain team reason, and a segment that is in a ranking", () => {
     expect(checkWording(draft, withReason("Highest POA now."))).toEqual({ ok: true });

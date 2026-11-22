@@ -2851,3 +2851,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the prompt already forbade it; checkWording now refuses it too, in any reason or the summary: an outcome promised ("will be found"), a place given as likely ("probably near the creek", "is located", "must be in"), or the missing person placed somewhere ("she is likely in AC"). The plan then falls back to the fixed wording. A segment in a ranking ("AC is in the top three") is not refused.
 - Source: review.
 - Verified: new checkWording tests (each claim refused in a reason and in the summary; a plain team reason and a ranking kept) failed first, then passed (57); replayed on the 19 recorded wordings, none is refused for this; typecheck passes.
+
+### fix(ai): plan wording checks: any verb placing the person, a promise to find them, a code defined in words
+- What: from review of the two checks above. The person check now refuses the missing person placed near any place word whatever the verb ("remains in AC", "wandered toward the creek"), and an active promise to find them ("Team T1 will find the missing person", "the best chance to find her"). The code check now refuses a code defined in words ("AC stands for access corridor", "short for") and no longer refuses brackets about a code's figures or rank ("AC (up from 20.0%)", "the highest POA (AC)"). Its patterns are built once per plan for all its codes, so a plan of 480 grid squares is checked in a few milliseconds, not 200.
+- Source: review.
+- Verified: new tests for each case (and for 480 grid squares under 100 ms) failed first, then passed (61); replayed on the 19 recorded wordings, the only refusals are a reason naming another team's segment and the 3 runs that spelled out a code; typecheck passes.

@@ -184,41 +184,56 @@ function reasonNumbersFail(draft: PlanDraft, teamId: string, reason: string): st
   return null;
 }
 
+/** The patterns that find a segment code given a meaning, built once per plan for all its codes. */
+type CodeCheck = { after: RegExp | null; before: RegExp | null; codes: Set<string> };
+function codeCheck(ids: readonly string[]): CodeCheck {
+  const alt = [...ids].sort((a, b) => b.length - a.length).map(escapeRe).join("|");
+  return {
+    after: alt ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${alt})(?![\\p{L}\\p{N}])\\s*\\(([^)]*)\\)`, "gu") : null,
+    before: alt ? new RegExp(`(\\p{L}+)\\s*\\(\\s*(?:${alt})\\s*\\)`, "gu") : null,
+    codes: new Set(ids),
+  };
+}
+// Words in brackets beside a code that are about its figures or rank, not a meaning: "AC (up from 20.0%)".
+const ABOUT_THE_FIGURES = /\d|%|\b(?:poa|highest|lowest|rank|ranked|top|up|down|from|was|now|current|priority)\b/i;
+const DEFINED = /\b(?:stands?\s+for|short\s+for|abbreviat\w*|acronym)\b/i;
+
 /**
  * Whether text gives a segment code a meaning: words in brackets right after a code (AC (the north field)), a code in
- * brackets right after words (Upper Meadow (AC)), or capitalized words in a row whose initials spell a code (Customer
- * Complaints for CC). Codes are map grid squares, so any such meaning is made up.
+ * brackets right after words (Upper Meadow (AC)), a definition ("AC stands for"), or capitalized words in a row whose
+ * initials spell a code (Customer Complaints for CC). Codes are map grid squares, so any such meaning is made up.
+ * Brackets about a code's figures or rank ("AC (up from 20.0%)", "the highest POA (AC)") are not a meaning.
  */
-function spellsOutCode(text: string, ids: readonly string[]): boolean {
-  for (const id of ids) {
-    const e = escapeRe(id);
-    if (new RegExp(`(?<![\\p{L}\\p{N}])${e}(?![\\p{L}\\p{N}])\\s*\\(\\s*\\p{L}`, "u").test(text)) return true;
-    if (new RegExp(`\\p{L}\\s*\\(\\s*${e}\\s*\\)`, "u").test(text)) return true;
-  }
-  const codes = new Set(ids);
+function spellsOutCode(text: string, c: CodeCheck): boolean {
+  if (DEFINED.test(text)) return true;
+  for (const m of c.after ? text.matchAll(c.after) : []) if (/\p{L}/u.test(m[1]!) && !ABOUT_THE_FIGURES.test(m[1]!)) return true;
+  for (const m of c.before ? text.matchAll(c.before) : []) if (!ABOUT_THE_FIGURES.test(m[1]!)) return true;
   for (const run of text.matchAll(/\p{Lu}\p{Ll}+(?:[\s-]+\p{Lu}\p{Ll}+)+/gu)) {
     const initials = run[0].split(/[\s-]+/).map((w) => w[0]!).join("");
     for (let i = 0; i < initials.length; i++) {
-      for (let n = 2; i + n <= initials.length; n++) if (codes.has(initials.slice(i, i + n))) return true;
+      for (let n = 2; i + n <= initials.length; n++) if (c.codes.has(initials.slice(i, i + n))) return true;
     }
   }
   return false;
 }
 
-// The missing person, as a model would name them.
+// The missing person, as a model would name them, and words that place someone.
 const PERSON = String.raw`(?:she|he|they|him|her|them|the (?:missing )?(?:person|subject|child|man|woman|boy|girl|walker))`;
-const PLACE = String.raw`(?:in|at|near|inside|around|by|hiding|there|here|located|found)`;
+const PLACE = String.raw`(?:in|at|near|inside|around|by|beside|along|into|on|toward|towards|hiding|there|here|located|found)`;
 /**
- * Claims about the missing person that no plan can make: an outcome promised ("will be found"), a place given as
- * likely ("probably near the creek", "is located", "must be in"), or the person placed somewhere ("she is likely in
- * AC"). The prompt forbids them; this refuses them, and a false refusal only falls back to the fixed wording.
+ * Claims about the missing person that no plan can make: an outcome promised ("will be found", "will find her"), a
+ * place given as likely ("probably near the creek", "is located", "must be in"), or the person placed somewhere with
+ * any verb ("she is likely in AC", "remains in AC", "wandered toward the creek"). The prompt forbids them; this
+ * refuses them, and a false refusal only falls back to the fixed wording.
  */
 const PERSON_CLAIMS = [
   /\b(?:will|would|should|is going to)\s+be\s+found\b/i,
+  /\b(?:will|would|should|shall|can|could|(?:is|are)\s+going\s+to|(?:is|are)\s+(?:likely|sure|certain)\s+to)\s+(?:\w+\s+)?find\b/i,
+  new RegExp(`\\bfind(?:s|ing)?\\s+${PERSON}\\b`, "i"),
   /\b(?:likely|probably|possibly|presumably|certainly)\s+(?:to\s+be\s+)?(?:in|at|near|inside|around|by|hiding)\b/i,
   /\bis\s+located\b/i,
   /\bmust\s+be\s+(?:in|at|near|inside|around|by|there|here)\b/i,
-  new RegExp(`\\b${PERSON}\\s+(?:is|are|was|were|has been|have been|could be|may be|might be|must be|should be|will be)\\s+(?:\\w+\\s+){0,2}?${PLACE}\\b`, "i"),
+  new RegExp(`\\b${PERSON}\\s+(?:\\w+\\s+){0,3}?${PLACE}\\b`, "i"),
 ];
 
 export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: true } | { ok: false; reason: string } {
@@ -236,7 +251,8 @@ export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: tru
   if (typeof wording.summary !== "string" || wording.summary.length > 300) return { ok: false, reason: "bad summary" };
   // A segment code is a map grid square: a reason or summary that says what it stands for has made that up.
   const texts = [...wording.assignments.map((a) => a.reason), wording.summary];
-  if (texts.some((t) => spellsOutCode(t, known))) return { ok: false, reason: SPELLS_OUT_A_CODE };
+  const codes = codeCheck(known);
+  if (texts.some((t) => spellsOutCode(t, codes))) return { ok: false, reason: SPELLS_OUT_A_CODE };
   // Never where the person is or that they will be found: shown beside a task, that would read as fact.
   if (texts.some((t) => PERSON_CLAIMS.some((re) => re.test(t)))) return { ok: false, reason: PERSON_CLAIM };
   // Every number the model writes must be one it was given: an invented figure would reach command as fact.
