@@ -74,7 +74,8 @@ describe("code writes each reason from the chosen facts", () => {
     expect(renderReason(draft, "T1", ["poa_rose"])).toBe("AC and CC rose since the starting map; AC from 20.0% to 31.0%.");
     expect(renderReason(draft, "T1", ["poa_now"])).toBe("POA now AC 31.0%, CC 10.0%.");
     expect(renderReason(draft, "T1", ["not_yet_searched"])).toBe("AC has not been searched yet.");
-    expect(renderReason(draft, "T1", ["searched_still_high"])).toBe("CC was searched and is still in the top three.");
+    // "now", not "still": a segment searched while outside the top three may have entered it only since.
+    expect(renderReason(draft, "T1", ["searched_still_high"])).toBe("CC was searched and is in the top three now.");
     expect(renderReason(draft, "T1", ["moved_by_last_report"])).toBe("The newest report raised AC.");
     expect(renderReason(draft, "T1", ["near_trail"])).toBe("AC and CC are near a trail.");
     expect(renderReason(draft, "T1", ["near_stream"])).toBe("AC is near a stream.");

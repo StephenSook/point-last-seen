@@ -120,7 +120,8 @@ function sentence(draft: PlanDraft, code: FactCode, ids: readonly string[]): str
     case "not_yet_searched":
       return `${who} ${one ? "has" : "have"} not been searched yet.`;
     case "searched_still_high":
-      return `${who} ${one ? "was" : "were"} searched and ${is} still in the top three.`;
+      // "now", not "still": the segment may have entered the top three only after it was searched.
+      return `${who} ${one ? "was" : "were"} searched and ${is} in the top three now.`;
     case "moved_by_last_report":
       return `The newest report raised ${who}.`;
     case "near_trail":
