@@ -73,6 +73,7 @@
   {"input":"May 5:55 01:42","output":"May 5:55 01:42"},
   {"input":"Text 5:55 07:14 May","output":"Text 5:55 07:14 May"},
   {"input":"Call May 5:55 01:42","output":"Call May 5:55 01:42"},
+  {"input":"Her son is at 404-555-0142, call him at 404-555-0142 tonight.","output":"Her son is at [number removed], call him at [number removed] tonight."},
   {"input":"14:03","output":"14:03"},
   {"input":"The possible times are 14:03, 14:10, 14:17.","output":"The possible times are 14:03, 14:10, 14:17."},
   {"input":"segment 12","output":"segment 12"},

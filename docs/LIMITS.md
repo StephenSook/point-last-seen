@@ -202,8 +202,8 @@ each line says what the limit is and why.
 - A pair of decimals that starts with "+" is removed on every platform, since a phone number can be written that
   way ("Call +44.2071, -23.4567"); so a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too.
   Without the "+" a pair stays.
-- Of the 121 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 116, the iPhone
-  116 and the web 116. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). Five are
+- Of the 122 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 117, the iPhone
+  117 and the web 117. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). Five are
   pending on every platform, a known gap: a colon breaks a digit run, so a number written as two times beside a month
   name ("Call 5:55 01:42 May", "Seen 14 May 5:55 01:42") survives; issue #298 tracks closing it
   (`scripts/test_phone_vectors.py` checks these counts against the file).
