@@ -210,7 +210,7 @@ export function runCarriesRoutes(events: readonly ReplayEvent[]): boolean {
 function routeWords(route: RouteRecord): string {
   if (route.path === "cloud") return "Read in the cloud";
   // The browser's own model runs only on a computer; the phone apps read on the phone.
-  if (route.path === "on_device") return route.platform === "web" ? "Read on the command post's device" : "Read on the phone";
+  if (route.path === "on_device") return route.platform === "web" ? "Read at the command post" : "Read on the phone";
   return route.path === "rules" ? "Rules, no model" : "Route not reported";
 }
 

@@ -3102,3 +3102,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the consent box said "1 phone number removed." or "N phone numbers removed.". The count came from the marks the scrub left, which need not match the numbers typed (a number split across lines leaves two, two numbers joined by a comma leave one), so it now says "Phone numbers removed." with no number, only when something was removed. A mark already in the note, typed plainly or in full-width brackets that the scrub folds to plain ones, no longer reads as a removal.
 - Source: review of the consent preview.
 - Verified: the unit tests (including a full-width mark) and the harness and live checks were changed first; the unit tests failed, then passed (24); sighting harness 28/28; typecheck passes. The harness's "no hint" check now matches the exact line, so it cannot pass on a case difference.
+
+### fix(extras): the replay says a browser read was "Read at the command post"
+- What: the replay's route for a read on the browser's own model said "Read on the command post's device". It now says "Read at the command post", shorter and clear beside "Read on the phone".
+- Source: review of the device wording.
+- Verified: the replay unit test and extras check were changed first; the unit test failed, then passed (55); extras replay 18/18.
