@@ -1,8 +1,8 @@
 import { deployedOnly, expect, joinCommand, test, withDebugToken } from "./fixtures";
 
-// A team's search report typed into the sighting form is caught at Save, and can go to its cleared segment's
-// debrief instead. Writes nothing: the debrief form opens with the note in it and is cancelled, and so is the sighting.
-test("a search report typed as a sighting goes to its cleared segment's debrief, with nothing saved", async ({ page }) => {
+// A team's search report typed into the sighting form is caught at Save, and can open its cleared segment's debrief.
+// Writes nothing: the debrief form opens and is cancelled, and so is the sighting.
+test("a search report typed as a sighting opens its cleared segment's debrief, with nothing saved", async ({ page }) => {
   deployedOnly();
   await withDebugToken(page);
   await joinCommand(page);
@@ -21,19 +21,19 @@ test("a search report typed as a sighting goes to its cleared segment's debrief,
   let id: string | undefined;
   for (const candidate of ids) {
     await place.selectOption(candidate);
-    if (await form.getByRole("button", { name: `Add it to segment ${candidate}'s debrief` }).isVisible()) {
+    if (await form.getByRole("button", { name: `Open segment ${candidate}'s debrief` }).isVisible()) {
       id = candidate;
       break;
     }
   }
   expect(id, "a segment of the drill that stands cleared").toBeDefined();
-  await form.getByRole("button", { name: `Add it to segment ${id}'s debrief` }).click();
-  // The sighting draft stays open beside the debrief, so nothing is lost if the debrief is never saved.
-  await expect(form.getByRole("status").filter({ hasText: `The note is in segment ${id}'s debrief, not saved yet.` })).toBeVisible();
+  await form.getByRole("button", { name: `Open segment ${id}'s debrief` }).click();
+  // The sighting draft stays as it is beside the debrief.
+  await expect(form.getByRole("status").filter({ hasText: `Segment ${id}'s debrief is open below.` })).toBeVisible();
+  await expect(form.getByLabel(/^Note/)).toHaveValue("Searched the segment, no sign.");
   await expect(page.getByTestId("rail-details")).toHaveAttribute("open", "");
   const row = page.getByTestId(`debrief-${id}`);
   const worked = row.getByLabel("What worked (optional)");
-  await expect(worked).toHaveValue(/Searched the segment, no sign\.$/);
   await expect(worked).toBeFocused();
   await row.getByRole("button", { name: "Cancel" }).click();
   await expect(worked).toHaveCount(0);

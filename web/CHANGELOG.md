@@ -2677,3 +2677,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a debrief save for the handoff's segment tells the sighting form it was saved; and the Details rail ignores toggles of details inside it (a photo's What ran, say), which reached its handler and marked the family's answers read.
 - Source: review (Codex, second round on the search-report guard).
 - Verified: typecheck, web unit suite (1235) and the harness suite (240) pass.
+
+### refactor(command): a search report opens its segment's debrief instead of filling it
+- What: the sighting form's debrief button is now "Open segment XX's debrief": it opens Details at that segment's debrief and puts the cursor in What worked, as Add or Edit would, unless that form or the paper sheet is already open. The sighting form keeps its draft and says "Segment XX's debrief is open below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway." No note is carried into the debrief, so the prefill, the late merge, the waiting queue and the "saved" status are gone; the debrief row is back to main's apart from the open request. The rule, its vectors, the Save-time warning, "Save as a sighting anyway", standing clears and the nested-toggle guard stay.
+- Source: review (Codex, third round on the search-report guard: one high and five mediums, all in the auto-fill; replaced by design rather than patched).
+- Verified: three new debrief harness tests (opens as Add with the cursor in What worked and saves nothing; keeps an open form's edits; leaves an open paper sheet alone) and the rewritten sighting handoff test pass; the two that need the request failed first. Web unit suite (1240), typecheck, harness suite (237) and every gate pass.

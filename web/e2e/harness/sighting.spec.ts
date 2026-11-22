@@ -267,24 +267,24 @@ test("a note that reads as a search report asks before it is saved as a sighting
   const warn = page.getByRole("alert").filter({ hasText: "This reads as a search report, not a sighting." });
   await expect(warn).toBeVisible();
   await expect(page.getByTestId("saved")).toHaveText("");
-  // AB is not cleared in this harness, so there is no debrief to add it to.
+  // AB is not cleared in this harness, so there is no debrief to open.
   await expect(page.getByRole("button", { name: /debrief/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Save as a sighting anyway" }).click();
   await expect(page.getByTestId("saved-note")).toHaveText("Segment 4 searched, subject not seen.");
 });
 
-test("a search report placed in a cleared segment can go to that segment's debrief instead, and nothing is saved", async ({ page }) => {
+test("a search report placed in a cleared segment can open that segment's debrief, and the sighting draft stays as it is", async ({ page }) => {
   await page.goto("/harness/sighting.html?cleared=AB");
   await page.getByRole("combobox", { name: /^Place\b/ }).selectOption("AB");
   await page.getByRole("textbox", { name: "Note" }).fill("No sign of him along the fence.");
   await page.getByRole("button", { name: "Save sighting" }).click();
-  await page.getByRole("button", { name: "Add it to segment AB's debrief" }).click();
-  await expect(page.getByTestId("debrief")).toHaveText('AB: No sign of him along the fence.');
+  await page.getByRole("button", { name: "Open segment AB's debrief" }).click();
+  await expect(page.getByTestId("debrief")).toHaveText("AB");
   await expect(page.getByTestId("saved")).toHaveText("");
-  // The sighting draft stays, with its note, until command cancels it or saves it anyway: nothing is lost if the
-  // debrief is never saved.
-  await expect(page.getByRole("status").filter({ hasText: "The note is in segment AB's debrief, not saved yet. Save it there and cancel this sighting, or save it as a sighting anyway." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Segment AB's debrief is open below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway." })).toBeVisible();
+  // The sighting draft keeps its note, and it can still be saved as a sighting or open the debrief again.
   await expect(page.getByRole("textbox", { name: "Note" })).toHaveValue("No sign of him along the fence.");
+  await expect(page.getByRole("button", { name: "Open segment AB's debrief" })).toBeVisible();
   await page.getByRole("button", { name: "Save as a sighting anyway" }).click();
   await expect(page.getByTestId("saved-note")).toHaveText("No sign of him along the fence.");
 });
@@ -310,16 +310,4 @@ test("a sighting saves on the first tap, and an edited note drops the search-rep
   await expect(page.getByText("This reads as a search report, not a sighting.")).toHaveCount(0);
   await page.getByRole("button", { name: "Save sighting" }).click();
   await expect(page.getByTestId("saved-note")).toHaveText("Swept the creek bank, saw a man in a red coat.");
-});
-
-test("once that segment's debrief is saved the sighting says so, and the note can be sent again", async ({ page }) => {
-  await page.goto("/harness/sighting.html?cleared=AB");
-  await page.getByRole("combobox", { name: /^Place\b/ }).selectOption("AB");
-  await page.getByRole("textbox", { name: "Note" }).fill("No sign of him along the fence.");
-  await page.getByRole("button", { name: "Save sighting" }).click();
-  await page.getByRole("button", { name: "Add it to segment AB's debrief" }).click();
-  await page.getByRole("button", { name: "Debrief saved" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Segment AB's debrief was saved. Cancel this sighting, or save it as a sighting too." })).toBeVisible();
-  await expect(page.getByText("not saved yet")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Add it to segment AB's debrief" })).toBeVisible();
 });

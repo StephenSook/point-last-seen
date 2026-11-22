@@ -295,12 +295,10 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const latestSeen = useRef<number | null | undefined>(undefined);
   const nextSeq = useRef(makeSeq()).current;
   const [adding, setAdding] = useState(false);
-  // A search report the sighting form sent to a cleared segment's debrief, and the Details rail that holds it.
-  const [debriefPrefill, setDebriefPrefill] = useState<{ segmentId: string; note: string; seq: number } | null>(null);
+  // The debrief the sighting form asked to open (a search report typed as a sighting), and the Details rail it is in.
+  const [debriefOpen, setDebriefOpen] = useState<{ segmentId: string; seq: number } | null>(null);
   const railDetails = useRef<HTMLDetailsElement>(null);
   const openedForReport = useRef(false);
-  // The segment whose debrief command saved since the last handoff, so the sighting form can say so.
-  const [debriefSavedTo, setDebriefSavedTo] = useState<string | null>(null);
   const [clipping, setClipping] = useState(false);
   // A view setting for this screen only: every plate of 0.1% or more on the map, not only the ones that fit.
   const [everyPercent, setEveryPercent] = useState(false);
@@ -969,12 +967,10 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               readNoteInCloud={readNoteInCloud}
               cloudPaused={rc.killCloud}
               debriefable={standingClears(events)}
-              debriefSavedTo={debriefSavedTo}
-              onDebrief={(segmentId, note) => {
+              onOpenDebrief={(segmentId) => {
                 // The sighting form stays open with its draft; Details opens on the debrief. Opening it this way does
                 // not count as reading what Details holds, so its new-answer counts stay.
-                setDebriefPrefill((p) => ({ segmentId, note, seq: (p?.seq ?? 0) + 1 }));
-                setDebriefSavedTo(null);
+                setDebriefOpen((p) => ({ segmentId, seq: (p?.seq ?? 0) + 1 }));
                 const d = railDetails.current;
                 if (d && !d.open) {
                   openedForReport.current = true;
@@ -1121,12 +1117,11 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               cleared={clearedSegments(events)}
               debriefs={debriefs}
               teams={teams}
-              onSave={async (segmentId, input, existing, clearedEventId) => {
-                await saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId);
-                if (segmentId === debriefPrefill?.segmentId) setDebriefSavedTo(segmentId);
-              }}
+              onSave={(segmentId, input, existing, clearedEventId) =>
+                saveDebrief(pls.db, incidentId, segmentId, input, existing, pls.auth.currentUser?.uid ?? "", clearedEventId)
+              }
               paperRead={readSheetHere}
-              prefill={debriefPrefill}
+              openRequest={debriefOpen}
             />
             <MergeLanes lanes={lanes} />
             <MembersPanel rows={people} stale={membersStale} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />

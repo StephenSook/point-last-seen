@@ -34,12 +34,10 @@ type Props = {
   onClose: () => void;
   /** Command has paused cloud reading (Remote Config kill_cloud): the form offers no cloud read and says why. */
   cloudPaused?: boolean;
-  /** Segments that can take a debrief (cleared ones): a search report placed in one can go to its debrief instead. */
+  /** Segments that stand cleared: a search report placed in one can open that segment's debrief. */
   debriefable?: ReadonlySet<string>;
-  /** Opens that segment's debrief with the note in it; nothing is saved until command saves the debrief. */
-  onDebrief?: (segmentId: string, note: string) => void;
-  /** The segment whose debrief command saved since the last handoff, as the post reports it. */
-  debriefSavedTo?: string | null;
+  /** Opens that segment's debrief form below; the sighting form stays as it is, and nothing is carried or saved. */
+  onOpenDebrief?: (segmentId: string) => void;
 };
 
 const CLOUD_PAUSED = "Cloud reading is paused by command.";
@@ -49,7 +47,7 @@ function localInput(ms: number): string {
   return d.toISOString().slice(0, 16);
 }
 
-export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, readNote, readNoteInCloud, onClose, cloudPaused = false, debriefable, onDebrief, debriefSavedTo = null }: Props) {
+export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, readNote, readNoteInCloud, onClose, cloudPaused = false, debriefable, onOpenDebrief }: Props) {
   const [when, setWhen] = useState(() => localInput(Date.now()));
   const [direction, setDirection] = useState<Direction>("unknown");
   const [topColor, setTop] = useState<ClothingColor>("unknown");
@@ -77,9 +75,9 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   // The note a team's search report was typed as ("Segment 4 searched, subject not seen"): Save asked once whether it
   // is a sighting. It only warns, in English only: a second tap saves it as typed, and an edit asks again.
   const [reportAsked, setReportAsked] = useState<string | null>(null);
-  // The segment whose debrief form now holds this note. The sighting draft stays open meanwhile, so nothing is lost if
-  // the debrief is never saved; command cancels it or saves it anyway.
-  const [debriefedTo, setDebriefedTo] = useState<string | null>(null);
+  // The segment whose debrief this form opened below. The sighting draft stays as it is: command copies what belongs
+  // in the debrief, then cancels this sighting or saves it anyway.
+  const [debriefOpened, setDebriefOpened] = useState<string | null>(null);
 
   // The words of the note the read took its answer from (checked against the note by the read itself).
   const [quote, setQuote] = useState("");
@@ -107,7 +105,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   function changeNote(text: string) {
     setNote(text);
     setReportAsked(null);
-    setDebriefedTo(null);
+    setDebriefOpened(null);
     if (readState === "none") return;
     setReadState("none");
     setRan(null);
@@ -340,26 +338,21 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       {reportAsked !== null && reportAsked === note && (
         <div className="note-state" role="alert">
           <p>{SEARCH_REPORT_LINE}</p>
-          {debriefedTo && (
-            <p role="status">
-              {debriefSavedTo === debriefedTo
-                ? `Segment ${debriefedTo}'s debrief was saved. Cancel this sighting, or save it as a sighting too.`
-                : `The note is in segment ${debriefedTo}'s debrief, not saved yet. Save it there and cancel this sighting, or save it as a sighting anyway.`}
-            </p>
+          {debriefOpened && (
+            <p role="status">{`Segment ${debriefOpened}'s debrief is open below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway.`}</p>
           )}
           <div className="row">
-            {/* Offered again after a handoff (the debrief may have been cancelled); the debrief adds a note only once. */}
-            {placeSegmentId && onDebrief && debriefable?.has(placeSegmentId) && (
+            {placeSegmentId && onOpenDebrief && debriefable?.has(placeSegmentId) && (
               <button
                 type="button"
                 className="btn ghost"
                 onClick={() => {
-                  setDebriefedTo(placeSegmentId);
-                  onDebrief(placeSegmentId, note);
+                  setDebriefOpened(placeSegmentId);
+                  onOpenDebrief(placeSegmentId);
                 }}
                 disabled={saving}
               >
-                Add it to segment {placeSegmentId}'s debrief
+                Open segment {placeSegmentId}'s debrief
               </button>
             )}
             <button type="button" className="btn ghost" onClick={() => saveSighting(true)} disabled={saving}>

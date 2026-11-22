@@ -101,96 +101,31 @@ test("a phone number typed in a note is replaced in what is stored and in the ro
   await expect(row).not.toContainText("0142");
 });
 
-test("a search report sent from the sighting form opens that segment's debrief with the note under What worked, unsaved", async ({ page }) => {
-  await page.goto("/harness/debrief.html?prefill=AA");
+test("opening a segment's debrief from the sighting form opens its form as Add would, with the cursor in What worked, and saves nothing", async ({ page }) => {
+  await page.goto("/harness/debrief.html?open=AA");
   const row = page.getByTestId("debrief-AA");
-  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Swept the creek bank twice, no trace.");
   await expect(row.getByLabel("What worked (optional)")).toBeFocused();
+  await expect(row.getByLabel("What worked (optional)")).toHaveValue("");
   await expect(page.getByTestId("saved")).toHaveText("");
-  await row.getByLabel("Time it took (minutes)").fill("40");
-  await row.getByRole("button", { name: "Save debrief" }).click();
-  await expect(page.getByTestId("saved")).toContainText('"worked":"Swept the creek bank twice, no trace."');
 });
 
-test("a search report sent to a segment that already has a debrief is added after what it already says", async ({ page }) => {
-  await page.goto("/harness/debrief.html?prefill=AB");
-  await expect(page.getByTestId("debrief-AB").getByLabel("What worked (optional)")).toHaveValue("Line search along the creek Swept the creek bank twice, no trace.");
-  await expect(page.getByTestId("debrief-AB").getByLabel("Time it took (minutes)")).toHaveValue("30");
-});
-
-test("a search report sent to a debrief already being edited keeps the edits, and a second one is added after the first", async ({ page }) => {
-  await page.goto("/harness/debrief.html");
+test("opening a debrief already being edited keeps the edits, and opening one with a stored debrief shows its words", async ({ page }) => {
+  await page.goto("/harness/debrief.html?open=AB");
   const row = page.getByTestId("debrief-AB");
-  await row.getByRole("button", { name: "Edit debrief" }).click();
+  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Line search along the creek");
   await row.getByLabel("Time it took (minutes)").fill("45");
-  await row.getByLabel("Hazards: what and where (optional)").fill("Fast water and a loose rock");
-  await page.getByRole("button", { name: "Send a search report" }).click();
-  await page.getByRole("button", { name: "Send a search report" }).click();
+  await page.getByRole("button", { name: "Ask to open" }).click();
+  await expect(row.getByLabel("What worked (optional)")).toBeFocused();
   await expect(row.getByLabel("Time it took (minutes)")).toHaveValue("45");
-  await expect(row.getByLabel("Hazards: what and where (optional)")).toHaveValue("Fast water and a loose rock");
-  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Line search along the creek Combed the bank, no sign. Swept the trail, no trace.");
 });
 
-test("a team debrief that arrives after a search report opened the form fills what the form left empty", async ({ page }) => {
-  await page.goto("/harness/debrief.html?late=1&prefill=AB");
-  const row = page.getByTestId("debrief-AB");
-  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Swept the creek bank twice, no trace.");
-  await page.getByRole("button", { name: "Team debrief arrives" }).click();
-  await expect(row.getByLabel("Time it took (minutes)")).toHaveValue("30");
-  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Line search along the creek Swept the creek bank twice, no trace.");
-  await expect(row.getByLabel("Hazards: what and where (optional)")).toHaveValue("Fast water at the ford");
-  await expect(row.getByLabel("Clues: what and where (optional)")).toHaveValue("Wrapper by the footbridge");
-});
-
-test("a search report that arrives while a debrief is saving keeps the form open with the new note", async ({ page }) => {
-  await page.goto("/harness/debrief.html?save=slow");
-  const row = page.getByTestId("debrief-AB");
-  await row.getByRole("button", { name: "Edit debrief" }).click();
-  await row.getByRole("button", { name: "Save debrief" }).click();
-  await page.getByRole("button", { name: "Send a search report" }).click();
-  await page.getByRole("button", { name: "Save finishes" }).click();
-  await expect(page.getByTestId("saved")).toContainText('"segmentId":"AB"');
-  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Line search along the creek Combed the bank, no sign.");
-});
-
-test("the same search report sent twice is added once", async ({ page }) => {
-  await page.goto("/harness/debrief.html?prefill=AA");
-  await page.getByRole("button", { name: "Send the same report again" }).click();
-  // A different report after it, so the box shows the result of both sends.
-  await page.getByRole("button", { name: "Send a search report" }).click();
-  await expect(page.getByTestId("debrief-AA").getByLabel("What worked (optional)")).toHaveValue("Swept the creek bank twice, no trace. Combed the bank, no sign.");
-});
-
-test("a save that fails before the stored debrief loaded still merges it when it arrives, so a retry keeps the team's words", async ({ page }) => {
-  await page.goto("/harness/debrief.html?late=1&prefill=AB&save=fail");
-  const row = page.getByTestId("debrief-AB");
-  await row.getByLabel("Time it took (minutes)").fill("40");
-  await row.getByRole("button", { name: "Save debrief" }).click();
-  await expect(row.getByRole("alert")).toHaveText("The debrief was not saved. Try again.");
-  await page.getByRole("button", { name: "Team debrief arrives" }).click();
-  await expect(row.getByLabel("Time it took (minutes)")).toHaveValue("40");
-  await expect(row.getByLabel("Hazards: what and where (optional)")).toHaveValue("Fast water at the ford");
-  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Line search along the creek Swept the creek bank twice, no trace.");
-});
-
-test("a field command emptied on purpose is not refilled when the stored debrief arrives", async ({ page }) => {
-  await page.goto("/harness/debrief.html?late=1&prefill=AB");
-  const row = page.getByTestId("debrief-AB");
-  const hazards = row.getByLabel("Hazards: what and where (optional)");
-  await hazards.fill("Ice");
-  await hazards.fill("");
-  await page.getByRole("button", { name: "Team debrief arrives" }).click();
-  await expect(row.getByLabel("Clues: what and where (optional)")).toHaveValue("Wrapper by the footbridge");
-  await expect(hazards).toHaveValue("");
-});
-
-test("a search report sent while the paper sheet is open waits, and opens in the debrief form when the sheet closes", async ({ page }) => {
-  await page.goto("/harness/debrief.html?paper=sample&target=AA");
+test("opening a debrief while its paper sheet is open leaves the sheet as it is", async ({ page }) => {
+  await page.goto("/harness/debrief.html?paper=sample");
   const row = page.getByTestId("debrief-AA");
   await row.getByRole("button", { name: "Read the paper sheet" }).click();
-  await page.getByRole("button", { name: "Send a search report" }).click();
-  await expect(row.getByText("A search report waits for this debrief: Combed the bank, no sign.")).toBeVisible();
+  const cancel = row.getByRole("button", { name: "Cancel" });
+  await expect(cancel).toBeVisible();
+  await page.getByRole("button", { name: "Ask to open" }).click();
+  await expect(cancel).toBeVisible();
   await expect(row.getByLabel("What worked (optional)")).toHaveCount(0);
-  await row.getByRole("button", { name: "Cancel" }).click();
-  await expect(row.getByLabel("What worked (optional)")).toHaveValue("Combed the bank, no sign.");
 });
