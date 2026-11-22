@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a report of an account that left never blocks the next one's Leave
+- What: Leave waits for this phone's unsettled reports, but a report written by an account that has since left can
+  never settle: its write queue went with the account. Such a report (one refused after its search ended, say) is
+  now left out, so it no longer blocks the next account's Leave, and with it deleting that account's sign-in.
+- Source: third review of the ended-search change.
+- Verified: a test where one account leaves an ended search with a refused report and the next account then joins
+  and leaves failed before the change and passes after; the full app suite passes.
+
 ### fix(ios): a refusal from before the search ended keeps its own line
 - What: in an ended search's read-only list, "Not taken: the search had ended." now shows only for a report refused
   after the phone learned the search ended. A report already refused before that (a team move, say, whose refusal

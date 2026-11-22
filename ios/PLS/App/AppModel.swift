@@ -584,9 +584,11 @@ final class AppModel {
         // Practice reports never go anywhere, so none is waiting to settle.
         guard practice == nil else { return false }
         let ended = endedSearch?.incidentId
+        let user = uid()
         return store?.entries.contains { entry in
-            // An ended search's reports can never settle (the server refuses them), so they never block Leave.
-            if entry.doc.incidentId == ended { return false }
+            // An ended search's reports can never settle (the server refuses them), so they never block Leave, and
+            // neither do an account's that left: its write queue went with it.
+            if entry.doc.incidentId == ended || entry.doc.authorUid != user { return false }
             return switch entry.state {
             case .pending, .checking: true
             case let .rejected(reason): Outbox.isRetryable(reason: reason)

@@ -709,6 +709,35 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(!m.refusalShowsTheEnd(before) && m.refusalShowsTheEnd(after))
     }
 
+    /// A report of an account that left can never settle (its write queue went with the account), so it never blocks
+    /// the next account's Leave.
+    @Test func aLeftAccountsReportsNeverBlockTheNextLeave() async throws {
+        final class User: @unchecked Sendable { var uid: String? = "uid-1" }
+        let user = User()
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = AppModel(signIn: SignIn(isSignedIn: { user.uid != nil }, attempt: { true }, signOut: { user.uid = nil }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                         uid: { user.uid }, joinBackend: FakeJoinBackend(), missionReader: reader, pushTopics: FakePushTopics(),
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "left-\(UUID().uuidString)")!)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("left-acct-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let server = FakeEventServer()
+        server.writeErrors = [NSError(domain: "FIRFirestoreErrorDomain", code: 7)]
+        server.readBacks = [.absent]
+        let store = try EventStore(server: server, outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        for _ in 0..<1000 where store.entries.first?.state != .rejected(reason: "permission-denied") { await Task.yield() }
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "training_ended"))
+        #expect(await m.leaveSearch())
+        user.uid = "uid-2"
+        await m.trySignIn()
+        #expect(m.mission != nil)
+        #expect(await m.leaveSearch())
+    }
+
     /// A drop silences the voice, and the next membership starts fresh: after T1 is dropped and
     /// given back, T1's assignment is spoken again.
     @Test func aDropStopsTheVoiceAndTheNextMembershipSpeaksAgain() async throws {
