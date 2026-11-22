@@ -36,7 +36,7 @@ test("a consented cloud note read sends exactly the note the receipt counts, and
   // Before the tap, the consent shows the exact note the read will send, and how many numbers were removed.
   const shown = page.getByTestId("consent-note");
   await expect(shown).toHaveText(SENT_NOTE);
-  await expect(page.getByText("1 phone number removed.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Phone numbers removed.", { exact: true })).toBeVisible();
   const shownText = await shown.textContent();
   await page.getByRole("button", { name: "I consent for this note" }).click();
   const form = page.locator(".sighting-form");

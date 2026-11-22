@@ -125,14 +125,14 @@ export async function readSightingText(text: string, deps: SightingTextDeps): Pr
 
 /**
  * What the consent shows before a cloud read: the exact note the read sends (phone numbers removed, as
- * readSightingTextInCloud sends it) and how many numbers were removed now, counted as the "[number removed]" marks it
- * added, so the count matches what the person sees. A mark already in the note is not counted.
+ * readSightingTextInCloud sends it) and, when the scrub removed something, "Phone numbers removed." with no count: the
+ * marks a scrub leaves need not match the numbers typed. A mark already in the note (after the scrub's own folding) is
+ * not a removal.
  */
-export function consentPreview(note: string): { text: string; removed: number; removedLine: string | null } {
+export function consentPreview(note: string): { text: string; removedLine: string | null } {
   const text = removePhoneNumbers(note);
   const marks = (t: string) => t.split(REPLACEMENT).length - 1;
-  const removed = Math.max(0, marks(text) - marks(note));
-  return { text, removed, removedLine: removed === 0 ? null : removed === 1 ? "1 phone number removed." : `${removed} phone numbers removed.` };
+  return { text, removedLine: marks(text) > marks(note.normalize("NFKC")) ? "Phone numbers removed." : null };
 }
 export type CloudConsent = { byUid: string; atMs: number };
 export type CloudSightingDeps = { generateCloud: (text: string) => Promise<Reply>; killCloud: boolean };

@@ -182,19 +182,21 @@ describe("the note read's time limit", () => {
 });
 
 describe("what the consent shows: the exact note a cloud read sends", () => {
-  it("is the note with phone numbers removed, the same text the cloud read sends, with a count of what was removed", async () => {
+  it("is the note with phone numbers removed, the same text the cloud read sends, and says numbers were removed", async () => {
     const { consentPreview } = await import("./sightingText");
     const typed = "A caller saw a man by the creek, call 404 555 0142 if found.";
-    expect(consentPreview(typed)).toEqual({ text: "A caller saw a man by the creek, call [number removed] if found.", removed: 1, removedLine: "1 phone number removed." });
+    expect(consentPreview(typed)).toEqual({ text: "A caller saw a man by the creek, call [number removed] if found.", removedLine: "Phone numbers removed." });
     let sent = "";
     await readSightingTextInCloud(typed, { byUid: "u", atMs: 1 }, { killCloud: false, generateCloud: async (t) => ((sent = t), { text: "{}", inferenceSource: "in_cloud" }) });
     expect(sent).toBe(consentPreview(typed).text);
   });
-  it("counts each number removed, and says nothing when none was", async () => {
+  it("says numbers were removed with no count, and says nothing when none was", async () => {
     const { consentPreview } = await import("./sightingText");
-    expect(consentPreview("Call 404 555 0142 or 770 555 0199.").removedLine).toBe("2 phone numbers removed.");
-    expect(consentPreview("Red jacket by the gate.")).toEqual({ text: "Red jacket by the gate.", removed: 0, removedLine: null });
-    // A marker already in the note was not removed now.
-    expect(consentPreview("Call [number removed] again.").removed).toBe(0);
+    // No count: the marks a scrub leaves need not match the numbers typed (a number split across lines, two joined by a comma).
+    expect(consentPreview("Call 404 555 0142 or 770 555 0199.").removedLine).toBe("Phone numbers removed.");
+    expect(consentPreview("Red jacket by the gate.")).toEqual({ text: "Red jacket by the gate.", removedLine: null });
+    // A marker already in the note was not removed now, typed plainly or in full-width brackets the scrub folds.
+    expect(consentPreview("Call [number removed] again.").removedLine).toBeNull();
+    expect(consentPreview("Caller wrote \uFF3Bnumber removed\uFF3D by the gate.").removedLine).toBeNull();
   });
 });
