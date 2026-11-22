@@ -60,9 +60,49 @@ export function effectSegments(segments: readonly GridSegmentDoc[]): Record<stri
   );
 }
 
-/** Every segment by id with its centre: the keyboard way to place a sighting (the same point a map click there gives). */
+/**
+ * A point inside the segment: its centroid when that lies inside, else the middle of the widest stretch of the
+ * segment along one of 15 lines of latitude across it. An irregular segment's centroid can fall outside it (EN and EQ
+ * in the Kennesaw grid), and a sighting placed there would be stored outside the segment it was placed in.
+ */
+function insidePoint(s: MapSegment): LatLon {
+  const c = { lat: s.centroid.lat, lon: s.centroid.lon };
+  const polys = s.geometry.type === "Polygon" ? [s.geometry.coordinates] : s.geometry.coordinates;
+  if (polys.some((rings) => inPolygon(c, rings))) return c;
+  let best: { p: LatLon; width: number } | null = null;
+  for (const rings of polys) {
+    const lats = (rings[0] ?? []).map((pt) => pt[1] as number);
+    if (lats.length === 0) continue;
+    const lo = Math.min(...lats);
+    const hi = Math.max(...lats);
+    for (let k = 1; k < 16; k++) {
+      const lat = lo + ((hi - lo) * k) / 16;
+      // Where this line crosses every ring (holes too), in order: each pair bounds a stretch inside the segment.
+      const xs: number[] = [];
+      for (const ring of rings) {
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+          const [xi, yi] = ring[i] as [number, number];
+          const [xj, yj] = ring[j] as [number, number];
+          if (yi > lat !== yj > lat) xs.push(xi + ((lat - yi) * (xj - xi)) / (yj - yi));
+        }
+      }
+      xs.sort((a, b) => a - b);
+      for (let i = 0; i + 1 < xs.length; i += 2) {
+        const width = xs[i + 1]! - xs[i]!;
+        const p = { lat, lon: (xs[i]! + xs[i + 1]!) / 2 };
+        if (width > (best?.width ?? 0) && inPolygon(p, rings)) best = { p, width };
+      }
+    }
+  }
+  return best?.p ?? c;
+}
+
+/**
+ * Every segment by id with a point inside it: the keyboard way to place a sighting. The point is the segment's centre
+ * when that lies inside it, so it is where a map click on the label lands.
+ */
 export function segmentChoices(segments: readonly MapSegment[]): { segmentId: string; centre: LatLon }[] {
-  return [...segments].sort((a, b) => a.segmentId.localeCompare(b.segmentId)).map((s) => ({ segmentId: s.segmentId, centre: { lat: s.centroid.lat, lon: s.centroid.lon } }));
+  return [...segments].sort((a, b) => a.segmentId.localeCompare(b.segmentId)).map((s) => ({ segmentId: s.segmentId, centre: insidePoint(s) }));
 }
 
 /** Great-circle distance in metres. */

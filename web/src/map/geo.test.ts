@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { bearingDeg, beatDistances, effectSegments, type GridSegmentDoc, segmentChoices, segmentContaining } from "./geo";
 
@@ -51,7 +52,7 @@ describe("effectSegments", () => {
 describe("segmentChoices", () => {
   const seg = (segmentId: string, lat: number, lon: number) => ({
     segmentId,
-    geometry: { type: "Polygon" as const, coordinates: [[[lon - 0.001, lat - 0.001], [lon + 0.001, lat - 0.001], [lon + 0.001, lat + 0.001], [lon - 0.001, lat - 0.001]]] },
+    geometry: { type: "Polygon" as const, coordinates: [[[lon - 0.001, lat - 0.001], [lon + 0.001, lat - 0.001], [lon + 0.001, lat + 0.001], [lon - 0.001, lat + 0.001], [lon - 0.001, lat - 0.001]]] },
     centroid: { lat, lon },
   });
 
@@ -61,6 +62,27 @@ describe("segmentChoices", () => {
       { segmentId: "AB", centre: { lat: 1, lon: 2 } },
       { segmentId: "AC", centre: { lat: 1, lon: 3 } },
     ]);
+  });
+
+  it("places a segment whose centroid lies outside it (a U shape) at a point inside it", () => {
+    // A U open to the north: its centroid sits in the notch, outside the segment.
+    const u = {
+      segmentId: "AU",
+      geometry: { type: "Polygon" as const, coordinates: [[[0, 0], [3, 0], [3, 3], [2, 3], [2, 1], [1, 1], [1, 3], [0, 3], [0, 0]]] },
+      centroid: { lat: 1.36, lon: 1.5 },
+    };
+    expect(segmentContaining(u.centroid, [u])).toBeNull();
+    const [c] = segmentChoices([u]);
+    expect(segmentContaining(c!.centre, [u])).toBe("AU");
+  });
+
+  it("places every segment of both shipped grids inside itself, so a sighting placed from the list lands in it", () => {
+    for (const name of ["kennesaw-mountain-drill", "piedmont-park-dev"]) {
+      const grid = JSON.parse(readFileSync(new URL(`../../../shared/grid/${name}.grid.json`, import.meta.url), "utf8")) as { segments: GridSegmentDoc[] };
+      const outside = segmentChoices(grid.segments).filter((c) => segmentContaining(c.centre, grid.segments) !== c.segmentId).map((c) => c.segmentId);
+      expect(outside, name).toEqual([]);
+      expect(grid.segments.length, name).toBeGreaterThan(50);
+    }
   });
 });
 

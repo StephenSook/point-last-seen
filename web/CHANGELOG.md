@@ -2587,3 +2587,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the panel is its own component (`NoAccessPanel`). A drill offers "Reopen this drill" (a reload, for a sign-in that is back) and "Join another search" (the join form), so an expired drill whose token still names it no longer reopens into the same denial. A practice search points to the judge's page. When the search's mode has not loaded and only its id suggests a practice search, all three are offered.
 - Source: review (Codex, third round on the sign-in line).
 - Verified: three new render tests (drill, practice, mode guessed from the id) failed first, then passed; web unit suite and typecheck pass.
+
+### fix(map): a sighting placed from the Place list lands inside its segment
+- What: `segmentChoices` gives each segment a point inside it: its centroid when that lies inside, else the middle of the widest stretch of the segment along one of 15 lines of latitude. Five shipped segments had a centroid outside themselves (Kennesaw EN and EQ, Piedmont AJ, AQ and AY), so a sighting placed there from the list was stored outside the segment and the form said "Outside the search area".
+- Source: review (Codex, while reviewing the search-report guard).
+- Verified: two new unit tests (a U-shaped segment; every segment of both shipped grids is placed inside itself) failed first, then passed; the old test's triangle, whose centroid sat on its edge, is now the square it was meant to be. Web unit suite, typecheck and harness suite pass.
