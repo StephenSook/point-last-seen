@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(eval): the README reports the blind second labeller, 7 of 10 rows agreed
+- What: a "Second labeller" section: the builder labelled 10 rows (seed 20261122) without seeing the key and agreed
+  on 7 of 10 (Cohen's kappa 0.52); the differences are n7 and n13 (key unclear, builder cleared) and n19 (key
+  cleared, builder unclear). The builder's later view, after seeing the comparison, that the key was right on all
+  three is recorded but not counted; n3 and n11 were not fully blind; the key is unchanged. The one-labeller limit
+  now says 10 rows have a second, blind label.
+- Source: the eval's second-labeller check.
+- Verified: the counts and kappa recomputed from the committed CSV and the key (7 of 10, 0.524).
+
 ### docs(eval): the second labeller's blind labels for 10 key rows, unchanged
 - What: docs/evidence/eval/pls-drill-reports-v1-second-labeller.csv (row, report_text, second_label), the builder's
   labels for key rows 1, 2, 3, 7, 8, 11, 13, 15, 17 and 19 (picked with seed 20261122), given without seeing the key,
