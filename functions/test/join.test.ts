@@ -55,6 +55,13 @@ describe("joinIncident refuses an account whose sign-in was deleted", () => {
     expect(err?.details?.reason).toBe("account_deleted");
     expect((await admin.db.doc(`incidents/I1/members/${u.uid}`).get()).exists).toBe(false);
   });
+  it("says so before checking the code, so a deleted account learns nothing about a code", async () => {
+    const u = await admin.auth.createUser({});
+    await admin.auth.deleteUser(u.uid);
+    const err = await handleJoin(u.uid, { incidentId: "I1", joinCode: "ZZZZ2345", role: "searcher", teamId: "T1" })
+      .then(() => null, (e: unknown) => e as { code?: string; details?: { reason?: string } });
+    expect(err?.details?.reason).toBe("account_deleted");
+  });
 });
 
 describe("joinIncident (spec sections 7 and 14)", () => {

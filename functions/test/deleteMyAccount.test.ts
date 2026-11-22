@@ -3,6 +3,7 @@ import { getStorage } from "firebase-admin/storage";
 import { handleDeleteMyAccount } from "../src/account";
 import { handleDeleteMedia } from "../src/media";
 import { handleRemoveMember } from "../src/members";
+import { PURGES } from "../src/retention";
 import { doc, getDoc } from "firebase/firestore";
 import { admin, adminApp, assertFails, assertSucceeds, clearFirestore, closeClients, dbAs } from "./helpers";
 
@@ -141,6 +142,23 @@ describe("deleteMyAccount: the caller's member records go before its sign-in", (
     expect(Object.keys(rec.data() ?? {}).sort()).toEqual(["removedAt", "removedBy"]);
     expect(rec.get("removedBy")).toBe(uid);
     await assertFails(getDoc(doc(asOld, "incidents/I1")));
+  });
+  it("writes no refusal record under a drill whose purge has started, and still deletes the member record and user", async () => {
+    await admin.db.doc("incidents/I2").set({ name: "Purging", mode: "drill", status: "closed" });
+    const uid = await searcherIn("I2");
+    await admin.db.doc(`${PURGES}/I2`).set({ startedAt: new Date() });
+    expect(await handleDeleteMyAccount(admin.db, admin.auth, uid)).toEqual({ ok: true });
+    expect(await exists(`incidents/I2/members/${uid}`)).toBe(false);
+    expect(await exists(`incidents/I2/removed/${uid}`)).toBe(false);
+    expect(await userGone(uid)).toBe(true);
+  });
+  it("writes no refusal record under an incident whose document is gone (only children left)", async () => {
+    const uid = await searcherIn("I1");
+    await admin.db.doc(`incidents/I9/members/${uid}`).set({ role: "searcher", team: "T1", joinedAt: new Date() });
+    await handleDeleteMyAccount(admin.db, admin.auth, uid);
+    expect(await exists(`incidents/I9/members/${uid}`)).toBe(false);
+    expect(await exists(`incidents/I9/removed/${uid}`)).toBe(false);
+    expect(await exists(`incidents/I1/removed/${uid}`)).toBe(true);
   });
   it("deletes the record of an account whose id has a period (a custom or imported sign-in)", async () => {
     const u = await admin.auth.createUser({ uid: "searcher.legacy" });

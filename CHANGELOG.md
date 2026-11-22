@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Leave writes no refusal record under a drill being deleted: `deleteMyAccount` creates the removed/{uid} record only
+  where the incident document exists and its retention purge has not started, since a record under a drill being
+  purged would outlive it; the member record and the Auth user still go. `joinIncident` checks for a deleted account
+  right after its rate limit, before it looks at the code, so a deleted account learns nothing about one. Source:
+  review (a second-model review round). Verified: three new emulator tests failed first (the join one also on the
+  old check order, with a well-formed code), then passed (44 across the account and join files); the functions
+  typecheck and the full emulator suite (391) pass.
 - Limits: "Leave and delete this sign-in" deletes the member record in every search the account joined (one whose
   command removed it included), so it leaves People; a record holding only the time refuses the old sign-in at once;
   reports and command's removal record stay; past 1,000 searches the delete fails and changes nothing; the Android
