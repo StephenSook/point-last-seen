@@ -2915,3 +2915,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the measurement page's made-up plan now has made-up facts for its segments. Each run records the codes the model chose, whether every reason shown is exactly code's sentence for those codes (each one of that team's own facts), and whether the summary is exactly code's summary for the same choices.
 - Source: plan wording review.
 - Verified: typecheck passes; the page is a dev-server page, measured in Chrome.
+
+### fix(ai): a plan reason never offers "top three" for the segment with the highest POA
+- What: teamFacts no longer lists top_three for the segment that holds highest_poa, so a team's two reasons cannot say one thing twice ("CC has the highest POA, 1.4%. CC is in the top three by POA."), as every measured run did.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: new and changed reasonCodes tests failed first, then passed; typecheck passes.

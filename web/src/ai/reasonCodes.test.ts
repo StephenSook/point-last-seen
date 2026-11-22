@@ -30,12 +30,13 @@ const codesOf = (d: PlanDraft, teamId: string) => [...(teamFacts(d).get(teamId)?
 describe("each team's facts come from its own segments only", () => {
   it("without segment facts, a team has only the ranking's facts", () => {
     expect(codesOf(base, "T1")).toEqual(["highest_poa", "top_three", "poa_rose", "poa_now"]);
+    expect(teamFacts(base).get("T1")!.get("top_three")).toEqual(["CC"]);
     expect(codesOf(base, "T2")).toEqual(["top_three", "poa_now"]);
   });
   it("with segment facts, adds features, searched or not, the newest report and the distance band", () => {
     const t1 = teamFacts(draft).get("T1")!;
     expect(Object.fromEntries(t1)).toEqual({
-      highest_poa: ["AC"], top_three: ["AC", "CC"], poa_rose: ["AC", "CC"], poa_now: ["AC", "CC"],
+      highest_poa: ["AC"], top_three: ["CC"], poa_rose: ["AC", "CC"], poa_now: ["AC", "CC"],
       not_yet_searched: ["AC"], searched_still_high: ["CC"], moved_by_last_report: ["AC"],
       near_trail: ["AC", "CC"], near_stream: ["AC"], in_ring: ["AC"],
     });
@@ -44,6 +45,11 @@ describe("each team's facts come from its own segments only", () => {
       top_three: ["AB"], poa_now: ["AB", "AD"], not_yet_searched: ["AD"], searched_still_high: ["AB"],
       near_road: ["AB"], near_water: ["AD"], near_building: ["AB"], in_ring: ["AB"],
     });
+  });
+  it("never offers the top three for the segment with the highest POA, which says it already", () => {
+    expect(teamFacts(draft).get("T1")!.get("top_three")).toEqual(["CC"]);
+    const onlyTop: PlanDraft = { ...base, assignments: [{ teamId: "T1", segmentIds: ["AC"] }] };
+    expect(codesOf(onlyTop, "T1")).not.toContain("top_three");
   });
   it("a team with no segment has no facts", () => {
     expect(teamFacts(draft).has("T3")).toBe(false);
@@ -58,7 +64,7 @@ describe("each team's facts come from its own segments only", () => {
 describe("code writes each reason from the chosen facts", () => {
   it("renders each fact from the plan's own values", () => {
     expect(renderReason(draft, "T1", ["highest_poa"])).toBe("AC has the highest POA, 31.0%.");
-    expect(renderReason(draft, "T1", ["top_three"])).toBe("AC and CC are in the top three by POA.");
+    expect(renderReason(draft, "T1", ["top_three"])).toBe("CC is in the top three by POA.");
     expect(renderReason(draft, "T1", ["poa_rose"])).toBe("AC and CC rose since the starting map; AC from 20.0% to 31.0%.");
     expect(renderReason(draft, "T1", ["poa_now"])).toBe("POA now AC 31.0%, CC 10.0%.");
     expect(renderReason(draft, "T1", ["not_yet_searched"])).toBe("AC has not been searched yet.");

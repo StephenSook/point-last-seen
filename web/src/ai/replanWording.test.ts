@@ -56,7 +56,7 @@ describe("planPrompt", () => {
     const withEmpty: PlanDraft = { ...draft, assignments: [...draft.assignments, { teamId: "T3", segmentIds: [] }] };
     expect(planPrompt(withEmpty).split("\n")).toEqual([
       "Teams, their segments, and the facts code found for those segments:",
-      "T1 searches AC. Facts: highest_poa (AC), top_three (AC), poa_rose (AC), poa_now (AC)",
+      "T1 searches AC. Facts: highest_poa (AC), poa_rose (AC), poa_now (AC)",
       "T2 searches AB. Facts: top_three (AB), poa_now (AB)",
       "T3 has no segment. Facts: none.",
     ]);

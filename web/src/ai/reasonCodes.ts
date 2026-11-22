@@ -54,8 +54,10 @@ export function teamFacts(draft: PlanDraft): Map<string, Map<FactCode, string[]>
     for (const id of a.segmentIds) {
       const r = byId.get(id);
       const f = draft.facts?.[id];
-      if (r && top && r.segmentId === top.segmentId) add("highest_poa", id);
-      if (r && r.rank <= TOP) add("top_three", id);
+      const highest = !!r && !!top && r.segmentId === top.segmentId;
+      if (highest) add("highest_poa", id);
+      // The highest is in the top three by definition, so saying both says one thing twice.
+      if (r && r.rank <= TOP && !highest) add("top_three", id);
       if (r && rose(r.poa, r.priorPoa)) add("poa_rose", id);
       if (r) add("poa_now", id);
       if (f && !f.searched) add("not_yet_searched", id);
