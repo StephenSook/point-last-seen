@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(eval): the blank answer-key sheet and the grid picture to label with
+- What: docs/evidence/eval/KEY-TEMPLATE.csv is the blank sheet for the eval's answer key: 20 empty rows under
+  report_text, expected_kind, segment_ids and place_feature, with the allowed kinds, segment ids (AA to AZ, BA to BZ,
+  CA to CO) and place features in its header. piedmont-park-dev-grid.png (and its .svg) draws the grid with every
+  segment id inside its segment and the feature classes the grid file gives (road, building or structure, stream,
+  water). Both are written by eval_key_kit.py; neither holds a report or an answer.
+- Source: so the key can be written without opening the app.
+- Verified: a kit test checks the sheet in the repo is exactly what the kit writes; a kit test checks every label sits
+  inside its segment; the picture was looked at.
+
 ### feat(ios): a kit that turns a person's filled sheet into the eval's answer key
 - What: ios/scripts/eval_key_kit.py writes the blank 20-row sheet for the report-reading eval's answer key, draws the
   piedmont-park-dev grid with its segment ids and feature classes, and turns a filled sheet into
