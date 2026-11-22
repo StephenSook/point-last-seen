@@ -7,6 +7,7 @@ import {
   planPrompt,
   NUMBER_NOT_IN_PLAN,
   OUTSIDE_TEAMS_ROWS,
+  SPELLS_OUT_A_CODE,
   WRONG_DIRECTION,
   EARLIER_AS_CURRENT,
   CURRENT_AS_EARLIER,
@@ -380,5 +381,32 @@ describe("a reason's numbers belong to that team's own rows", () => {
       expect(out.route).toMatchObject({ path: "rules", reason: "template_fallback" });
       expect(out.attempt).toMatchObject({ failure: "rejected", route: { path: "cloud" } });
     }
+  });
+});
+
+describe("segment codes are grid squares, never abbreviations", () => {
+  // T1 has AC and T2 has AB; AD is nobody's.
+  const withReason = (reason: string, summary = "Teams move to the two highest segments.") =>
+    ({ assignments: [{ teamId: "T1", taskText: "x", reason }, { teamId: "T2", taskText: "x", reason: "Second highest." }], summary });
+  it("refuses a reason whose capitalized words spell a segment code", () => {
+    expect(checkWording(draft, withReason("T1 focuses on Area Control."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+    expect(checkWording(draft, withReason("Searches the Access Corridor."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+  });
+  it("refuses a code with words in brackets after it, or before it in brackets", () => {
+    expect(checkWording(draft, withReason("AC (the north field) is first."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+    expect(checkWording(draft, withReason("Highest.", "T1 takes the Upper Meadow (AC) and T2 the next."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+  });
+  it("refuses a summary that spells out a code by its initials", () => {
+    expect(checkWording(draft, withReason("Highest.", "T1 covers Alpha Creek, T2 the next."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+  });
+  it("keeps a code used as a code, and capitalized words that spell no code", () => {
+    expect(checkWording(draft, withReason("AC is a high-priority segment."))).toEqual({ ok: true });
+    expect(checkWording(draft, withReason("Team T1 searches AC first."))).toEqual({ ok: true });
+    expect(checkWording(draft, withReason("Highest POA, Search Area first."))).toEqual({ ok: true });
+  });
+  it("tells the model that codes are map grid squares and not to guess at them", () => {
+    const sys = String(wordingParams("m").inCloudParams?.systemInstruction ?? "");
+    expect(sys).toContain("map grid squares");
+    expect(sys).toMatch(/never say what the letters stand for/);
   });
 });
