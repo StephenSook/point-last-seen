@@ -1,0 +1,32 @@
+# Answer key for the iPhone report-reading eval: pls-drill-reports-v1, on the piedmont-park-dev grid.
+# Write every answer yourself, before any model run. Do not run the app on these reports first.
+# One row per short drill report a searcher might give. Made-up drill content only: no real person, place or
+# health detail. The grid picture beside this sheet shows the segment ids and feature classes.
+# report_text: the words; put them in double quotes if they hold a comma.
+# expected_kind: one of cleared, sighting, clue, found, unclear.
+# segment_ids: 0 to 2 segment ids separated by a space (AA to AZ, BA to BZ, CA to CO); leave it empty when the
+#   report names no segment.
+# place_feature: one of creek_or_drainage, water, road, trail, structure, brush, woods, field, other, none.
+# Lines starting with # are ignored. When it is filled:
+#   python3 ios/scripts/eval_key_kit.py convert docs/evidence/eval/KEY-TEMPLATE.csv
+report_text,expected_kind,segment_ids,place_feature
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,
+,,,

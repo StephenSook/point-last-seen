@@ -6,14 +6,18 @@ cloud. No numbers are recorded here until the first run on the phone.
 
 ## The answer key
 
-- Written by one person (the builder) before any model run. Each row is a short drill report and the answers
-  that person expects: the kind (`cleared`, `sighting`, `clue`, `found` or `unclear`), up to two segment ids on
-  the drill grid (an empty list means no segment is expected) and the place feature (`creek_or_drainage`,
-  `water`, `road`, `trail`, `structure`, `brush`, `woods`, `field`, `other` or `none`).
+- Written by the builder's AI assistant (Claude Opus 5.5, a different model family from the model tested), at
+  the builder's request, before any model run. The writer had read the app's kind definitions and this README,
+  including the tuning notes on object reports, and ran no reader on these reports.
+- Each row is a short drill report and the answers the writer expects: the kind (`cleared`, `sighting`,
+  `clue`, `found` or `unclear`), up to two segment ids on the drill grid (an empty list means no segment is
+  expected) and the place feature (`creek_or_drainage`, `water`, `road`, `trail`, `structure`, `brush`, `woods`,
+  `field`, `other` or `none`).
 - Grid: `piedmont-park-dev` (segment ids AA to CO). Made-up drill content only: no real person, place or
   health detail.
-- Frozen in this folder as `pls-drill-reports-v1.json`, with its SHA-256 pinned in a test, so a run always
-  names the exact key it scored against. A key is never edited after a run; a changed key gets a new name.
+- Frozen in this folder as `pls-drill-reports-v1.json`, converted unedited from the sheet as written
+  (`pls-drill-reports-v1-key.csv`), with both SHA-256s pinned in tests, so a run always names the exact key it
+  scored against. A key is never edited after a run; a changed key gets a new name.
 - After Sunday's drill, its reports become a second, fresh set, labelled the same way by a person.
 
 ## The arms
@@ -30,7 +34,7 @@ app; the result records how many rows a model actually read.
 ## Scoring
 
 - A row is right when both the kind and the set of segment ids match the key. The feature is scored separately,
-  on the rows where the person gave one.
+  on the rows where the key gives one.
 - No reading (an invalid reply) and a refused read count as misses, and every miss is listed by row.
 - Each arm's rows right carry a 95% Wilson interval. The two arms are compared on the same rows with an exact
   two-sided McNemar test on the rows only one arm got right.
@@ -47,15 +51,15 @@ app; the result records how many rows a model actually read.
 
 ## Limits
 
-- One labeller: one person wrote the key, so it reflects one reader's judgement of each report. Results are
-  reported as from one labeller unless a second person labels 10 of the 20 rows blind and the two keys are
-  compared.
+- One labeller: the builder's AI assistant wrote the key, so it reflects one reader's judgement of each
+  report. Results are reported as from one labeller unless a second person labels 10 of the 20 rows blind and
+  the two keys are compared.
 - About 20 rows give wide intervals: a difference between the arms has to be large to show.
 - The reports are drill sentences, not words from a real search.
 
 ## Tuned before the key, and not shipped
 
-Before this key exists, the phone's read path was tuned on 10 other drill sentences in the simulator. Those
+Before this key was written, the phone's read path was tuned on 10 other drill sentences in the simulator. Those
 sentences are tuning data, not a held-out set, so they give no accuracy number. One problem was found there and
 not fixed:
 

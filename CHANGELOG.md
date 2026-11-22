@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- CI: the gates job's Python test list, and its mirror in scripts/ci-local.sh, run ios/scripts/test_eval_key_kit.py
+  (the eval answer-key kit's 13 tests). Source: the kit's new test file. Verified:
+  `scripts/test_ci_local.py::test_every_python_test_file_runs_in_ci` failed without the line, naming the file, then
+  passed; the kit's tests pass from the repo root; `scripts/ci-local.sh --gates` passes.
 - Limits: the phone-number line on ways part of a number can be left gains a fourth: written digits right after a run
   of times can leave the run's first hour ("Dial 4:04 5:55 12 12" gives "Dial 4:[number removed]"; issue #358).
   Source: issue #358 (a fix for the spoken-digit case, #348, was tried and not merged). Verified: all six examples in
