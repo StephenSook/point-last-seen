@@ -137,14 +137,42 @@ class PhoneNumbersTest {
     }
 
     /**
-     * A run with digits joined to it is left to the rule as before, even beside a marker: no two-digit group of a later
-     * run is left, and a line break after it stays.
+     * A run right after a marker with digits joined only after it is one number with them: the run goes with the joined
+     * digits, so no hour of it is left behind (Dial [number removed] 4:04 5:55 one two one two).
      */
-    @Test fun aRunWithDigitsJoinedToItIsLeftToTheRuleBesideAMarker() {
+    @Test fun aRunAfterAMarkerGoesWithTheDigitsJoinedAfterIt() {
+        assertEquals(
+            "Dial [number removed] [number removed]",
+            PhoneNumbers.remove("Dial [number removed] 4:04 5:55 one two one two"),
+        )
+        assertEquals(
+            "Dial [number removed] [number removed], seen at 14:03 14:10.",
+            PhoneNumbers.remove("Dial [number removed] 4:04 5:55 one two one two, seen at 14:03 14:10."),
+        )
+    }
+
+    /**
+     * Only the digits joined after the run go with it, never part of a later run of times, and a line break inside the
+     * cut gives one marker per line.
+     */
+    @Test fun theJoinedDigitsGoButNeverALaterTimeAndLineBreaksStay() {
         val later = PhoneNumbers.remove("Dial [number removed] 4:04 5:55 one two 12:34 15:56 [number removed]")
-        assertFalse(later, Regex("[0-9]{2}").containsMatchIn(later))
-        val broken = PhoneNumbers.remove("Dial [number removed] 4:04 5:55 one two\n2 searchers went north")
-        assertTrue(broken, broken.endsWith("[number removed]\n[number removed] searchers went north"))
+        assertFalse(later, Regex("""\d|one|two""").containsMatchIn(later))
+        assertEquals(
+            "Dial [number removed] [number removed]\n[number removed]",
+            PhoneNumbers.remove("Dial [number removed] 4:04 5:55 one two\none two"),
+        )
+        assertEquals(
+            "Dial [number removed] [number removed]\n[number removed] searchers canvassed Pine Street.",
+            PhoneNumbers.remove("Dial [number removed] 4:04 5:55 one two\n2 searchers canvassed Pine Street."),
+        )
+    }
+
+    /** Every other run with digits joined to it is left to the rule, with the same output as before. */
+    @Test fun otherJoinedGroupsAreLeftToTheRuleAsBefore() {
+        assertEquals("[number removed] [number removed]", PhoneNumbers.remove("[number removed] one two 4:04 5:55"))
+        assertEquals("Call [number removed] [number removed]", PhoneNumbers.remove("Call one two 12:34 15:56 [number removed]"))
+        assertEquals("Dial [number removed]", PhoneNumbers.remove("Dial 404 555 4:04 5:55 one two one two"))
         assertEquals("[number removed] [number removed] tonight", PhoneNumbers.remove("one two 4:04 5:55 [number removed] tonight"))
     }
 

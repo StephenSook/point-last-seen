@@ -237,11 +237,20 @@ object PhoneNumbers {
         val endsAt = parts.withIndex().associate { (i, p) -> p.end to i }
         val out = StringBuilder()
         var from = 0
-        for (m in timesRuns(folded)) {
+        val runs = timesRuns(folded)
+        // Every part inside a run of times, so digits joined after one run never reach into another.
+        val inTimes = HashSet<Int>()
+        for (m in runs) {
+            val a = startsAt[m.range.first] ?: continue
+            val b = endsAt[m.range.last + 1] ?: continue
+            for (i in a..b) inTimes += i
+        }
+        for (m in runs) {
             val first = startsAt[m.range.first] ?: continue
             val last = endsAt[m.range.last + 1] ?: continue
-            val joined = (first > 0 && joins(folded, parts[first - 1], parts[first])) ||
-                (last + 1 < parts.size && joins(folded, parts[last], parts[last + 1]))
+            val joinedBefore = first > 0 && joins(folded, parts[first - 1], parts[first])
+            val joinedAfter = last + 1 < parts.size && joins(folded, parts[last], parts[last + 1])
+            val joined = joinedBefore || joinedAfter
             // A "[number removed]" right before or after a run with nothing joined to it, with no letter or digit between,
             // stands for digits joined to the run, so the run goes (Dial [number removed] 4:04 5:55 12:12). A run with
             // digits joined to it is left to the rule below, as it was before.
@@ -251,6 +260,20 @@ object PhoneNumbers {
             ) {
                 out.append(removeByRule(folded.substring(from, m.range.first))).append(REPLACEMENT)
                 from = m.range.last + 1
+                continue
+            }
+            // A run right after a "[number removed]" with digits joined only after it (Dial [number removed] 4:04 5:55 one
+            // two one two) is one number with them, and the rule alone would leave the run's first hour. The run goes with
+            // the digits joined after it, through joined parts only and never into another run of times, keeping line
+            // breaks: one marker per line.
+            if (!joinedBefore && joinedAfter && markerBefore(folded, from, m.range.first)) {
+                var hi = last
+                while (hi + 1 < parts.size && (hi + 1) !in inTimes && joins(folded, parts[hi], parts[hi + 1])) hi++
+                val upper = maxOf(m.range.last + 1, parts[hi].end)
+                val breaks = LINE_BREAK.findAll(folded.substring(m.range.first, upper)).count()
+                out.append(removeByRule(folded.substring(from, m.range.first)))
+                out.append(List(breaks + 1) { REPLACEMENT }.joinToString("\n"))
+                from = upper
                 continue
             }
             // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which
