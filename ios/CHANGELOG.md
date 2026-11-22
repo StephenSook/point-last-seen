@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### docs(limits): what Report a problem on the iPhone does and does not do
+- What: LIMITS says the iPhone's Report a problem flags the task or the family's description with a reason and an
+  optional note (phone numbers removed, 500 characters at most); each report is filed once and cannot be changed or
+  taken back; without signal it waits and the phone cannot say whether the server later took it; there is no way to
+  flag another searcher's report, since the iPhone shows only its own; and nothing is offered in the practice drill.
+- Source: the Report a problem change.
+- Verified: each statement checked against the writer, the model and the form on this branch.
+
 ### feat(ios): Report a problem on the task screen and the Ready check
 - What: a "Report a problem" link under the report controls (about the task) and under the approach card on the
   Ready check (about the family's description) opens one form: what it is about (when both can be reported), four

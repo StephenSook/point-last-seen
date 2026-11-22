@@ -63,6 +63,11 @@ each line says what the limit is and why.
   at once from a listener on the incident; without signal it learns at the next check in signal (a launch, a return
   to the app or to signal, or a push it opens). A report sent offline after the search ended is refused by the
   server when the phone reconnects, and its receipt then says "Not taken: the search had ended."
+- "Report a problem" on the iPhone flags the team's task or the family's description to command, with a reason and an
+  optional note (phone numbers removed, 500 characters at most). Each report is filed once and cannot be changed or
+  taken back. Without signal it waits on the phone and goes when signal returns; the phone then cannot say whether the
+  server later took it. The iPhone shows only this phone's own reports, so it offers no way to flag another
+  searcher's report. Reports are not offered in the practice drill, where nothing leaves the phone.
 
 - The iPhone acts on a mission only within the account session it was read in: the user Auth last reported
   plus a count of account changes, where every change of user starts a new session. A join signs in first,
