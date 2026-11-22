@@ -10,6 +10,8 @@ type Props = {
   draft: PlanDraft | null;
   /** The plan history has come from the server (the post's plansLoaded); until then Approve refuses. Default true. */
   historyLoaded?: boolean;
+  /** Command has paused cloud reading (Remote Config kill_cloud): Suggest plan uses fixed wording and calls no model. */
+  cloudPaused?: boolean;
   onSuggest: () => Promise<WordedPlan>;
   /** Starts the write and returns at once; `ack` settles when the server has the plan or refuses it. */
   onApprove: (worded: WordedPlan) => { version: number; ack: Promise<void> };
@@ -36,7 +38,7 @@ export function whatRan(w: WordedPlan): string[] {
 }
 
 /** The suggested plan. Nothing is written before a person presses Approve. */
-export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [], current = null, historyLoaded = true }: Props) {
+export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [], current = null, historyLoaded = true, cloudPaused = false }: Props) {
   const nameOf = (id: string) => teams.find((t) => t.teamId === id)?.name ?? id;
   // The reply is kept with the draft it was asked for; it shows (and can be approved) only while
   // that draft is still current, so a reply that lands after the draft changed is never used.
@@ -98,6 +100,12 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
       ) : (
         <>
           <p className="muted">Draft for the current reports.</p>
+          {/* Where the wording is made and what leaves this laptop, said before the tap (the prompt is planPrompt). */}
+          <p className="small muted">
+            {cloudPaused
+              ? "Cloud reading is paused, so Suggest plan uses fixed wording and sends nothing."
+              : "Suggest plan words the draft on this laptop's built-in model, or with Gemini in the cloud when it has none. It sends only team ids, segment codes and percents, never a note or a name."}
+          </p>
           {limit && (
             <p className="error" role="status">
               {limit}
