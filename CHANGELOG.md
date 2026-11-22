@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Test matrix: a row for the cloud fallback of plan reason codes (the deployed command post, 3 calls on
+  gemini-3.5-flash-lite, all used), citing the live capture. Source: the live cloud capture. Verified:
+  `scripts/test_test_matrix.py` passes (the code line holds its call, the evidence file is tracked).
 - Limits: the plan reason line says what the cloud model did on the live site (3 calls, each naming one of every
   team's own facts and used; its picks were ranking facts) and keeps that the order effect was not measured there.
   Source: the live cloud capture. Verified: each figure recounted from
