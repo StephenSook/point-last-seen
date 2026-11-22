@@ -69,8 +69,8 @@ export function measuredLines(f: Measured, nowMs: number): MeasuredView {
     return { state: "stale", line: `The measured numbers are more than ${MEASURED_MAX_AGE_DAYS} days old, so none are shown.` };
   }
   const lines = [
-    blockLine("Report reads", f.window, f.reads, "", "on the device, in our own iPhone test runs", "by the cloud model", "by fixed rules with no model",
-      "On the device: none stored yet. An iPhone's practice drill keeps its reads on the phone; a drill report read on the phone is stored with its route."),
+    blockLine("Report reads", f.window, f.reads, "", "on the phone, in our own iPhone test runs", "by the cloud model", "by fixed rules with no model",
+      "On the phone: none stored yet. An iPhone's practice drill keeps its reads on the phone; a drill report read on the phone is stored with its route."),
     blockLine("Plan wording", f.wordingWindow, f.wording, " plans", "written by the device's own model", "by the cloud model", "in fixed wording with no model",
       "On the device: none stored yet. A plan uses the device's model only when its browser has Chrome's built-in model."),
     `Cloud model spend, ${day(`${f.spend.from}T00:00:00Z`)} to ${day(f.generatedAt)}: $${f.spend.usd.toFixed(2)} over ${f.spend.days} days ($${f.spend.usdPerDay} a day), from Firebase AI Logic's token counts.`,
