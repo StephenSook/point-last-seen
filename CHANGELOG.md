@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Phone vectors: six known gaps where a phone number is kept are now shared cases pending on every platform (a slash
+  between two times, a digit from another script or a spoken digit inside a time, superscript times, times after a date,
+  and letters for some digits as in 1-800-GET-HELP), so a platform that closes one sees it as un-pend; the corpus is
+  written again for the new inputs (9,128 rows) and its README names the new SHA-256. No rule changes. Source: issue
+  #298 and a review of the iPhone's flag note. Verified: each new case fails on the web rule today (the web's
+  stale-pending check passes), scripts/test_phone_vectors.py (7) and the corpus check pass.
 - Evidence: docs/evidence/web/2026-11-22-judge-door-what-leaves.json and its screenshot record the deployed judge door
   in a fresh profile with no settings or sign-in: the public URL reaches the AI path, each screen says what leaves
   before it leaves, and no model output was written (no Firestore write in the run). Requests keep only method, address
