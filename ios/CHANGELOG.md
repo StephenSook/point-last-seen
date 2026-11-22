@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### chore(ci): the secret scan ignores the eval result's answer-key hash, by its fingerprint
+- What: a committed .gitleaksignore with one fingerprint: line 1114 of the eval result file at dac8b2c, its
+  "answerKeySha256" field. That is the SHA-256 of the public answer key in the same folder, not a credential; the
+  generic-api-key rule matched the field name. The result file stays byte for byte as the phone saved it.
+- Source: the full-history secret scan (local gates; the same command CI runs) flagged it once the result was
+  committed.
+- Verified: the flagged line holds f98c6f5d..., which equals the SHA-256 of docs/evidence/eval/pls-drill-reports-v1.json;
+  with the file in place, gitleaks git --redact --log-opts="--all" reports no leaks.
+
 ### docs(eval): the first report-reading eval result from the iPhone, unchanged
 - What: docs/evidence/eval/eval-pls-drill-reports-v1-1795376366383.json, the result file the eval screen saved on
   the iPhone 17 Pro (iOS 27.2.1, debug build 1.0.0 (1) from commit ee331aaf, Airplane Mode on), copied over USB and

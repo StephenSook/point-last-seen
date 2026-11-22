@@ -1,0 +1,5 @@
+# Findings checked by hand and known not to be secrets. One fingerprint per line, each with its reason above it.
+
+# The eval result's "answerKeySha256" is the SHA-256 of the public answer key in the same folder
+# (docs/evidence/eval/pls-drill-reports-v1.json), not a credential; the generic-api-key rule reads the field name.
+dac8b2cc4595ff93ba2de61a2bbd7375549caa49:docs/evidence/eval/eval-pls-drill-reports-v1-1795376366383.json:generic-api-key:1114
