@@ -88,13 +88,21 @@ const TIME_CUES = new Set([...PHONE_CUES, "text", "reach"]);
 // How many words before a run of times are read for a cue.
 const CUE_WINDOW = 3;
 
+/** Whether part p is a word of a "[number removed]" already in s, which stands for digits that were removed. */
+function inMarker(s: string, p: Part): boolean {
+  const at = s.lastIndexOf("[", p.start);
+  return at >= 0 && s.startsWith(REPLACEMENT, at) && p.end <= at + REPLACEMENT.length;
+}
+
 /** Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it, or a "#". */
 function cuedRun(s: string, parts: Part[], first: number): boolean {
   // A part carrying digits (written, spoken, or a counted double or triple) is read past and is not one of the three
-  // words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued.
+  // words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued. So are the words of a "[number removed]"
+  // already in the note, which stands for removed digits: its "number" is never a cue, and a note scrubbed again reads
+  // the same words before the run as it did the first time (Witness [number removed] at 14:03 14:10 stays).
   let j = first - 1;
   for (let words = 0; j >= 0 && words < CUE_WINDOW; j--) {
-    if (parts[j]!.digits > 0) continue;
+    if (parts[j]!.digits > 0 || inMarker(s, parts[j]!)) continue;
     if (TIME_CUES.has(word(s, parts[j]!))) return true;
     words++;
   }

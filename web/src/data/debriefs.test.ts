@@ -1,13 +1,19 @@
 import { deleteField, serverTimestamp, Timestamp } from "firebase/firestore";
 import { describe, expect, it } from "vitest";
 import { clearedSegments, debriefAuthor, debriefEdit, debriefFromDoc, newDebriefDoc, parseDebriefForm, standingClears } from "./debriefs";
-import { REPLACEMENT } from "./phoneNumbers";
+import { REPLACEMENT, removePhoneNumbers } from "./phoneNumbers";
 
 const form = (over: Partial<Record<"minutes" | "worked" | "didNotWork" | "coverage" | "clues" | "hazards", string>>) => ({
   minutes: "", worked: "", didNotWork: "", coverage: "", clues: "", hazards: "", ...over,
 });
 
 describe("parseDebriefForm", () => {
+  it("keeps the sighting times in a note a paper read already scrubbed, when it is saved", () => {
+    // The paper read replaces the number and keeps the times; the save scrubs the note again and must take nothing more.
+    const read = removePhoneNumbers("Witness 4045550142 at 14:03 14:10");
+    expect(read).toBe("Witness [number removed] at 14:03 14:10");
+    expect(parseDebriefForm(form({ minutes: "30", clues: read }))).toEqual({ ok: true, value: { tookMinutes: 30, clues: read } });
+  });
   it("removes a phone number from every note before it can be stored, and leaves a note with none unchanged", () => {
     const r = parseDebriefForm(form({ minutes: "45", worked: "Radio 404-555-0142 worked", didNotWork: "Thick brush", clues: "Call 404 555 0142 at the gate", hazards: "Ranger at (404) 555 0142" }));
     expect(r).toEqual({
