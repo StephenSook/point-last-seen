@@ -3077,3 +3077,10 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - not armed before the first report; armed after it, which plays nothing; the next report plays;
   - armed once the map has loaded.
   All 9 change checks and typecheck pass.
+
+### test(e2e): the live beat check writes its report only once the post is armed
+- What: the beat check waited only for the post to draw, then wrote its report. The post draws at once from the browser's cache, so the report could land before the server's first answer, and then no beat plays, by design.
+  - The check failed that way in full runs, every time right after the approve-offline check (whose plan leaves the run's saved cache behind the server).
+  - It now waits for data-beat-armed="true" before writing.
+- Source: the live beat check, red in two full runs and 3 of 3 short runs.
+- Verified: typecheck; the live run is checked after deploy, since the mark ships with this change.
