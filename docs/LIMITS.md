@@ -288,6 +288,14 @@ each line says what the limit is and why.
   covers its screen when it leaves the foreground with the picker open, but what iOS keeps for the app switcher was
   not checked.
 
+## Photo clues (web command post)
+
+- Web command post photo read, on device only (desktop Chrome 157 built-in model, one Mac): on 8 synthetic flat
+  drawings read twice each (n = 16; 4 with sign text, 4 without, one a blank sign board), 0 sign-text words that the
+  drawing did not show, all sign words read on 8 of 8 text reads, and empty sign text on 8 of 8 no-text reads; 2 of
+  33 landmarks named something not drawn (Road, Parking lot). Large, clean drawn text, not real photos; not an
+  accuracy rate. Evidence: docs/evidence/web/2026-11-22-photo-read-invention-chrome.json.
+
 ## On-device safety (Android)
 
 - The family app's note read asks for the on-device model first (PREFER_ON_DEVICE). Firebase AI Logic's
