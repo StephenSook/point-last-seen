@@ -35,12 +35,22 @@ function Harness() {
           onRotate={async (role) => {
             const reason = q.get("rotatefail");
             if (reason) throw Object.assign(new Error("refused"), { code: "functions/failed-precondition", details: { reason } });
-            return { code: "7K3M9QX2", role, replaced: 1 };
+            return { code: role === "family" ? "0123ABCD" : "7K3M9QX2", role, replaced: 1 };
           }}
         />
       )}
     </div>
   );
+}
+
+// ?slowcopy=1: a Copy finishes only when "Clipboard finishes" is pressed, so a Copy can land after the panel moved on.
+const finishCopy: (() => void)[] = [];
+if (new URLSearchParams(location.search).get("slowcopy") === "1") {
+  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => new Promise<void>((r) => finishCopy.push(r)) } });
+  const b = document.createElement("button");
+  b.textContent = "Clipboard finishes";
+  b.onclick = () => finishCopy.shift()?.();
+  document.body.append(b);
 }
 
 const root = document.getElementById("root");

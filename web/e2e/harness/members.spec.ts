@@ -88,3 +88,20 @@ test("a practice search offers no join codes", async ({ page }) => {
   await expect(page.getByRole("region", { name: "People" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Join codes" })).toHaveCount(0);
 });
+
+test("a Copy that finishes after the panel moved to another code never says that code was copied", async ({ page }) => {
+  await page.goto("/harness/members.html?slowcopy=1");
+  const codes = page.getByRole("region", { name: "Join codes" });
+  await codes.getByRole("button", { name: "Give searchers a new code" }).click();
+  await codes.getByRole("button", { name: "Replace the code" }).click();
+  await codes.getByRole("button", { name: "Copy" }).click();
+  await codes.getByRole("button", { name: "Done" }).click();
+  await codes.getByRole("button", { name: "Give family a new code" }).click();
+  await codes.getByRole("button", { name: "Replace the code" }).click();
+  await expect(codes.getByTestId("new-code")).toHaveText("0123ABCD");
+  await page.getByRole("button", { name: "Clipboard finishes" }).click();
+  await expect(codes.getByText("Copied.")).toHaveCount(0);
+  await codes.getByRole("button", { name: "Copy" }).click();
+  await page.getByRole("button", { name: "Clipboard finishes" }).click();
+  await expect(codes.getByText("Copied.")).toBeVisible();
+});

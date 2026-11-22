@@ -15,7 +15,8 @@ export function JoinCodes({ onRotate }: { onRotate: (role: CodeRole) => Promise<
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [made, setMade] = useState<Rotation | null>(null);
-  const [copied, setCopied] = useState(false);
+  // The code the clipboard took, so a Copy that finishes after the panel moved on never marks another code copied.
+  const [copied, setCopied] = useState<string | null>(null);
 
   async function rotate(role: CodeRole) {
     setBusy(true);
@@ -23,7 +24,7 @@ export function JoinCodes({ onRotate }: { onRotate: (role: CodeRole) => Promise<
     try {
       setMade(await onRotate(role));
       setAsking(null);
-      setCopied(false);
+      setCopied(null);
     } catch (e) {
       setErr(rotateErrorMessage(e));
     } finally {
@@ -45,7 +46,8 @@ export function JoinCodes({ onRotate }: { onRotate: (role: CodeRole) => Promise<
               type="button"
               className="btn"
               onClick={() => {
-                void navigator.clipboard?.writeText(made.code).then(() => setCopied(true), () => setCopied(false));
+                const code = made.code;
+                void navigator.clipboard?.writeText(code).then(() => setCopied(code), () => setCopied(null));
               }}
             >
               Copy
@@ -54,7 +56,7 @@ export function JoinCodes({ onRotate }: { onRotate: (role: CodeRole) => Promise<
               Done
             </button>
           </div>
-          {copied && <p role="status" className="small">Copied.</p>}
+          {copied === made.code && <p role="status" className="small">Copied.</p>}
         </div>
       ) : asking ? (
         <div className="confirm">
