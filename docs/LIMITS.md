@@ -167,8 +167,9 @@ each line says what the limit is and why.
   shows fixed wording. When two facts are close, the model's pick can depend
   on the order they are listed. The app always lists them in the same fixed order. Measured on Chrome's built-in
   model only: in the fixed order, one team's pick held 6 of 6 and the other's 5 of 6. Reversing the order changed one
-  team's pick (`docs/evidence/web/2026-11-22-plan-reason-main-pick-chrome.json`); with each team offered only its own
-  facts, the picks were the same (`docs/evidence/web/2026-11-22-plan-reason-per-team-schema-chrome.json`). On the
+  team's pick (`docs/evidence/web/2026-11-22-plan-reason-main-pick-chrome.json`). With each team offered only its own
+  facts, on the same made-up plan, one team picked the same fact in 6 of 6 runs, and the other in 3 of 3 in the fixed
+  order and 2 of 3 reversed (`docs/evidence/web/2026-11-22-plan-reason-per-team-schema-chrome.json`). On the
   cloud model (gemini-3.5-flash-lite), 3 calls on the live site each named one of every team's own facts and were
   used; its picks were ranking facts (one team's POA rise twice and its top-three place once, the other's highest POA
   each time) (`docs/evidence/web/2026-11-22-plan-reason-cloud-live.json`). The order effect was not measured on the
