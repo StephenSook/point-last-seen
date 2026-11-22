@@ -137,8 +137,10 @@ function sentence(draft: PlanDraft, code: FactCode, ids: readonly string[]): str
     case "in_ring": {
       const b = draft.facts![first]!.ring!;
       return b.innerKm === 0
-        ? `${first} is within ${km(b.outerKm)} km of the last-seen point, in the ISRID first ${b.toPct}% distance band.`
-        : `${first} is ${km(b.innerKm)} to ${km(b.outerKm)} km from the last-seen point, in the ISRID ${b.fromPct} to ${b.toPct}% distance band.`;
+        // The band is measured to the segment's centre (planFacts), and a cell can cross a band's edge, so the sentence
+        // says so.
+        ? `${first}'s centre is within ${km(b.outerKm)} km of the last-seen point, in the ISRID first ${b.toPct}% distance band.`
+        : `${first}'s centre is ${km(b.innerKm)} to ${km(b.outerKm)} km from the last-seen point, in the ISRID ${b.fromPct} to ${b.toPct}% distance band.`;
     }
   }
 }

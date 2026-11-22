@@ -79,8 +79,8 @@ describe("code writes each reason from the chosen facts", () => {
     expect(renderReason(draft, "T1", ["moved_by_last_report"])).toBe("The newest report raised AC.");
     expect(renderReason(draft, "T1", ["near_trail"])).toBe("AC and CC are near a trail.");
     expect(renderReason(draft, "T1", ["near_stream"])).toBe("AC is near a stream.");
-    expect(renderReason(draft, "T1", ["in_ring"])).toBe("AC is 0.3 to 1.0 km from the last-seen point, in the ISRID 25 to 50% distance band.");
-    expect(renderReason(draft, "T2", ["in_ring"])).toBe("AB is within 0.3 km of the last-seen point, in the ISRID first 25% distance band.");
+    expect(renderReason(draft, "T1", ["in_ring"])).toBe("AC's centre is 0.3 to 1.0 km from the last-seen point, in the ISRID 25 to 50% distance band.");
+    expect(renderReason(draft, "T2", ["in_ring"])).toBe("AB's centre is within 0.3 km of the last-seen point, in the ISRID first 25% distance band.");
     expect(renderReason(draft, "T2", ["near_road", "near_building"])).toBe("AB is near a road. AB is near a building.");
     expect(renderReason(draft, "T2", ["near_water"])).toBe("AD is near water.");
   });

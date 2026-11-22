@@ -2960,3 +2960,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: "AD was searched and is still in the top three" could be false: a segment searched while fourth may enter the top three only after a later clue. The sentence is now "AD was searched and is in the top three now."
 - Source: review.
 - Verified: the changed reasonCodes test failed first, then passed; typecheck passes.
+
+### fix(ai): the distance-band reason names the segment's centre
+- What: the band is measured from the last-seen point to the segment's centre, and a 125 m cell can cross a band's edge (a centre 250 m away puts part of the cell 312 m away). "AA is within 0.3 km of the last-seen point" could be false for part of AA. The sentence is now "AA's centre is within 0.3 km of the last-seen point, in the ISRID first 25% distance band".
+- Source: review.
+- Verified: the changed reasonCodes tests failed first, then passed, including the 200-character fit; typecheck passes.
