@@ -591,12 +591,166 @@
         "Llame al",
         "tonight"
       ]
+    },
+    {
+      "name": "phone_cue_before_a_run_of_times",
+      "input": "Call 21:25 5:50 1:42 tonight",
+      "number": "21:25 5:50 1:42",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "phone_cue_before_a_run_of_times_with_commas",
+      "input": "Call 21:25, 5:50, 1:42 tonight",
+      "number": "21:25, 5:50, 1:42",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "times_out_of_clock_order",
+      "input": "Try 12:12 5:55 01:42 tonight",
+      "number": "12:12 5:55 01:42",
+      "forbidden": [],
+      "keep": [
+        "Try",
+        "tonight"
+      ]
+    },
+    {
+      "name": "phone_cue_before_times_written_as_a_number",
+      "input": "Call 4:04 5:55 01:42 tonight",
+      "number": "4:04 5:55 01:42",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "phone_cue_and_a_tab_before_a_run_of_times",
+      "input": "Call\t4:04 5:55 16:42 tonight",
+      "number": "4:04 5:55 16:42",
+      "forbidden": [],
+      "keep": [
+        "Call",
+        "tonight"
+      ]
+    },
+    {
+      "name": "phone_cue_a_few_words_before_a_run_of_times",
+      "input": "Reach me at 4:04 5:55 06:42 tonight",
+      "number": "4:04 5:55 06:42",
+      "forbidden": [],
+      "keep": [
+        "Reach me at",
+        "tonight"
+      ]
+    },
+    {
+      "name": "phone_cue_and_a_bracket_before_a_run_of_times",
+      "input": "Call (4:04 5:55 16:43) tonight",
+      "number": "4:04 5:55 16:43",
+      "forbidden": [],
+      "keep": [
+        "Call (",
+        ") tonight"
+      ]
+    },
+    {
+      "name": "phone_cue_and_a_spoken_digit_before_a_run_of_times",
+      "input": "Call one: 4:04 5:55 6:42 tonight",
+      "number": "4:04 5:55 6:42",
+      "forbidden": [],
+      "keep": [
+        "Call one:",
+        "tonight"
+      ]
+    },
+    {
+      "name": "colon_gap_times_after_cue_before_month",
+      "input": "Call 5:55 01:42 May",
+      "number": "5:55 01:42",
+      "forbidden": [
+        "5:55",
+        "01:42"
+      ],
+      "keep": [
+        "Call",
+        "May"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "colon_gap_times_after_month",
+      "input": "May 5:55 01:42",
+      "number": "5:55 01:42",
+      "forbidden": [
+        "5:55",
+        "01:42"
+      ],
+      "keep": [
+        "May"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "colon_gap_times_after_text_cue_before_month",
+      "input": "Text 5:55 07:14 May",
+      "number": "5:55 07:14",
+      "forbidden": [
+        "5:55",
+        "07:14"
+      ],
+      "keep": [
+        "Text",
+        "May"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "colon_gap_times_after_cue_and_month",
+      "input": "Call May 5:55 01:42",
+      "number": "5:55 01:42",
+      "forbidden": [
+        "5:55",
+        "01:42"
+      ],
+      "keep": [
+        "Call May"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
     }
   ],
   "mustKeep": [
     {
       "name": "time",
       "input": "14:03"
+    },
+    {
+      "name": "times_run",
+      "input": "The possible times are 14:03, 14:10, 14:17."
     },
     {
       "name": "segment_number",
@@ -742,6 +896,26 @@
       "output": "Seen at 14:03, [number removed]"
     },
     {
+      "name": "times_run_and_a_number",
+      "input": "Times 14:03, 14:10, 14:17. Call 404 555 0142",
+      "output": "Times 14:03, 14:10, 14:17. Call [number removed]"
+    },
+    {
+      "name": "phone_cue_and_a_written_digit_before_a_run_of_times",
+      "input": "Call 5 at 4:04 5:55 06:44 tonight",
+      "output": "Call 5 at [number removed] tonight"
+    },
+    {
+      "name": "month_name_beside_a_run_of_times",
+      "input": "1.4045, -55.0142 14 May 6:00 7:00",
+      "output": "[number removed] May 6:00 7:00"
+    },
+    {
+      "name": "spoken_digit_joined_to_a_run_of_times",
+      "input": "Call four 4:04 5:55 6:42",
+      "output": "Call [number removed]"
+    },
+    {
       "name": "date_beside_number",
       "input": "Seen 11/19/2026 404-555-0142",
       "output": "Seen 11/19/2026 [number removed]"
@@ -780,6 +954,16 @@
       "name": "frequency_beside_number",
       "input": "Radio 155.160 404 5550142",
       "output": "Radio [number removed]"
+    },
+    {
+      "name": "colon_gap_times_after_date",
+      "input": "Seen 14 May 5:55 01:42",
+      "output": "Seen 14 May [number removed]",
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
     }
   ]
 }
