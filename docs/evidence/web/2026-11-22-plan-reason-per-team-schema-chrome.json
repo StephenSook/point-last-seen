@@ -1,0 +1,144 @@
+{
+  "what": "Plan reason codes with a schema that gives each team only its own facts (one property per team id, an enum of that team's fact codes), on Chrome's built-in model: 6 runs on one newly opened page, each team's facts alternating in the command post's order and reversed.",
+  "date": "2026-11-22",
+  "commit": "fix/plan-schema-per-team, local before its first push (schema change on main b7e03c3c)",
+  "page": "web/harness/wording-measure.html on the dev server (127.0.0.1:5175), wordPlan with the wording's own on-device options (ONLY_ON_DEVICE)",
+  "browser": "Google Chrome stable on a Mac (Apple M5 Pro); version not recorded",
+  "plan": "made-up: T1 searches CC, T2 searches CD; made-up facts as in 2026-11-22-plan-reason-main-pick-chrome.json",
+  "why": "On the live site the cloud model (gemini-3.5-flash-lite) answered T1 highest_poa and T2 highest_poa in 6 of 6 captured calls on the earlier list schema, which let every team name any code; only T2 had that fact, so every answer was refused and the plan used fixed wording.",
+  "googleRequests": 0,
+  "runs": [
+    {
+      "order": "specific first",
+      "replyMs": 9318,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": {
+          "main": "not_yet_searched",
+          "support": "moved_by_last_report"
+        },
+        "T2": {
+          "main": "searched_still_high",
+          "support": "near_road"
+        }
+      },
+      "raw": "{\"T1\": \"not_yet_searched\", \"T2\": \"searched_still_high\"}"
+    },
+    {
+      "order": "reversed",
+      "replyMs": 992,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": {
+          "main": "moved_by_last_report",
+          "support": "not_yet_searched"
+        },
+        "T2": {
+          "main": "searched_still_high",
+          "support": "near_road"
+        }
+      },
+      "raw": "{\"T1\": \"moved_by_last_report\", \"T2\": \"searched_still_high\"}"
+    },
+    {
+      "order": "specific first",
+      "replyMs": 994,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": {
+          "main": "not_yet_searched",
+          "support": "moved_by_last_report"
+        },
+        "T2": {
+          "main": "searched_still_high",
+          "support": "near_road"
+        }
+      },
+      "raw": "{\"T1\": \"not_yet_searched\", \"T2\": \"searched_still_high\"}"
+    },
+    {
+      "order": "reversed",
+      "replyMs": 971,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": {
+          "main": "not_yet_searched",
+          "support": "moved_by_last_report"
+        },
+        "T2": {
+          "main": "searched_still_high",
+          "support": "near_road"
+        }
+      },
+      "raw": "{\"T1\": \"not_yet_searched\", \"T2\": \"searched_still_high\"}"
+    },
+    {
+      "order": "specific first",
+      "replyMs": 939,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": {
+          "main": "not_yet_searched",
+          "support": "moved_by_last_report"
+        },
+        "T2": {
+          "main": "searched_still_high",
+          "support": "near_road"
+        }
+      },
+      "raw": "{\"T1\":\"not_yet_searched\", \"T2\":\"searched_still_high\"}"
+    },
+    {
+      "order": "reversed",
+      "replyMs": 969,
+      "path": "on_device",
+      "sdkReported": true,
+      "accepted": true,
+      "check": "ok",
+      "reasonsMatchCodes": true,
+      "summaryMatchesReasons": true,
+      "codes": {
+        "T1": {
+          "main": "not_yet_searched",
+          "support": "moved_by_last_report"
+        },
+        "T2": {
+          "main": "searched_still_high",
+          "support": "near_road"
+        }
+      },
+      "raw": "{\"T1\": \"not_yet_searched\", \"T2\": \"searched_still_high\"}"
+    }
+  ],
+  "findings": [
+    "6 of 6 runs ran on this laptop's built-in model and were used: 0 fallbacks. Every main code was one of its team's facts, every reason was code's sentence for the main and supporting codes, and every summary matched the reasons.",
+    "Each reply was one property per team id, as the schema asks: for example {\"T1\": \"not_yet_searched\", \"T2\": \"searched_still_high\"}.",
+    "Main picks, the same as on the list schema: T2 searched_still_high 6 of 6; T1 not_yet_searched 5 of 6 (3 of 3 in the fixed order), moved_by_last_report 1 (reversed).",
+    "A page's first wording took 9.3 s; the other five 0.9 to 1.0 s."
+  ]
+}

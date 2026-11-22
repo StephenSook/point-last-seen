@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Evidence: docs/evidence/web/2026-11-22-plan-reason-per-team-schema-chrome.json records plan reason codes with a
+  reply form that gives each team only its own facts (one property per team id), on Chrome's built-in model: 6 runs,
+  all on device with no Google request and 0 fallbacks, each reply one code per team id, and the same picks as before
+  (one team 6 of 6, the other 5 of 6 and 3 of 3 in the fixed order). Source: the per-team reply form (PR #362), after
+  the cloud model's picks were refused on the live site. Verified: read in full and valid JSON; every count in the
+  findings recounted from the runs; the hygiene guard passes in public mode.
 - Limits: the phone-number line on ways part of a number can be left gains a fourth: written digits right after a run
   of times can leave the run's first hour ("Dial 4:04 5:55 12 12" gives "Dial 4:[number removed]"; issue #358).
   Source: issue #358 (a fix for the spoken-digit case, #348, was tried and not merged). Verified: all six examples in
