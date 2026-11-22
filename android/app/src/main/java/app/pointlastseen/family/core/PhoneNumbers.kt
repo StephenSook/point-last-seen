@@ -101,6 +101,9 @@ object PhoneNumbers {
     private val TIME_CUES = PHONE_CUES + setOf("text", "reach")
     // How many words before a run of times are read for a cue.
     private const val CUE_WINDOW = 3
+    // A marker at the end of the text before a run, or at the start of the text after it, with no letter or digit between.
+    private val MARKER_BEFORE = Regex(Regex.escape(REPLACEMENT) + "[^\\p{L}\\p{N}]*\\z")
+    private val MARKER_AFTER = Regex("\\A[^\\p{L}\\p{N}]*" + Regex.escape(REPLACEMENT))
 
     /** Whether no number sits before [at] through anything but letters (the web app's lookbehind on its run of times). */
     private fun noNumberBefore(s: String, at: Int): Boolean {
@@ -174,6 +177,18 @@ object PhoneNumbers {
             val last = endsAt[m.range.last + 1] ?: continue
             val joined = (first > 0 && joins(folded, parts[first - 1], parts[first])) ||
                 (last + 1 < parts.size && joins(folded, parts[last], parts[last + 1]))
+            // A "[number removed]" right before or after a run with nothing joined to it, with no letter or digit between,
+            // stands for digits joined to the run, so the run goes (Dial [number removed] 4:04 5:55 12:12). A run with
+            // digits joined to it is left to the rule below, as it was before.
+            if (!joined && (
+                    MARKER_BEFORE.containsMatchIn(folded.substring(from, m.range.first)) ||
+                        MARKER_AFTER.containsMatchIn(folded.substring(m.range.last + 1))
+                    )
+            ) {
+                out.append(removeByRule(folded.substring(from, m.range.first))).append(REPLACEMENT)
+                from = m.range.last + 1
+                continue
+            }
             // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which
             // changes how the rule groups the digits around it, so such a run stays with the text around it.
             fun month(i: Int) = i in parts.indices && !parts[i].written && word(folded, parts[i]) in MONTHS

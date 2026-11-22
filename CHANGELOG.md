@@ -5,6 +5,32 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: three more ways part of a phone number can be left, measured on the web: times with a third field ("Call
+  4:04 5:55:01:42" is kept whole); in a note already scrubbed once, a run of times followed by spoken digits keeps its
+  first hour; a time just before spoken digits keeps its hour. Source: review of PR #342 (gaps that exist on main
+  too). Verified: each example's output measured with the web's removePhoneNumbers on main 83ea2145 and on this
+  branch, the same on both; the phones were not measured, and the line says so; the hygiene guard passes in public
+  mode.
+- Phone vectors: the shared README says a "[number removed]" beside a run of times takes the run only when nothing
+  is joined to it; a run with digits joined to it, written or spoken, is left to the shared rule as before #342. The
+  corpus is written again (only its rule hash changed; no row moved) and the README names its SHA-256. Source:
+  PR #342 and its third review (the joined-digit widening caused regressions). Verified: the corpus `--write` output
+  hashes to the README's SHA-256 and `--check` passes; `scripts/test_phone_vectors.py`, the web phone tests and
+  `scripts/ci-local.sh --gates` pass.
+- Phone vectors: `marker_beside_times` is no longer pending on the iPhone, which passes it today; `marker_then_times`
+  stays pending there. The shared README says a run beside a "[number removed]" also takes every digit part joined to
+  it, written or spoken ("Dial [number removed] 4:04 5:55 one two one two"), and names the regenerated corpus's
+  SHA-256 (only its rule hash changed; no row moved); Limits says the iPhone passes 118. Source: PR #342 (swift-core
+  reported the un-pend) and its second review. Verified: the corpus `--write` output hashes to the README's SHA-256 and
+  `--check` passes; `scripts/test_phone_vectors.py`, the web phone tests and `scripts/ci-local.sh --gates` pass.
+- Phone vectors: two new shared cases about a "[number removed]" already in a note, pending on the iPhone.
+  `marker_then_times` keeps the times after one ("Witness [number removed] at 14:03 14:10"), since its words are never
+  a cue. `marker_beside_times` removes a run of times right beside one ("Dial [number removed] 4:04 5:55 12:12"), since
+  it is digits joined to the run. The shared README says a note scrubbed twice must equal one scrub and names the
+  regenerated corpus's SHA-256; Limits gives the new counts (130 cases; the web and Android pass 119, the iPhone 117);
+  `scripts/test_phone_vectors.py` pins `marker_beside_times` in its exact list. Source: PR #342 and its review (the
+  second case kept 404-555-1212). Verified: `scripts/test_phone_vectors.py` passes, and `scripts/ci-local.sh --gates`
+  passes on this tree.
 - Judge seed baseline: `scripts/judge_seed_baseline.json` gains the new keys from the live seed drill (0 content
   reports, no members, the SHA-256 of each of the 30 seed writers); every existing value is unchanged. Source: the
   seed check's new writer and content report checks. Verified: a new test that the committed baseline knows the seed
