@@ -6,6 +6,9 @@ test("with the link down, Approve shows the plan at once and sends it when the l
   await withDebugToken(page);
   await joinCommand(page);
   await expect(page.locator(".plate:visible").first()).toBeVisible({ timeout: 20_000 });
+  // Approve waits for the plan history from the server (a cached copy could reuse a version), and the map can draw
+  // from cache before it arrives: take the link down only once it has.
+  await expect(page.getByRole("region", { name: "Plan" })).toHaveAttribute("data-plans-loaded", "true", { timeout: 30_000 });
   await context.setOffline(true);
   try {
     await page.getByRole("button", { name: "Suggest plan" }).click();

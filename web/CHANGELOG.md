@@ -2623,6 +2623,16 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (Codex, second round on the join-code panel).
 - Verified: the extended unit test failed first, then passed (5).
 
+### feat(command): the Plan section says when its history has come from the server
+- What: the Plan section carries `data-plans-loaded` ("true" once the plan history has come from the server, which Approve waits for), so a check that takes the link down can wait for it first.
+- Source: live check (the offline-approve check took the link down after the map drew from cache but before the plan history arrived, and Approve rightly refused).
+- Verified: a new harness test (false while loading, true once loaded) failed first, then passed; the plan harness spec (14), web unit suite and typecheck pass.
+
+### test(e2e): the offline-approve check waits for the plan history before taking the link down
+- What: the deployed check now waits for the Plan section's `data-plans-loaded` before going offline. It used to go offline as soon as the map drew, which on the drill now came from cache before the plan history arrived, so Approve refused with "The plan history is still loading" and the check failed twice in a row.
+- Source: live check after the deploy of 9e19f602.
+- Verified: an online Approve after a 15-second wait succeeded on the drill (the history does load); the updated check runs after the next deploy.
+
 ### fix(map): a sighting placed from the Place list lands inside its segment
 - What: `segmentChoices` gives each segment a point inside it: its centroid when that lies inside, else the middle of the widest stretch of the segment along one of 15 lines of latitude. Five shipped segments had a centroid outside themselves (Kennesaw EN and EQ, Piedmont AJ, AQ and AY), so a sighting placed there from the list was stored outside the segment and the form said "Outside the search area".
 - Source: review (Codex, while reviewing the search-report guard).
