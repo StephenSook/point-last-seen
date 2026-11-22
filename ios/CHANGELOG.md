@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): an end during the read still holds the words after a Leave
+- What: words read while their mission was dropped wait for review, except after the searcher's own Leave. The
+  exception now covers only a read that began right before that Leave. When command ended the search during the read
+  and the searcher then left, the end still holds the words, so a later team never takes them on a plain Send.
+- Source: third review of the ended-search change.
+- Verified: a test where the search ends during a typed report's read and the searcher then leaves failed before the
+  change and passes after; the earlier test where only a Leave happens still passes; the full app suite passes.
+
 ### fix(ios): a report of an account that left never blocks the next one's Leave
 - What: Leave waits for this phone's unsettled reports, but a report written by an account that has since left can
   never settle: its write queue went with the account. Such a report (one refused after its search ended, say) is

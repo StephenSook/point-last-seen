@@ -80,8 +80,9 @@ final class AppModel {
     /// Stops listening for the loaded mission's incident (command ending the search), named like the plan listener.
     @ObservationIgnored private var stopIncidentWatch: (@Sendable () -> Void)?
     @ObservationIgnored private var incidentWatchId = 0
-    /// The last drop was the searcher's own Leave, so words read meanwhile are not held for review.
-    @ObservationIgnored private var lastDropWasLeave = false
+    /// The drop count just before the searcher's own Leave, while that Leave was the last drop: words whose read began
+    /// there are not held for review. Words read across an earlier drop (the search ended) still are.
+    @ObservationIgnored private var leaveDroppedFrom: Int?
     /// Counts mission loads and joins; only the newest installs a mission.
     @ObservationIgnored private var missionGeneration = 0
     /// Counts every time the mission is dropped (never on a reload of the same one): a report read across a drop is
@@ -616,8 +617,9 @@ final class AppModel {
         guard await joinBackend.deleteMyAccount() else { return refuseLeave(Self.leaveNeedsDelete) }
         // Any access check still running has no say after this.
         accessCheck += 1
+        let dropsBeforeLeave = missionDrops
         await dropMission()
-        lastDropWasLeave = true
+        leaveDroppedFrom = dropsBeforeLeave
         await topicFollow?.value
         signIn.signOut()
         signedIn = false
@@ -692,7 +694,7 @@ final class AppModel {
     func dropMissionNow() {
         missionGeneration += 1
         missionDrops += 1
-        lastDropWasLeave = false
+        leaveDroppedFrom = nil
         membership = nil
         stopPlanWatch?()
         stopPlanWatch = nil
@@ -1205,7 +1207,7 @@ final class AppModel {
               current.teamId == mission.teamId, current.mode == mission.mode else {
             // The mission was dropped while the words were read (the search ended, the token moved): they wait for
             // review, so a later mission never takes them on a plain second tap. Not after the searcher's own Leave.
-            if store === self.store, drops != missionDrops, !lastDropWasLeave { problem = Self.teamChanged }
+            if store === self.store, drops != missionDrops, drops != leaveDroppedFrom { problem = Self.teamChanged }
             return false
         }
         // The task that read it was cancelled: the report is not journalled, and its words stay in the field.
