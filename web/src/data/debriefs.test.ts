@@ -1,6 +1,6 @@
 import { deleteField, serverTimestamp, Timestamp } from "firebase/firestore";
 import { describe, expect, it } from "vitest";
-import { clearedSegments, debriefAuthor, debriefEdit, debriefFromDoc, newDebriefDoc, parseDebriefForm } from "./debriefs";
+import { clearedSegments, debriefAuthor, debriefEdit, debriefFromDoc, newDebriefDoc, parseDebriefForm, standingClears } from "./debriefs";
 import { REPLACEMENT } from "./phoneNumbers";
 
 const form = (over: Partial<Record<"minutes" | "worked" | "didNotWork" | "coverage" | "clues" | "hazards", string>>) => ({
@@ -95,6 +95,14 @@ describe("cleared segments and authors", () => {
       { segmentId: "AA", eventId: "e3", deviceId: "d3", teamId: "T2" },
       { segmentId: "AB", eventId: "e2", deviceId: "d2", teamId: "T2" },
     ]);
+  });
+  it("counts a segment as cleared for a search report only while one of its clears is not taken back", () => {
+    const retract = (eventId: string, target: string) => ({ eventId, type: "retraction", targetEventId: target, serverTimeMs: 9, pendingWrite: false, effect: { kind: "none" } }) as never;
+    const events = [ev("e1", "AA", "d1", "T1", 1), ev("e2", "AB", "d2", "T2", 2), ev("e3", "AB", "d3", "T2", 3), ev("e4", "AC", "d4", "T1", 4)];
+    expect([...standingClears(events)].sort()).toEqual(["AA", "AB", "AC"]);
+    // AA's only clear is taken back; AB keeps its earlier clear after the later one is taken back.
+    expect([...standingClears([...events, retract("r1", "e1"), retract("r2", "e3")])].sort()).toEqual(["AB", "AC"]);
+    expect([...standingClears([...events, retract("r1", "e1"), retract("r2", "e3"), retract("r3", "e2")])].sort()).toEqual(["AC"]);
   });
   it("names the clearing team when its own device wrote the debrief, else command", () => {
     const teams = [{ teamId: "T2", name: "Team 2" }];

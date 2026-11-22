@@ -2601,3 +2601,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the panel is its own component (`NoAccessPanel`). A drill offers "Reopen this drill" (a reload, for a sign-in that is back) and "Join another search" (the join form), so an expired drill whose token still names it no longer reopens into the same denial. A practice search points to the judge's page. When the search's mode has not loaded and only its id suggests a practice search, all three are offered.
 - Source: review (Codex, third round on the sign-in line).
 - Verified: three new render tests (drill, practice, mode guessed from the id) failed first, then passed; web unit suite and typecheck pass.
+
+### feat(data): which segments stand cleared, with taken-back clears left out
+- What: `standingClears(events)` gives each segment with at least one clear that command has not taken back, so a search report is offered a segment's debrief only while that segment stands cleared.
+- Source: review (Codex, first round on the search-report guard).
+- Verified: a new unit test (an only clear taken back drops the segment; an earlier clear keeps it after a later one is taken back) failed first, then passed; the debrief data tests (15) pass.

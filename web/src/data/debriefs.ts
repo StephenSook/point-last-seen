@@ -119,6 +119,21 @@ export function clearedSegments(events: readonly StreamedEvent[]): ClearedSegmen
   return [...latest.values()].map((x) => x.c).sort((a, b) => a.segmentId.localeCompare(b.segmentId));
 }
 
+/**
+ * The segments that stand cleared now: at least one clear for each that command has not taken back. The sighting
+ * form offers a segment's debrief for a search report only here, so a retracted clear offers none.
+ */
+export function standingClears(events: readonly StreamedEvent[]): ReadonlySet<string> {
+  const retracted = new Set(events.filter((e) => e["type"] === "retraction").map((e) => e["targetEventId"]));
+  const out = new Set<string>();
+  for (const e of events) {
+    const effect = e["effect"] as { kind?: unknown; segmentId?: unknown } | undefined;
+    if (e["type"] !== "cleared" || effect?.kind !== "cleared" || typeof effect.segmentId !== "string") continue;
+    if (!retracted.has(e.eventId)) out.add(effect.segmentId);
+  }
+  return out;
+}
+
 /** Who wrote it: the clearing team when its own device did, else command. */
 export function debriefAuthor(d: Pick<Debrief, "byUid">, cleared: ClearedSegment | undefined, teams: readonly { teamId: string; name: string }[]): string {
   if (!cleared || d.byUid !== cleared.deviceId) return "Command";
