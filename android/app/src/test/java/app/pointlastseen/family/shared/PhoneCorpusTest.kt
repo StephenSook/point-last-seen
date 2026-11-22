@@ -30,4 +30,13 @@ class PhoneCorpusTest {
         }
         assertEquals("rows where this app differs from the web app (of ${rows.size}):\n$first", 0, differ.size)
     }
+
+    /** Every output is settled: scrubbing it again changes nothing, so text scrubbed at read and again at save comes out the same. */
+    @Test fun everyOutputIsSettled() {
+        val rows = corpus["rows"]!!.jsonArray.map { it.jsonObject }
+        assertTrue("rows in the corpus: ${rows.size}", rows.size >= 9_000)
+        val unsettled = rows.map { it["output"]!!.jsonPrimitive.content }.filter { PhoneNumbers.remove(it) != it }
+        val first = unsettled.take(5).joinToString("\n") { "output=${it.trim()} | again=${PhoneNumbers.remove(it)}" }
+        assertEquals("outputs a second scrub changes (of ${rows.size}):\n$first", 0, unsettled.size)
+    }
 }
