@@ -224,6 +224,12 @@ each line says what the limit is and why.
   ⁵:⁵⁵ ⁶:⁴²", which loses all but its first hour); as times after a date ("Seen 11/19/2026 12:12 5:55 01:42" keeps
   its first hour); and with letters for some digits ("Call 1-800-GET-HELP", which has only four digits). Each needs a
   number written in an unusual way; ordinary numbers are removed.
+- Three more ways part of a number can be left, measured on the web (the phones share its rule but were not measured
+  on these): times written with a third field ("Call 4:04 5:55:01:42" is kept whole, since the run of times is not
+  read as one); in a note already scrubbed once, a run of times followed by spoken digits keeps its first hour ("Dial
+  [number removed] 4:04 5:55 one two one two" gives "Dial [number removed] 4:[number removed]"); and a time just
+  before spoken digits keeps its hour and loses its minutes ("Sighted at 14:03 one two 4:04 5:55" gives "Sighted at
+  14:[number removed]"). Each needs a number written in an unusual way.
 - A run of times in clock order with no phone cue before it is kept as search information, so a phone number written
   as rising times (`2:12 5:55 6:42`), or spread across them (`0:40 4:55 5:01 14:20`), is not removed: a kept run keeps
   all its digits. Out of order (`12:12 5:55 01:42`) or with a cue among the three

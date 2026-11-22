@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: three more ways part of a phone number can be left, measured on the web: times with a third field ("Call
+  4:04 5:55:01:42" is kept whole); in a note already scrubbed once, a run of times followed by spoken digits keeps its
+  first hour; a time just before spoken digits keeps its hour. Source: review of PR #342 (gaps that exist on main
+  too). Verified: each example's output measured with the web's removePhoneNumbers on main 83ea2145 and on this
+  branch, the same on both; the phones were not measured, and the line says so; the hygiene guard passes in public
+  mode.
 - Phone vectors: the shared README says a "[number removed]" beside a run of times takes the run only when nothing
   is joined to it; a run with digits joined to it, written or spoken, is left to the shared rule as before #342. The
   corpus is written again (only its rule hash changed; no row moved) and the README names its SHA-256. Source:
