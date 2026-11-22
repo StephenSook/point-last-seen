@@ -5,6 +5,12 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### chore(ios): version 1.0.0 for the App Store release
+- What: MARKETING_VERSION goes from 0.1.0 to 1.0.0, so the next archive is 1.0.0 (its build number is still set
+  when it is archived).
+- Source: the App Store release.
+- Verified: no other file names 0.1.0 for the app; the full app suite passes.
+
 ### fix(ios): a report is about the plan and search the form opened on
 - What: the form now takes the search and the plan on the phone once, when it opens, and the report is about those.
   Before, Send read the newest plan, so a plan command published while the form was open moved a note written about
