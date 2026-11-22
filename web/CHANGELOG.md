@@ -2786,3 +2786,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: after "Open segment XX's debrief", the line now reads "Segment XX's debrief was opened below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway.", which stays true if that debrief is cancelled or Details is closed; it used to say "is open below" until the note changed or the form closed.
 - Source: review (backlog issue #318).
 - Verified: the harness and deployed checks expecting the new line failed first, then the sighting harness spec passed (27); typecheck passes.
+
+### fix(data): the sign-in line drops replies from an earlier session and ranks untimed replies by read order
+- What: each sign-in is its own session, so a reply from a read started before a sign-out is dropped even when the same account signs in again; while the line comes from a reply with no readable issue time, a later reply applies only if its read started later.
+- Source: review (backlog issue #327).
+- Verified: two new unit tests (the same account signing out and in again; an earlier read's timed reply landing after a newer untimed one) failed first, then passed with the 16 existing claims tests (18); typecheck passes.
