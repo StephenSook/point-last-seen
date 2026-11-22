@@ -3122,3 +3122,23 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `docs/evidence/web/2026-11-22-photo-read-invention-chrome.json`, from the photo-invention page in desktop Chrome 157 on this Mac (built-in model, on device only): 16 reads, 0 sign-text words the drawing did not show; all sign words read on 8 of 8 text reads; empty sign text on 8 of 8 no-text reads, the blank sign board included; 2 of 33 landmarks named something not drawn (Road, Parking lot), both on the first pass; all 16 on device, no Google or Firebase request. `cleanCues` kept the place name only when the sign text showed it; all 8 model place names were in the sign text, so it dropped none here. n = 16 on synthetic drawings, one machine, so not an accuracy rate.
 - Source: review of the photo read (its timing had been measured, invented text had not).
 - Verified: run in desktop Chrome on this Mac; per-read sign-text words checked by `photoTruth.ts`; landmarks judged by hand against each scene's drawn list; the place-name rule's edge cases checked by a one-off probe against `cleanCues` (not committed).
+
+### fix(ai): a photo's place name is kept only as whole words of its sign text
+- What: `cleanCues` kept a place name when the sign text contained it as a substring of upper-cased letters and digits, so "Park" survived on a sign reading "SPARKS RD", "Caf" on "CAFÉ ROUGE", and a name with no letter or digit ("!!!") was always kept. Now the name's words (runs of letters, marks and digits after NFKC, upper-cased) must appear in the sign text as whole words, in the same order; a name with no such word is dropped. Applies to on-device and consented cloud reads alike, since both pass through `cleanCues`.
+- Source: review of the photo read invention measurement (2026-11-22-photo-read-invention-chrome.json, code check).
+- Verified: two new cleanCues tests (whole words in order, case ignored, accented words kept whole; a name with no letter or digit dropped) failed first, then passed (18); web unit; typecheck; gates; hygiene.
+
+### fix(ai): a sign text cut at its limit never offers a partial word as a whole one
+- What: `cleanCues` cuts sign text at 80 UTF-16 code units. A cut inside a word left its first part looking like a whole word, so "River Park" was kept from a sign reading "... RIVER PARKS" past the limit; a cut inside a surrogate pair did the same. The sign's words are now found in the uncut text, and only words that end inside the kept text count. A place name longer than its 60-unit limit is dropped instead of kept cut.
+- Source: review (second-model pass on the whole-word place name rule).
+- Verified: the new cleanCues test (a cut inside a word, inside a combining sequence and inside a surrogate pair; a word ending exactly at the cut kept; an over-long name dropped) failed first, then passed (19); web unit; typecheck; gates; hygiene.
+
+### fix(ai): a place name's words fold the same on both sides, digits only
+- What: `cleanCues` place-name words now run NFKC again after upper-casing, so a letter with no precomposed capital (Greek "Μαΐου") folds the same in the name and on the sign; and a word is letters, marks and decimal digits only, so a lone number symbol such as the Ethiopic ten is not a word and a name made only of one is dropped. A new case checks that the name's words must be next to each other on the sign ("CEDAR COUNTY LAKE" does not keep "Cedar Lake").
+- Source: review (second-model pass on the whole-word place name rule, low findings).
+- Verified: the Greek case failed first (the number-symbol case was shown kept by the review's run of the earlier code), then all passed (19); web unit; typecheck; gates; hygiene.
+
+### fix(ai): find a cut sign's whole words after folding, not before
+- What: the cut-word check found word spans in the raw sign text, but NFKC turns some symbols into letters or digits ("№" to "No", "Ⓐ" to "A", "🄰" to "A"), so the spans disagreed with the folded words: "7 Coffee" was kept from "№7 COFFEE", "North Plaza" from "NORTH Ⓐ PLAZA", and a cut inside "🄰" still left "PARK". Now the kept text and the uncut text fold the same way, and the kept text's last word is dropped only when it differs from the uncut text's word in that place. The combining-mark test now cuts between the letter and its accent, as it meant to.
+- Source: review (second-model pass on the cut-word fix).
+- Verified: the new cases (number sign, circled letter, a cut inside a squared letter, a word ending exactly before a parenthesized digit) failed first, then passed (19); web unit; typecheck; gates; hygiene.

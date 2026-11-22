@@ -34,6 +34,45 @@ describe("cleanCues", () => {
     expect(cleanCues({ ...cues, signText: "HARRIS HARDWARE, OPEN 8-6", placeName: "Harris Hardware" } as never)?.placeName).toBe("Harris Hardware");
   });
 
+  it("keeps a place name only as whole words of the sign text, in order, ignoring case", () => {
+    const name = (signText: string, placeName: string) => cleanCues({ ...cues, signText, placeName } as never)?.placeName;
+    expect(name("SPARKS RD", "Park")).toBe("");
+    expect(name("PARKVIEW AVE", "Park")).toBe("");
+    expect(name("OAK PARK", "Oak Pa")).toBe("");
+    expect(name("LAKE CEDAR PARK", "Cedar Lake")).toBe("");
+    expect(name("CEDAR LAKE PARK", "Cedar Lake")).toBe("Cedar Lake");
+    expect(name("BEAR CREEK\nTRAILHEAD\nNO CAMPING", "Bear Creek Trailhead")).toBe("Bear Creek Trailhead");
+    expect(name("JOE'S DINER", "Joe's Diner")).toBe("Joe's Diner");
+    expect(name("CAFÉ ROUGE", "Caf")).toBe("");
+    expect(name("CAFÉ ROUGE", "Café Rouge")).toBe("Café Rouge");
+    expect(name("CEDAR COUNTY LAKE", "Cedar Lake")).toBe("");
+    expect(name("ΟΔΟΣ 1ΗΣ ΜΑΪ́ΟΥ", "1ης Μαΐου")).toBe("1ης Μαΐου");
+    expect(name("LOT ፲", "፲")).toBe("");
+    expect(name("\u21167 COFFEE", "7 Coffee")).toBe("");
+    expect(name("\u21167 COFFEE", "No7 Coffee")).toBe("No7 Coffee");
+    expect(name("NORTH \u24B6 PLAZA", "North Plaza")).toBe("");
+  });
+
+  it("never counts the part of a word left where a long sign text was cut", () => {
+    const name = (signText: string, placeName: string) => cleanCues({ ...cues, signText, placeName } as never)?.placeName;
+    const lead = "X".repeat(69) + " ";
+    expect((lead + "RIVER PARKS").length).toBe(81);
+    expect(name(lead + "RIVER PARKS", "River Park")).toBe("");
+    expect(name(lead + "RIVER PARK, OPEN", "River Park")).toBe("River Park");
+    expect(name("X".repeat(68) + " RIVER PARKE\u0301", "River Parke")).toBe("");
+    expect(name("X".repeat(69) + " RIVER PAR\u{1D400}K", "River Par")).toBe("");
+    expect(name("X".repeat(68) + " RIVER PARK\u{1F130}", "River Park")).toBe("");
+    expect(name("X".repeat(69) + " RIVER PARK\u2474", "River Park")).toBe("River Park");
+    const long = "A".repeat(50) + " RIVER PARKS";
+    expect(long.length).toBeGreaterThan(60);
+    expect(name(long, long)).toBe("");
+  });
+
+  it("drops a place name with no letter or digit", () => {
+    expect(cleanCues({ ...cues, signText: "MAPLE AVE", placeName: "!!!" } as never)?.placeName).toBe("");
+    expect(cleanCues({ ...cues, signText: "MAPLE AVE", placeName: " - " } as never)?.placeName).toBe("");
+  });
+
   it("refuses values outside the closed lists and keeps at most three landmarks", () => {
     expect(cleanCues({ ...cues, placeType: "castle" } as never)).toBeNull();
     expect(cleanCues({ ...cues, outdoors: "maybe" } as never)).toBeNull();

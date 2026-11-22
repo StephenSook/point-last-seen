@@ -41,17 +41,41 @@ export function photoParams(): HybridParams {
 }
 
 
-const squash = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+/**
+ * Upper-cased words: runs of letters, marks and decimal digits, so "Café" is one word, never "CAF". NFKC runs again
+ * after upper-casing, which can decompose a letter that has no precomposed capital.
+ */
+const wordsOf = (s: string) => s.normalize("NFKC").toUpperCase().normalize("NFKC").split(/[^\p{L}\p{M}\p{Nd}]+/u).filter(Boolean);
 
-/** Closed lists checked, landmarks capped, and a place name kept only when the sign text shows it. */
+/**
+ * The whole words of the kept (cut) sign text. Both texts fold the same way; when the kept text's last word differs
+ * from the uncut text's word in that place, the cut fell inside it (inside a word, a combining sequence, a surrogate
+ * pair or a symbol NFKC turns into letters), so that piece is not a word.
+ */
+function signWords(full: string, kept: string): string[] {
+  const words = wordsOf(kept);
+  if (words.length > 0 && words[words.length - 1] !== wordsOf(full)[words.length - 1]) words.pop();
+  return words;
+}
+
+/** Whether the name's words appear among the sign's words, whole and in order; a name with no letter or digit never does. */
+function signShows(sign: readonly string[], name: string): boolean {
+  const want = wordsOf(name);
+  if (want.length === 0) return false;
+  for (let i = 0; i + want.length <= sign.length; i++) if (want.every((w, j) => sign[i + j] === w)) return true;
+  return false;
+}
+
+/** Closed lists checked, landmarks capped, and a place name kept only when the sign text shows it as whole words. */
 export function cleanCues(c: PhotoCues): PhotoCues | null {
   if (!c || !PLACE_TYPES.includes(c.placeType) || !OUTDOORS.includes(c.outdoors)) return null;
   const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
   const signText = text(c.signText, P.signText.maxLength);
-  const name = text(c.placeName, P.placeName.maxLength);
+  // A name over the limit would be kept cut, which is not the name the model gave, so it is dropped.
+  const name = typeof c.placeName === "string" && c.placeName.length <= P.placeName.maxLength ? c.placeName : "";
   return {
     placeType: c.placeType,
-    placeName: name !== "" && squash(signText).includes(squash(name)) ? name : "",
+    placeName: signShows(signWords(typeof c.signText === "string" ? c.signText : "", signText), name) ? name : "",
     signText,
     landmarks: (Array.isArray(c.landmarks) ? c.landmarks : []).filter((l): l is string => typeof l === "string").slice(0, P.landmarks.maxItems).map((l) => l.slice(0, P.landmarks.items.maxLength)),
     outdoors: c.outdoors,
