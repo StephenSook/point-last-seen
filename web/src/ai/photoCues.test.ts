@@ -47,6 +47,19 @@ describe("cleanCues", () => {
     expect(name("CAFÉ ROUGE", "Café Rouge")).toBe("Café Rouge");
   });
 
+  it("never counts the part of a word left where a long sign text was cut", () => {
+    const name = (signText: string, placeName: string) => cleanCues({ ...cues, signText, placeName } as never)?.placeName;
+    const lead = "X".repeat(69) + " ";
+    expect((lead + "RIVER PARKS").length).toBe(81);
+    expect(name(lead + "RIVER PARKS", "River Park")).toBe("");
+    expect(name(lead + "RIVER PARK, OPEN", "River Park")).toBe("River Park");
+    expect(name(lead + "RIVER PARKÉ", "River Parke")).toBe("");
+    expect(name("X".repeat(69) + " RIVER PAR\u{1D400}K", "River Par")).toBe("");
+    const long = "A".repeat(50) + " RIVER PARKS";
+    expect(long.length).toBeGreaterThan(60);
+    expect(name(long, long)).toBe("");
+  });
+
   it("drops a place name with no letter or digit", () => {
     expect(cleanCues({ ...cues, signText: "MAPLE AVE", placeName: "!!!" } as never)?.placeName).toBe("");
     expect(cleanCues({ ...cues, signText: "MAPLE AVE", placeName: " - " } as never)?.placeName).toBe("");

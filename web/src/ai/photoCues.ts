@@ -44,9 +44,16 @@ export function photoParams(): HybridParams {
 /** Upper-cased words: runs of letters, marks and digits after NFKC, so "Café" is one word, never "CAF". */
 const wordsOf = (s: string) => s.normalize("NFKC").toUpperCase().split(/[^\p{L}\p{M}\p{N}]+/u).filter(Boolean);
 
-/** Whether the name's words appear in the sign text as whole words, in order; a name with no letter or digit never does. */
-function signShows(signText: string, name: string): boolean {
-  const sign = wordsOf(signText);
+/**
+ * The words of the sign text that end inside its first `kept` code units. Words are found in the uncut text, so a
+ * sign cut inside a word (or inside a surrogate pair) never offers the piece left at the end as a whole word.
+ */
+function signWords(full: string, kept: number): string[] {
+  return [...full.matchAll(/[\p{L}\p{M}\p{N}]+/gu)].filter((m) => m.index + m[0].length <= kept).flatMap((m) => wordsOf(m[0]));
+}
+
+/** Whether the name's words appear among the sign's words, whole and in order; a name with no letter or digit never does. */
+function signShows(sign: readonly string[], name: string): boolean {
   const want = wordsOf(name);
   if (want.length === 0) return false;
   for (let i = 0; i + want.length <= sign.length; i++) if (want.every((w, j) => sign[i + j] === w)) return true;
@@ -58,10 +65,11 @@ export function cleanCues(c: PhotoCues): PhotoCues | null {
   if (!c || !PLACE_TYPES.includes(c.placeType) || !OUTDOORS.includes(c.outdoors)) return null;
   const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
   const signText = text(c.signText, P.signText.maxLength);
-  const name = text(c.placeName, P.placeName.maxLength);
+  // A name over the limit would be kept cut, which is not the name the model gave, so it is dropped.
+  const name = typeof c.placeName === "string" && c.placeName.length <= P.placeName.maxLength ? c.placeName : "";
   return {
     placeType: c.placeType,
-    placeName: signShows(signText, name) ? name : "",
+    placeName: signShows(signWords(typeof c.signText === "string" ? c.signText : "", signText.length), name) ? name : "",
     signText,
     landmarks: (Array.isArray(c.landmarks) ? c.landmarks : []).filter((l): l is string => typeof l === "string").slice(0, P.landmarks.maxItems).map((l) => l.slice(0, P.landmarks.items.maxLength)),
     outdoors: c.outdoors,

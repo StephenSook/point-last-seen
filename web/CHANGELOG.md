@@ -3127,3 +3127,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `cleanCues` kept a place name when the sign text contained it as a substring of upper-cased letters and digits, so "Park" survived on a sign reading "SPARKS RD", "Caf" on "CAFÉ ROUGE", and a name with no letter or digit ("!!!") was always kept. Now the name's words (runs of letters, marks and digits after NFKC, upper-cased) must appear in the sign text as whole words, in the same order; a name with no such word is dropped. Applies to on-device and consented cloud reads alike, since both pass through `cleanCues`.
 - Source: review of the photo read invention measurement (2026-11-22-photo-read-invention-chrome.json, code check).
 - Verified: two new cleanCues tests (whole words in order, case ignored, accented words kept whole; a name with no letter or digit dropped) failed first, then passed (18); web unit; typecheck; gates; hygiene.
+
+### fix(ai): a sign text cut at its limit never offers a partial word as a whole one
+- What: `cleanCues` cuts sign text at 80 UTF-16 code units. A cut inside a word left its first part looking like a whole word, so "River Park" was kept from a sign reading "... RIVER PARKS" past the limit; a cut inside a surrogate pair did the same. The sign's words are now found in the uncut text, and only words that end inside the kept text count. A place name longer than its 60-unit limit is dropped instead of kept cut.
+- Source: review (second-model pass on the whole-word place name rule).
+- Verified: the new cleanCues test (a cut inside a word, inside a combining sequence and inside a surrogate pair; a word ending exactly at the cut kept; an over-long name dropped) failed first, then passed (19); web unit; typecheck; gates; hygiene.
