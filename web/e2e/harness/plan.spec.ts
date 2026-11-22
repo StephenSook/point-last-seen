@@ -120,3 +120,10 @@ test("with no approved plan yet, a suggestion shows on its own", async ({ page }
   await expect(page.getByTestId("suggested-plan")).toBeVisible();
   await expect(page.getByRole("table", { name: "The approved plan and this suggestion" })).toHaveCount(0);
 });
+
+test("the Plan section says whether its history has come from the server, for checks that must not go offline before it", async ({ page }) => {
+  await page.goto("/harness/plan.html?history=loading");
+  await expect(page.getByRole("region", { name: "Plan" })).toHaveAttribute("data-plans-loaded", "false");
+  await page.goto("/harness/plan.html");
+  await expect(page.getByRole("region", { name: "Plan" })).toHaveAttribute("data-plans-loaded", "true");
+});

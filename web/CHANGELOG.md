@@ -2622,3 +2622,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: "unavailable" now gets the may-already-be-replaced line too, since a reply lost after the server committed (a 503 from the host) reads the same as no connection; a second replacement would stop the code the first one made.
 - Source: review (Codex, second round on the join-code panel).
 - Verified: the extended unit test failed first, then passed (5).
+
+### feat(command): the Plan section says when its history has come from the server
+- What: the Plan section carries `data-plans-loaded` ("true" once the plan history has come from the server, which Approve waits for), so a check that takes the link down can wait for it first.
+- Source: live check (the offline-approve check took the link down after the map drew from cache but before the plan history arrived, and Approve rightly refused).
+- Verified: a new harness test (false while loading, true once loaded) failed first, then passed; the plan harness spec (14), web unit suite and typecheck pass.
