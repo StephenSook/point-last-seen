@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Test matrix: a row for plan reason codes on Chrome's built-in model (2026-11-22, 12 main-reason picks, 0 fallbacks,
+  one team's pick changing with the order), naming the command post's PREFER_ON_DEVICE call and the run's
+  ONLY_ON_DEVICE options, each with its code line. Source: the reason-code change (PR #354). Verified:
+  `scripts/test_test_matrix.py` passes (both code lines hold their calls, the evidence file is tracked).
 - Limits: the plan reason line is rewritten for fact codes: a model (Chrome's built-in model where the browser has
   one, otherwise the cloud model) chooses each team's main reason from that team's own facts, code adds a second fact
   and writes every word, a reply that does not fit is not used and the plan shows fixed wording, and the pick can
