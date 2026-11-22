@@ -281,7 +281,7 @@ test("a search report placed in a cleared segment can open that segment's debrie
   await page.getByRole("button", { name: "Open segment AB's debrief" }).click();
   await expect(page.getByTestId("debrief")).toHaveText("AB");
   await expect(page.getByTestId("saved")).toHaveText("");
-  await expect(page.getByRole("status").filter({ hasText: "Segment AB's debrief is open below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Segment AB's debrief was opened below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway." })).toBeVisible();
   // The sighting draft keeps its note, and it can still be saved as a sighting or open the debrief again.
   await expect(page.getByRole("textbox", { name: "Note" })).toHaveValue("No sign of him along the fence.");
   await expect(page.getByRole("button", { name: "Open segment AB's debrief" })).toBeVisible();

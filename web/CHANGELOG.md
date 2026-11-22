@@ -2781,3 +2781,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: /support now says "Email stevefunds2006@gmail.com about a problem with the app, an abusive post or member, or deleting your data." as a mailto link, above the GitHub issues line, which stays as the second way to get help. Published contact for an app with user content (App Store guideline 1.2); the owner chose the address.
 - Source: App Store review requirement.
 - Verified: a new unit test (the line, one mailto, no other address) failed first, then passed; the public pages checks (6) pass against a preview build, with one more that the live /support HTML serves the line, run after the deploy.
+
+### fix(command): the sighting form says a debrief was opened, not that it is open
+- What: after "Open segment XX's debrief", the line now reads "Segment XX's debrief was opened below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway.", which stays true if that debrief is cancelled or Details is closed; it used to say "is open below" until the note changed or the form closed.
+- Source: review (backlog issue #318).
+- Verified: the harness and deployed checks expecting the new line failed first, then the sighting harness spec passed (27); typecheck passes.
