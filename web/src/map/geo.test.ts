@@ -76,6 +76,25 @@ describe("segmentChoices", () => {
     expect(segmentContaining(c!.centre, [u])).toBe("AU");
   });
 
+  it("places a segment whose centroid lies on an edge it shares with a neighbour inside itself, not in the neighbour", () => {
+    // AA and BB share the edge from (0.1, 0) to (0.2, 1); BB's stored centroid lies on it, which counts as AA first.
+    const aa = { segmentId: "AA", geometry: { type: "Polygon" as const, coordinates: [[[0, 0], [0.1, 0], [0.2, 1], [0, 1], [0, 0]]] }, centroid: { lat: 0.5, lon: 0.07 } };
+    const bb = { segmentId: "BB", geometry: { type: "Polygon" as const, coordinates: [[[0.1, 0], [1, 0], [1, 1], [0.2, 1], [0.1, 0]]] }, centroid: { lat: 0.7, lon: 0.16999999999999998 } };
+    expect(segmentContaining(bb.centroid, [aa, bb])).toBe("AA");
+    const choices = segmentChoices([aa, bb]);
+    for (const c of choices) expect(segmentContaining(c.centre, [aa, bb]), c.segmentId).toBe(c.segmentId);
+  });
+
+  it("handles a ring of 150,000 points without throwing", () => {
+    const ring: number[][] = [];
+    for (let i = 0; i < 150_000; i++) ring.push([Math.cos((2 * Math.PI * i) / 150_000), Math.sin((2 * Math.PI * i) / 150_000)]);
+    ring.push(ring[0]!);
+    const hole = [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5], [-0.5, -0.5]];
+    const big = { segmentId: "BG", geometry: { type: "Polygon" as const, coordinates: [ring, hole] }, centroid: { lat: 0, lon: 0 } };
+    const [c] = segmentChoices([big]);
+    expect(segmentContaining(c!.centre, [big])).toBe("BG");
+  });
+
   it("places every segment of both shipped grids inside itself, so a sighting placed from the list lands in it", () => {
     for (const name of ["kennesaw-mountain-drill", "piedmont-park-dev"]) {
       const grid = JSON.parse(readFileSync(new URL(`../../../shared/grid/${name}.grid.json`, import.meta.url), "utf8")) as { segments: GridSegmentDoc[] };
