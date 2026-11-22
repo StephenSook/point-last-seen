@@ -75,6 +75,9 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   // The note a team's search report was typed as ("Segment 4 searched, subject not seen"): Save asked once whether it
   // is a sighting. It only warns, in English only: a second tap saves it as typed, and an edit asks again.
   const [reportAsked, setReportAsked] = useState<string | null>(null);
+  // The segment whose debrief form now holds this note. The sighting draft stays open meanwhile, so nothing is lost if
+  // the debrief is never saved; command cancels it or saves it anyway.
+  const [debriefedTo, setDebriefedTo] = useState<string | null>(null);
 
   // The words of the note the read took its answer from (checked against the note by the read itself).
   const [quote, setQuote] = useState("");
@@ -102,6 +105,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   function changeNote(text: string) {
     setNote(text);
     setReportAsked(null);
+    setDebriefedTo(null);
     if (readState === "none") return;
     setReadState("none");
     setRan(null);
@@ -165,13 +169,14 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       setError("Enter the time it was seen.");
       return;
     }
+    // A read still running when Save is pressed fills nothing afterwards, also when Save first asks about a search
+    // report: what is saved is what was on screen.
+    readSeq.current++;
     if (!asked && readsAsSearchReport(note)) {
       setReportAsked(note);
       return;
     }
     setSaving(true);
-    // A read still running when Save is pressed fills nothing afterwards: what is saved is what was on screen.
-    readSeq.current++;
     try {
       await onSave({ observedAtMs, position: place, direction, topColor, bottomColor, footwear, carried, reportedBy, freeText: note, ...(readFilled ? { readFilled } : {}) });
       setCallbackName("");
@@ -333,9 +338,20 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       {reportAsked !== null && reportAsked === note && (
         <div className="note-state" role="alert">
           <p>{SEARCH_REPORT_LINE}</p>
+          {debriefedTo && (
+            <p role="status">{`The note is in segment ${debriefedTo}'s debrief, not saved yet. Save it there and cancel this sighting, or save it as a sighting anyway.`}</p>
+          )}
           <div className="row">
-            {placeSegmentId && onDebrief && debriefable?.has(placeSegmentId) && (
-              <button type="button" className="btn ghost" onClick={() => onDebrief(placeSegmentId, note)} disabled={saving}>
+            {!debriefedTo && placeSegmentId && onDebrief && debriefable?.has(placeSegmentId) && (
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  setDebriefedTo(placeSegmentId);
+                  onDebrief(placeSegmentId, note);
+                }}
+                disabled={saving}
+              >
                 Add it to segment {placeSegmentId}'s debrief
               </button>
             )}

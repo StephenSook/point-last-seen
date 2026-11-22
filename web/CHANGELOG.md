@@ -2606,3 +2606,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `standingClears(events)` gives each segment with at least one clear that command has not taken back, so a search report is offered a segment's debrief only while that segment stands cleared.
 - Source: review (Codex, first round on the search-report guard).
 - Verified: a new unit test (an only clear taken back drops the segment; an earlier clear keeps it after a later one is taken back) failed first, then passed; the debrief data tests (15) pass.
+
+### fix(command): a search report sent to a debrief keeps its sighting draft, and a late read fills nothing
+- What: "Add it to segment XX's debrief" now leaves the sighting form open with its note and fields and says "The note is in segment XX's debrief, not saved yet. Save it there and cancel this sighting, or save it as a sighting anyway.", so a sighting is never lost when its debrief is not saved or cannot hold the note. A read still running at the first Save tap is dropped there too, so a field cannot change between the warning and "Save as a sighting anyway".
+- Source: review (Codex, first round: a real sighting could be lost through the debrief path).
+- Verified: the updated handoff test and a new late-read test failed first, then passed; the sighting harness spec (27) passes.
