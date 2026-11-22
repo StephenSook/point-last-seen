@@ -2,6 +2,7 @@
 // the third signal. Never by red, never by hue.
 
 import { COMMAND, dotRadiusPx, POA_RAMP } from "../theme/tokens";
+import { insidePoint } from "./geo";
 
 export { POA_RAMP };
 
@@ -73,7 +74,10 @@ export type CentreCollection = {
   features: { type: "Feature"; id: number; geometry: { type: "Point"; coordinates: [number, number] }; properties: { segmentId: string; r: number } }[];
 };
 
-/** The second signal: a dot at each segment centre, radius 3 + 11 x sqrt(poa / maxPoa) px (3 to 14 px). */
+/**
+ * The second signal: a dot at each segment centre, radius 3 + 11 x sqrt(poa / maxPoa) px (3 to 14 px). The centre is
+ * insidePoint, so a click on the dot picks its own segment even where the stored centroid lies outside it.
+ */
 export function centreFeatures(segments: readonly MapSegment[], poa: Readonly<Record<string, number>>): CentreCollection {
   const maxPoa = Math.max(0, ...segments.map((s) => poa[s.segmentId] ?? 0));
   return {
@@ -81,7 +85,8 @@ export function centreFeatures(segments: readonly MapSegment[], poa: Readonly<Re
     features: segments.map((s, i) => {
       const p = poa[s.segmentId] ?? 0;
       const r = dotRadiusPx(p, maxPoa);
-      return { type: "Feature", id: i, geometry: { type: "Point", coordinates: [s.centroid.lon, s.centroid.lat] }, properties: { segmentId: s.segmentId, r } };
+      const at = insidePoint(s, segments);
+      return { type: "Feature", id: i, geometry: { type: "Point", coordinates: [at.lon, at.lat] }, properties: { segmentId: s.segmentId, r } };
     }),
   };
 }
