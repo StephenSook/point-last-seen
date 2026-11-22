@@ -56,7 +56,9 @@ REQUIRED_REMOVE = ["4 0 4 5 5 5 0 1 4 2", "four oh four five five five oh one fo
                   "4:04 5:55 16:42", "4:04 5:55 06:42", "4:04 5:55 16:43",
                   "4:04 5:55 6:42",
                    # A known gap, pending on every platform (#298): a colon breaks the run, so times after a cue survive.
-                   "5:55 01:42", "5:55 01:42", "5:55 07:14", "5:55 01:42"]
+                   "5:55 01:42", "5:55 01:42", "5:55 07:14", "5:55 01:42",
+                   # The same number twice in one note: every copy goes, not only the first.
+                   "404-555-0142"]
 # A date in a note is search information, not a phone number, so every platform keeps it; so are coordinates
 # (without a leading +), a ZIP+4 code, a grouped count under seven digits, a street number and a number with a unit.
 REQUIRED_KEEP = ["14:03", "segment 12", "3 searchers", "45%", "11/19/2026", "2026-11-19", "11/19", "Nov 19",
@@ -152,7 +154,8 @@ def test_every_case_is_well_formed():
         assert set(c.get("pendingOn", [])) <= PLATFORMS, c["name"]
     for c in d["mustRemove"]:
         assert set(c) - {"pendingOn"} == {"name", "input", "number", "forbidden", "keep"}
-        assert c["input"].count(c["number"]) == 1
+        # Usually once; a case may hold the same number more than once, and then every copy must go.
+        assert c["input"].count(c["number"]) >= 1
         # The number is the only digit run, so "no digit is left" tests the scrubber and nothing else.
         assert not number_chars(c["input"].replace(c["number"], ""))
         assert all(f in c["number"] for f in c["forbidden"])
@@ -186,6 +189,17 @@ def test_the_contract_fails_a_scrubber_that_does_nothing_or_wipes_the_note():
         # Byte for byte: a different token, or an extra space, fails.
         assert exact_violations(c, c["output"].replace(d["replacement"], "[removed]")) != [], c["name"]
         assert exact_violations(c, c["output"] + " ") != [], c["name"]
+
+
+def test_the_contract_fails_a_scrubber_that_removes_only_the_first_copy():
+    # A note can hold the same number twice; a scrubber that replaces only the first copy leaves the second.
+    d = load()
+    twice = [c for c in d["mustRemove"] if c["input"].count(c["number"]) > 1]
+    assert [c["name"] for c in twice] == ["same_number_twice"]
+    for c in twice:
+        first_only = c["input"].replace(c["number"], d["replacement"], 1)
+        assert "number still present" in remove_violations(c, first_only), c["name"]
+        assert "a digit is left" in remove_violations(c, first_only), c["name"]
 
 
 def test_a_leftover_digit_in_any_script_is_caught():

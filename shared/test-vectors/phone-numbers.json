@@ -741,6 +741,17 @@
         "web",
         "android"
       ]
+    },
+    {
+      "name": "same_number_twice",
+      "input": "Her son is at 404-555-0142, call him at 404-555-0142 tonight.",
+      "number": "404-555-0142",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        ", call him at",
+        "tonight."
+      ]
     }
   ],
   "mustKeep": [
