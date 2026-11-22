@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### feat(ios): the model can block the family's description on this phone
+- What: `blockFamilyDescription()` hides the family's description of the person on this phone, for the loaded search,
+  and `showFamilyDescriptionAgain()` undoes it. The choice is kept on the phone (`pls.blockedFamilyDescriptions`), so it
+  stays after the app starts again, and it is per search, so another search's description still shows. Nothing is
+  sent: command still has the description. `canBlockFamilyDescription` is true only while the search has one.
+- Source: App Review guideline 1.2 (the ability to block abusive users), for the one kind of member content a searcher
+  sees.
+- Verified: new tests failed first (nothing to call) and pass: block, kept after a restart, Show again; a block in
+  another search hides nothing here; nothing to block without a description; nothing filed. The full app suite
+  passes.
+
 ### fix(ios): the Report a problem form offers only what it can file and keeps its choice after Send
 - What: the form's target choice comes from the context it opened on: a form that opened before any plan offers no
   task (a plan arriving later does not add it), and a search that changed offers nothing. The choice is fixed once a

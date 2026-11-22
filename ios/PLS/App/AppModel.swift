@@ -58,6 +58,10 @@ final class AppModel {
     private let defaults: UserDefaults
     static let alertsAskedKey = "pls.alertsAsked"
     static let topicsKey = "pls.pushTopics"
+    /// The searches whose family description this phone blocked (Block on this phone).
+    static let blockedDescriptionsKey = "pls.blockedFamilyDescriptions"
+    /// Read once at launch and kept here, so the screen follows a block at once.
+    private(set) var blockedDescriptions: Set<String> = []
     /// True while the one-time alerts question should show (after a join, before an answer).
     private(set) var offersAlerts = false
     /// Counts taps on new-assignment pushes; the screen returns to the task on each.
@@ -124,6 +128,7 @@ final class AppModel {
         self.alerts = alerts ?? SystemAlerts()
         self.contentReports = contentReports ?? FirestoreContentReportWriter()
         self.defaults = defaults
+        self.blockedDescriptions = Set(defaults.stringArray(forKey: Self.blockedDescriptionsKey) ?? [])
         self.appVersion = appVersion
         self.speaker = speaker ?? AssignmentSpeaker()
         self.uid = uid
@@ -569,6 +574,33 @@ final class AppModel {
     struct ReportContext: Equatable {
         let incidentId: String
         let planVersion: Int?
+    }
+
+    /// Whether the family's description of the person can be blocked on this phone: the loaded search has one.
+    var canBlockFamilyDescription: Bool { mission?.sharedProfile != nil }
+
+    /// Whether this phone blocked the loaded search's family description: it is not shown here.
+    var familyDescriptionBlocked: Bool {
+        guard let incidentId = mission?.incidentId else { return false }
+        return blockedDescriptions.contains(incidentId)
+    }
+
+    /// Block on this phone: the family's description of the person is no longer shown on this phone, for this search.
+    /// Nothing is sent; command still has the description, and Show again undoes it.
+    func blockFamilyDescription() {
+        guard canBlockFamilyDescription, let incidentId = mission?.incidentId else { return }
+        setBlocked(blockedDescriptions.union([incidentId]))
+    }
+
+    /// Show again: the family's description shows on this phone again.
+    func showFamilyDescriptionAgain() {
+        guard let incidentId = mission?.incidentId else { return }
+        setBlocked(blockedDescriptions.subtracting([incidentId]))
+    }
+
+    private func setBlocked(_ incidents: Set<String>) {
+        blockedDescriptions = incidents
+        defaults.set(incidents.sorted(), forKey: Self.blockedDescriptionsKey)
     }
 
     /// What a form that opened on `context` can file about: no task when it opened before any plan, and nothing once
