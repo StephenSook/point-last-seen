@@ -2592,3 +2592,33 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a deployed check, `web/e2e/receiptSent.spec.ts`, types a sighting note with a phone number in it. With no built-in model it reads the note, and no request reaches an AI host. After the consent tap the cloud read sends exactly one request, to the server prompt template, whose whole body is `{"inputs":{"note":...}}` with the number removed and no other field. The receipt counts exactly that note's bytes ("Sent: 94 bytes of the note, with phone numbers removed."), and no digit of the number is in the request.
 - Source: review (make the receipt's honesty something a test proves).
 - Verified: the check passes twice on the deployed site (build b890674b, the test drill); web typecheck and the hygiene guard pass; the sighting is cancelled, never saved.
+
+### feat(data): command can ask for a new searcher or family join code
+- What: `web/src/data/joinCodes.ts` calls the `rotateJoinCode` callable, checks its answer (eight join-code characters for the role asked, and a whole count of replaced codes), and gives a plain sentence for every refusal the server names (not_command, practice_search, not_open, collision, bad_role, bad_incident_id, not_signed_in), a refused sign-in or App Check token, and a dropped link.
+- Source: review (command needs a way to replace a code that got out).
+- Verified: new unit tests failed first, then passed (4); typecheck passes.
+
+### feat(command): Give searchers or family a new code, beside the People list
+- What: on an open drill, a Join codes section under People offers "Give searchers a new code" and "Give family a new code". Each asks first ("Every searcher code given out stops working. People already in the search stay in."), then shows the new code once, large and selectable, with Copy and how many old codes it replaced; Done hides it. A refusal keeps the confirm open with the server's reason. A practice search and an ended search show no codes. The members harness renders the section with a stand-in.
+- Source: review (command needs a way to replace a code that got out).
+- Verified: three new harness checks (ask, Cancel, Replace, Copy and Done; a refusal; no codes on a practice search) failed first, then passed with the members checks (10); web unit suite (1191) and typecheck pass.
+
+### fix(data): a replacement with no answer says the code may already be replaced
+- What: when no answer came back (a deadline, a server error, or an answer that could not be read), the line is now "No answer came back, so the code may already have been replaced. Replacing it again makes the newest code the only one that works." instead of "Try again", since the server may already have made a code a second tap would stop. `parseRotation` also refuses a replaced count JavaScript cannot hold exactly.
+- Source: review (Codex, first round on the join-code panel).
+- Verified: the new and extended unit tests failed first, then passed (5).
+
+### fix(command): "Copied." names only the code the clipboard took
+- What: the panel remembers which code a Copy wrote, so a Copy that finishes after command pressed Done and made another code never marks the new one copied.
+- Source: review (Codex, first round on the join-code panel).
+- Verified: a new harness test (a slow searcher Copy finishing over a family code) failed first, then passed; the members harness spec (11) passes.
+
+### fix(command): the join-code panel shows only on an open drill
+- What: the panel needs the drill's status to be open, as the server does, so an older drill saved as found no longer offers a replacement the server refuses.
+- Source: review (Codex, first round on the join-code panel).
+- Verified: typecheck and the web unit suite pass.
+
+### fix(data): a dropped link also says the code may already be replaced
+- What: "unavailable" now gets the may-already-be-replaced line too, since a reply lost after the server committed (a 503 from the host) reads the same as no connection; a second replacement would stop the code the first one made.
+- Source: review (Codex, second round on the join-code panel).
+- Verified: the extended unit test failed first, then passed (5).

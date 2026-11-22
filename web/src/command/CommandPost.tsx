@@ -51,6 +51,8 @@ import { flagTarget, latestTeamOf, subscribeFlags, type Flag } from "../data/con
 import { FlagsPanel } from "./FlagsPanel";
 import { memberRows, removeMember, subscribeMembers, type MemberDoc } from "../data/members";
 import { MembersPanel } from "./MembersPanel";
+import { rotateJoinCode } from "../data/joinCodes";
+import { JoinCodes } from "./JoinCodes";
 import { endedLine, endSearch, writesOpen } from "../data/endSearch";
 import { EndSearch } from "./EndSearch";
 import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
@@ -1097,6 +1099,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             />
             <MergeLanes lanes={lanes} />
             <MembersPanel rows={people} stale={membersStale} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />
+            {/* New join codes for an open drill only: a practice search has none, an ended search takes no new members. */}
+            {/* Only while the drill is open: the server refuses a new code for any other status (an older "found" drill too). */}
+            {incident?.mode === "drill" && incident.status === "open" && !closedHere && <JoinCodes onRotate={(role) => rotateJoinCode(pls.functions, incidentId, role)} />}
             {/* queued: a close this browser has written that the server has not confirmed (also after a reload offline). */}
             {incident && !ended && <EndSearch queued={incident.status === "closed"} onEnd={(reason) => endSearch(pls.db, incidentId, reason)} />}
           </details>
