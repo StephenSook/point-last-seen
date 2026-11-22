@@ -100,7 +100,7 @@ test("while the plan is worded, the card says so and that the first time can tak
   await page.goto("/harness/plan.html?slow=1");
   await page.getByRole("button", { name: /^Suggest/ }).click();
   const waiting = page.getByRole("status").filter({ hasText: "Wording the plan" });
-  await expect(waiting).toHaveText("Wording the plan. The first time on this laptop can take up to a minute.");
+  await expect(waiting).toHaveText("Wording the plan. The first time on this device can take up to a minute.");
   await page.getByRole("button", { name: "Model answers" }).click();
   await expect(waiting).toHaveCount(0);
 });

@@ -570,7 +570,7 @@ describe("lastReportRoute", () => {
   });
 
   it("a read on the browser's own model is on the laptop, not a phone", () => {
-    expect(lineFor({ ...cloud, path: "on_device", model: "chrome-built-in", reason: "sdk_prefer_on_device" })).toBe("Read on the laptop, model chrome-built-in");
+    expect(lineFor({ ...cloud, path: "on_device", model: "chrome-built-in", reason: "sdk_prefer_on_device" })).toBe("Read on the command post's device, model chrome-built-in");
   });
 
   it("a rules route says no model ran, whatever placeholder its model field holds", () => {

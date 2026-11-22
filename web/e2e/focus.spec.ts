@@ -5,7 +5,7 @@ test("keyboard focus on Add photos is visible on its label", async ({ page }) =>
   await joinCommand(page);
   await openDetails(page);
   const tray = page.locator(".tray");
-  await tray.getByRole("button", { name: "Get this laptop ready" }).focus();
+  await tray.getByRole("button", { name: "Get this device ready" }).focus();
   await page.keyboard.press("Tab");
   const input = tray.locator('input[type="file"]');
   await expect(input).toBeFocused();

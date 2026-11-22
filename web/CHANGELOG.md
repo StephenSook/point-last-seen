@@ -3066,3 +3066,17 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - It says the 60 s is headroom for a slower laptop's first wording, which was not measured. The value is unchanged.
 - Source: review of the comment against the current evidence.
 - Verified: each number was read from the evidence files by script; the cited lines 47 and 232 did not move; comment only.
+
+### fix(web): user-facing copy says this device, not this laptop
+- What: every user-visible "this laptop" or "the laptop" now says "this device" or "the device", since judges may open the site on any device and the receipts already say device. This covers:
+  - buttons ("Get this device ready", "Read on this device", "Use this device's camera");
+  - status lines, the debrief sheet read lines, and the printed debrief sheet line;
+  - the judge page heading and lines, and the Measured block;
+  - the replay's route ("Read on the command post's device", beside "Read on the phone");
+  - the public llms.txt.
+  Function names, comments and the dev-only measurement pages are unchanged.
+- Source: review of the judge-facing wording.
+- Verified:
+  - every spec and unit test that quotes these strings was changed first and failed (5 unit tests, 22 harness checks), then passed (unit 1438; harness 242/242);
+  - three harness status filters that still said laptop were changed too, so they cannot match nothing;
+  - typecheck passes; no user-visible "laptop" remains in web/src outside comments, identifiers and dev pages.

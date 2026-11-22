@@ -231,12 +231,12 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       </div>
       {busy === "read" && (
         <p role="status" className="muted">
-          Reading the note on this laptop. The first read can take up to a minute.
+          Reading the note on this device. The first read can take up to a minute.
         </p>
       )}
       {readState === "no-model" && (
         <div role="status" className="note-state">
-          <p>This laptop has no local model. Nothing was sent.</p>
+          <p>This device has no local model. Nothing was sent.</p>
           {cloudPaused ? (
             <p>{CLOUD_PAUSED}</p>
           ) : (

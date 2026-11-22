@@ -28,12 +28,12 @@ const FIELDS: readonly { key: SheetField; label: string; long?: true }[] = [
 ];
 
 const SAY: Record<SheetRefusal | "photo" | "failed" | "camera", string> = {
-  "no-on-device-model": "This laptop has no on-device model that reads images, so the sheet was not read. Add the debrief by hand.",
-  "not-on-device": "The read did not run on this laptop, so it was not used. Add the debrief by hand.",
+  "no-on-device-model": "This device has no on-device model that reads images, so the sheet was not read. Add the debrief by hand.",
+  "not-on-device": "The read did not run on this device, so it was not used. Add the debrief by hand.",
   invalid: "The sheet could not be read. Try a clearer photo, or add the debrief by hand.",
   timeout: "The read took too long. Try again, or add the debrief by hand.",
   photo: "The photo could not be opened. Try another photo.",
-  failed: "The read stopped with an error on this laptop. Try again, or add the debrief by hand.",
+  failed: "The read stopped with an error on this device. Try again, or add the debrief by hand.",
   camera: "The camera could not be opened. Add a photo of the sheet instead.",
 };
 
@@ -224,7 +224,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
   if (phase === "confirm" && values && sheet && route) {
     return (
       <div ref={root} className="debrief-form">
-        <p className="small">Read on this laptop. Check each box against the paper; change any the read got wrong.</p>
+        <p className="small">Read on this device. Check each box against the paper; change any the read got wrong.</p>
         {receiptLines({ asked: "this device only", route, sentBytes: 0, what: "the photo of the sheet" }).map((l) => (
           <p key={l} className="muted small">
             {l}
@@ -289,7 +289,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
 
   return (
     <div ref={root} className="debrief-form">
-      <p className="small">Read the team's paper sheet on this laptop. The photo is not kept.</p>
+      <p className="small">Read the team's paper sheet on this device. The photo is not kept.</p>
       {phase === "pick" && (
         <>
           <label>
@@ -305,19 +305,19 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
             />
           </label>
           <button type="button" className="btn ghost" onClick={() => void openCamera()} disabled={opening}>
-            Use the laptop camera
+            Use this device's camera
           </button>
         </>
       )}
       {phase === "camera" && (
         <>
-          <video ref={video} className="debrief-camera" muted playsInline aria-label="The laptop camera" onLoadedMetadata={() => setCamReady(true)} />
+          <video ref={video} className="debrief-camera" muted playsInline aria-label="This device's camera" onLoadedMetadata={() => setCamReady(true)} />
           <button type="button" className="btn" onClick={() => void takePhoto()} disabled={!camReady}>
             Take the photo
           </button>
         </>
       )}
-      {phase === "reading" && <p role="status">Reading the sheet on this laptop. The first read can take up to a minute.</p>}
+      {phase === "reading" && <p role="status">Reading the sheet on this device. The first read can take up to a minute.</p>}
       {message && (
         <p className="error" role="alert">
           {message}

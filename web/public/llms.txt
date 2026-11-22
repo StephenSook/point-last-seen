@@ -1,10 +1,10 @@
 # Point Last Seen
 
-> A search-planning tool for missing-person searches. The command post shows where to search first as a probability map over a park's search segments, and updates the map and the team plan as sightings, clues and cleared segments come in. It runs on Firebase AI Logic with hybrid inference: private reads (a family photo, a caller's note) stay on the laptop's built-in Chrome model, and cloud reads happen only after a consent tap. Everything shown is a training drill: nobody is missing.
+> A search-planning tool for missing-person searches. The command post shows where to search first as a probability map over a park's search segments, and updates the map and the team plan as sightings, clues and cleared segments come in. It runs on Firebase AI Logic with hybrid inference: private reads (a family photo, a caller's note) stay on the device's built-in Chrome model, and cloud reads happen only after a consent tap. Everything shown is a training drill: nobody is missing.
 
 ## Start here
 
-- [Judge's door](/judge): no login and no key. Explains what to try, names the cloud model in use, and readies this laptop's built-in model.
+- [Judge's door](/judge): no login and no key. Explains what to try, names the cloud model in use, and readies this device's built-in model.
 - [Command post](/): join an incident with its id and join code.
 
 ## Notes

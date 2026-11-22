@@ -101,7 +101,7 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
       ) : (
         <>
           <p role="status">
-            {acked === sent ? `Confirmed. Prior rebuilt as v${sent}.` : `Confirmed. Prior rebuilt on this laptop as v${sent}. Sending.`}
+            {acked === sent ? `Confirmed. Prior rebuilt as v${sent}.` : `Confirmed. Prior rebuilt on this device as v${sent}. Sending.`}
             {note ? ` ${note}` : ""}
           </p>
           <button type="button" className="btn ghost" onClick={onClose}>

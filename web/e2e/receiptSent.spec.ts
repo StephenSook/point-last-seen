@@ -28,7 +28,7 @@ test("a consented cloud note read sends exactly the note the receipt counts, and
   await page.getByRole("button", { name: "Add sighting" }).first().click();
   await page.getByLabel("Note").fill(TYPED);
   await page.getByRole("button", { name: "Read the note" }).click();
-  await expect(page.getByText("This laptop has no local model. Nothing was sent.").last()).toBeVisible();
+  await expect(page.getByText("This device has no local model. Nothing was sent.").last()).toBeVisible();
   // The on-device route asked no AI host.
   expect(sent).toEqual([]);
 

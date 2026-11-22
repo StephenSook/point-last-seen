@@ -61,7 +61,7 @@ test("the facts line says how the latest report was read, and by which model", a
   await page.keyboard.press("Home");
   await expect(route).toHaveCount(0);
   await dialog.getByRole("button", { name: "Next report" }).click();
-  await expect(route).toHaveText("Last report: Read on the laptop, model chrome-built-in");
+  await expect(route).toHaveText("Last report: Read on the command post's device, model chrome-built-in");
   await slider.focus();
   await page.keyboard.press("End");
   await expect(route).toHaveText("Last report: Read in the cloud, model gemini-3.5-flash-lite");

@@ -147,9 +147,9 @@ export function JudgePage() {
       </section>
 
       <section aria-labelledby="d2-h">
-        <h2 id="d2-h" className="label">This laptop</h2>
+        <h2 id="d2-h" className="label">This device</h2>
         <button type="button" className="btn" onClick={check} disabled={checking}>
-          Get this laptop ready
+          Get this device ready
         </button>
         {pct !== null && <p role="status" className="muted num">Downloading the model: {pct}%</p>}
         {copy && (

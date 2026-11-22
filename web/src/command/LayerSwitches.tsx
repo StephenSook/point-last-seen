@@ -169,7 +169,7 @@ export function LayerSwitches({ layers, terrain, rings, terrainNote, hasBearing,
         </div>
       )}
       {sent !== null && (
-        <p role="status">{acked === sent ? `Prior rebuilt as v${sent}.` : `Prior rebuilt on this laptop as v${sent}. Sending.`}</p>
+        <p role="status">{acked === sent ? `Prior rebuilt as v${sent}.` : `Prior rebuilt on this device as v${sent}. Sending.`}</p>
       )}
       {error && (
         <p className="error" role="alert">

@@ -107,8 +107,8 @@ export function PriorSwitch({ model, graph, hasPlaces, onApply }: Props) {
           </div>
         </div>
       )}
-      {run && <p className="num small">{`${run.n.toLocaleString("en-US")} walkers in ${(run.elapsedMs / 1000).toFixed(2)} s on this laptop.`}</p>}
-      {sent !== null && <p role="status">{acked === sent ? `Prior rebuilt as v${sent}.` : `Prior rebuilt on this laptop as v${sent}. Sending.`}</p>}
+      {run && <p className="num small">{`${run.n.toLocaleString("en-US")} walkers in ${(run.elapsedMs / 1000).toFixed(2)} s on this device.`}</p>}
+      {sent !== null && <p role="status">{acked === sent ? `Prior rebuilt as v${sent}.` : `Prior rebuilt on this device as v${sent}. Sending.`}</p>}
       {error && (
         <p className="error" role="alert">
           {error}

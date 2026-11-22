@@ -131,7 +131,7 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
           </button>
           {busy === "suggest" && (
             <p role="status" className="muted">
-              Wording the plan. The first time on this laptop can take up to a minute.
+              Wording the plan. The first time on this device can take up to a minute.
             </p>
           )}
         </>
@@ -201,7 +201,7 @@ export function WhatChanged({ draft, onSuggest, onApprove, planStatus, teams = [
       )}
       {approved !== null && (
         <p role="status" data-testid="plan-status">
-          {planStatus(approved) === "sent" ? `Approved as plan v${approved}. Sent.` : `Approved on this laptop as plan v${approved}. Sending.`}
+          {planStatus(approved) === "sent" ? `Approved as plan v${approved}. Sent.` : `Approved on this device as plan v${approved}. Sending.`}
         </p>
       )}
     </section>

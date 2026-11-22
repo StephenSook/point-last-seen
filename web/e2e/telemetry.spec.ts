@@ -18,7 +18,7 @@ test("a consented cloud photo read is traced as hybrid-inference with its route"
   // The cloud read needs the family's consent for this photo: given as the family app gives it.
   const sha = await page.locator(".photo").first().getAttribute("data-sha256");
   await familyConsentToPhoto(incident, sha ?? "");
-  await page.getByRole("button", { name: "Read on this laptop" }).first().click();
+  await page.getByRole("button", { name: "Read on this device" }).first().click();
   await page.getByRole("button", { name: "Read in the cloud" }).first().click();
   await page.getByRole("button", { name: "Send this photo to the cloud" }).first().click();
   await expect(page.getByTestId("photo-cues").first()).toBeVisible();

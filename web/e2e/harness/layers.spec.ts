@@ -41,7 +41,7 @@ test("Rebuild prior hands over the new layers and terrain, and says the new vers
   await s.getByRole("combobox", { name: "Distance table" }).selectOption("temperate_mountain");
   await s.getByRole("button", { name: "Rebuild prior" }).click();
   await expect(page.getByTestId("applied")).toHaveText('{"linear":false,"wedge":false} temperate_mountain');
-  await expect(s.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v5. Sending.");
+  await expect(s.getByRole("status")).toHaveText("Prior rebuilt on this device as v5. Sending.");
 });
 
 test("with Walkers on, the rebuild question says the prior goes back to rings", async ({ page }) => {
@@ -54,9 +54,9 @@ test("Sending stays until the server acknowledges the write, not when the local 
   await page.goto("/harness/layers.html");
   await page.getByRole("switch", { name: "Near roads, trails and water" }).uncheck();
   await page.getByRole("button", { name: "Rebuild prior" }).click();
-  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v5. Sending.");
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this device as v5. Sending.");
   await page.waitForTimeout(300);
-  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v5. Sending.");
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this device as v5. Sending.");
   await page.getByRole("button", { name: "Server acknowledges" }).click();
   await expect(page.getByRole("status")).toHaveText("Prior rebuilt as v5.");
 });
@@ -66,12 +66,12 @@ test("a refusal of an older rebuild does not touch the newer rebuild's status", 
   const roads = page.getByRole("switch", { name: "Near roads, trails and water" });
   await roads.uncheck();
   await page.getByRole("button", { name: "Rebuild prior" }).click();
-  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v5. Sending.");
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this device as v5. Sending.");
   await page.getByRole("button", { name: "Rebuild prior" }).click();
-  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v6. Sending.");
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this device as v6. Sending.");
   await page.getByRole("button", { name: "Server refuses the first" }).click();
   await page.waitForTimeout(200);
-  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this laptop as v6. Sending.");
+  await expect(page.getByRole("status")).toHaveText("Prior rebuilt on this device as v6. Sending.");
   await expect(page.getByRole("alert")).toHaveCount(0);
   await page.getByRole("button", { name: "Server acknowledges" }).click();
   await expect(page.getByRole("status")).toHaveText("Prior rebuilt as v6.");
