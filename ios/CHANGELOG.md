@@ -5,6 +5,12 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### test(ios): the task screen's report field and Send carry accessibility ids
+- What: the report field is `task-report-text` and its Send button `task-send`, so a UI test can find them by id
+  rather than by their words. Nothing on screen changes.
+- Source: the App Review walkthrough UI test.
+- Verified: the full app suite passes; the walkthrough finds both on the simulator.
+
 ### fix(ios): the Leave button says it deletes the sign-in
 - What: the Ready check's "Leave this search" is now "Leave and delete this sign-in" (the confirmation's title too), so
   account deletion is named on the button itself, not only in the dialog under it. LIMITS uses the new name.
