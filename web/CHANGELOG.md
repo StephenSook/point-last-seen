@@ -3008,3 +3008,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - Accepted: a reply with a team named twice is read with its last value, which must still be one of that team's own facts, so nothing untrue is shown.
 - Source: review.
 - Verified: the changed schema test failed first, then passed (34); against the live site before the fix the check still fails with 0 of 3 used; typecheck passes; the cited lines 47 and 232 are unchanged.
+
+### docs(ai): the plan wording wait cites the current on-device timings
+- What: the comment on WORDING_WAIT_MS justified the 60 s wait with the retired 2026-11-21 wording evidence (19.8 s first run). It now cites the current plan-reason evidence:
+  - first wordings 9.3 s and 9.5 s on the M5 Pro Mac, later ones 0.9 to 2.1 s, all on the device as the SDK reported;
+  - sources: 2026-11-22-plan-reason-per-team-schema-chrome.json and 2026-11-22-plan-reason-main-pick-chrome.json.
+  - It says the 60 s is headroom for a slower laptop's first wording, which was not measured. The value is unchanged.
+- Source: review of the comment against the current evidence.
+- Verified: each number was read from the evidence files by script; the cited lines 47 and 232 did not move; comment only.
