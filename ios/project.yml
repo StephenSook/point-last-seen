@@ -83,6 +83,18 @@ targets:
         "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
         ENABLE_USER_SCRIPT_SANDBOXING: YES
     postBuildScripts:
+      # The report-reading eval's answer key, in Debug builds only, like the eval screen that reads it. The file is
+      # the pinned one in docs/evidence/eval, copied as it is.
+      - name: Bundle the eval answer key (Debug only)
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "${CONFIGURATION}" = "Debug" ]; then
+            cp "${SRCROOT}/../docs/evidence/eval/pls-drill-reports-v1.json" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/"
+          fi
+        inputFiles:
+          - $(SRCROOT)/../docs/evidence/eval/pls-drill-reports-v1.json
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/pls-drill-reports-v1.json
       # Uploads the dSYMs so Crashlytics can symbolicate field crashes. Release builds only, so
       # simulator and debug builds send nothing. The input files are what the script reads under
       # user script sandboxing (Firebase's documented list).

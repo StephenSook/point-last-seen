@@ -2,7 +2,7 @@
 # Archives a Release build of the iPhone app and exports the .ipa for App Store Connect into a local
 # folder. It uploads nothing. Then it checks the exported app: release push and App Attest
 # entitlements, the icon, the privacy manifest and label, the encryption answer, the build number and commit,
-# and that the debug-only eval screen is not in it.
+# and that the debug-only eval screen and its answer key are not in it.
 #
 # Usage: bash ios/scripts/archive_release.sh <build-number> <out-dir>
 # Needs Xcode signed in to the developer team (automatic signing creates any missing profile).
@@ -63,5 +63,7 @@ info() { /usr/libexec/PlistBuddy -c "Print :$1" "$app/Info.plist" 2>/dev/null ||
 python3 -I scripts/check_privacy_label.py "$app" ios/app-privacy-label.json || fail=1
 if strings "$app/PLS" | grep -q "Report-reading eval"; then echo "archive_release: FAIL the debug eval screen is in the release"; fail=1
 else echo "archive_release: ok no debug eval screen"; fi
+if [ -e "$app/pls-drill-reports-v1.json" ]; then echo "archive_release: FAIL the debug eval's answer key is in the release"; fail=1
+else echo "archive_release: ok no eval answer key"; fi
 codesign --verify --deep --strict "$app" && echo "archive_release: ok signature" || { echo "archive_release: FAIL signature"; fail=1; }
 exit $fail

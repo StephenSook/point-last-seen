@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### build(ios): the Debug app bundles the eval's pinned answer key
+- What: a build step copies docs/evidence/eval/pls-drill-reports-v1.json into the app in Debug builds only, like the
+  eval screen that reads it, so "Report-reading eval" finds the key. archive_release.sh now also fails when the key is
+  in a release app.
+- Source: review (the eval runs on the phone from a debug build).
+- Verified: EvalKeyBundleTests (the debug app's key is the file pinned in the core tests, 20 rows) failed first with
+  no key in the app, then passes, with the other eval app tests; gates pass. The release check is a shell check run
+  at the next archive (syntax checked with bash -n).
+
 ### docs(eval): the answer key was written by the builder's AI assistant
 - What: the eval README says who wrote the key (the builder's AI assistant, Claude Opus 5.5, a different model family
   from the model tested, at the builder's request, before any model run, having read the app's kind definitions and
