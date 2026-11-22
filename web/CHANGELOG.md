@@ -2983,3 +2983,28 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - The timer is cancelled when the read settles first, and at stop.
 - Source: issue #336.
 - Verified: new watchClaims tests (a stalled read, a read that settles first, stop, another account, a sign-out) failed first where the behaviour changed, then passed (24); typecheck passes.
+
+### fix(ai): each team's reason code comes from a schema that offers only that team's facts
+- What: on the live site, Suggest plan's cloud answer was refused every time: gemini-3.5-flash-lite named "highest_poa" for both teams, while only one team had that fact. The list schema let every team name any known code, so every plan fell back to fixed wording on the cloud path.
+  - The schema is now one property per team id, each a single code from an enum of only that team's own facts, every team required (planWordingJson with choiceTeams). So a constrained reply cannot name another team's fact.
+  - checkChoice reads that object and refuses a missing or extra team, a code the team does not have, a code that is not text, and a team with segments but no fact to choose.
+  - The command post and the measurement page ask with each team's codes.
+- Source: deployed stills (the cloud path's What ran said "Not used" on every press).
+- Verified:
+  - new and changed checkChoice, schema and caller tests failed first, then passed (54 in the plan wording suites);
+  - 6 runs on Chrome's built-in model: all on device and used, every code a team fact, reasons and summary matching, the main picks as before;
+  - typecheck passes; replanWording.ts lines 47 and 232, which the test matrix cites, are unchanged.
+
+### test(e2e): the live suite fails when the cloud path's plan wording always falls back
+- What: a deployed check (e2e/planUsed.spec.ts) presses Suggest plan three times with no built-in model, reads the route mark of each suggestion, and requires at least two to be the model's choice, not fixed wording. Each reply that was not used is recorded in the failure and attached to the report. Nothing is approved.
+- Source: deployed stills (the cloud path fell back on every press, and no check noticed).
+- Verified: against the live site before the schema fix it fails with 0 of 3 used and records the six "highest_poa" picks; after the fix it is run with the live suite.
+
+### fix(ai): the plan's reply schema is closed, and the cloud-path check tolerates a busy drill
+- What: from review of the per-team schema.
+  - The per-plan schema adds additionalProperties: false, so a constrained reply cannot add a team or any other field; such a reply would have fitted the schema and then been refused.
+  - The live cloud-path check now presses Suggest plan again when a suggestion is withdrawn because another check changed the shared drill meanwhile (up to six presses for three suggestions shown).
+  - It now counts a press whose request ended before any reply by its route mark, instead of failing the poll.
+  - Accepted: a reply with a team named twice is read with its last value, which must still be one of that team's own facts, so nothing untrue is shown.
+- Source: review.
+- Verified: the changed schema test failed first, then passed (34); against the live site before the fix the check still fails with 0 of 3 used; typecheck passes; the cited lines 47 and 232 are unchanged.
