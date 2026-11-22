@@ -127,3 +127,19 @@ describe("cleared segments and authors", () => {
     expect(debriefAuthor({ byUid: "d3" }, undefined, teams)).toBe("Command");
   });
 });
+
+describe("a scrubbed note is stored as shown", () => {
+  it("the paper debrief save stores every corpus note exactly as the scrubbed text it showed", async () => {
+    const { readFileSync } = await import("node:fs");
+    const rows = (JSON.parse(readFileSync(new URL("../../../shared/test-vectors/phone-numbers-corpus.json", import.meta.url), "utf8")) as {
+      rows: { input: string }[];
+    }).rows;
+    const differ = rows.flatMap((r) => {
+      const shown = removePhoneNumbers(r.input).trim();
+      if (shown === "") return [];
+      const saved = parseDebriefForm(form({ minutes: "1", clues: shown }));
+      return saved.ok && saved.value.clues !== shown ? [JSON.stringify(r.input)] : [];
+    });
+    expect(differ.length, differ.slice(0, 5).join("\n")).toBe(0);
+  });
+});

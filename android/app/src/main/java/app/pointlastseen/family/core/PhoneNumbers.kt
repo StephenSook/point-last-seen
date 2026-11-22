@@ -21,6 +21,33 @@ import java.text.Normalizer
 object PhoneNumbers {
     const val REPLACEMENT = "[number removed]"
 
+    /** How many passes of the rule [remove] runs at most. */
+    const val MAX_PASSES = 4
+
+    /**
+     * The rule, run until the text stops changing: one pass can leave a run that a second pass reads differently
+     * ("Seen 11/19/2026 12:12 5:55 01:42" keeps "11/19/2026 12:" after one pass), and text this app scrubs is scrubbed
+     * again when it is saved. Every caller uses this.
+     */
+    fun remove(text: String): String = settle(text, ::removeOnce) {
+        android.util.Log.w("PLS-PHONE", "phone-number removal did not settle in $MAX_PASSES passes")
+    }
+
+    /**
+     * Runs [once] until the text stops changing, at most [MAX_PASSES] times in all. When it never settles, [onCap] is
+     * told (with no note text) and the last pass's output, the most scrubbed, is kept.
+     */
+    fun settle(text: String, once: (String) -> String, onCap: () -> Unit): String {
+        var out = once(text)
+        for (pass in 1 until MAX_PASSES) {
+            val next = once(out)
+            if (next == out) return out
+            out = next
+        }
+        onCap()
+        return out
+    }
+
     // English and Spanish digit words, as the shared rule names them (shared/test-vectors/README.md). Spanish "un" and
     // "una" are articles, so they are not digits.
     private val DIGIT_WORDS = setOf(
@@ -164,7 +191,7 @@ object PhoneNumbers {
      * The text between such runs follows the rule unchanged, and so does every note that NFKC changes, since folding can
      * turn other characters into the ASCII digits a run is made of.
      */
-    fun remove(text: String): String {
+    private fun removeOnce(text: String): String {
         val folded = Normalizer.normalize(text, Normalizer.Form.NFKC)
         if (folded != text) return removeByRule(folded)
         val parts = ruleParts(folded)

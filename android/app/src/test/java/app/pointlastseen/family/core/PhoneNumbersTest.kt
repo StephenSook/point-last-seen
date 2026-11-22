@@ -148,6 +148,30 @@ class PhoneNumbersTest {
         assertEquals("[number removed] [number removed] tonight", PhoneNumbers.remove("one two 4:04 5:55 [number removed] tonight"))
     }
 
+    /**
+     * The rule runs until the text stops changing, at most four passes in all. At the cap the fourth pass's text is
+     * kept (the most scrubbed) and onCap is told once; a text that settles stops as soon as a pass changes nothing.
+     */
+    @Test fun settleRunsTheRuleUntilTheTextStopsChanging() {
+        var calls = 0
+        var capped = 0
+        assertEquals("axxxx", PhoneNumbers.settle("a", { calls++; it + "x" }) { capped++ })
+        assertEquals(4, calls)
+        assertEquals(1, capped)
+        calls = 0
+        capped = 0
+        assertEquals("ax", PhoneNumbers.settle("a", { calls++; if (it.endsWith("x")) it else it + "x" }) { capped++ })
+        assertEquals(2, calls)
+        assertEquals(0, capped)
+    }
+
+    /** A note one pass of the rule would leave for a second pass to change comes out settled from one call. */
+    @Test fun aNoteASecondPassWouldChangeComesOutSettled() {
+        val out = PhoneNumbers.remove("Seen 11/19/2026 12:12 5:55 01:42")
+        assertEquals("Seen [number removed]:[number removed]", out)
+        assertEquals(out, PhoneNumbers.remove(out))
+    }
+
     /** A month name beside a run of times reads an hour or minutes as a day, so the run is left to the rule as a whole. */
     @Test fun aRunOfTimesBesideAMonthNameIsLeftToTheRule() {
         assertEquals("[number removed] May 6:00 7:00", PhoneNumbers.remove("1.4045, -55.0142 14 May 6:00 7:00"))

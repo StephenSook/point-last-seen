@@ -202,7 +202,9 @@ written as rising times with no cue (`2:12 5:55 6:42`) stays; `docs/LIMITS.md` s
 
 A note can be scrubbed more than once, for example when a paper sheet is read and again when the debrief is saved.
 Scrubbing twice must give the same text as scrubbing once: for every case in this file that a platform runs, scrubbing
-its output again changes nothing. Each platform checks this in its own test of this file. The web and Android check
+its output again changes nothing. So every platform runs the rule until the text stops changing, at most four
+passes in all; if it still changes after the fourth, it keeps the fourth pass's text (the most scrubbed) and logs a
+fixed line with no note text. Each platform checks this in its own test of this file. The web and Android check
 it; on 2026-11-22 it is pending on the iPhone until it adds the check, together with `marker_then_times`.
 
 ## phone-numbers-corpus.json (generated)
@@ -222,7 +224,7 @@ sequences and emoji modifiers).
 `tools/vectors/phone_corpus.ts` builds it; `npx tsx tools/vectors/phone_corpus_cli.ts --write` rewrites the file and
 `--check` exits 1 unless the file is exactly what `--write` would write. A change to the web rule changes `rule`, so the
 web test fails until the file is written again. The file's SHA-256 is
-`76c7e28cbb4a8821287c88f29833631937880babb13fb73da0a3d79dbaed117a`.
+`752069060478c882eb1acb8196cd0b0bd57832acf3635cf5175915d77af4d65f`.
 
 ## language.json (hand-written)
 
