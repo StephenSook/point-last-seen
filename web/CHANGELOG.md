@@ -2587,3 +2587,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the panel is its own component (`NoAccessPanel`). A drill offers "Reopen this drill" (a reload, for a sign-in that is back) and "Join another search" (the join form), so an expired drill whose token still names it no longer reopens into the same denial. A practice search points to the judge's page. When the search's mode has not loaded and only its id suggests a practice search, all three are offered.
 - Source: review (Codex, third round on the sign-in line).
 - Verified: three new render tests (drill, practice, mode guessed from the id) failed first, then passed; web unit suite and typecheck pass.
+
+### test(e2e): the receipt's Sent line is checked against the request that left
+- What: a deployed check, `web/e2e/receiptSent.spec.ts`, types a sighting note with a phone number in it. With no built-in model it reads the note, and no request reaches an AI host. After the consent tap the cloud read sends exactly one request, to the server prompt template, whose whole body is `{"inputs":{"note":...}}` with the number removed and no other field. The receipt counts exactly that note's bytes ("Sent: 94 bytes of the note, with phone numbers removed."), and no digit of the number is in the request.
+- Source: review (make the receipt's honesty something a test proves).
+- Verified: the check passes twice on the deployed site (build b890674b, the test drill); web typecheck and the hygiene guard pass; the sighting is cancelled, never saved.
