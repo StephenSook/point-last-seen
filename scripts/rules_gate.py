@@ -77,8 +77,14 @@ CLIENT_DIRS = ("web/", "ios/", "android/")
 BUILT_IN_SESSION = re.compile(
     r"LanguageModel\s*(?:\?\s*)?(?:\.\s*create\b|\[\s*[\"']create[\"']\s*\])"
     r"|\.\s*prompt(?:Streaming)?\s*\(|\[\s*[\"']prompt(?:Streaming)?[\"']\s*\]\s*\(")
+# Chrome's other built-in AI APIs run a model outside Firebase AI Logic, so web code never names them (they exist only
+# in the browser; elsewhere "Writer" is an ordinary type, such as the functions' Firestore batch writer). No other
+# platform prompts a session by hand either (web code is held to that by BUILT_IN_SESSION, tests included). Whole
+# words, case-sensitive, so PrintWriter and a "translator" in text pass. Docs and tests may name them.
+CHROME_BUILT_IN_AI = re.compile(r"\b(?:Translator|LanguageDetector|Summarizer|Writer|Rewriter|Proofreader)\b")
+PROMPT_CALL = re.compile(r"\.\s*prompt(?:Streaming)?\s*\(")
 # Plain, optional-chained (?.) and bracket ("availability") access all count.
-AVAILABILITY = re.compile(r"(?<!System)LanguageModel\s*(?:\?\s*)?(?:\.\s*availability\b|\[\s*[\"']availability[\"']\s*\])")
+AVAILABILITY =re.compile(r"(?<!System)LanguageModel\s*(?:\?\s*)?(?:\.\s*availability\b|\[\s*[\"']availability[\"']\s*\])")
 
 # Task 39 type and motion: only the OFL fonts in web/public/fonts ship, the motion library sits behind one
 # module, and no font is fetched from a remote host.
@@ -168,6 +174,12 @@ def check_lines(rel: str, text: str, models: tuple[set[str], set[str]] = (set(),
             bad(f"banned name '{m.group(0)}'")
         if not is_doc and rel.startswith("web/") and BUILT_IN_SESSION.search(line):
             bad("a built-in model session is made or prompted only by Firebase AI Logic, never by web code")
+        if not is_doc and not is_test:
+            m = CHROME_BUILT_IN_AI.search(line) if rel.startswith("web/") else None
+            if m:
+                bad(f"Chrome built-in AI API '{m.group(0)}': all inference goes through Firebase AI Logic")
+            if not rel.startswith("web/") and PROMPT_CALL.search(line):
+                bad("a model session is prompted only through Firebase AI Logic, never by hand")
         if not is_doc and AVAILABILITY.search(line) and rel != AVAILABILITY_ONLY_IN:
             bad("LanguageModel.availability is allowed only in the web AI gate module")
         if rel in COUNT_TOKENS_BANNED_IN and "countTokens" in line:

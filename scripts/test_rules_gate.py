@@ -127,6 +127,33 @@ def test_web_code_never_streams_a_built_in_model_session_itself(tmp_path):
         assert run_gate(tmp_path).returncode == 1, text
 
 
+def test_chrome_built_in_ai_apis_and_prompt_calls_fail_outside_tests(tmp_path):
+    # All inference goes through Firebase AI Logic: Chrome's other built-in AI APIs are banned in shipped code, and a
+    # session is never prompted by hand on any platform.
+    for rel, text in (("web/src/ai/a.ts", "const t = await Translator.create(o)"),
+                      ("web/src/ai/b.ts", "await LanguageDetector.availability()"),
+                      ("web/src/ai/c.ts", "const s = await Summarizer.create()"),
+                      ("web/src/ai/d.ts", "const w = await Writer.create()"),
+                      ("web/src/ai/e.ts", "const r = await Rewriter.create()"),
+                      ("web/src/ai/f.ts", "const p = await Proofreader.create()"),
+                      ("android/app/src/main/A.kt", "val reply = session.prompt(note)"),
+                      ("functions/src/a.ts", "for await (const c of s.promptStreaming(x)) {}")):
+        write(tmp_path, rel, text)
+        out = run_gate(tmp_path)
+        assert out.returncode == 1 and rel in out.stdout, rel
+        write(tmp_path, rel, "ok")
+
+
+def test_chrome_built_in_ai_names_pass_in_docs_tests_and_longer_words(tmp_path):
+    write(tmp_path, "web/README.md", "We never call Translator, Summarizer, Writer or session.prompt( directly.")
+    write(tmp_path, "android/app/src/test/java/x/PromptTest.kt", 'val bytes = FamilyNote.prompt("x").length')
+    write(tmp_path, "web/src/ai/gate.test.ts", "expect(globalThis.Translator).toBeUndefined()")
+    write(tmp_path, "android/app/src/main/A.kt", "val w = PrintWriter(out); val s = buildPromptText(note)")
+    write(tmp_path, "functions/src/a.ts", "type Config = { writer?: () => Writer };")
+    write(tmp_path, "web/src/a.ts", "const translatorNote = 'a translator'")
+    assert run_gate(tmp_path).returncode == 0
+
+
 def test_built_in_model_calls_may_be_named_in_docs_and_other_platforms_are_not_web(tmp_path):
     write(tmp_path, "web/README.md", "We never call LanguageModel.create or session.prompt( directly.")
     write(tmp_path, "ios/PLS/A.swift", "let r = try await session.respond(to: p)")

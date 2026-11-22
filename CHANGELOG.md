@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Rules gate: web code outside tests and docs may no longer name Chrome's other built-in AI APIs (Translator,
+  LanguageDetector, Summarizer, Writer, Rewriter, Proofreader), and no other platform may prompt a model session by
+  hand (`.prompt(` or `.promptStreaming(` outside tests). Web code was already held to the prompt rule, tests
+  included. A regression guard only: nothing in the repo uses them. Source: review. Verified: a new test fails on
+  each name in web code and on a prompt call in Android and functions code, and failed before the change; a second
+  test passes docs, tests, PrintWriter, lowercase "translator" and the functions' own `Writer` type; the gate is
+  clean on the repo (1,336 files); the gates and the hygiene guard in public mode pass.
 - Limits: new "Report reads (iPhone)" section: Apple's on-device model read three object finds as "found" in the
   2026-11-22 on-phone eval (footprints, a wrapper, a water bottle), the found-kind rule changed none of them, and a
   "found" report has no effect on the map and sends no alert. Source: the on-phone eval result. Verified: n3, n9 and
