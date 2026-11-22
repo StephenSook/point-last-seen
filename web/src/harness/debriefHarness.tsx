@@ -23,6 +23,9 @@ const inDetails = params.get("details") === "1";
 // sends another. ?late=1: AB's stored debrief arrives only when "Team debrief arrives" is pressed. ?save=slow: a save
 // finishes only when "Save finishes" is pressed.
 const prefillSegment = params.get("prefill");
+// ?target=AA: the segment "Send a search report" sends to (default the ?prefill segment, else AB).
+const target = params.get("target") ?? prefillSegment ?? "AB";
+const REPORTS = ["Combed the bank, no sign.", "Swept the trail, no trace."];
 const late = params.get("late") === "1";
 const slowSave = params.get("save") === "slow";
 const cleared = [
@@ -87,8 +90,11 @@ function Harness() {
         paperRead={paperRead}
         prefill={prefill}
       />)}
-      <button type="button" onClick={() => setPrefill((p) => ({ segmentId: prefillSegment ?? "AB", note: "Combed the bank, no sign.", seq: (p?.seq ?? 0) + 1 }))}>
+      <button type="button" onClick={() => setPrefill((p) => { const seq = (p?.seq ?? 0) + 1; return { segmentId: target, note: REPORTS[(seq - 1) % 2]!, seq }; })}>
         Send a search report
+      </button>
+      <button type="button" onClick={() => setPrefill((p) => (p ? { ...p, seq: p.seq + 1 } : p))}>
+        Send the same report again
       </button>
       <button type="button" onClick={() => setStored((s) => ({ ...s, AB: initial["AB"]! }))}>
         Team debrief arrives

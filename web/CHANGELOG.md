@@ -2626,3 +2626,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `clearedSegments` leaves out clears command took back, so a segment's debrief links to its latest standing clear and a segment whose every clear was taken back has none; `standingClears` is now its set of segment ids.
 - Source: review (Codex, second round on the search-report guard).
 - Verified: a new unit test (the latest clear taken back links the earlier one; all taken back lists none) failed first, then passed (16).
+
+### fix(command): a debrief row keeps every search report, draft and stored word
+- What: a save that fails before the stored debrief loaded leaves the late merge armed, so the debrief merges when it arrives and a retry keeps the team's words; the merge skips fields command changed by hand (an emptied hazard stays empty) and does not repeat a What worked the team's text already holds; a report sent while the paper sheet is open waits, shown in the row, and opens in the form when the sheet closes; and a report the box already holds is not added again.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: four new harness tests (failed save then late debrief; an emptied field; the paper sheet; the same report twice) failed first, then passed; both debrief harness specs (31) pass.
