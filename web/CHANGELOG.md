@@ -2747,3 +2747,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: issue times count whole seconds, so two tokens can share one; a later token still wins whatever order the reads finish in, but within the same second the newer read now wins, as it did before the issue-time rule, so an earlier read can no longer bring back a line a newer one cleared.
 - Source: review (Codex, second round on the token-order fix).
 - Verified: a new unit test (two tokens of the same second finishing out of order) failed first, then passed; the claims tests (16) and typecheck pass.
+
+### fix(judge): a browser that fails the security check is told why the practice search cannot start
+- What: when the server refuses the practice search for a failed App Check (or sign-in), the judge's page now says "This browser did not pass the site's security check, so a practice search cannot start. Nothing private was sent. Reload and try again; the drill replay on this page plays without it." instead of "This browser could not be checked." A deployed-only check (`e2e/judgeNoAppCheck.spec.ts`) blocks every App Check exchange in a fresh profile and asserts the line within 30 s, a usable button, the replay and no page errors; it answers the start call in the page with the server's own refusal (HTTP 401), so it can never start a practice search.
+- Source: review of the deployed judge door with App Check failing (the page answered in 8 s with no crash or hang, but did not say what failed or what still works).
+- Verified: the updated unit test failed first, then passed (11); the deployed check fails on the live site's old line, as expected before the deploy.

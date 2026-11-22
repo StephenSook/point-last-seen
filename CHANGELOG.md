@@ -5,6 +5,9 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: a browser that fails the site's security check (App Check) cannot start a practice search; the drill replay
+  and the on-device check still work. Source: review of the deployed judge door. Verified: the hygiene guard passes in
+  public mode.
 - App Check on functions: a test finds every client-callable function from the exports (six: joinIncident,
   deleteIncidentMediaNow, removeMember, deleteMyAccount, rotateJoinCode, startJudgeSession), calls each with no App
   Check token and with a bad one, and requires the wrapper's own 401 before the handler runs; it also requires the
