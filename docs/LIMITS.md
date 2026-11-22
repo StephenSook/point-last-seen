@@ -54,7 +54,10 @@ each line says what the limit is and why.
   only the time, so the old sign-in, still valid for up to an hour, is refused at once and cannot join again.
   Reports already sent stay in the incident until its data is deleted, and so does command's own record of a
   removal, which People does not show. With more than 1,000 searches to check, the delete fails and changes nothing.
-  The Android family app has no way to delete its sign-in.
+  Two cases are left: an account that joins another search at the same moment it leaves can keep its own member
+  record there (the app does one after the other), and a search an account joined before member records existed
+  (2026-11-21) gets no refusal record unless the account's sign-in still names it, though any sign-in from then has
+  long expired. The Android family app has no way to delete its sign-in.
 - Command removes a searcher or family member from the People panel (the `removeMember` callable). From that moment
   the member's app can no longer read or write anything in the search, screens already open included (measured on
   2026-11-21: two open listeners were refused within a second of the removal), and that account cannot join again.

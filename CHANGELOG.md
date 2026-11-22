@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: the Leave line names the two cases it leaves: an account that joins another search at the same moment it
+  leaves can keep its own member record there, and a search joined before member records existed (2026-11-21) gets
+  no refusal record unless the sign-in still names it, though any sign-in from then has long expired. Source: review
+  (two second-model findings accepted as limits). Verified: the hygiene guard passes in public mode.
 - Leave still refuses the old sign-in beside a purge tombstone: only an unfinished retention purge (no doneAt or
   staleAt) stops `deleteMyAccount` writing the removed/{uid} record, since a finished or abandoned purge keeps its
   record for good and the id can be in use again by a live incident. Source: review (a security review of the
