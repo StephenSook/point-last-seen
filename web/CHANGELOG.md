@@ -2871,3 +2871,12 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - Segment codes are blanked before the person check, so a grid square named HE is not read as "he".
 - Source: review.
 - Verified: new tests for each case failed first, then passed (67); replayed on the 19 recorded wordings, the same 4 are refused as before and none newly; typecheck passes.
+
+### fix(ai): plan wording checks: a location or rescue as a noun, and "represents"
+- What: from the third review of the checks above.
+  - The person check refuses a location as a noun ("their current location is", "whereabouts", "the position is") and an outcome promised as a noun ("a successful rescue", "reunite").
+  - The code check refuses "represents", "corresponds to", "is called" and "is named" after a code.
+  - "previously", "before", "earlier", "since", "start" and "then" count as figure words in brackets, so "AC (31.0%, previously 20.0%)" is kept.
+  - Known cost, accepted: a summary using "they" for grid squares falls back to the fixed wording, because "they" is refused to keep the person out.
+- Source: review.
+- Verified: new tests for each case failed first, then passed (70); replayed on the 19 recorded wordings, the same 4 are refused as before and none newly; typecheck passes.

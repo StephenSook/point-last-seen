@@ -495,3 +495,20 @@ describe("round 2: person words, rescue verbs, definitions, and codes that look 
     expect(withReason("Search HE first because it has the highest POA.", "Teams move to the two highest segments.", withHE)).toEqual({ ok: true });
   });
 });
+
+describe("round 3: location nouns, outcome nouns, and more definition verbs", () => {
+  const withReason = (reason: string, summary = "Teams move to the two highest segments.") =>
+    checkWording(draft, { assignments: [{ teamId: "T1", taskText: "x", reason }, { teamId: "T2", taskText: "x", reason: "Second highest." }], summary });
+  it("refuses a location given as a noun, and a rescue or success promised as a noun", () => {
+    expect(withReason("Their current location is in AC.")).toEqual({ ok: false, reason: PERSON_CLAIM });
+    expect(withReason("The whereabouts point to AC.")).toEqual({ ok: false, reason: PERSON_CLAIM });
+    expect(withReason("Highest.", "Searching the highest-ranked segments will lead to a successful rescue.")).toEqual({ ok: false, reason: PERSON_CLAIM });
+  });
+  it("refuses a code that represents or corresponds to something", () => {
+    expect(withReason("AC represents the access corridor along the creek and has the highest POA.")).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+    expect(withReason("AC corresponds to the north field.")).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
+  });
+  it("keeps an earlier figure in brackets", () => {
+    expect(withReason("AC (31.0%, previously 20.0%) has the highest POA.")).toEqual({ ok: true });
+  });
+});

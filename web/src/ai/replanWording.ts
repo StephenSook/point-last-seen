@@ -192,7 +192,7 @@ function codeCheck(ids: readonly string[]): CodeCheck {
   return {
     after: alt ? new RegExp(`${code}\\s*\\(([^)]*)\\)`, "gu") : null,
     before: alt ? new RegExp(`(\\p{L}+)\\s*\\(\\s*${code}\\s*\\)`, "gu") : null,
-    defined: alt ? new RegExp(`${code}\\s*,?\\s*(?:means|meaning|refers\\s+to|denotes|signifies)\\b`, "u") : null,
+    defined: alt ? new RegExp(`${code}\\s*,?\\s*(?:means|meaning|refers\\s+to|denotes|signifies|represents?|represented|corresponds?\\s+to|is\\s+(?:called|named))\\b`, "u") : null,
     token: alt ? new RegExp(code, "gu") : null,
     codes: new Set(ids),
   };
@@ -201,7 +201,7 @@ function codeCheck(ids: readonly string[]): CodeCheck {
 const FIGURE_WORDS = new Set(
   ("poa probability priority highest lowest high low higher lower rank ranked ranking top up down from to was now " +
     "current currently prior percent rose fell risen fallen increase increased decrease decreased change changed " +
-    "segment segments square grid the of and in at first second third next most").split(" "),
+    "segment segments square grid the of and in at first second third next most previously before earlier since start then").split(" "),
 );
 const onlyFigures = (words: string) => (words.match(/\p{L}+/gu) ?? []).every((w) => FIGURE_WORDS.has(w.toLowerCase()));
 const DEFINED = /\b(?:stands?\s+for|short\s+for|abbreviat\w*|acronym)\b/i;
@@ -250,12 +250,19 @@ const PERSON_WORD = new RegExp(
 );
 /**
  * Claims that need no word for the person: an outcome promised ("will be found", "Team T1 will locate", "bring ...
- * home"), or a place given as likely ("probably near the creek", "likely in AC", "is located", "must be in"). The
+ * home", "a successful rescue"), a location as a noun ("their current location is"), or a place given as likely
+ * ("probably near the creek", "likely in AC", "is located", "must be in"). The
  * prompt forbids them; this refuses them, and a false refusal only falls back to the fixed wording.
  */
 const PERSON_CLAIMS = [
   PERSON_WORD,
   /\b(?:will|would|should|is going to)\s+be\s+found\b/i,
+  // Where they are, as a noun: "their current location is", "the whereabouts point to".
+  /\bwhereabouts\b/i,
+  /\b(?:current|last|likely|exact|possible|probable)\s+(?:location|position)\b/i,
+  /\b(?:location|position)\s+(?:is|was|may|might|could|must|would)\b/i,
+  // An outcome promised as a noun: "a successful rescue", "a reunion".
+  /\b(?:rescue\w*|reunit\w*|reunion|success\w*)\b/i,
   /\b(?:will|would|should|shall|can|could|(?:is|are)\s+going\s+to|(?:is|are)\s+(?:likely|sure|certain)\s+to)\s+(?:\w+\s+)?(?:find|locate|rescue|recover|save)\b/i,
   /\bbring\w*\s+(?:\w+\s+){0,2}home\b/i,
   /\b(?:likely|probably|possibly|presumably|certainly)\s+(?:to\s+be\s+)?(?:in|at|near|inside|around|by|hiding)\b/i,
