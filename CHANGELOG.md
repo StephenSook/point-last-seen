@@ -5,6 +5,59 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: three more ways part of a phone number can be left, measured on the web: times with a third field ("Call
+  4:04 5:55:01:42" is kept whole); in a note already scrubbed once, a run of times followed by spoken digits keeps its
+  first hour; a time just before spoken digits keeps its hour. Source: review of PR #342 (gaps that exist on main
+  too). Verified: each example's output measured with the web's removePhoneNumbers on main 83ea2145 and on this
+  branch, the same on both; the phones were not measured, and the line says so; the hygiene guard passes in public
+  mode.
+- Phone vectors: the shared README says a "[number removed]" beside a run of times takes the run only when nothing
+  is joined to it; a run with digits joined to it, written or spoken, is left to the shared rule as before #342. The
+  corpus is written again (only its rule hash changed; no row moved) and the README names its SHA-256. Source:
+  PR #342 and its third review (the joined-digit widening caused regressions). Verified: the corpus `--write` output
+  hashes to the README's SHA-256 and `--check` passes; `scripts/test_phone_vectors.py`, the web phone tests and
+  `scripts/ci-local.sh --gates` pass.
+- Phone vectors: `marker_beside_times` is no longer pending on the iPhone, which passes it today; `marker_then_times`
+  stays pending there. The shared README says a run beside a "[number removed]" also takes every digit part joined to
+  it, written or spoken ("Dial [number removed] 4:04 5:55 one two one two"), and names the regenerated corpus's
+  SHA-256 (only its rule hash changed; no row moved); Limits says the iPhone passes 118. Source: PR #342 (swift-core
+  reported the un-pend) and its second review. Verified: the corpus `--write` output hashes to the README's SHA-256 and
+  `--check` passes; `scripts/test_phone_vectors.py`, the web phone tests and `scripts/ci-local.sh --gates` pass.
+- Phone vectors: two new shared cases about a "[number removed]" already in a note, pending on the iPhone.
+  `marker_then_times` keeps the times after one ("Witness [number removed] at 14:03 14:10"), since its words are never
+  a cue. `marker_beside_times` removes a run of times right beside one ("Dial [number removed] 4:04 5:55 12:12"), since
+  it is digits joined to the run. The shared README says a note scrubbed twice must equal one scrub and names the
+  regenerated corpus's SHA-256; Limits gives the new counts (130 cases; the web and Android pass 119, the iPhone 117);
+  `scripts/test_phone_vectors.py` pins `marker_beside_times` in its exact list. Source: PR #342 and its review (the
+  second case kept 404-555-1212). Verified: `scripts/test_phone_vectors.py` passes, and `scripts/ci-local.sh --gates`
+  passes on this tree.
+- Judge seed baseline: `scripts/judge_seed_baseline.json` gains the new keys from the live seed drill (0 content
+  reports, no members, the SHA-256 of each of the 30 seed writers); every existing value is unchanged. Source: the
+  seed check's new writer and content report checks. Verified: a new test that the committed baseline knows the seed
+  writers by hash only failed first, then passed (11 in the file); the live check exits 0; replaying the drill as it
+  was before today's cleanup fails with "events: 30 -> 31", "contentReports: 0 -> 3" and both test devices named, and
+  warns for its three members; `scripts/ci-local.sh --gates` passes.
+- Judge seed check: `scripts/judge_seed_check.py` also counts the seed drill's content reports, and fails on any event
+  or content report written by a device that is not a seed writer, naming the device's first six characters and what
+  it wrote ("Xt6F1l (event cleared x1) is not a seed writer"). A member who joined from a device the baseline does not
+  know prints a WARN line with the same prefix and never fails the check, since real people can join the drill. The
+  baseline keeps only a SHA-256 of each device id. Source: review (a simulator test run wrote a cleared event and
+  three content reports into the seed drill; the content reports went unseen for three hours). Verified: the four new
+  tests in `scripts/test_judge_seed_check.py` failed first (no `writers` key, no content report count, no WARN line),
+  then passed (10); `scripts/ci-local.sh --gates` passes.
+- Content reports from the iPhone: `shared/test-vectors/content-report-ios.json` (hand-written, pinned) holds what the
+  iPhone writes for Report a problem, and the shared README describes it; `functions/test/rules/contentReportsIos.test.ts`
+  writes every case to the emulator against the content report create rule and checks that broken copies of the first
+  case are refused (no server time, the phone's own time, a note over 500 code points, an extra field, another role,
+  someone else's name, no reason, a target id that does not fit the target); `rules.yml` also runs when that vector
+  changes; the content report schema's iOS parity pointer names `ios/PLSCore/Sources/PLSCore/ContentReport.swift`
+  instead of a pending one. Source: the iPhone's Report a problem (PR #324). Verified: on merge commit 89fa09a3 the
+  Rules run (functions typecheck and `test:rules`, which runs the new test) and the Swift core run passed;
+  `scripts/check_schema_parity.py` checks content-report's 7 fields on ts, ios and android with 0 failures.
+- Limits: the iPhone's "Report a problem" (what it files, that a report is filed once and cannot be changed, the
+  offline case, no flag on another searcher's report, none in the practice drill) and "Block on this phone" (hides the
+  description on that iPhone only, sends nothing, and what it does not hide); the iPhone's leave button is named
+  "Leave and delete this sign-in". Source: PR #324. Verified: the hygiene guard passes in public mode.
 - Production checklist: names bash scripts/predeploy.sh as the step before every hosting deploy. Source: review.
   Verified: the hygiene guard passes in public mode.
 - Pre-deploy checks: scripts/predeploy.sh runs every check before a hosting deploy in one command (clean tree at

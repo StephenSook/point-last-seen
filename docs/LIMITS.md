@@ -212,17 +212,24 @@ each line says what the limit is and why.
 - A pair of decimals that starts with "+" is removed on every platform, since a phone number can be written that
   way ("Call +44.2071, -23.4567"); so a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too.
   Without the "+" a pair stays.
-- Of the 128 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 117, the iPhone
-  117 and the web 117. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). Eleven are
+- Of the 130 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 119, the iPhone
+  118 and the web 119. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). Eleven are
   pending on every platform, known gaps where a number is kept: five where a colon breaks a digit run, so a number
   written as two times beside a month name ("Call 5:55 01:42 May", "Seen 14 May 5:55 01:42") survives, and the six
-  below (`scripts/test_phone_vectors.py` checks these counts against the file).
+  below (`scripts/test_phone_vectors.py` checks these counts against the file). One more is pending on the iPhone until it
+  is ported: a note scrubbed a second time keeps the times after a "[number removed]" (the web and Android pass it).
 - It also keeps a phone number written in these ways, on every platform: as times with a slash between two of them
   ("Call 4:04/5:55 06:42", where "04/5" reads as a date); as times with a digit from another script or a spoken digit
   inside one ("Call 4:04 5:٥5 01:42", "Call 4:04 cinco:55 01:42"); as superscript or full-width times ("Call ⁴:⁰⁴
   ⁵:⁵⁵ ⁶:⁴²", which loses all but its first hour); as times after a date ("Seen 11/19/2026 12:12 5:55 01:42" keeps
   its first hour); and with letters for some digits ("Call 1-800-GET-HELP", which has only four digits). Each needs a
   number written in an unusual way; ordinary numbers are removed.
+- Three more ways part of a number can be left, measured on the web (the phones share its rule but were not measured
+  on these): times written with a third field ("Call 4:04 5:55:01:42" is kept whole, since the run of times is not
+  read as one); in a note already scrubbed once, a run of times followed by spoken digits keeps its first hour ("Dial
+  [number removed] 4:04 5:55 one two one two" gives "Dial [number removed] 4:[number removed]"); and a time just
+  before spoken digits keeps its hour and loses its minutes ("Sighted at 14:03 one two 4:04 5:55" gives "Sighted at
+  14:[number removed]"). Each needs a number written in an unusual way.
 - A run of times in clock order with no phone cue before it is kept as search information, so a phone number written
   as rising times (`2:12 5:55 6:42`), or spread across them (`0:40 4:55 5:01 14:20`), is not removed: a kept run keeps
   all its digits. Out of order (`12:12 5:55 01:42`) or with a cue among the three

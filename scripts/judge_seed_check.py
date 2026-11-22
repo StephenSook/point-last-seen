@@ -4,8 +4,10 @@
 Every judge practice search is copied from one drill (JUDGE_SEED_INCIDENT in functions/src/judgeSession.ts): its
 settings (every incident field the copy does not skip, NOT_COPIED there), its segments, its teams and its shared
 profile. This reads that drill from the live project and compares it with the committed baseline,
-scripts/judge_seed_baseline.json. It also counts the drill's events, which a copy never takes, so a test that
-writes into the seed shows up.
+scripts/judge_seed_baseline.json. It also counts the drill's events and content reports, which a copy never takes,
+so a test that writes into the seed shows up, and it names any device that wrote one without being a seed writer
+(the baseline keeps only a SHA-256 of each device id; a message shows the first six characters). A member who
+joined from a device the baseline does not know is a warning, never a failure: real people can join the drill.
 
 Exit 0 when everything matches, 1 on any drift (each difference is named), 2 when anything cannot be read: a failed
 read is never a pass. Run it before every hosting deploy. After a deliberate change to the seed, refresh the
@@ -69,12 +71,33 @@ def _sha(obj) -> str:
     return hashlib.sha256(json.dumps(obj, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
+def _sha_text(value: str) -> str:
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _prefix(uid: str) -> str:
+    return uid[:6] or "(no device)"
+
+
 def snapshot(fetch: Callable[[str], object], seed: str, skipped: set[str]) -> dict:
-    """What a practice search copies from the seed, and a count and hash of the seed's events."""
+    """What a practice search copies from the seed; a count and hash of the seed's events and content reports; the
+    hashed ids of the devices that wrote them and of the members. Keys starting with "_" name devices for messages
+    and are never written to the baseline."""
     base = f"incidents/{seed}"
     incident = {k: v for k, v in _fields(fetch(base)).items() if k not in skipped}
     segments = {_id(d): _fields(d) for d in fetch(f"{base}/segments")}
-    events = sorted(_id(d) for d in fetch(f"{base}/events"))
+    event_docs, report_docs = fetch(f"{base}/events"), fetch(f"{base}/contentReports")
+    events = sorted(_id(d) for d in event_docs)
+    reports = sorted(_id(d) for d in report_docs)
+    wrote: dict[str, tuple[str, dict[str, int]]] = {}
+    for uid, what in [(str(_fields(d).get("deviceId", "")), f"event {_fields(d).get('type', '?')}") for d in event_docs] + [
+            (str(_fields(d).get("authorUid", "")), f"content report {_fields(d).get('target', '?')}") for d in report_docs]:
+        counts = wrote.setdefault(_sha_text(uid), (_prefix(uid), {}))[1]
+        counts[what] = counts.get(what, 0) + 1
+    members = {}
+    for d in fetch(f"{base}/members"):
+        f = _fields(d)
+        members[_sha_text(_id(d))] = f"{_prefix(_id(d))} (role {f.get('role', '?')}, joined {f.get('joinedAt', '?')})"
     return {
         "seed": seed,
         "incident": incident,
@@ -82,6 +105,11 @@ def snapshot(fetch: Callable[[str], object], seed: str, skipped: set[str]) -> di
         "teams": {_id(d): _fields(d) for d in fetch(f"{base}/teams")},
         "segments": {"count": len(segments), "sha256": _sha(segments)},
         "events": {"count": len(events), "sha256": _sha(events)},
+        "contentReports": {"count": len(reports), "sha256": _sha(reports)},
+        "writers": sorted(wrote),
+        "members": sorted(members),
+        "_writerNames": {h: f"{p} ({', '.join(f'{w} x{n}' for w, n in sorted(c.items()))})" for h, (p, c) in wrote.items()},
+        "_memberNames": members,
     }
 
 
@@ -99,11 +127,22 @@ def diff(base: dict, now: dict) -> list[str]:
     for t in sorted(set(a) | set(b)):
         if a.get(t) != b.get(t):
             out.append(f"teams/{t}: changed" if t in a and t in b else f"teams/{t}: {'removed' if t in a else 'added'}")
-    for section in ("segments", "events"):
+    for section in ("segments", "events", "contentReports"):
         a, b = base.get(section, {}), now.get(section, {})
         if a != b:
             out.append(f"{section}: {a.get('count')} -> {b.get('count')}" + ("" if a.get("count") != b.get("count") else " (contents changed)"))
+    known = set(base.get("writers", []))
+    for h in now.get("writers", []):
+        if h not in known:
+            out.append(f"writers: {now.get('_writerNames', {}).get(h, h[:12])} is not a seed writer")
     return out
+
+
+def warnings(base: dict, now: dict) -> list[str]:
+    """Members who joined from a device the baseline does not know: worth a look, never a failure."""
+    known = set(base.get("members", []))
+    return [f"member {now.get('_memberNames', {}).get(h, h[:12])} joined from a device the seed does not know"
+            for h in now.get("members", []) if h not in known]
 
 
 def run(fetch: Callable[[str], object], ts: str, baseline: Path, write: bool) -> int:
@@ -114,7 +153,8 @@ def run(fetch: Callable[[str], object], ts: str, baseline: Path, write: bool) ->
         print(f"judge_seed_check: cannot read the judge seed: {e}")
         return 2
     if write:
-        baseline.write_text(json.dumps(now, indent=2, sort_keys=True) + "\n")
+        kept = {k: v for k, v in now.items() if not k.startswith("_")}
+        baseline.write_text(json.dumps(kept, indent=2, sort_keys=True) + "\n")
         print(f"judge_seed_check: wrote {baseline.name} for {seed} ({now['segments']['count']} segments, {now['events']['count']} events)")
         return 0
     try:
@@ -122,6 +162,8 @@ def run(fetch: Callable[[str], object], ts: str, baseline: Path, write: bool) ->
     except (OSError, ValueError) as e:
         print(f"judge_seed_check: cannot read the baseline {baseline}: {e}")
         return 2
+    for line in warnings(base, now):
+        print(f"judge_seed_check: WARN {line}")
     lines = diff(base, now)
     for line in lines:
         print(f"judge_seed_check: DRIFT {line}")
