@@ -105,7 +105,9 @@ REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number remove
                   # The same known gap beside a kept date (#298).
                   ("Seen 14 May 5:55 01:42", "Seen 14 May [number removed]"),
                   # A known gap, pending on every platform (#298): a date before a run of times keeps its first hour.
-                  ("Seen 11/19/2026 12:12 5:55 01:42", "Seen 11/19/2026 [number removed]")]
+                  ("Seen 11/19/2026 12:12 5:55 01:42", "Seen 11/19/2026 [number removed]"),
+                  # A "[number removed]" right beside a run of times is digits joined to it: the run goes.
+                  ("Dial [number removed] 4:04 5:55 12:12", "Dial [number removed] [number removed]")]
 
 
 def number_chars(text: str) -> bool:

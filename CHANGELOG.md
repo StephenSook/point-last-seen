@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Phone vectors: two new shared cases about a "[number removed]" already in a note, pending on the iPhone.
+  `marker_then_times` keeps the times after one ("Witness [number removed] at 14:03 14:10"), since its words are never
+  a cue. `marker_beside_times` removes a run of times right beside one ("Dial [number removed] 4:04 5:55 12:12"), since
+  it is digits joined to the run. The shared README says a note scrubbed twice must equal one scrub and names the
+  regenerated corpus's SHA-256; Limits gives the new counts (130 cases; the web and Android pass 119, the iPhone 117);
+  `scripts/test_phone_vectors.py` pins `marker_beside_times` in its exact list. Source: PR #342 and its review (the
+  second case kept 404-555-1212). Verified: `scripts/test_phone_vectors.py` passes, and `scripts/ci-local.sh --gates`
+  passes on this tree.
 - Production checklist: names bash scripts/predeploy.sh as the step before every hosting deploy. Source: review.
   Verified: the hygiene guard passes in public mode.
 - Pre-deploy checks: scripts/predeploy.sh runs every check before a hosting deploy in one command (clean tree at
