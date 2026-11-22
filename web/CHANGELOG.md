@@ -2910,3 +2910,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - A suggestion's key (draftKeyOf) now includes the facts, so a reason written from old facts is withdrawn when a search or a report changes them.
 - Source: plan wording review.
 - Verified: new draftFacts and draftKeyOf tests failed first (missing module), then passed (4); typecheck passes.
+
+### test(harness): the wording measurement page records reason codes and checks the sentences
+- What: the measurement page's made-up plan now has made-up facts for its segments. Each run records the codes the model chose, whether every reason shown is exactly code's sentence for those codes (each one of that team's own facts), and whether the summary is exactly code's summary for the same choices.
+- Source: plan wording review.
+- Verified: typecheck passes; the page is a dev-server page, measured in Chrome.

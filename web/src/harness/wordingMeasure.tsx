@@ -2,7 +2,9 @@
 // with the wording's own on-device options, built ONLY_ON_DEVICE so this dev page never builds a cloud model; with the
 // built-in model available the command post's PREFER_ON_DEVICE runs the same options) three times on one made-up plan
 // in a newly opened page, and records where each wording ran as the SDK reported it, whether code accepted it, why
-// not, and its text. A bare Firebase app (no App Check, no sign-in); the page lists every Google or Firebase request.
+// not, the reason codes the model chose, the sentences code wrote from them, whether each reason and the summary match
+// those codes, and the raw reply. A bare Firebase app (no App Check, no sign-in); the page lists every Google or
+// Firebase request.
 
 import { initializeApp } from "firebase/app";
 import { getAI, GoogleAIBackend } from "firebase/ai";
@@ -10,6 +12,7 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { wordingOnDeviceGenerator } from "../ai/client";
 import { availabilityOf, onDeviceCreateOptions } from "../ai/gate";
+import { renderReason, renderSummary, teamFacts, type FactCode } from "../ai/reasonCodes";
 import { checkChoice, REPLY_TIMEOUT_MS, wordPlan, type PlanDraft } from "../ai/replanWording";
 import { readEnv } from "../firebaseConfig";
 import "../theme/fonts.css";
@@ -18,7 +21,7 @@ import "../theme/base.css";
 const GOOGLE_HOST = /(^|\.)(googleapis\.com|google\.com|gstatic\.com|firebaseio\.com|firebaseapp\.com|web\.app)$/;
 const MODEL = "gemini-3.5-flash-lite";
 
-/** A made-up plan: two teams, the top segments of a made-up ranking. */
+/** A made-up plan: two teams, the top segments of a made-up ranking, and made-up facts for their segments. */
 const DRAFT: PlanDraft = {
   eventSetHash: "measure",
   priorVersion: 1,
@@ -32,6 +35,12 @@ const DRAFT: PlanDraft = {
     { teamId: "T1", segmentIds: ["CC"] },
     { teamId: "T2", segmentIds: ["CD"] },
   ],
+  facts: {
+    CC: { featureClasses: ["stream", "trail"], searched: false, raisedByLastReport: true, ring: { innerKm: 0.3, outerKm: 1, fromPct: 25, toPct: 50 } },
+    CD: { featureClasses: ["road", "structure"], searched: true, raisedByLastReport: false, ring: { innerKm: 0, outerKm: 0.3, fromPct: 0, toPct: 25 } },
+    CE: { featureClasses: [], searched: false, raisedByLastReport: false, ring: null },
+    BO: { featureClasses: ["water"], searched: false, raisedByLastReport: false, ring: null },
+  },
 };
 
 async function measure(): Promise<object> {
@@ -57,7 +66,16 @@ async function measure(): Promise<object> {
     } catch {
       check = { ok: false, reason: "not JSON" };
     }
-    runs.push({ replyMs, raw, check, route: w.route, accepted: w.attempt === undefined && w.route.path !== "rules", notice: w.notice, attempt: w.attempt ?? null, wording: w.wording, promptBytes: w.promptBytes });
+    // Whether every reason shown is exactly code's sentence for the codes chosen, each code one of that team's own
+    // facts, and the summary exactly code's summary for the same choices.
+    const codes = w.codes ?? null;
+    const facts = teamFacts(DRAFT);
+    const choices = new Map(Object.entries(codes ?? {}) as [string, FactCode[]][]);
+    const reasonsMatchCodes = codes
+      ? w.wording.assignments.every((a) => (choices.get(a.teamId) ?? []).every((c) => facts.get(a.teamId)?.has(c)) && a.reason === renderReason(DRAFT, a.teamId, choices.get(a.teamId) ?? []))
+      : null;
+    const summaryMatchesReasons = codes ? w.wording.summary === renderSummary(DRAFT, choices) : null;
+    runs.push({ replyMs, raw, check, route: w.route, accepted: w.attempt === undefined && w.route.path !== "rules", notice: w.notice, attempt: w.attempt ?? null, codes, reasonsMatchCodes, summaryMatchesReasons, wording: w.wording, promptBytes: w.promptBytes });
   }
   const googleRequests = performance
     .getEntriesByType("resource")
