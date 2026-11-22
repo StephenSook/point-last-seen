@@ -9,7 +9,6 @@ import { debriefSheetParams, type SheetDeps } from "./debriefSheetRead";
 import { sightingTextParams, type SightingTextDeps } from "./sightingText";
 import { clipCloudParams, clipParts, type ClipWindow } from "./clipRead";
 import { frameCheckParams } from "./frameCheck";
-import { activatedLimitedUseTokens } from "../config/rc";
 
 let instance: AI | undefined;
 
@@ -23,12 +22,12 @@ let instance: AI | undefined;
 export const PRIVATE_REQUEST_OPTIONS = { timeout: REPLY_TIMEOUT_MS, baseUrl: "https://on-device-only.invalid" } as const;
 
 /**
- * The page's one AI instance. Its App Check flag (limited-use tokens) is read once, from the activated Remote Config
- * value, never from the caller: the judge page and the command post share the instance whichever asks first, and
- * getAI would refuse a second one with another flag.
+ * The page's one AI instance, always with limited-use App Check tokens: replay protection is enforced on AI Logic, so
+ * any other setting could only make cloud calls fail. No caller and no Remote Config value sets it, so the judge page
+ * and the command post share the instance whichever asks first (getAI refuses a second one with another flag).
  */
 export function aiClient(app: FirebaseApp): AI {
-  instance ??= getAI(app, { backend: new GoogleAIBackend(), useLimitedUseAppCheckTokens: activatedLimitedUseTokens(app) });
+  instance ??= getAI(app, { backend: new GoogleAIBackend(), useLimitedUseAppCheckTokens: true });
   return instance;
 }
 

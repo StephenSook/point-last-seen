@@ -7,7 +7,6 @@ import { activate, fetchAndActivate, getAll, getRemoteConfig, getValue, onConfig
 export const RC_DEFAULTS = {
   cloud_model_web: "gemini-3.5-flash-lite",
   kill_cloud: false,
-  use_limited_use_tokens: true,
   /** The server prompt template for the consented cloud read of a sighting note. */
   sighting_template_id: "pls-sighting-note-v1",
   /** The server prompt template for the consented cloud read of a family photo. */
@@ -57,19 +56,6 @@ export function parseRc(values: Partial<Record<keyof typeof RC_DEFAULTS, string>
     sightingTemplateId: templateId(values.sighting_template_id, d.sighting_template_id),
     photoTemplateId: templateId(values.photo_template_id, d.photo_template_id),
   };
-}
-
-/**
- * use_limited_use_tokens as Remote Config has it activated on this device, or the default when nothing is activated or
- * the config cannot be read. The AI instance reads it once per page (getAI refuses a second instance with another
- * flag), so a changed value applies on the next load.
- */
-export function activatedLimitedUseTokens(app: FirebaseApp): boolean {
-  try {
-    return bool(getValue(getRemoteConfig(app), "use_limited_use_tokens").asString() || undefined, RC_DEFAULTS.use_limited_use_tokens);
-  } catch {
-    return RC_DEFAULTS.use_limited_use_tokens;
-  }
 }
 
 /** Fetches, activates and listens for real-time updates. `onChange` gets every activated set. */
