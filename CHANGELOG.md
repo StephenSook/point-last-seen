@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: the plan reason line says what the cloud model did on the live site (3 calls, each naming one of every
+  team's own facts and used; its picks were ranking facts) and keeps that the order effect was not measured there.
+  Source: the live cloud capture. Verified: each figure recounted from
+  docs/evidence/web/2026-11-22-plan-reason-cloud-live.json; the hygiene guard passes in public mode.
 - Evidence: docs/evidence/web/2026-11-22-plan-reason-cloud-live.json records the cloud path of plan reasons on the
   live site (deployed 4531ca16, the test drill, Chrome's built-in model removed, gemini-3.5-flash-lite): 3 calls, each
   request text and reply; every reply named each team once with one of its own facts and was used; on the earlier
