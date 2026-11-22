@@ -2554,3 +2554,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: on an open drill, a Join codes section under People offers "Give searchers a new code" and "Give family a new code". Each asks first ("Every searcher code given out stops working. People already in the search stay in."), then shows the new code once, large and selectable, with Copy and how many old codes it replaced; Done hides it. A refusal keeps the confirm open with the server's reason. A practice search and an ended search show no codes. The members harness renders the section with a stand-in.
 - Source: review (command needs a way to replace a code that got out).
 - Verified: three new harness checks (ask, Cancel, Replace, Copy and Done; a refusal; no codes on a practice search) failed first, then passed with the members checks (10); web unit suite (1191) and typecheck pass.
+
+### fix(data): a replacement with no answer says the code may already be replaced
+- What: when no answer came back (a deadline, a server error, or an answer that could not be read), the line is now "No answer came back, so the code may already have been replaced. Replacing it again makes the newest code the only one that works." instead of "Try again", since the server may already have made a code a second tap would stop. `parseRotation` also refuses a replaced count JavaScript cannot hold exactly.
+- Source: review (Codex, first round on the join-code panel).
+- Verified: the new and extended unit tests failed first, then passed (5).

@@ -15,7 +15,7 @@ export function parseRotation(reply: unknown, role: CodeRole): Rotation {
   const r = (typeof reply === "object" && reply !== null ? reply : {}) as Record<string, unknown>;
   if (typeof r["code"] !== "string" || !CODE.test(r["code"])) throw new Error("not a join code");
   if (r["role"] !== role) throw new Error("a code for another role");
-  if (typeof r["replaced"] !== "number" || !Number.isInteger(r["replaced"]) || r["replaced"] < 0) throw new Error("no count of replaced codes");
+  if (typeof r["replaced"] !== "number" || !Number.isSafeInteger(r["replaced"]) || r["replaced"] < 0) throw new Error("no count of replaced codes");
   return { code: r["code"], role, replaced: r["replaced"] };
 }
 
@@ -25,7 +25,9 @@ export async function rotateJoinCode(functions: Functions, incidentId: string, r
 }
 
 /** The sentence for a refused replacement: the server's reason when it gave one, never the person's fault for a refused
- *  sign-in or App Check token or a dropped link. */
+ *  sign-in or App Check token or a dropped link. When no answer came back (a deadline, a server error, or an answer that
+ *  could not be read), the server may already have replaced the code, so the line says so instead of "try again": a
+ *  second replacement would stop the code the first one made. */
 export function rotateErrorMessage(e: unknown): string {
   const o = typeof e === "object" && e !== null ? (e as { code?: unknown; details?: unknown }) : {};
   const code = typeof o.code === "string" ? o.code : "";
@@ -38,5 +40,5 @@ export function rotateErrorMessage(e: unknown): string {
   if (reason === "bad_incident_id") return "This search's link is not valid. Reload the page.";
   if (reason === "not_signed_in" || code.endsWith("unauthenticated")) return "Refused: sign-in or App Check. Reload the page and try again.";
   if (code.endsWith("unavailable")) return "No connection. Try again when the link is back.";
-  return "Could not replace the code. Try again.";
+  return "No answer came back, so the code may already have been replaced. Replacing it again makes the newest code the only one that works.";
 }
