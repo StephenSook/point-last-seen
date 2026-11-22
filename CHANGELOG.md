@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: new "Report reads (iPhone)" section: Apple's on-device model read three object finds as "found" in the
+  2026-11-22 on-phone eval (footprints, a wrapper, a water bottle), the found-kind rule changed none of them, and a
+  "found" report has no effect on the map and sends no alert. Source: the on-phone eval result. Verified: n3, n9 and
+  n11 read as found on device in the result file, and the answer key marks all three as clues; n3 and n9 hold no
+  word "found", and n11's note holds words outside the rule's object-note list ("name", "sticker", "open"); the
+  cited Swift lines on main hold the found-kind step, the rule and the found-to-no-effect mapping; no function runs
+  when a report is created; the rules let only command close a search; the gates and the hygiene guard in public
+  mode pass.
 - Limits: new "Note reads (web command post)" section: a note naming a place with a direction word ("north trail")
   can get that direction as a suggested direction of travel, 2 of 2 reads on 2026-11-22, shown as a suggestion that
   nothing saves until Command presses Save. Source: the web note-read evidence on main. Verified: both north-trail

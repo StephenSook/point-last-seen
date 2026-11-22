@@ -268,6 +268,18 @@ each line says what the limit is and why.
   words before it (`Call 21:25 5:50 1:42`, `Reach me at 4:04 5:55 06:42`) it is. A note that NFKC changes (superscript
   or full-width digits, for example) skips this step, so the shared rule may leave the first hour of such a run.
 
+## Report reads (iPhone)
+
+- Apple's on-device model can call an object find "found" (footprints, a wrapper and a water bottle in the 2026-11-22
+  eval). On the phone, the found-kind rule turns "found" into a clue only when "found" is followed by a known object
+  (`ios/PLSCore/Sources/PLSCore/ReadOrchestrator.swift:134-143`, `ios/PLSCore/Sources/PLSCore/FoundKind.swift:186-200`).
+  In the eval it changed none of the three: two of those notes have no word "found", and the third ("Found a water
+  bottle with a name sticker at the edge of the open field") holds words the rule does not know, so it keeps the
+  model's kind. A "found" report changes nothing: it shows as a "Found" report card with no effect on the map and no
+  alert, and only command can end a search as found (`ios/PLSCore/Sources/PLSCore/ReadOutcomeBuilder.swift:110,174`;
+  `web/src/data/endSearch.ts`). The cost is a clue that adds no weight and a card that can mislead a quick read.
+  Evidence: docs/evidence/eval/eval-pls-drill-reports-v1-1795376366383.json.
+
 ## Photo clues (iPhone)
 
 - A searcher can take a photo of something found. Apple's on-device model reads it (iOS 27 with the vision
