@@ -22,6 +22,14 @@ export function detailsSummary(s: { conditions: IncidentConditions | null; photo
   return parts.length === 0 ? "Details" : `Details: ${parts.join(". ")}.`;
 }
 
+/**
+ * The summary as the rail draws it: the label with its colon, then the rest (with its leading space, which the flex
+ * row drops on screen but keeps in the text). Drawn as one span, the row's gap would fall before the colon.
+ */
+export function detailsSummaryParts(summary: string): { label: string; rest: string | null } {
+  return summary.startsWith("Details:") ? { label: "Details:", rest: summary.slice("Details:".length) } : { label: summary, rest: null };
+}
+
 /** Family photos with no reading saved by command yet. */
 export function photosToReview(photos: readonly { sha256: string }[], reviewed: ReadonlySet<string>): number {
   return photos.filter((p) => !reviewed.has(p.sha256)).length;

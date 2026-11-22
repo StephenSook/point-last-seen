@@ -3008,3 +3008,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - Accepted: a reply with a team named twice is read with its last value, which must still be one of that team's own facts, so nothing untrue is shown.
 - Source: review.
 - Verified: the changed schema test failed first, then passed (34); against the live site before the fix the check still fails with 0 of 3 used; typecheck passes; the cited lines 47 and 232 are unchanged.
+
+### fix(command): the Details summary keeps its colon beside the label
+- What: the rail's Details summary read "DETAILS : 38 °F, wet: no. 11 photos to review." because the summary row's 6 px gap fell between the label and the text that began with the colon. detailsSummaryParts now gives the label with its colon ("Details:") and the rest with its leading space, which the row drops on screen and keeps in the text, so it reads "DETAILS: 38 °F, ...".
+- Source: deployed stills, both widths, Chromium and WebKit.
+- Verified: new detailsSummaryParts tests failed first, then passed; the summary's whole text is unchanged for screen readers and for the rail-order check; typecheck passes.
