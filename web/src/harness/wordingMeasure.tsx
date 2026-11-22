@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { wordingOnDeviceGenerator } from "../ai/client";
 import { availabilityOf, onDeviceCreateOptions } from "../ai/gate";
-import { checkWording, REPLY_TIMEOUT_MS, wordPlan, type PlanDraft } from "../ai/replanWording";
+import { checkChoice, REPLY_TIMEOUT_MS, wordPlan, type PlanDraft } from "../ai/replanWording";
 import { readEnv } from "../firebaseConfig";
 import "../theme/fonts.css";
 import "../theme/base.css";
@@ -53,7 +53,7 @@ async function measure(): Promise<object> {
     const w = await wordPlan(DRAFT, { generate, now: () => Date.now(), timeoutMs: 180_000, model: MODEL });
     let check: unknown = null;
     try {
-      check = checkWording(DRAFT, JSON.parse(raw));
+      check = checkChoice(DRAFT, JSON.parse(raw));
     } catch {
       check = { ok: false, reason: "not JSON" };
     }

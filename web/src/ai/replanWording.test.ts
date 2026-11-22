@@ -3,15 +3,9 @@ import { InferenceMode } from "firebase/ai";
 import {
   PLAN_WORDING_JSON,
   REPLY_TIMEOUT_MS,
-  checkWording,
+  checkChoice,
+  NOT_A_TEAM_FACT,
   planPrompt,
-  NUMBER_NOT_IN_PLAN,
-  OUTSIDE_TEAMS_ROWS,
-  SPELLS_OUT_A_CODE,
-  PERSON_CLAIM,
-  WRONG_DIRECTION,
-  EARLIER_AS_CURRENT,
-  CURRENT_AS_EARLIER,
   templateWording,
   wordPlan,
   wordingParams,
@@ -33,76 +27,102 @@ const draft: PlanDraft = {
   ],
 };
 
-const good = JSON.stringify({
+// The model picks reason codes from each team's own facts; code writes every sentence.
+const good = JSON.stringify({ assignments: [{ teamId: "T1", reasons: ["highest_poa", "poa_rose"] }, { teamId: "T2", reasons: ["top_three"] }] });
+const goodWording = {
   assignments: [
-    { teamId: "T1", taskText: "Search segment AC.", reason: "Highest POA now." },
-    { teamId: "T2", taskText: "Search segment AB.", reason: "Second highest." },
+    { teamId: "T1", taskText: "Search segment AC.", reason: "AC has the highest POA, 31.0%. AC rose from 20.0% to 31.0% since the starting map." },
+    { teamId: "T2", taskText: "Search segment AB.", reason: "AB is in the top three by POA." },
   ],
-  summary: "Teams move to the two highest segments.",
-});
-
+  summary: "T1 searches AC: AC has the highest POA, 31.0%. AC rose from 20.0% to 31.0% since the starting map. T2 searches AB: AB is in the top three by POA.",
+};
 function deps(over: Partial<WordingDeps>): WordingDeps {
   let t = 1000;
   return { generate: async () => ({ text: good, inferenceSource: "in_cloud" }), now: () => (t += 250), timeoutMs: 50, model: "gemini-3.5-flash-lite", ...over };
 }
 const httpError = (status: number, raw: string) => Object.assign(new Error(raw), { customErrorData: { status } });
 
-describe("checkWording", () => {
-  it("rejects team ids that differ from the draft", () => {
-    expect(checkWording(draft, { assignments: [{ teamId: "T9", taskText: "x", reason: "y" }], summary: "" }).ok).toBe(false);
-    expect(checkWording(draft, { assignments: [{ teamId: "T1", taskText: "x", reason: "y" }], summary: "" }).ok).toBe(false);
-  });
-
-  it("accepts the draft's teams in any order", () => {
-    const w = JSON.parse(good);
-    expect(checkWording(draft, { ...w, assignments: [...w.assignments].reverse() }).ok).toBe(true);
-  });
-
-  it("rejects empty or overlong text and a repeated team", () => {
-    const w = JSON.parse(good);
-    expect(checkWording(draft, { ...w, assignments: [{ ...w.assignments[0], reason: " " }, w.assignments[1]] }).ok).toBe(false);
-    expect(checkWording(draft, { ...w, assignments: [{ ...w.assignments[0], reason: "x".repeat(201) }, w.assignments[1]] }).ok).toBe(false);
-    expect(checkWording(draft, { ...w, assignments: [w.assignments[0], w.assignments[0]] }).ok).toBe(false);
-  });
-});
-
 describe("templateWording", () => {
   it("words every team of the draft from code, naming its segments", () => {
     const t = templateWording(draft);
     expect(t.assignments.map((a) => a.teamId)).toEqual(["T1", "T2"]);
     expect(t.assignments[0]!.taskText).toContain("AC");
-    expect(checkWording(draft, t).ok).toBe(true);
+    expect(t.assignments.map((a) => a.reason)).toEqual(["POA now 31.0%.", "POA now 22.0%."]);
   });
 });
 
 describe("planPrompt", () => {
-  it("carries the engine's table in the user text", () => {
-    const p = planPrompt(draft);
-    expect(p).toContain("T1: AC");
-    expect(p).toContain("AC 31.0%");
-    expect(p).toContain("AB 22.0%");
+  it("lists each team's segments and the facts code found for them, and a team with no segment", () => {
+    const withEmpty: PlanDraft = { ...draft, assignments: [...draft.assignments, { teamId: "T3", segmentIds: [] }] };
+    expect(planPrompt(withEmpty).split("\n")).toEqual([
+      "Teams, their segments, and the facts code found for those segments:",
+      "T1 searches AC. Facts: highest_poa (AC), top_three (AC), poa_rose (AC), poa_now (AC)",
+      "T2 searches AB. Facts: top_three (AB), poa_now (AB)",
+      "T3 has no segment. Facts: none.",
+    ]);
   });
 });
 
-describe("task lines come from code, the model writes only reasons", () => {
-  it("asks the model for each team's reason and the summary, never a task line", () => {
+describe("the model picks reason codes, code writes every sentence", () => {
+  it("asks the model only for each team's reason codes, from the known codes: no sentence, task line or summary", () => {
     const item = PLAN_WORDING_JSON.properties.assignments.items;
-    expect(item.required).toEqual(["teamId", "reason"]);
-    expect("taskText" in item.properties).toBe(false);
+    expect(item.required).toEqual(["teamId", "reasons"]);
+    expect(Object.keys(item.properties)).toEqual(["teamId", "reasons"]);
+    expect(item.properties.reasons).toMatchObject({ type: "array", maxItems: 2, items: { type: "string" } });
+    expect(PLAN_WORDING_JSON.required).toEqual(["assignments"]);
+    expect("summary" in PLAN_WORDING_JSON.properties).toBe(false);
   });
-  it("ignores a task line the model wrote and keeps the plan's own segment", async () => {
-    const sly = JSON.stringify({ assignments: [{ teamId: "T1", taskText: "Search segment AD.", reason: "Highest POA now." }, { teamId: "T2", reason: "Second highest." }], summary: "s" });
+  it("renders each team's reason and the summary from the codes chosen", async () => {
+    const out = await wordPlan(draft, deps({}));
+    expect(out.wording).toEqual(goodWording);
+    expect(out.codes).toEqual({ T1: ["highest_poa", "poa_rose"], T2: ["top_three"] });
+  });
+  it("ignores any text the model sends anyway", async () => {
+    const sly = JSON.stringify({ assignments: [{ teamId: "T1", taskText: "Search segment AD.", reason: "She is in AC.", reasons: ["highest_poa"] }, { teamId: "T2", reasons: ["top_three"] }], summary: "They will be found." });
     const out = await wordPlan(draft, deps({ generate: async () => ({ text: sly, inferenceSource: "in_cloud" }) }));
     expect(out.wording.assignments).toEqual([
-      { teamId: "T1", taskText: "Search segment AC.", reason: "Highest POA now." },
-      { teamId: "T2", taskText: "Search segment AB.", reason: "Second highest." },
+      { teamId: "T1", taskText: "Search segment AC.", reason: "AC has the highest POA, 31.0%." },
+      { teamId: "T2", taskText: "Search segment AB.", reason: "AB is in the top three by POA." },
     ]);
+    expect(out.wording.summary).not.toMatch(/found|She/);
   });
-  it("a reason that names a segment the team was not given falls to the template", async () => {
-    const wrong = JSON.stringify({ assignments: [{ teamId: "T1", reason: "AD is closest to the last sighting." }, { teamId: "T2", reason: "Second highest." }], summary: "s" });
+  it("a code that is not one of the team's own facts falls to the template", async () => {
+    const wrong = JSON.stringify({ assignments: [{ teamId: "T1", reasons: ["highest_poa"] }, { teamId: "T2", reasons: ["highest_poa"] }] });
     const out = await wordPlan(draft, deps({ generate: async () => ({ text: wrong, inferenceSource: "in_cloud" }) }));
     expect(out.route.path).toBe("rules");
-    expect(out.wording.assignments[0]!.reason).toBe("POA now 31.0%.");
+    expect(out.wording).toEqual(templateWording(draft));
+    expect(out.attempt).toMatchObject({ failure: "rejected" });
+  });
+});
+
+describe("checkChoice", () => {
+  const pick = (t1: unknown, t2: unknown = ["top_three"]) => checkChoice(draft, { assignments: [{ teamId: "T1", reasons: t1 }, { teamId: "T2", reasons: t2 }] });
+  it("accepts one or two of each team's own facts, in any team order", () => {
+    expect(pick(["highest_poa"])).toMatchObject({ ok: true });
+    expect(pick(["poa_rose", "highest_poa"])).toMatchObject({ ok: true });
+    expect(checkChoice(draft, { assignments: [{ teamId: "T2", reasons: ["poa_now"] }, { teamId: "T1", reasons: ["poa_now"] }] })).toMatchObject({ ok: true });
+  });
+  it("refuses a code from another team's facts, an unknown code, or a known code no segment of the team has", () => {
+    expect(pick(["highest_poa"], ["poa_rose"])).toEqual({ ok: false, reason: NOT_A_TEAM_FACT });
+    expect(pick(["near_trail"])).toEqual({ ok: false, reason: NOT_A_TEAM_FACT });
+    expect(pick(["customer_complaints"])).toEqual({ ok: false, reason: NOT_A_TEAM_FACT });
+  });
+  it("refuses no code, more than two, a repeated code, or codes that are not a list of text", () => {
+    for (const bad of [[], ["highest_poa", "poa_rose", "poa_now"], ["poa_now", "poa_now"], "highest_poa", [1], null]) {
+      expect(pick(bad).ok, JSON.stringify(bad)).toBe(false);
+    }
+  });
+  it("refuses teams that differ from the draft, and a team with no segment must get no code", () => {
+    expect(checkChoice(draft, { assignments: [{ teamId: "T9", reasons: ["poa_now"] }] }).ok).toBe(false);
+    expect(checkChoice(draft, { assignments: [{ teamId: "T1", reasons: ["poa_now"] }, { teamId: "T1", reasons: ["poa_now"] }] }).ok).toBe(false);
+    const withEmpty: PlanDraft = { ...draft, assignments: [...draft.assignments, { teamId: "T3", segmentIds: [] }] };
+    const base = [{ teamId: "T1", reasons: ["poa_now"] }, { teamId: "T2", reasons: ["poa_now"] }];
+    expect(checkChoice(withEmpty, { assignments: [...base, { teamId: "T3", reasons: [] }] })).toMatchObject({ ok: true });
+    expect(checkChoice(withEmpty, { assignments: [...base, { teamId: "T3", reasons: ["poa_now"] }] }).ok).toBe(false);
+  });
+  it("refuses a reply that is not an object of assignments", () => {
+    expect(checkChoice(draft, null).ok).toBe(false);
+    expect(checkChoice(draft, { assignments: "x" }).ok).toBe(false);
   });
 });
 
@@ -116,7 +136,7 @@ describe("wordPlan", () => {
   it("with no inferenceSource records path unknown and says the route was not reported", async () => {
     const out = await wordPlan(draft, deps({ generate: async () => ({ text: good, inferenceSource: undefined }) }));
     expect(out.route).toMatchObject({ path: "unknown", sdkReported: false });
-    expect(out.wording).toEqual(JSON.parse(good));
+    expect(out.wording).toEqual(goodWording);
   });
 
   it("falls to the template when the call throws or the wording is wrong", async () => {
@@ -232,23 +252,6 @@ describe("the plan text's size", () => {
   });
 });
 
-describe("numbers in the model's wording", () => {
-  const withReason = (reason: string, summary = "Teams move to the two highest segments.") =>
-    ({ assignments: [{ teamId: "T1", taskText: "x", reason }, { teamId: "T2", taskText: "x", reason: "Second highest." }], summary });
-  it("accepts numbers that are in the plan the model was given", () => {
-    expect(checkWording(draft, withReason("POA now 31.0%, up from 20.0%."))).toEqual({ ok: true });
-  });
-  it("refuses a number that is not in the plan, in a reason or in the summary", () => {
-    expect(checkWording(draft, withReason("POA now 45%."))).toEqual({ ok: false, reason: NUMBER_NOT_IN_PLAN });
-    expect(checkWording(draft, withReason("Highest.", "Teams cover 90% of the area."))).toEqual({ ok: false, reason: NUMBER_NOT_IN_PLAN });
-  });
-  it("a reason with a number not in the draft falls to the template, and the attempt says why", async () => {
-    const out = await wordPlan(draft, deps({ generate: async () => ({ text: JSON.stringify(withReason("POA now 45%.")), inferenceSource: "in_cloud" }) }));
-    expect(out.route).toMatchObject({ path: "rules", reason: "template_fallback" });
-    expect(out.attempt).toMatchObject({ failure: "number", route: { path: "cloud" } });
-  });
-});
-
 describe("the wording's on-device-only params (for measurement pages, which never build a cloud model)", () => {
   it("are the command post's own on-device options, ONLY_ON_DEVICE, with no cloud params", async () => {
     const { wordingOnDeviceParams } = await import("./replanWording");
@@ -300,215 +303,5 @@ describe("how long the command post waits for a plan's wording", () => {
     // The cloud request keeps its own 15 s limit, so a cloud fallback is no slower than before.
     expect(REPLY_TIMEOUT_MS).toBe(15_000);
     expect(readFileSync(new URL("../command/CommandPost.tsx", import.meta.url), "utf8")).toMatch(/wordPlan\(draft, \{ generate, now: \(\) => Date\.now\(\), timeoutMs: WORDING_WAIT_MS,/);
-  });
-});
-
-describe("a reason's numbers belong to that team's own rows", () => {
-  // T1 has AC (now 31.0%, was 20.0%); T2 has AB (now 22.0%, was 25.0%); AD (10.0%) is nobody's.
-  const withReason = (reason: string, summary = "Teams move to the two highest segments.") =>
-    ({ assignments: [{ teamId: "T1", taskText: "x", reason }, { teamId: "T2", taskText: "x", reason: "Second highest." }], summary });
-  it("refuses a reason that quotes another team's POA", () => {
-    expect(checkWording(draft, withReason("POA now 22.0%."))).toEqual({ ok: false, reason: OUTSIDE_TEAMS_ROWS });
-    expect(checkWording(draft, withReason("Ahead of AD at 10.0%."))).toEqual({ ok: false, reason: "a reason names another team's segment" });
-    expect(checkWording(draft, withReason("Ahead of 10.0%."))).toEqual({ ok: false, reason: OUTSIDE_TEAMS_ROWS });
-  });
-  it("refuses a reason that gives the earlier POA as the current one", () => {
-    expect(checkWording(draft, withReason("POA now 20.0%."))).toEqual({ ok: false, reason: EARLIER_AS_CURRENT });
-    expect(checkWording(draft, withReason("POA 20.0%."))).toEqual({ ok: false, reason: EARLIER_AS_CURRENT });
-  });
-  it("refuses a reason that gives the current POA as the earlier one", () => {
-    expect(checkWording(draft, withReason("POA was 31.0%."))).toEqual({ ok: false, reason: CURRENT_AS_EARLIER });
-  });
-  it("an earlier cue wins over a current one among the words before a figure", () => {
-    expect(checkWording(draft, withReason("POA was at 31.0%."))).toEqual({ ok: false, reason: CURRENT_AS_EARLIER });
-    expect(checkWording(draft, withReason("POA was at 20.0%, now 31.0%."))).toEqual({ ok: true });
-  });
-  it("refuses a figure taken from the team's own id", () => {
-    expect(checkWording(draft, withReason("POA now 1%."))).toEqual({ ok: false, reason: OUTSIDE_TEAMS_ROWS });
-  });
-  it("refuses a direction word that none of the team's own segments moved in", () => {
-    // AC rose (20.0% to 31.0%) and AB fell (25.0% to 22.0%).
-    expect(checkWording(draft, withReason("POA dropped from 20.0% to 31.0%."))).toEqual({ ok: false, reason: WRONG_DIRECTION });
-    expect(checkWording(draft, { ...withReason("POA rose to 31.0%."), assignments: [{ teamId: "T1", taskText: "x", reason: "Rose to 31.0%." }, { teamId: "T2", taskText: "x", reason: "Went up to 22.0%." }] })).toEqual({ ok: false, reason: WRONG_DIRECTION });
-    expect(checkWording(draft, { ...withReason("x"), assignments: [{ teamId: "T1", taskText: "x", reason: "Rose to 31.0%." }, { teamId: "T2", taskText: "x", reason: "Fell to 22.0% from 25.0%." }] })).toEqual({ ok: true });
-  });
-  it("refuses a minus sign the plan never gave", () => {
-    expect(checkWording(draft, withReason("POA now -31.0%."))).toEqual({ ok: false, reason: NUMBER_NOT_IN_PLAN });
-  });
-  it("reads a cue only within its own clause, but all of it", () => {
-    expect(checkWording(draft, withReason("POA was high. Now 31.0%."))).toEqual({ ok: true });
-    expect(checkWording(draft, withReason("POA was estimated at about 31.0%."))).toEqual({ ok: false, reason: CURRENT_AS_EARLIER });
-  });
-  it("refuses a Unicode minus or dash before a figure", () => {
-    expect(checkWording(draft, withReason("POA now \u221231.0%."))).toEqual({ ok: false, reason: NUMBER_NOT_IN_PLAN });
-  });
-  it("refuses a negated or other direction word that does not match, and reads a comparison as no direction", () => {
-    expect(checkWording(draft, withReason("POA dipped from 20.0% to 31.0%."))).toEqual({ ok: false, reason: WRONG_DIRECTION });
-    expect(checkWording(draft, withReason("AC's POA did not rise."))).toEqual({ ok: false, reason: WRONG_DIRECTION });
-    const t2 = (reason: string) => ({ assignments: [{ teamId: "T1", taskText: "x", reason: "Highest." }, { teamId: "T2", taskText: "x", reason }], summary: "s" });
-    expect(checkWording(draft, t2("At 22.0%, AB has a higher POA than the unassigned segment."))).toEqual({ ok: true });
-  });
-  it("reads a label's cue across its colon", () => {
-    expect(checkWording(draft, withReason("Prior POA: 31.0%."))).toEqual({ ok: false, reason: CURRENT_AS_EARLIER });
-    expect(checkWording(draft, withReason("Prior POA: 20.0%. Now 31.0%."))).toEqual({ ok: true });
-  });
-  it("reads higher or lower than before as a direction, and higher than another segment as none", () => {
-    expect(checkWording(draft, withReason("AC's POA is lower than before."))).toEqual({ ok: false, reason: WRONG_DIRECTION });
-    expect(checkWording(draft, withReason("AC's POA is higher than before."))).toEqual({ ok: true });
-  });
-  it("reads a dash joined to a word as punctuation, and a spaced one before a figure as a minus", () => {
-    expect(checkWording(draft, withReason("AC\u201431.0%, the highest POA."))).toEqual({ ok: true });
-    expect(checkWording(draft, withReason("POA now \u201431.0%."))).toEqual({ ok: false, reason: NUMBER_NOT_IN_PLAN });
-  });
-  it("reads the team's own id past in any case and beside brackets, and a digits-only id never hides a figure", () => {
-    expect(checkWording(draft, withReason("Team t1 gets AC at 31.0%."))).toEqual({ ok: true });
-    expect(checkWording(draft, withReason("(T1) gets AC at 31.0%."))).toEqual({ ok: true });
-    const numeric: PlanDraft = { ...draft, assignments: [{ teamId: "1", segmentIds: ["AC"] }, { teamId: "2", segmentIds: ["AB"] }] };
-    const w = { assignments: [{ teamId: "1", taskText: "x", reason: "POA now 1%." }, { teamId: "2", taskText: "x", reason: "Second." }], summary: "s" };
-    expect(checkWording(numeric, w)).toEqual({ ok: false, reason: OUTSIDE_TEAMS_ROWS });
-  });
-  it("accepts a team's own figures in their own roles", () => {
-    expect(checkWording(draft, withReason("POA now 31.0%, up from 20.0%."))).toEqual({ ok: true });
-    expect(checkWording(draft, withReason("Rose to 31.0% from 20.0%."))).toEqual({ ok: true });
-    expect(checkWording(draft, withReason("Team T1 takes the highest segment, 31.0%."))).toEqual({ ok: true });
-  });
-  it("keeps the summary checked against the whole plan", () => {
-    expect(checkWording(draft, withReason("Highest.", "AC leads at 31.0%, then AB at 22.0%."))).toEqual({ ok: true });
-  });
-  it("either refusal falls back to the template wording, and the attempt says the checks failed", async () => {
-    for (const reason of ["POA now 22.0%.", "POA now 20.0%."]) {
-      const out = await wordPlan(draft, deps({ generate: async () => ({ text: JSON.stringify(withReason(reason)), inferenceSource: "in_cloud" }) }));
-      expect(out.wording).toEqual(templateWording(draft));
-      expect(out.route).toMatchObject({ path: "rules", reason: "template_fallback" });
-      expect(out.attempt).toMatchObject({ failure: "rejected", route: { path: "cloud" } });
-    }
-  });
-});
-
-describe("segment codes are grid squares, never abbreviations", () => {
-  // T1 has AC and T2 has AB; AD is nobody's.
-  const withReason = (reason: string, summary = "Teams move to the two highest segments.") =>
-    ({ assignments: [{ teamId: "T1", taskText: "x", reason }, { teamId: "T2", taskText: "x", reason: "Second highest." }], summary });
-  it("refuses a reason whose capitalized words spell a segment code", () => {
-    expect(checkWording(draft, withReason("T1 focuses on Area Control."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-    expect(checkWording(draft, withReason("Searches the Access Corridor."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-  });
-  it("refuses a code with words in brackets after it, or before it in brackets", () => {
-    expect(checkWording(draft, withReason("AC (the north field) is first."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-    expect(checkWording(draft, withReason("Highest.", "T1 takes the Upper Meadow (AC) and T2 the next."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-  });
-  it("refuses a summary that spells out a code by its initials", () => {
-    expect(checkWording(draft, withReason("Highest.", "T1 covers Alpha Creek, T2 the next."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-  });
-  it("refuses a code defined in words", () => {
-    expect(checkWording(draft, withReason("AC stands for access corridor and has the highest POA."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-    expect(checkWording(draft, withReason("AC is short for the access corridor."))).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-  });
-  it("keeps a figure or a ranking in brackets beside a code", () => {
-    expect(checkWording(draft, withReason("AC (up from 20.0%) has the highest current POA."))).toEqual({ ok: true });
-    expect(checkWording(draft, withReason("AC (highest current POA) is the priority."))).toEqual({ ok: true });
-  });
-  it("checks a plan of 480 grid squares quickly", () => {
-    const ids = Array.from({ length: 480 }, (_, i) => String.fromCharCode(65 + Math.floor(i / 26) % 26) + String.fromCharCode(65 + (i % 26)) + (i >= 676 ? "X" : ""));
-    const big: PlanDraft = {
-      eventSetHash: "x", priorVersion: 1,
-      rank: ids.map((segmentId, i) => ({ segmentId, rank: i + 1, poa: 0.001, priorPoa: 0.001, deltaPoa: 0 })),
-      assignments: Array.from({ length: 12 }, (_, i) => ({ teamId: `T${i + 1}`, segmentIds: [ids[i]!] })),
-    };
-    const w = { assignments: big.assignments.map((a) => ({ teamId: a.teamId, taskText: "x", reason: `${a.segmentIds[0]} is a priority segment.` })), summary: "Teams cover the top-ranked segments." };
-    const t = performance.now();
-    expect(checkWording(big, w)).toEqual({ ok: true });
-    expect(performance.now() - t).toBeLessThan(100);
-  });
-  it("keeps a code used as a code, and capitalized words that spell no code", () => {
-    expect(checkWording(draft, withReason("AC is a high-priority segment."))).toEqual({ ok: true });
-    expect(checkWording(draft, withReason("Team T1 searches AC first."))).toEqual({ ok: true });
-    expect(checkWording(draft, withReason("Highest POA, Search Area first."))).toEqual({ ok: true });
-  });
-  it("tells the model that codes are map grid squares and not to guess at them", () => {
-    const sys = String(wordingParams("m").inCloudParams?.systemInstruction ?? "");
-    expect(sys).toContain("map grid squares");
-    expect(sys).toMatch(/never say what the letters stand for/);
-  });
-});
-
-describe("never where the person is, or that they will be found", () => {
-  const withReason = (reason: string, summary = "Teams move to the two highest segments.") =>
-    ({ assignments: [{ teamId: "T1", taskText: "x", reason }, { teamId: "T2", taskText: "x", reason: "Second highest." }], summary });
-  it("refuses a reason that places the person in the team's own segment", () => {
-    expect(checkWording(draft, withReason("She is likely in AC."))).toEqual({ ok: false, reason: PERSON_CLAIM });
-    expect(checkWording(draft, withReason("The person is probably near the creek in AC."))).toEqual({ ok: false, reason: PERSON_CLAIM });
-    expect(checkWording(draft, withReason("AC is where the subject is located."))).toEqual({ ok: false, reason: PERSON_CLAIM });
-  });
-  it("refuses a promise that the person will be found, in a reason or the summary", () => {
-    expect(checkWording(draft, withReason("The child will be found here."))).toEqual({ ok: false, reason: PERSON_CLAIM });
-    expect(checkWording(draft, withReason("Highest.", "The missing person must be near the creek."))).toEqual({ ok: false, reason: PERSON_CLAIM });
-  });
-  it("refuses the person placed somewhere with any verb, and an active promise to find them", () => {
-    expect(checkWording(draft, withReason("The missing person remains in AC."))).toEqual({ ok: false, reason: PERSON_CLAIM });
-    expect(checkWording(draft, withReason("She probably wandered toward the creek."))).toEqual({ ok: false, reason: PERSON_CLAIM });
-    expect(checkWording(draft, withReason("Team T1 will find the missing person in AC."))).toEqual({ ok: false, reason: PERSON_CLAIM });
-    expect(checkWording(draft, withReason("T1 has the best chance to find her."))).toEqual({ ok: false, reason: PERSON_CLAIM });
-  });
-  it("refuses any reference to the missing person, whatever it says", () => {
-    for (const r of ["His last sighting was near AC.", "The subject walks fast, so AC first.", "The patient was seen by AC.", "AC is closest to where she was seen.", "Search AC for him.", "AC is where the person was last seen."]) {
-      expect(checkWording(draft, withReason(r)), r).toEqual({ ok: false, reason: PERSON_CLAIM });
-    }
-    expect(checkWording(draft, withReason("Highest.", "Teams search for the missing child."))).toEqual({ ok: false, reason: PERSON_CLAIM });
-  });
-  it("keeps a plain team reason, and a segment that is in a ranking", () => {
-    expect(checkWording(draft, withReason("Highest POA now."))).toEqual({ ok: true });
-    expect(checkWording(draft, withReason("AC is in the top three."))).toEqual({ ok: true });
-    expect(checkWording(draft, withReason("Team T1 searches AC first."))).toEqual({ ok: true });
-  });
-});
-
-describe("round 2: person words, rescue verbs, definitions, and codes that look like words", () => {
-  const withReason = (reason: string, summary = "Teams move to the two highest segments.", d: PlanDraft = draft) =>
-    checkWording(d, { assignments: d.assignments.map((a, i) => ({ teamId: a.teamId, taskText: "x", reason: i === 0 ? reason : "Second highest." })), summary });
-  it("refuses a person noun or a singular they, and a rescue promise in other verbs", () => {
-    for (const r of ["The hiker is still in AC.", "Search AC first because they are still there.", "Team T1 will locate them in AC.", "Someone may be sheltering in AC."]) {
-      expect(withReason(r), r).toEqual({ ok: false, reason: PERSON_CLAIM });
-    }
-    expect(withReason("Highest.", "Focusing on the highest-ranked segments will bring them home.")).toEqual({ ok: false, reason: PERSON_CLAIM });
-    expect(withReason("T1 should rescue the walker near AC.")).toEqual({ ok: false, reason: PERSON_CLAIM });
-  });
-  it("keeps their, which is about segments", () => {
-    expect(withReason("Highest.", "Teams T1 and T2 search AC and AB based on their POA.")).toEqual({ ok: true });
-  });
-  it("refuses a code defined with means, or a meaning hidden beside a ranking word", () => {
-    expect(withReason("AC means access corridor and has the highest POA.")).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-    expect(withReason("AC (access corridor, highest POA) should be searched first.")).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-    expect(withReason("The north field (AC) is next.")).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-  });
-  it("keeps a ranking phrase before a bracketed code, and ordinary capitals", () => {
-    expect(withReason("Start with the highest-probability segment (AC).")).toEqual({ ok: true });
-    const withAT: PlanDraft = { ...draft, rank: [...draft.rank, { segmentId: "AT", rank: 4, poa: 0.05, priorPoa: 0.05, deltaPoa: 0 }] };
-    expect(withReason("Highest.", "Assign Team T1 to AC and Team T2 to AB based on their POAs.", withAT)).toEqual({ ok: true });
-  });
-  it("keeps a grid square named HE", () => {
-    const withHE: PlanDraft = {
-      ...draft,
-      rank: [{ segmentId: "HE", rank: 1, poa: 0.31, priorPoa: 0.2, deltaPoa: 0.11 }, ...draft.rank.slice(1)],
-      assignments: [{ teamId: "T1", segmentIds: ["HE"] }, { teamId: "T2", segmentIds: ["AB"] }],
-    };
-    expect(withReason("Search HE first because it has the highest POA.", "Teams move to the two highest segments.", withHE)).toEqual({ ok: true });
-  });
-});
-
-describe("round 3: location nouns, outcome nouns, and more definition verbs", () => {
-  const withReason = (reason: string, summary = "Teams move to the two highest segments.") =>
-    checkWording(draft, { assignments: [{ teamId: "T1", taskText: "x", reason }, { teamId: "T2", taskText: "x", reason: "Second highest." }], summary });
-  it("refuses a location given as a noun, and a rescue or success promised as a noun", () => {
-    expect(withReason("Their current location is in AC.")).toEqual({ ok: false, reason: PERSON_CLAIM });
-    expect(withReason("The whereabouts point to AC.")).toEqual({ ok: false, reason: PERSON_CLAIM });
-    expect(withReason("Highest.", "Searching the highest-ranked segments will lead to a successful rescue.")).toEqual({ ok: false, reason: PERSON_CLAIM });
-  });
-  it("refuses a code that represents or corresponds to something", () => {
-    expect(withReason("AC represents the access corridor along the creek and has the highest POA.")).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-    expect(withReason("AC corresponds to the north field.")).toEqual({ ok: false, reason: SPELLS_OUT_A_CODE });
-  });
-  it("keeps an earlier figure in brackets", () => {
-    expect(withReason("AC (31.0%, previously 20.0%) has the highest POA.")).toEqual({ ok: true });
   });
 });

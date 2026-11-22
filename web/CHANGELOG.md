@@ -2889,3 +2889,14 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - PlanDraft gains an optional facts field. Nothing uses the module yet.
 - Source: plan wording review.
 - Verified: 13 new tests pass, and breaking any of four rules (top-three cut, the 200-character fit, searched-and-still-high, the ring edge) fails at least one; typecheck passes.
+
+### feat(ai): the model picks each team's reason codes and code writes every sentence
+- What: plan wording no longer asks a model for any text.
+  - The prompt lists each team's segments and the facts code found for them, with the segments each fact holds for.
+  - The model returns, per team, one or two codes from that team's own list (none for a team with no segment), in a closed schema whose codes are the known fact codes.
+  - checkChoice refuses a reply whose teams differ from the draft, or that picks no code, more than two, a repeated code, or a code outside the team's own facts; the plan then uses the fixed wording.
+  - Code renders each reason and the summary from the codes chosen, and the worded plan keeps the codes.
+  - The free-text checks (figures, directions, code meanings, the missing person) are removed with their tests, since no model text reaches the page.
+  - The measurement page checks a reply with checkChoice.
+- Source: plan wording review.
+- Verified: new tests for the prompt, the schema, the rendering and checkChoice failed first, then passed (45 with the fact tests); a reply carrying extra text renders only code's sentences; typecheck passes.
