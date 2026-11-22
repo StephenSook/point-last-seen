@@ -165,6 +165,20 @@ class PhoneNumbersTest {
         assertEquals(0, capped)
     }
 
+    /**
+     * Finding a marker beside a run, or a marker's words before it, reads only the text near the run, so a long note of
+     * many runs is scrubbed in time that grows with its length: 350,000 characters of "At 1:00 2:00. " took over 5 s
+     * when each run searched the whole note, and must take well under 2 s.
+     */
+    @Test fun aLongNoteOfManyRunsIsScrubbedInLinearTime() {
+        val text = "At 1:00 2:00. ".repeat(25_000)
+        PhoneNumbers.remove(text.take(2_000))
+        val t0 = System.nanoTime()
+        assertEquals(text, PhoneNumbers.remove(text))
+        val ms = (System.nanoTime() - t0) / 1_000_000
+        assertTrue("took $ms ms", ms < 2_000)
+    }
+
     /** A note one pass of the rule would leave for a second pass to change comes out settled from one call. */
     @Test fun aNoteASecondPassWouldChangeComesOutSettled() {
         val out = PhoneNumbers.remove("Seen 11/19/2026 12:12 5:55 01:42")

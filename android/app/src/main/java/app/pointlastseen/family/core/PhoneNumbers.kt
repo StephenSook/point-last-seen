@@ -128,9 +128,38 @@ object PhoneNumbers {
     private val TIME_CUES = PHONE_CUES + setOf("text", "reach")
     // How many words before a run of times are read for a cue.
     private const val CUE_WINDOW = 3
-    // A marker at the end of the text before a run, or at the start of the text after it, with no letter or digit between.
-    private val MARKER_BEFORE = Regex(Regex.escape(REPLACEMENT) + "[^\\p{L}\\p{N}]*\\z")
-    private val MARKER_AFTER = Regex("\\A[^\\p{L}\\p{N}]*" + Regex.escape(REPLACEMENT))
+
+    /** A letter or a number character (\p{L} or \p{N}). */
+    private fun letterOrNumber(cp: Int): Boolean = Character.isLetter(cp) || Character.getType(cp).let {
+        it == Character.DECIMAL_DIGIT_NUMBER.toInt() || it == Character.LETTER_NUMBER.toInt() || it == Character.OTHER_NUMBER.toInt()
+    }
+
+    /**
+     * Whether a marker sits in s[from, end) with only characters that are neither letters nor digits after it, up to
+     * [end]. It reads back from [end] only over such characters, so each check costs the gap, never the note.
+     */
+    private fun markerBefore(s: String, from: Int, end: Int): Boolean {
+        var i = end
+        while (true) {
+            if (i - REPLACEMENT.length >= from && s.startsWith(REPLACEMENT, i - REPLACEMENT.length)) return true
+            if (i <= from) return false
+            val cp = s.codePointBefore(i)
+            if (letterOrNumber(cp)) return false
+            i -= Character.charCount(cp)
+        }
+    }
+
+    /** Whether a marker starts at [start], or after only characters that are neither letters nor digits; reads forward only over those. */
+    private fun markerAfter(s: String, start: Int): Boolean {
+        var i = start
+        while (true) {
+            if (s.startsWith(REPLACEMENT, i)) return true
+            if (i >= s.length) return false
+            val cp = s.codePointAt(i)
+            if (letterOrNumber(cp)) return false
+            i += Character.charCount(cp)
+        }
+    }
 
     /** Whether no number sits before [at] through anything but letters (the web app's lookbehind on its run of times). */
     private fun noNumberBefore(s: String, at: Int): Boolean {
@@ -167,8 +196,17 @@ object PhoneNumbers {
         // three words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued. The words of a
         // "[number removed]" already in the note are read past the same way, so its "number" is never a cue and a second
         // pass reads the same words before the run as the first did (Witness [number removed] at 14:03 14:10 stays).
-        val markers = Regex(Regex.escape(REPLACEMENT)).findAll(s).map { it.range }.toList()
-        fun inMarker(p: Part) = markers.any { p.start >= it.first && p.end <= it.last + 1 }
+        // A part is a marker's word when a marker starts within the marker's length before it and covers it: only those
+        // few characters are read, never the whole note.
+        fun inMarker(p: Part): Boolean {
+            var at = p.start
+            val low = maxOf(0, p.start - REPLACEMENT.length + 1)
+            while (at >= low) {
+                if (s[at] == '[' && s.startsWith(REPLACEMENT, at) && p.end <= at + REPLACEMENT.length) return true
+                at--
+            }
+            return false
+        }
         var j = first - 1
         var words = 0
         while (j >= 0 && words < CUE_WINDOW) {
@@ -208,8 +246,7 @@ object PhoneNumbers {
             // stands for digits joined to the run, so the run goes (Dial [number removed] 4:04 5:55 12:12). A run with
             // digits joined to it is left to the rule below, as it was before.
             if (!joined && (
-                    MARKER_BEFORE.containsMatchIn(folded.substring(from, m.range.first)) ||
-                        MARKER_AFTER.containsMatchIn(folded.substring(m.range.last + 1))
+                    markerBefore(folded, from, m.range.first) || markerAfter(folded, m.range.last + 1)
                     )
             ) {
                 out.append(removeByRule(folded.substring(from, m.range.first))).append(REPLACEMENT)
