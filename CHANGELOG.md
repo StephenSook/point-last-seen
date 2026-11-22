@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: "Leave and delete this sign-in" deletes the member record in every search the account joined (one whose
+  command removed it included), so it leaves People; a record holding only the time refuses the old sign-in at once;
+  reports and command's removal record stay; past 1,000 searches the delete fails and changes nothing; the Android
+  family app has no way to delete its sign-in. Source: the deleteMyAccount change and the command post's People list
+  (PR #346). Verified: each sentence matches functions/src/account.ts and its tests; the hygiene guard passes in
+  public mode.
 - Leave refuses the old sign-in at once: in the same batch as the member records, `deleteMyAccount` creates
   incidents/{id}/removed/{uid} holding only the time and the uid, in every incident where the account had a record
   and the one its claims name, never overwriting command's own removal record. The rules then refuse the account's

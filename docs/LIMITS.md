@@ -48,8 +48,13 @@ each line says what the limit is and why.
   is a new user. Leaving needs signal: it waits until every report from the phone is settled with the server, since
   a report still in that user's write queue would otherwise be stranded, and when the delete fails it changes nothing
   and asks to try again in signal. An account already gone (a delete whose reply was lost) counts as deleted.
-  Reports already sent stay in the incident until its data is deleted, and command still lists that member, so
-  command can still remove it like any other.
+  Before the account, the server deletes its member record (role, team and when it joined) in every search it
+  joined, including one whose command removed it, so command's People list no longer shows it; someone command
+  removed who then leaves vanishes from People too. In the same step each of those searches gets a record holding
+  only the time, so the old sign-in, still valid for up to an hour, is refused at once and cannot join again.
+  Reports already sent stay in the incident until its data is deleted, and so does command's own record of a
+  removal, which People does not show. With more than 1,000 searches to check, the delete fails and changes nothing.
+  The Android family app has no way to delete its sign-in.
 - Command removes a searcher or family member from the People panel (the `removeMember` callable). From that moment
   the member's app can no longer read or write anything in the search, screens already open included (measured on
   2026-11-21: two open listeners were refused within a second of the removal), and that account cannot join again.
