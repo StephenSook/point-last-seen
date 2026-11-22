@@ -2631,3 +2631,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a save that fails before the stored debrief loaded leaves the late merge armed, so the debrief merges when it arrives and a retry keeps the team's words; the merge skips fields command changed by hand (an emptied hazard stays empty) and does not repeat a What worked the team's text already holds; a report sent while the paper sheet is open waits, shown in the row, and opens in the form when the sheet closes; and a report the box already holds is not added again.
 - Source: review (Codex, second round on the search-report guard).
 - Verified: four new harness tests (failed save then late debrief; an emptied field; the paper sheet; the same report twice) failed first, then passed; both debrief harness specs (31) pass.
+
+### fix(command): the sighting says when its note's debrief was saved, and can send it again
+- What: after command saves that segment's debrief, the sighting form says "Segment XX's debrief was saved. Cancel this sighting, or save it as a sighting too." instead of "not saved yet", and the debrief button stays, so a debrief cancelled by mistake can be opened again with the note.
+- Source: review (Codex, second round on the search-report guard).
+- Verified: a new harness test failed first, then passed; the sighting harness spec (28) passes.

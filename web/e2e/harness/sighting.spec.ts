@@ -311,3 +311,15 @@ test("a sighting saves on the first tap, and an edited note drops the search-rep
   await page.getByRole("button", { name: "Save sighting" }).click();
   await expect(page.getByTestId("saved-note")).toHaveText("Swept the creek bank, saw a man in a red coat.");
 });
+
+test("once that segment's debrief is saved the sighting says so, and the note can be sent again", async ({ page }) => {
+  await page.goto("/harness/sighting.html?cleared=AB");
+  await page.getByRole("combobox", { name: /^Place\b/ }).selectOption("AB");
+  await page.getByRole("textbox", { name: "Note" }).fill("No sign of him along the fence.");
+  await page.getByRole("button", { name: "Save sighting" }).click();
+  await page.getByRole("button", { name: "Add it to segment AB's debrief" }).click();
+  await page.getByRole("button", { name: "Debrief saved" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Segment AB's debrief was saved. Cancel this sighting, or save it as a sighting too." })).toBeVisible();
+  await expect(page.getByText("not saved yet")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Add it to segment AB's debrief" })).toBeVisible();
+});

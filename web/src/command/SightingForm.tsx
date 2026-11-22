@@ -38,6 +38,8 @@ type Props = {
   debriefable?: ReadonlySet<string>;
   /** Opens that segment's debrief with the note in it; nothing is saved until command saves the debrief. */
   onDebrief?: (segmentId: string, note: string) => void;
+  /** The segment whose debrief command saved since the last handoff, as the post reports it. */
+  debriefSavedTo?: string | null;
 };
 
 const CLOUD_PAUSED = "Cloud reading is paused by command.";
@@ -47,7 +49,7 @@ function localInput(ms: number): string {
   return d.toISOString().slice(0, 16);
 }
 
-export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, readNote, readNoteInCloud, onClose, cloudPaused = false, debriefable, onDebrief }: Props) {
+export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, readNote, readNoteInCloud, onClose, cloudPaused = false, debriefable, onDebrief, debriefSavedTo = null }: Props) {
   const [when, setWhen] = useState(() => localInput(Date.now()));
   const [direction, setDirection] = useState<Direction>("unknown");
   const [topColor, setTop] = useState<ClothingColor>("unknown");
@@ -339,10 +341,15 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         <div className="note-state" role="alert">
           <p>{SEARCH_REPORT_LINE}</p>
           {debriefedTo && (
-            <p role="status">{`The note is in segment ${debriefedTo}'s debrief, not saved yet. Save it there and cancel this sighting, or save it as a sighting anyway.`}</p>
+            <p role="status">
+              {debriefSavedTo === debriefedTo
+                ? `Segment ${debriefedTo}'s debrief was saved. Cancel this sighting, or save it as a sighting too.`
+                : `The note is in segment ${debriefedTo}'s debrief, not saved yet. Save it there and cancel this sighting, or save it as a sighting anyway.`}
+            </p>
           )}
           <div className="row">
-            {!debriefedTo && placeSegmentId && onDebrief && debriefable?.has(placeSegmentId) && (
+            {/* Offered again after a handoff (the debrief may have been cancelled); the debrief adds a note only once. */}
+            {placeSegmentId && onDebrief && debriefable?.has(placeSegmentId) && (
               <button
                 type="button"
                 className="btn ghost"

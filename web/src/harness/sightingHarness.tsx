@@ -31,6 +31,8 @@ function Harness() {
   // ?cleared=AB,AC: segments cleared in this drill, so a search report placed there can go to its debrief.
   const cleared = new Set((new URLSearchParams(location.search).get("cleared") ?? "").split(",").filter(Boolean));
   const [debrief, setDebrief] = useState("");
+  // "Debrief saved": command saved that segment's debrief, as the post reports it.
+  const [debriefSaved, setDebriefSaved] = useState<string | null>(null);
   return (
     <main style={{ width: 340, padding: 16 }}>
       <p className="drill">Synthetic test grid, not drill data.</p>
@@ -65,6 +67,7 @@ function Harness() {
             : { refused: "not-in-cloud" }
         }
         debriefable={cleared}
+        debriefSavedTo={debriefSaved}
         onDebrief={(segmentId, text) => setDebrief(`${segmentId}: ${text}`)}
         onClose={() => {}}
       />
@@ -76,6 +79,9 @@ function Harness() {
       <pre data-testid="saved">{saved ? JSON.stringify(saved.position) : ""}</pre>
       <pre data-testid="saved-note">{saved ? saved.freeText : ""}</pre>
       <pre data-testid="debrief">{debrief}</pre>
+      <button type="button" onClick={() => setDebriefSaved(debrief.split(":")[0] || null)}>
+        Debrief saved
+      </button>
       <pre data-testid="saved-read">{saved ? JSON.stringify(saved.readFilled ?? null) : ""}</pre>
     </main>
   );
