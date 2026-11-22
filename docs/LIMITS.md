@@ -247,12 +247,15 @@ each line says what the limit is and why.
   12:12 5:55 01:42" gives "Seen [number removed]:[number removed]", with no digit of the number left. 18 of the
   9,130 notes in the shared corpus lose a date this way, measured on the web. The iPhone still scrubs once until it
   is ported; this note was not measured there.
-- Three more ways part of a number can be left, measured on the web (the phones share its rule but were not measured
+- Four more ways part of a number can be left, measured on the web (the phones share its rule but were not measured
   on these): times written with a third field ("Call 4:04 5:55:01:42" is kept whole, since the run of times is not
   read as one); in a note already scrubbed once, a run of times followed by spoken digits keeps its first hour ("Dial
-  [number removed] 4:04 5:55 one two one two" gives "Dial [number removed] 4:[number removed]"); and a time just
-  before spoken digits keeps its hour and loses its minutes ("Sighted at 14:03 one two 4:04 5:55" gives "Sighted at
-  14:[number removed]"). Each needs a number written in an unusual way.
+  [number removed] 4:04 5:55 one two one two" gives "Dial [number removed] 4:[number removed]"); written digits right
+  after a run of times can leave the run's first hour ("Dial 4:04 5:55 12 12" gives "Dial 4:[number removed]", "Call
+  4:04 5:55 12 12 tonight" gives "Call 4:[number removed] tonight", and "Dial [number removed] 4:04 5:55 12 12" gives
+  "Dial [number removed] 4:[number removed]"; issue #358); and a time just before spoken digits keeps its hour and
+  loses its minutes ("Sighted at 14:03 one two 4:04 5:55" gives "Sighted at 14:[number removed]"). Each needs a number
+  written in an unusual way.
 - A run of times in clock order with no phone cue before it is kept as search information, so a phone number written
   as rising times (`2:12 5:55 6:42`), or spread across them (`0:40 4:55 5:01 14:20`), is not removed: a kept run keeps
   all its digits. Out of order (`12:12 5:55 01:42`) or with a cue among the three
