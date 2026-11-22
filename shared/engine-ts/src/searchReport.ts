@@ -16,12 +16,21 @@ const SIGHTING = new Set([
   "saw", "seen", "spotted", "sighted", "caller", "walking", "heading", "wearing", "heard", "found",
   "footprint", "footprints", "track", "tracks", "shoe", "shoes", "clothing",
 ]);
-// A sighting word within two words after one of these does not count ("subject not seen", "no one saw"); "found"
-// after "nothing" does not count either ("nothing found").
-const NEGATIONS = new Set(["not", "never", "no", "wasn't", "nobody"]);
+// A sighting word within two words after one of these, in the same clause, does not count ("subject not seen", "no
+// one saw"); "found" after "nothing" does not count either ("nothing found").
+const NEGATIONS = new Set([
+  "not", "never", "no", "nobody", "wasn't", "hasn't", "haven't", "hadn't", "didn't", "isn't", "weren't", "couldn't",
+]);
 
-function words(note: string): string[] {
-  return note.toLowerCase().replace(/[‘’]/g, "'").match(/[a-z0-9']+/g) ?? [];
+// Lowercase, curly apostrophes as ', and a word is a run of a-z, 0-9 and '; everything else separates words.
+function words(text: string): string[] {
+  return text.toLowerCase().replace(/[\u2018\u2019]/g, "'").match(/[a-z0-9']+/g) ?? [];
+}
+
+// A clause ends at . ! ? ; : , or a line break: a negation looks back only inside its own clause, so "no sign. Footprints
+// at the creek." keeps its footprints.
+function clauses(note: string): string[][] {
+  return note.split(/[.!?;:,\n\r]/).map(words).filter((w) => w.length > 0);
 }
 
 function hasResult(w: readonly string[]): boolean {
@@ -42,6 +51,5 @@ function hasSighting(w: readonly string[]): boolean {
 
 /** True when the note names a search result and nothing seen, heard or found. */
 export function readsAsSearchReport(note: string): boolean {
-  const w = words(note);
-  return hasResult(w) && !hasSighting(w);
+  return hasResult(words(note)) && !clauses(note).some(hasSighting);
 }

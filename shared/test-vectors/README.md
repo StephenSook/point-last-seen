@@ -262,17 +262,20 @@ can still be saved with one more tap. English only. A note reads as a search rep
   `nothing found`, `not found`, `no trace`, or a segment named done (`segment AB done`, `segment 4 finished`,
   `segment AE is complete`). `covered` is not one ("a man covered in mud" is a sighting).
 - It has no sighting word: `saw`, `seen`, `spotted`, `sighted`, `caller`, `walking`, `heading`, `wearing`, `heard`,
-  `found`, `footprint(s)`, `track(s)`, `shoe(s)`, `clothing`. A sighting word with `not`, `never`, `no`, `wasn't`
-  or `nobody` one or two words before it does not count ("subject not seen", "no one saw"), and neither does
-  `found` after `nothing`. Pronouns are not sighting words ("no sign of him" is a search report).
+  `found`, `footprint(s)`, `track(s)`, `shoe(s)`, `clothing`. A sighting word with `not`, `never`, `no`, `nobody`,
+  `wasn't`, `hasn't`, `haven't`, `hadn't`, `didn't`, `isn't`, `weren't` or `couldn't` one or two words before it in
+  the same clause does not count ("subject not seen", "no one saw"), and neither does `found` after `nothing` in the
+  same clause. Pronouns are not sighting words ("no sign of him" is a search report).
 
-Words are whole words in any case, and either apostrophe counts. Each case names the clause it tests, and every clause
-with two sides has a case on each.
+Words are whole words in any case, and either apostrophe counts. A clause ends at `.`, `!`, `?`, `;`, `:`, `,` or a line
+break: the negation look-back stays inside the sighting word's clause ("Searched AB, no sign. Footprints at the creek."
+is a sighting), while the search result may be anywhere in the note. Each case names the clause it tests, and every
+clause with two sides has a case on each.
 
 Fields: `schemaVersion` (1); `note`, what the file is; `line`, the exact warning a platform shows; and `cases`, each with
 `name`, `note` (the sighting text), `report` (true when the note reads as a search report) and `clause` (the rule
 clause the case tests: `result_phrase`, `covered_dropped`, `segment_done`, `sighting_word`, `found_negated`,
-`negation`, `pronoun`, `english_only` or `whole_words`). Read by `shared/engine-ts/test/searchReport.test.ts`; the web
+`negation`, `negation_scope`, `pronoun`, `english_only` or `whole_words`). Read by `shared/engine-ts/test/searchReport.test.ts`; the web
 sighting form is the only platform that uses the rule for now, and a phone that adds it matches every case.
 
 ## found-kind.json (hand-written)

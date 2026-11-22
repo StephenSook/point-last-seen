@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "note": "Whether a sighting note reads as a search report (readsAsSearchReport, shared/engine-ts/src/searchReport.ts): a search-result word or phrase, or a segment named done, with no sighting word, where a sighting word within two words after a negation does not count. English only; the form warns and never blocks a save. Hand-written: one case for each side of each clause.",
+  "note": "Whether a sighting note reads as a search report (readsAsSearchReport, shared/engine-ts/src/searchReport.ts): a search-result word or phrase, or a segment named done, with no sighting word, where a sighting word within two words after a negation in the same clause does not count. English only; the form warns and never blocks a save. Hand-written: one case for each side of each clause.",
   "line": "This reads as a search report, not a sighting.",
   "cases": [
     {
@@ -266,6 +266,36 @@
       "note": "SEARCHED SEGMENT AB.",
       "report": true,
       "clause": "whole_words"
+    },
+    {
+      "name": "clue_after_no_sign_sentence",
+      "note": "Searched AB, no sign. Footprints at the creek.",
+      "report": false,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "heard_after_not_found_sentence",
+      "note": "Combed the field, not found. Heard shouting to the east.",
+      "report": false,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "shoe_after_no_trace_sentence",
+      "note": "Cleared segment 4, no trace. Shoe by the gate.",
+      "report": false,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "negation_in_own_clause",
+      "note": "Swept the lot; subject not seen.",
+      "report": true,
+      "clause": "negation_scope"
+    },
+    {
+      "name": "hasnt_been_seen",
+      "note": "Searched AB, subject hasn't been seen.",
+      "report": true,
+      "clause": "negation"
     }
   ]
 }

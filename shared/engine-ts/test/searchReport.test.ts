@@ -8,7 +8,7 @@ const cases = vector.cases as Case[];
 describe("whether a sighting note reads as a search report (shared/test-vectors/search-report.json)", () => {
   it("has reports and sightings, the line the form shows, and a case on each side of every clause that has two", () => {
     expect(vector.line).toBe(SEARCH_REPORT_LINE);
-    for (const clause of ["result_phrase", "segment_done", "found_negated", "negation", "pronoun", "whole_words"]) {
+    for (const clause of ["result_phrase", "segment_done", "found_negated", "negation", "negation_scope", "pronoun", "whole_words"]) {
       const sides = new Set(cases.filter((c) => c.clause === clause).map((c) => c.report));
       expect(sides, clause).toEqual(new Set([true, false]));
     }

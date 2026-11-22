@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Search-report rule: a negation now counts only inside the sighting word's own clause (split at . ! ? ; : , and line
+  breaks), so "Searched AB, no sign. Footprints at the creek." is a sighting, and hasn't, haven't, hadn't, didn't,
+  isn't, weren't and couldn't join the negations. Five new cases (a `negation_scope` clause and "hasn't been seen"); the
+  README says it. Source: review. Verified: the five cases failed first (four of them; the scoped negation already
+  held), then passed; the engine suite and typecheck pass.
 - Limits: the web sighting form's search-report check knows English words only, so a report in another language saves as
   a sighting with no warning; it never blocks a save; only the web runs it so far. Source: review. Verified: the hygiene
   guard passes in public mode.
