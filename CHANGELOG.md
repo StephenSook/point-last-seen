@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- README, judges line: says "this device's own built-in model", matching the judge page's "Get this device ready"
+  button. Source: the web copy change to "this device". Verified: no README or docs line outside the historical
+  evidence quotes the old button or status text (a search of README.md and docs/); the hygiene guard passes in public
+  mode.
 - Limits: the plan reason line gives the per-team run's own counts in place of "the picks were the same", which could
   read as the order effect being gone: on the same made-up plan, one team picked the same fact in 6 of 6 runs and the
   other in 3 of 3 in the fixed order and 2 of 3 reversed. Source: review (a qualifier dropped from a post-fix number).
