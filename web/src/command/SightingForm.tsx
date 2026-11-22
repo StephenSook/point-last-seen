@@ -125,7 +125,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
       if ("reading" in r) {
         fill(r.reading);
         const w = r as Ran;
-        setRan(w.route ? { asked: "this laptop only", route: w.route, sentBytes: w.sentBytes ?? 0 } : null);
+        setRan(w.route ? { asked: "this device only", route: w.route, sentBytes: w.sentBytes ?? 0 } : null);
         setReadFilled({ route: w.route ?? null });
       }
       else setReadState(r.refused === "no-on-device-model" ? "no-model" : r.refused === "possible-evidence" ? "evidence" : r.refused === "timeout" ? "timeout" : "not-read");

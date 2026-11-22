@@ -225,7 +225,7 @@ export function DebriefPaperRead({ segmentId, read, onSave, onClose }: { segment
     return (
       <div ref={root} className="debrief-form">
         <p className="small">Read on this laptop. Check each box against the paper; change any the read got wrong.</p>
-        {receiptLines({ asked: "this laptop only", route, sentBytes: 0, what: "the photo of the sheet" }).map((l) => (
+        {receiptLines({ asked: "this device only", route, sentBytes: 0, what: "the photo of the sheet" }).map((l) => (
           <p key={l} className="muted small">
             {l}
           </p>

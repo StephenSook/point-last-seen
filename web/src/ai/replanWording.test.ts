@@ -147,7 +147,7 @@ describe("checkChoice", () => {
 
 describe("wordPlan", () => {
   it("records the SDK's route", async () => {
-    // On this laptop first: the cloud answers only when there is no local model, and the route says which ran.
+    // On this device first: the cloud answers only when there is no local model, and the route says which ran.
     expect((await wordPlan(draft, deps({ generate: async () => ({ text: good, inferenceSource: "on_device" }) }))).route).toMatchObject({ platform: "web", path: "on_device", sdkReported: true, reason: "sdk_prefer_on_device", stage: "sdk" });
     expect((await wordPlan(draft, deps({}))).route).toMatchObject({ path: "cloud", sdkReported: true, reason: "on_device_unavailable" });
   });

@@ -3034,3 +3034,18 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - the listing is 100 tests (46 serial, 53 parallel, setup);
   - the whole live suite passed 100 of 100 against the live site in 2.6 minutes (1.2 minutes before);
   - typecheck passes.
+### fix(command): a model's receipt and route mark say this device, not this laptop
+- What: the receipt shown under a plan, a sighting note, a photo or a debrief sheet read said "Asked for: this laptop first.", "Ran: on this laptop." and "Sent: no text or image left this laptop.", and the route mark said "On this laptop". The same command post opens in a phone's browser, so they now say "this device". Button labels and other lines are unchanged.
+- Source: deployed stills (the receipt at phone width).
+- Verified: the receipt, What ran and plan wording tests and the harness specs that quote these lines were changed first and failed, then passed (56 unit; harness 241/241); typecheck passes.
+
+### fix(command): the Plan section says in one line what Suggest plan does; What ran says the rest
+- What: the three sentences above Suggest plan (which model it asks, what code writes, and what it sends) were proof, not guidance, on the working screen.
+  - The Plan section now says only "Suggests which team searches where, with a reason for each team." The paused line is unchanged.
+  - What ran now carries the rest:
+    - "Asked for: this device's built-in model first, Gemini in the cloud when it has none.";
+    - "Sent: N bytes of plan text: team ids, segment codes and fact codes, never a note or a name.";
+    - and, when the model's choice was used, "Chose: each team's main reason, from that team's own facts." and "Code added a second fact when the team had one and wrote every word."
+  - The deployed payload check reads the sent-data sentence from What ran.
+- Source: the product's few-words rule for working screens, from a review of the deployed stills.
+- Verified: the changed What ran tests and plan harness checks failed first, then passed (whatRan 4; harness 241/241); typecheck passes.
