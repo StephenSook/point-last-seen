@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### feat(ios-core): the content report a member files from Report a problem
+- What: `ContentReport` mirrors shared/schemas/content-report.schema.json: author, role, target (the task, the
+  family's description, or an event), target id, reason and note, with `createdAt` left to the server's timestamp.
+  It refuses a target id that does not fit its target, as the create rule does. The note loses its phone numbers,
+  is trimmed, and is capped at 500 code points (the rule counts code points), cut between whole characters. The
+  report id is 32 lowercase hex, and a task is named by its plan's document id. The schema's iOS parity pointer now
+  names the type instead of "pending".
+- Source: App Review guideline 1.2 (a way to report user content), with the shared schema and rule already on main.
+- Verified: the new core tests failed first (no type) and pass: fields, required keys and enum values match the
+  schema; the note cases; the target id cases; the report id; the reasons in the command post's words. The parity
+  gate passes and its extractor finds exactly the schema's seven fields (a renamed field is caught). The full core
+  suite passes (468).
+
 ### fix(ios): Leave reads an ended search again before passing over its reports
 - What: a drill can be reset to open under the same id after the phone saw it end, and the incident listener stops at
   the end, so it never hears the reset. Leave passed over the ended search's waiting reports and deleted the sign-in

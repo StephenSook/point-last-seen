@@ -59,7 +59,7 @@
   "x-parity": {
     "#": {
       "ts": "web/src/data/contentReports.ts#ContentReport",
-      "ios": "pending:ios/PLSCore/Sources/PLSCore/ContentReport.swift#ContentReport",
+      "ios": "ios/PLSCore/Sources/PLSCore/ContentReport.swift#ContentReport",
       "android": "android/app/src/main/java/app/pointlastseen/family/data/ContentReport.kt#ContentReport"
     }
   }
