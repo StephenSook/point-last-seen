@@ -2627,3 +2627,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the Plan section carries `data-plans-loaded` ("true" once the plan history has come from the server, which Approve waits for), so a check that takes the link down can wait for it first.
 - Source: live check (the offline-approve check took the link down after the map drew from cache but before the plan history arrived, and Approve rightly refused).
 - Verified: a new harness test (false while loading, true once loaded) failed first, then passed; the plan harness spec (14), web unit suite and typecheck pass.
+
+### test(e2e): the offline-approve check waits for the plan history before taking the link down
+- What: the deployed check now waits for the Plan section's `data-plans-loaded` before going offline. It used to go offline as soon as the map drew, which on the drill now came from cache before the plan history arrived, so Approve refused with "The plan history is still loading" and the check failed twice in a row.
+- Source: live check after the deploy of 9e19f602.
+- Verified: an online Approve after a 15-second wait succeeded on the drill (the history does load); the updated check runs after the next deploy.
