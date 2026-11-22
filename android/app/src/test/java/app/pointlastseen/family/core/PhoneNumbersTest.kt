@@ -123,6 +123,19 @@ class PhoneNumbersTest {
         assertEquals("Call [number removed] at [number removed]", PhoneNumbers.remove("Call 404 555 0142 at 4:04 5:55 6:42"))
     }
 
+    /**
+     * A "[number removed]" right before or after a run of times, with no letter or digit between, stands for digits
+     * joined to the run, so the whole run goes: "Dial [number removed] 4:04 5:55 12:12" is 404-555-1212.
+     */
+    @Test fun aRunOfTimesRightBesideAMarkerGoesWhole() {
+        assertEquals("Dial [number removed] [number removed]", PhoneNumbers.remove("Dial [number removed] 4:04 5:55 12:12"))
+        assertEquals("[number removed] [number removed] tonight", PhoneNumbers.remove("4:04 5:55 12:12 [number removed] tonight"))
+        assertEquals("Witness [number removed] at 14:03 14:10", PhoneNumbers.remove("Witness [number removed] at 14:03 14:10"))
+        assertEquals("Call [number removed] at [number removed]", PhoneNumbers.remove("Call [number removed] at 4:04 5:55 6:42"))
+        assertEquals("Seen [number removed], [number removed] called", PhoneNumbers.remove("Seen 14:03 14:10, [number removed] called"))
+        assertEquals("Seen 14:03 14:10 then [number removed]", PhoneNumbers.remove("Seen 14:03 14:10 then [number removed]"))
+    }
+
     /** A month name beside a run of times reads an hour or minutes as a day, so the run is left to the rule as a whole. */
     @Test fun aRunOfTimesBesideAMonthNameIsLeftToTheRule() {
         assertEquals("[number removed] May 6:00 7:00", PhoneNumbers.remove("1.4045, -55.0142 14 May 6:00 7:00"))

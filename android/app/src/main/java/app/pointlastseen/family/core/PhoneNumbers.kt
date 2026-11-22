@@ -101,6 +101,9 @@ object PhoneNumbers {
     private val TIME_CUES = PHONE_CUES + setOf("text", "reach")
     // How many words before a run of times are read for a cue.
     private const val CUE_WINDOW = 3
+    // A marker at the end of the text before a run, or at the start of the text after it, with no letter or digit between.
+    private val MARKER_BEFORE = Regex(Regex.escape(REPLACEMENT) + "[^\\p{L}\\p{N}]*\\z")
+    private val MARKER_AFTER = Regex("\\A[^\\p{L}\\p{N}]*" + Regex.escape(REPLACEMENT))
 
     /** Whether no number sits before [at] through anything but letters (the web app's lookbehind on its run of times). */
     private fun noNumberBefore(s: String, at: Int): Boolean {
@@ -172,6 +175,16 @@ object PhoneNumbers {
         for (m in timesRuns(folded)) {
             val first = startsAt[m.range.first] ?: continue
             val last = endsAt[m.range.last + 1] ?: continue
+            // A "[number removed]" right before or after the run, with no letter or digit between, stands for digits
+            // joined to it, so the run goes, whatever else is beside it (Dial [number removed] 4:04 5:55 12:12). Checked
+            // first.
+            if (MARKER_BEFORE.containsMatchIn(folded.substring(from, m.range.first)) ||
+                MARKER_AFTER.containsMatchIn(folded.substring(m.range.last + 1))
+            ) {
+                out.append(removeByRule(folded.substring(from, m.range.first))).append(REPLACEMENT)
+                from = m.range.last + 1
+                continue
+            }
             val joined = (first > 0 && joins(folded, parts[first - 1], parts[first])) ||
                 (last + 1 < parts.size && joins(folded, parts[last], parts[last + 1]))
             // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which
