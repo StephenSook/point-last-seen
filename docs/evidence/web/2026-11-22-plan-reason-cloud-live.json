@@ -1,0 +1,38 @@
+{
+  "what": "Suggest plan on the cloud path of the live site, after the per-team reply schema: the request text sent and the cloud model's reply, captured from the page's own requests on the test drill (drill-test-1), with Chrome's built-in model removed so the cloud answers. Nothing was approved.",
+  "date": "2026-11-22",
+  "deployedCommit": "4531ca16f3eec118b43d6c3068b40f00fdc76d5b",
+  "model": "gemini-3.5-flash-lite (Remote Config cloud_model_web)",
+  "before": "On the earlier list schema (deployed b7e03c3c), the same drill state drew {\"assignments\": [{\"teamId\": \"T1\", \"reasons\": [\"highest_poa\"]}, {\"teamId\": \"T2\", \"reasons\": [\"highest_poa\"]}]} on 6 of 6 calls; only T2 had highest_poa, so every answer was refused and the plan used fixed wording.",
+  "calls": [
+    {
+      "requestText": "Teams, their segments, and the facts code found for those segments:\nT1 searches AA. Facts: not_yet_searched (AA), near_trail (AA), near_road (AA), near_stream (AA), near_building (AA), in_ring (AA), top_three (AA), poa_rose (AA), poa_now (AA)\nT2 searches AD. Facts: not_yet_searched (AD), near_trail (AD), near_road (AD), near_stream (AD), near_building (AD), in_ring (AD), highest_poa (AD), poa_now (AD)",
+      "reply": {
+        "T1": "poa_rose",
+        "T2": "highest_poa"
+      },
+      "everyCodeIsTheTeamsOwnFact": true
+    },
+    {
+      "requestText": "Teams, their segments, and the facts code found for those segments:\nT1 searches AA. Facts: not_yet_searched (AA), near_trail (AA), near_road (AA), near_stream (AA), near_building (AA), in_ring (AA), top_three (AA), poa_rose (AA), poa_now (AA)\nT2 searches AD. Facts: not_yet_searched (AD), near_trail (AD), near_road (AD), near_stream (AD), near_building (AD), in_ring (AD), highest_poa (AD), poa_now (AD)",
+      "reply": {
+        "T1": "poa_rose",
+        "T2": "highest_poa"
+      },
+      "everyCodeIsTheTeamsOwnFact": true
+    },
+    {
+      "requestText": "Teams, their segments, and the facts code found for those segments:\nT1 searches AA. Facts: not_yet_searched (AA), near_trail (AA), near_road (AA), near_stream (AA), near_building (AA), in_ring (AA), top_three (AA), poa_rose (AA), poa_now (AA)\nT2 searches AD. Facts: not_yet_searched (AD), near_trail (AD), near_road (AD), near_stream (AD), near_building (AD), in_ring (AD), highest_poa (AD), poa_now (AD)",
+      "reply": {
+        "T1": "top_three",
+        "T2": "highest_poa"
+      },
+      "everyCodeIsTheTeamsOwnFact": true
+    }
+  ],
+  "findings": [
+    "3 of 3 replies named each team once with one of its own facts, and the page used them: the suggestion's route mark read Cloud and What ran had no \"Not used\" line.",
+    "Picks: T1 poa_rose 2, top_three 1; T2 highest_poa 3.",
+    "The live suite's cloud-path check (e2e/planUsed.spec.ts) passed on this deploy; before it, the same check failed with 0 of 3 used."
+  ]
+}
