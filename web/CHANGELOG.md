@@ -2920,3 +2920,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: teamFacts no longer lists top_three for the segment that holds highest_poa, so a team's two reasons cannot say one thing twice ("CC has the highest POA, 1.4%. CC is in the top three by POA."), as every measured run did.
 - Source: measurement of the reason codes on Chrome's built-in model.
 - Verified: new and changed reasonCodes tests failed first, then passed; typecheck passes.
+
+### feat(ai): a team's facts are listed most specific first
+- What: FACT_CODES, and so each team's list in the prompt, now runs from the most specific fact to the most general: the newest report, not yet searched, searched and still high, the features, the distance band, then the ranking every segment has. In every measured run the model chose the first ranking facts listed; this order is what the next measurement compares against its reverse.
+- Source: measurement of the reason codes on Chrome's built-in model.
+- Verified: a new reasonCodes test of the order failed first, then passed (51 with the plan wording tests); typecheck passes.

@@ -4,21 +4,24 @@
 
 import type { PlanDraft } from "./replanWording";
 
-/** Every fact a reason can cite, in the order a team's list shows them. */
+/**
+ * Every fact a reason can cite, in the order a team's list shows them: the most specific first (the newest report,
+ * search state, features, the distance band), then the ranking every segment has.
+ */
 export const FACT_CODES = [
-  "highest_poa",
-  "top_three",
-  "poa_rose",
-  "poa_now",
+  "moved_by_last_report",
   "not_yet_searched",
   "searched_still_high",
-  "moved_by_last_report",
   "near_trail",
   "near_road",
   "near_stream",
   "near_water",
   "near_building",
   "in_ring",
+  "highest_poa",
+  "top_three",
+  "poa_rose",
+  "poa_now",
 ] as const;
 export type FactCode = (typeof FACT_CODES)[number];
 

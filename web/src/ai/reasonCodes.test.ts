@@ -51,6 +51,12 @@ describe("each team's facts come from its own segments only", () => {
     const onlyTop: PlanDraft = { ...base, assignments: [{ teamId: "T1", segmentIds: ["AC"] }] };
     expect(codesOf(onlyTop, "T1")).not.toContain("top_three");
   });
+  it("lists the most specific facts first: the newest report, search state, features, distance band, then the ranking", () => {
+    expect(codesOf(draft, "T1")).toEqual([
+      "moved_by_last_report", "not_yet_searched", "searched_still_high", "near_trail", "near_stream", "in_ring",
+      "highest_poa", "top_three", "poa_rose", "poa_now",
+    ]);
+  });
   it("a team with no segment has no facts", () => {
     expect(teamFacts(draft).has("T3")).toBe(false);
   });
