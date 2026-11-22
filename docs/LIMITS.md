@@ -25,6 +25,9 @@ each line says what the limit is and why.
 
 ## Sign-in and joining
 
+- A browser that fails the site's security check (App Check, through reCAPTCHA Enterprise) cannot start a practice
+  search: the server refuses it before any search exists, and the judge's page says so. The drill replay and the
+  on-device check on that page still work without it.
 - Firebase Auth refuses anonymous sign-ups from one network address after many in a short time: its REST
   answer is HTTP 400 `TOO_MANY_ATTEMPTS_TRY_LATER`, which the web SDK raises as `auth/too-many-requests`, and
   the web app then says it could not sign in. A real user signs up once. On drill day, open the site on each

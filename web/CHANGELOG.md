@@ -2748,6 +2748,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (Codex, second round on the token-order fix).
 - Verified: a new unit test (two tokens of the same second finishing out of order) failed first, then passed; the claims tests (16) and typecheck pass.
 
+### fix(judge): a browser that fails the security check is told why the practice search cannot start
+- What: when the server refuses the practice search for a failed App Check (or sign-in), the judge's page now says "This browser did not pass the site's security check, so a practice search cannot start. Nothing private was sent. Reload and try again; the drill replay on this page plays without it." instead of "This browser could not be checked." A deployed-only check (`e2e/judgeNoAppCheck.spec.ts`) blocks every App Check exchange in a fresh profile and asserts the line within 30 s, a usable button, the replay and no page errors; it answers the start call in the page with the server's own refusal (HTTP 401), so it can never start a practice search.
+- Source: review of the deployed judge door with App Check failing (the page answered in 8 s with no crash or hang, but did not say what failed or what still works).
+- Verified: the updated unit test failed first, then passed (11); the deployed check fails on the live site's old line, as expected before the deploy.
+
 ### test(e2e): Suggest plan sends only what the Plan section says it sends
 - What: a deployed-only check (`e2e/planPayload.spec.ts`) removes the built-in model on the test drill, presses Suggest plan and reads the one model request: every line of its text is a fixed heading, a team id with its segment codes, or a segment code with its percents (so no note or name), and the receipt's "Sent: N bytes of plan text." counts exactly that text. Nothing is approved, so nothing is written. With #308's note check, both cloud payloads a judge can send are compared with what the screen says.
 - Source: review of the deployed judge door (compare the shown cloud payload with the request).
