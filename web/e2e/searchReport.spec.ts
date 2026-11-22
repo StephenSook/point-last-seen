@@ -29,7 +29,7 @@ test("a search report typed as a sighting opens its cleared segment's debrief, w
   expect(id, "a segment of the drill that stands cleared").toBeDefined();
   await form.getByRole("button", { name: `Open segment ${id}'s debrief` }).click();
   // The sighting draft stays as it is beside the debrief.
-  await expect(form.getByRole("status").filter({ hasText: `Segment ${id}'s debrief is open below.` })).toBeVisible();
+  await expect(form.getByRole("status").filter({ hasText: `Segment ${id}'s debrief was opened below.` })).toBeVisible();
   await expect(form.getByLabel(/^Note/)).toHaveValue("Searched the segment, no sign.");
   await expect(page.getByTestId("rail-details")).toHaveAttribute("open", "");
   const row = page.getByTestId(`debrief-${id}`);
