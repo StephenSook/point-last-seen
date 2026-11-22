@@ -5,6 +5,78 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### build(ios): the Debug app bundles the eval's pinned answer key
+- What: a build step copies docs/evidence/eval/pls-drill-reports-v1.json into the app in Debug builds only, like the
+  eval screen that reads it, so "Report-reading eval" finds the key. archive_release.sh now also fails when the key is
+  in a release app.
+- Source: review (the eval runs on the phone from a debug build).
+- Verified: EvalKeyBundleTests (the debug app's key is the file pinned in the core tests, 20 rows) failed first with
+  no key in the app, then passes, with the other eval app tests; gates pass. The release check is a shell check run
+  at the next archive (syntax checked with bash -n).
+
+### docs(eval): the answer key was written by the builder's AI assistant
+- What: the eval README says who wrote the key (the builder's AI assistant, Claude Opus 5.5, a different model family
+  from the model tested, at the builder's request, before any model run, having read the app's kind definitions and
+  this README with its tuning notes, and running no reader on the reports), that the key was converted unedited from
+  its sheet with both hashes pinned, and that the one labeller is that assistant. The second-labeller sentence stays.
+- Source: review (the key's record must say who wrote it).
+- Verified: hygiene guard (public mode) and gates pass; the README was read after the change.
+
+### test(ios-core): the eval's answer key, its frozen sheet, and its pinned SHA-256
+- What: docs/evidence/eval/pls-drill-reports-v1-key.csv is the answer key's sheet as written, before any model run,
+  by the builder's AI assistant at the builder's request (20 reports: 6 cleared, 6 clue, 3 sighting, 3 unclear, 2
+  found; 3 with no segment, 13 with one, 4 with two; all 10 place features). pls-drill-reports-v1.json is that sheet
+  converted by eval_key_kit.py with --written-by "AI assistant (Claude Opus 5.5), at the builder's request".
+  EvalKeyPinTests pins the key's SHA-256 (f98c6f5d...) and checks its writer, grid and 20 rows; a kit test checks
+  the sheet's SHA-256 (da0926c0...) and that converting it gives the key byte for byte, so the key was not edited.
+- Source: review (the answer key, with a record of who wrote it).
+- Verified: the kit test failed first (no sheet), then passes; all 21 kit tests pass; the core EvalKeyPin and
+  EvalScorer tests pass; gates pass. No reader was run on these reports.
+
+### feat(ios): the eval screen names who wrote the answers as the key gives it
+- What: the eval screen reads "answers written by: <writer>." with the key's writtenBy as written, so a key written by
+  someone other than a person reads right. The EvalAnswerKey doc comments no longer say a person always writes it.
+- Source: review (the key's record must say who wrote it).
+- Verified: the app builds and BlockWordsTests pass on the simulator; the core EvalScorer tests pass; gates pass. The
+  line itself was read in the source (no test covers this debug screen's text).
+
+### feat(ios): the answer-key kit records who wrote the answers
+- What: eval_key_kit.py convert takes --written-by, the text it writes as the key's writtenBy (default: person), so a
+  key written by someone other than a person says so. A blank writer, one with a space at either end, or one on two
+  lines is refused.
+- Source: review (the key's record must say who wrote it).
+- Verified: three new kit tests (the writer in the key, the refused writers, convert with the flag) failed first, then
+  pass; all 20 kit tests pass.
+
+### test(ios-core): the eval's answer key is pinned by its SHA-256
+- What: EvalKeyPinTests checks docs/evidence/eval/pls-drill-reports-v1.json against a pinned SHA-256, and that it says
+  a person wrote it for the piedmont-park-dev grid with at most two segment ids a row. Until the person's key is
+  committed the pin is nil and the test checks there is no key file, so a key added without a pin fails, and so does
+  a pin with no key. The core test target now depends on swift-crypto for the hash.
+- Source: the eval README (a run always names the exact key it scored against).
+- Verified: it passes with no key file; with a stray key file and no pin, it fails with the message to set the pin;
+  the full core suite passes.
+
+### docs(eval): the blank answer-key sheet and the grid picture to label with
+- What: docs/evidence/eval/KEY-TEMPLATE.csv is the blank sheet for the eval's answer key: 20 empty rows under
+  report_text, expected_kind, segment_ids and place_feature, with the allowed kinds, segment ids (AA to AZ, BA to BZ,
+  CA to CO) and place features in its header. piedmont-park-dev-grid.png (and its .svg) draws the grid with every
+  segment id inside its segment and the feature classes the grid file gives (road, building or structure, stream,
+  water). Both are written by eval_key_kit.py; neither holds a report or an answer.
+- Source: so the key can be written without opening the app.
+- Verified: a kit test checks the sheet in the repo is exactly what the kit writes; a kit test checks every label sits
+  inside its segment; the picture was looked at.
+
+### feat(ios): a kit that turns a person's filled sheet into the eval's answer key
+- What: ios/scripts/eval_key_kit.py writes the blank 20-row sheet for the report-reading eval's answer key, draws the
+  piedmont-park-dev grid with its segment ids and feature classes, and turns a filled sheet into
+  docs/evidence/eval/pls-drill-reports-v1.json with every value exactly as written. It refuses a value the eval does not
+  score (a kind or feature outside the lists, more than two segment ids, an id not on the grid, an empty report or one
+  with a stray space) and never replaces a key that exists. It writes no report or answer itself.
+- Source: the eval needs a person-written key before its first run on the phone.
+- Verified: 13 pytest tests pass in the repo's virtual environment (not run in CI); with the kind check removed, the
+  kind test fails.
+
 ### fix(ios): the practice drill neither blocks nor unblocks a description
 - What: Block on this phone is no longer offered in the practice drill, and practice never reads a block as its own
   or clears one. The bundled practice pack uses a real drill's incident id, so a block set in practice hid that

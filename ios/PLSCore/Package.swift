@@ -19,7 +19,7 @@ let package = Package(
         ),
         .testTarget(
             name: "PLSCoreTests",
-            dependencies: ["PLSCore"]
+            dependencies: ["PLSCore", .product(name: "Crypto", package: "swift-crypto")]
         )
     ]
 )

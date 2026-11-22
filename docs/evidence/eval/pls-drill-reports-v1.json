@@ -1,0 +1,185 @@
+{
+  "answerKey": "pls-drill-reports-v1",
+  "writtenBy": "AI assistant (Claude Opus 5.5), at the builder's request",
+  "grid": "piedmont-park-dev",
+  "rows": [
+    {
+      "n": 1,
+      "text": "Team 1 finished AB, full sweep, nothing found.",
+      "kind": "cleared",
+      "segments": [
+        "AB"
+      ],
+      "feature": "none"
+    },
+    {
+      "n": 2,
+      "text": "Cleared AK and AN along the road, no sign of him.",
+      "kind": "cleared",
+      "segments": [
+        "AK",
+        "AN"
+      ],
+      "feature": "road"
+    },
+    {
+      "n": 3,
+      "text": "Footprints in the mud by the creek in AF, small shoe, heading downstream.",
+      "kind": "clue",
+      "segments": [
+        "AF"
+      ],
+      "feature": "creek_or_drainage"
+    },
+    {
+      "n": 4,
+      "text": "A jogger says she saw a boy in a blue hoodie on the trail in CJ about 20 minutes ago.",
+      "kind": "sighting",
+      "segments": [
+        "CJ"
+      ],
+      "feature": "trail"
+    },
+    {
+      "n": 5,
+      "text": "Subject found sitting at the picnic shelter in BH. Bringing him back now.",
+      "kind": "found",
+      "segments": [
+        "BH"
+      ],
+      "feature": "structure"
+    },
+    {
+      "n": 6,
+      "text": "Picked up a pink mitten on the trail in BC.",
+      "kind": "clue",
+      "segments": [
+        "BC"
+      ],
+      "feature": "trail"
+    },
+    {
+      "n": 7,
+      "text": "Radio check from Team 3, moving to staging.",
+      "kind": "unclear",
+      "segments": [],
+      "feature": "none"
+    },
+    {
+      "n": 8,
+      "text": "Cleared CB and CC around the pond edge, nothing.",
+      "kind": "cleared",
+      "segments": [
+        "CB",
+        "CC"
+      ],
+      "feature": "water"
+    },
+    {
+      "n": 9,
+      "text": "Candy wrapper and a broken branch in the thick brush in AV.",
+      "kind": "clue",
+      "segments": [
+        "AV"
+      ],
+      "feature": "brush"
+    },
+    {
+      "n": 10,
+      "text": "Man on a bike saw a kid alone near the restrooms in AZ.",
+      "kind": "sighting",
+      "segments": [
+        "AZ"
+      ],
+      "feature": "structure"
+    },
+    {
+      "n": 11,
+      "text": "Found a water bottle with a name sticker at the edge of the open field.",
+      "kind": "clue",
+      "segments": [],
+      "feature": "field"
+    },
+    {
+      "n": 12,
+      "text": "Done with BM, hasty search only, about 40 minutes, 3 searchers.",
+      "kind": "cleared",
+      "segments": [
+        "BM"
+      ],
+      "feature": "none"
+    },
+    {
+      "n": 13,
+      "text": "Heading back to command, my radio battery is low.",
+      "kind": "unclear",
+      "segments": [],
+      "feature": "none"
+    },
+    {
+      "n": 14,
+      "text": "A dog walker saw a woman in a green coat walking along the lake shore in BS.",
+      "kind": "sighting",
+      "segments": [
+        "BS"
+      ],
+      "feature": "water"
+    },
+    {
+      "n": 15,
+      "text": "We have him. Subject located in the woods in CE.",
+      "kind": "found",
+      "segments": [
+        "CE"
+      ],
+      "feature": "woods"
+    },
+    {
+      "n": 16,
+      "text": "Fresh drag marks and a tissue in the drainage ditch between AH and AI.",
+      "kind": "clue",
+      "segments": [
+        "AH",
+        "AI"
+      ],
+      "feature": "creek_or_drainage"
+    },
+    {
+      "n": 17,
+      "text": "Searched the trees in CK and CL, voice and visual, nothing heard.",
+      "kind": "cleared",
+      "segments": [
+        "CK",
+        "CL"
+      ],
+      "feature": "woods"
+    },
+    {
+      "n": 18,
+      "text": "Not sure what we saw, something moved behind the shed in AC, checking.",
+      "kind": "unclear",
+      "segments": [
+        "AC"
+      ],
+      "feature": "structure"
+    },
+    {
+      "n": 19,
+      "text": "Cleared BX along the creek, about 80 percent coverage.",
+      "kind": "cleared",
+      "segments": [
+        "BX"
+      ],
+      "feature": "creek_or_drainage"
+    },
+    {
+      "n": 20,
+      "text": "Old campfire ring under the big rock outcrop in BK, ash still warm.",
+      "kind": "clue",
+      "segments": [
+        "BK"
+      ],
+      "feature": "other"
+    }
+  ]
+}
