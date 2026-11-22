@@ -1,5 +1,5 @@
 {
- "rule": "sha256:16a4765ec0c999af7b06e3e0e6d4f1c6469781a3989182efb2d52fdabf82c1c2",
+ "rule": "sha256:3d9b07f3e8b2f49ac9a31e2bdeef99e86469f855fa07cd48922bf2f4012d9a02",
  "replacement": "[number removed]",
  "rows": [
   {"input":"Her son is at 4 0 4 5 5 5 0 1 4 2, call him.","output":"Her son is at [number removed], call him."},

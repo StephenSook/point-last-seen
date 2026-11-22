@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Phone vectors: `marker_beside_times` is no longer pending on the iPhone, which passes it today; `marker_then_times`
+  stays pending there. The shared README says a run beside a "[number removed]" also takes every digit part joined to
+  it, written or spoken ("Dial [number removed] 4:04 5:55 one two one two"), and names the regenerated corpus's
+  SHA-256 (only its rule hash changed; no row moved); Limits says the iPhone passes 118. Source: PR #342 (swift-core
+  reported the un-pend) and its second review. Verified: the corpus `--write` output hashes to the README's SHA-256 and
+  `--check` passes; `scripts/test_phone_vectors.py`, the web phone tests and `scripts/ci-local.sh --gates` pass.
 - Phone vectors: two new shared cases about a "[number removed]" already in a note, pending on the iPhone.
   `marker_then_times` keeps the times after one ("Witness [number removed] at 14:03 14:10"), since its words are never
   a cue. `marker_beside_times` removes a run of times right beside one ("Dial [number removed] 4:04 5:55 12:12"), since
