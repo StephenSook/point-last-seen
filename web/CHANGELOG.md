@@ -2757,3 +2757,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a deployed-only check (`e2e/planPayload.spec.ts`) removes the built-in model on the test drill, presses Suggest plan and reads the one model request: every line of its text is a fixed heading, a team id with its segment codes, or a segment code with its percents (so no note or name), and the receipt's "Sent: N bytes of plan text." counts exactly that text. Nothing is approved, so nothing is written. With #308's note check, both cloud payloads a judge can send are compared with what the screen says.
 - Source: review of the deployed judge door (compare the shown cloud payload with the request).
 - Verified: passes on the live site; a copy whose segment-line pattern never matches fails on a real line ("AD 1.1% (was 1.1%)").
+
+### test(e2e): the security-check judge door check names the replay region it shows
+- What: with a published run the judge's page names the region "Watch the drill replay" ("Replay the training drill" is the no-run name), so the check now looks for that; its other assertions (the plain line within 30 s, a usable button, no page errors) were already passing on the live site.
+- Source: live suite after the deploy of 4c9587de.
+- Verified: the check passes in the full live suite (96 of 96).
+
+### test(e2e): the plan payload check presses again when other checks change the draft
+- What: other live checks write reports to the test drill at the same time, and a reply for a draft that changed meanwhile is never shown (by design), so the check presses Suggest plan up to three times; it now checks every request those presses sent (one content, one text part, only headings, team lines and segment lines) and compares the receipt with the last one, whose reply is on screen.
+- Source: live suite after the deploy of 4c9587de (the check passed alone and timed out in the full suite).
+- Verified: passes in the full live suite (96 of 96).
