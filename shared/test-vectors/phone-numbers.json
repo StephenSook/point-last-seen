@@ -741,6 +741,102 @@
         "web",
         "android"
       ]
+    },
+    {
+      "name": "same_number_twice",
+      "input": "Her son is at 404-555-0142, call him at 404-555-0142 tonight.",
+      "number": "404-555-0142",
+      "forbidden": [],
+      "keep": [
+        "Her son is at",
+        ", call him at",
+        "tonight."
+      ]
+    },
+    {
+      "name": "gap_date_slash_shields_times_after_cue",
+      "input": "Call 4:04/5:55 06:42",
+      "number": "4:04/5:55 06:42",
+      "forbidden": [
+        "4:04/5:55",
+        "06:42"
+      ],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "gap_arabic_indic_digit_inside_a_time",
+      "input": "Call 4:04 5:\u06655 01:42",
+      "number": "4:04 5:\u06655 01:42",
+      "forbidden": [
+        "4:04",
+        "01:42"
+      ],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "gap_spoken_digit_inside_a_time",
+      "input": "Call 4:04 cinco:55 01:42",
+      "number": "4:04 cinco:55 01:42",
+      "forbidden": [
+        "4:04",
+        "cinco:55",
+        "01:42"
+      ],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "gap_superscript_times_after_cue",
+      "input": "Call \u2074:\u2070\u2074 \u2075:\u2075\u2075 \u2076:\u2074\u00b2",
+      "number": "\u2074:\u2070\u2074 \u2075:\u2075\u2075 \u2076:\u2074\u00b2",
+      "forbidden": [
+        "\u2074:\u2070\u2074"
+      ],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "gap_letters_for_digits",
+      "input": "Call 1-800-GET-HELP",
+      "number": "1-800-GET-HELP",
+      "forbidden": [
+        "800",
+        "GET-HELP"
+      ],
+      "keep": [
+        "Call"
+      ],
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
     }
   ],
   "mustKeep": [
@@ -959,6 +1055,16 @@
       "name": "colon_gap_times_after_date",
       "input": "Seen 14 May 5:55 01:42",
       "output": "Seen 14 May [number removed]",
+      "pendingOn": [
+        "ios",
+        "web",
+        "android"
+      ]
+    },
+    {
+      "name": "gap_date_before_a_run_of_times",
+      "input": "Seen 11/19/2026 12:12 5:55 01:42",
+      "output": "Seen 11/19/2026 [number removed]",
       "pendingOn": [
         "ios",
         "web",

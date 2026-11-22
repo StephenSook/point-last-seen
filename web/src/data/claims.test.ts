@@ -169,3 +169,162 @@ describe("watchClaims: a refusal's recheck is never dropped, and a stalled read 
     vi.doUnmock("firebase/auth");
   });
 });
+
+describe("watchClaims: an older token never overwrites a newer one", () => {
+  it("ignores a token issued before the newest one it applied, even when its event comes last", async () => {
+    const { vi } = await import("vitest");
+    let listener: ((u: unknown) => void) | null = null;
+    vi.doMock("firebase/auth", () => ({ onIdTokenChanged: (_a: unknown, cb: (u: unknown) => void) => ((listener = cb), () => {}) }));
+    vi.resetModules();
+    const { watchClaims } = await import("./claims");
+    const pending: ((v: { claims: Record<string, unknown>; issuedAtTime: string }) => void)[] = [];
+    const user = { getIdTokenResult: () => new Promise<{ claims: Record<string, unknown>; issuedAtTime: string }>((r) => pending.push(r)) };
+    const lines: (string | null)[] = [];
+    watchClaims({ currentUser: user } as never, drill, (l) => lines.push(l));
+    // Another window moved this account to another search: its token (issued 12:05) is applied first.
+    listener!(user);
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: "Sat, 21 Nov 2026 12:05:00 GMT" });
+    await new Promise((r) => setTimeout(r, 0));
+    // A refresh started earlier returns this drill's token (issued 12:00), and its event comes last.
+    listener!(user);
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: "Sat, 21 Nov 2026 12:00:00 GMT" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([OTHER_SEARCH_LINE]);
+    // A newer token still applies.
+    listener!(user);
+    pending[2]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: "Sat, 21 Nov 2026 12:10:00 GMT" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([OTHER_SEARCH_LINE, null]);
+    vi.doUnmock("firebase/auth");
+  });
+});
+
+describe("watchClaims: the newest token wins by when it was issued, per account", () => {
+  async function setup() {
+    const { vi } = await import("vitest");
+    let listener: ((u: unknown) => void) | null = null;
+    vi.doMock("firebase/auth", () => ({ onIdTokenChanged: (_a: unknown, cb: (u: unknown) => void) => ((listener = cb), () => {}) }));
+    vi.resetModules();
+    const { watchClaims } = await import("./claims");
+    type R = { claims: Record<string, unknown>; issuedAtTime: string };
+    const pending: ((v: R) => void)[] = [];
+    const userA = { uid: "a", getIdTokenResult: () => new Promise<R>((r) => pending.push(r)) };
+    const userB = { uid: "b", getIdTokenResult: () => new Promise<R>((r) => pending.push(r)) };
+    const auth = { currentUser: userA as unknown };
+    const lines: (string | null)[] = [];
+    const w = watchClaims(auth as never, drill, (l) => lines.push(l), () => 1_000_000);
+    return { vi, fire: () => listener!(auth.currentUser), pending, auth, userB, lines, w };
+  }
+  const at = (hhmm: string) => `Sat, 21 Nov 2026 ${hhmm}:00 GMT`;
+
+  it("starts again for another account, so its older cached token still applies", async () => {
+    const { vi, fire, pending, auth, userB, lines } = await setup();
+    fire();
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:05") });
+    await new Promise((r) => setTimeout(r, 0));
+    auth.currentUser = userB;
+    fire();
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:03") });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([OTHER_SEARCH_LINE, null]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("applies a newer forced refresh that finishes after an older token's later read", async () => {
+    const { vi, fire, pending, lines, w } = await setup();
+    fire();
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:05") });
+    await new Promise((r) => setTimeout(r, 0));
+    w.recheck(true);
+    fire();
+    pending[2]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:00") });
+    await new Promise((r) => setTimeout(r, 0));
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:10") });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([OTHER_SEARCH_LINE, null]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("lets the newer read win when two tokens were issued in the same second", async () => {
+    const { vi, fire, pending, lines } = await setup();
+    fire();
+    fire();
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:05") });
+    await new Promise((r) => setTimeout(r, 0));
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:05") });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([null]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("drops a token for an account that is no longer signed in", async () => {
+    const { vi, fire, pending, auth, userB, lines } = await setup();
+    fire();
+    auth.currentUser = userB;
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:05") });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([]);
+    vi.doUnmock("firebase/auth");
+  });
+});
+
+describe("watchClaims: replies from an earlier sign-in session, and replies with no issue time", () => {
+  async function setup() {
+    const { vi } = await import("vitest");
+    let listener: ((u: unknown) => void) | null = null;
+    vi.doMock("firebase/auth", () => ({ onIdTokenChanged: (_a: unknown, cb: (u: unknown) => void) => ((listener = cb), () => {}) }));
+    vi.resetModules();
+    const { watchClaims } = await import("./claims");
+    type R = { claims: Record<string, unknown>; issuedAtTime?: string };
+    const pending: ((v: R) => void)[] = [];
+    const user = { uid: "a", getIdTokenResult: () => new Promise<R>((r) => pending.push(r)) };
+    const auth = { currentUser: user as unknown };
+    const lines: (string | null)[] = [];
+    watchClaims(auth as never, drill, (l) => lines.push(l), () => 1_000_000);
+    return { vi, fire: () => listener!(auth.currentUser), pending, auth, user, lines };
+  }
+  const at = (hhmm: string) => `Sat, 21 Nov 2026 ${hhmm}:00 GMT`;
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+
+  it("drops a reply from before a sign-out, even when the same account signs in again", async () => {
+    const { vi, fire, pending, auth, user, lines } = await setup();
+    fire();
+    auth.currentUser = null;
+    fire();
+    auth.currentUser = user;
+    fire();
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:00") });
+    await tick();
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:01") });
+    await tick();
+    expect(lines).toEqual([NOT_SIGNED_IN_LINE, null]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("keeps a token issued later than a newer read's token, with an untimed reply between them", async () => {
+    const { vi, fire, pending, lines } = await setup();
+    fire();
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:05") });
+    await tick();
+    fire();
+    pending[1]!({ claims: { inc: "judge-abc", role: "command" } });
+    await tick();
+    fire();
+    pending[2]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:00") });
+    await tick();
+    expect(lines).toEqual([OTHER_SEARCH_LINE, OTHER_SEARCH_LINE]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("never lets an earlier read's timed reply overwrite a newer reply that had no issue time", async () => {
+    const { vi, fire, pending, lines } = await setup();
+    fire();
+    fire();
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" } });
+    await tick();
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:00") });
+    await tick();
+    expect(lines).toEqual([null]);
+    vi.doUnmock("firebase/auth");
+  });
+});

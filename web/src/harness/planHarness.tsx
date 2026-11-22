@@ -36,6 +36,8 @@ const slow = new URLSearchParams(location.search).get("slow") === "1";
 const routePath = (new URLSearchParams(location.search).get("route") ?? "rules") as "cloud" | "on_device" | "rules";
 // ?fallback=1: the cloud was asked and failed, so the plan uses the fixed template (with the notice the wording carries).
 const fallback = new URLSearchParams(location.search).get("fallback") === "1";
+// ?paused=1: command has paused cloud reading (Remote Config kill_cloud).
+const cloudPaused = new URLSearchParams(location.search).get("paused") === "1";
 // ?history=loading: the plan history has not come from the server yet.
 const historyLoaded = new URLSearchParams(location.search).get("history") !== "loading";
 const CLOUD_TRY = { platform: "web", path: "cloud", stage: "sdk", model: "gemini-3.5-flash-lite", reason: "on_device_unavailable", latencyMs: 900, sdkReported: true, blocked: null, decidedAtMs: 0 } as const;
@@ -48,6 +50,7 @@ function Harness() {
       <p className="drill">Synthetic plan, not drill data.</p>
       <WhatChanged
         historyLoaded={historyLoaded}
+        cloudPaused={cloudPaused}
         draft={draft}
         current={current ? CURRENT : null}
         teams={[{ teamId: "T1", name: "Team 1" }, { teamId: "T2", name: "Team 2" }]}

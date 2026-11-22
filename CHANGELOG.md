@@ -5,6 +5,47 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Production checklist: names bash scripts/predeploy.sh as the step before every hosting deploy. Source: review.
+  Verified: the hygiene guard passes in public mode.
+- Pre-deploy checks: scripts/predeploy.sh runs every check before a hosting deploy in one command (clean tree at
+  origin/main, .env.local present, the live commit an ancestor of HEAD, npm ci when the lockfile changed, the web build,
+  main's stylesheet before base.css, mapCascade.spec.ts, the judge seed check) and never deploys, ending with the deploy
+  command; scripts/test_predeploy.py runs in CI's Python gate list. Source: review (a hosting deploy skipped two of
+  these checks). Verified: the script passed all eight steps on a clean checkout of main b8077292; its test (4) passes,
+  including that a changed tree stops it before any network call.
+- Limits: the phone-number section lists the six kept-number gaps in plain words and the new counts (128 shared cases;
+  each platform passes 117). Source: issue #298. Verified: scripts/test_phone_vectors.py checks the counts against the
+  file; the hygiene guard passes in public mode.
+- Phone vectors: six known gaps where a phone number is kept are now shared cases pending on every platform (a slash
+  between two times, a digit from another script or a spoken digit inside a time, superscript times, times after a date,
+  and letters for some digits as in 1-800-GET-HELP), so a platform that closes one sees it as un-pend; the corpus is
+  written again for the new inputs (9,128 rows) and its README names the new SHA-256. No rule changes. Source: issue
+  #298 and a review of the iPhone's flag note. Verified: each new case fails on the web rule today (the web's
+  stale-pending check passes), scripts/test_phone_vectors.py (7) and the corpus check pass.
+- Evidence: docs/evidence/web/2026-11-22-judge-door-what-leaves.json and its screenshot record the deployed judge door
+  in a fresh profile with no settings or sign-in: the public URL reaches the AI path, each screen says what leaves
+  before it leaves, and no model output was written (no Firestore write in the run). Requests keep only method, address
+  without its query string and status. Source: review of the deployed judge door. Verified:
+  web/src/command/judgeDoorEvidence.test.ts checks the file (no query strings, AI calls 200, zero writes) and that it
+  quotes the Plan section's line exactly; it fails without the file.
+- Phone corpus: regenerated, so it holds the same_number_twice input with both copies replaced, and the shared
+  README now names the new file's SHA-256 (the first push left the old hash, and the web corpus test caught it).
+  Source: the new shared case. Verified: `phone_corpus_cli.ts --check` matches; `ci-local.sh --web` runs 1255 web
+  unit tests, all passing; the Android corpus test passes.
+- Phone numbers: a new shared case, `same_number_twice`, writes the same number twice in one note, and every copy
+  must go. The vector check now allows a case's number to appear more than once, and proves the contract fails a
+  scrubber that replaces only the first copy. Source: review (a scrubber that masks
+  only the first copy leaks the second). Verified: the vector check passes; the web, iPhone (PLSCore) and Android
+  phone suites pass the new case with no rule change; the corpus check matches.
+- Limits: a browser that fails the site's security check (App Check) cannot start a practice search; the drill replay
+  and the on-device check still work. Source: review of the deployed judge door. Verified: the hygiene guard passes in
+  public mode.
+- App Check on functions: a test finds every client-callable function from the exports (six: joinIncident,
+  deleteIncidentMediaNow, removeMember, deleteMyAccount, rotateJoinCode, startJudgeSession), calls each with no App
+  Check token and with a bad one, and requires the wrapper's own 401 before the handler runs; it also requires the
+  security doc's App Check row to name each one and the right count. That row named only three and now names all six.
+  Source: review (a stale count in the security doc). Verified: the doc check failed first, then passed; with
+  `enforceAppCheck: false` on deleteMyAccount its check failed; the functions suite (373) and typecheck pass.
 - Security note (row 2): the web always asks for limited-use tokens and reads no Remote Config key for them; the phones
   still read use_limited_use_tokens, which defaults to true on both. Source: review. Verified: the hygiene guard passes
   in public mode.

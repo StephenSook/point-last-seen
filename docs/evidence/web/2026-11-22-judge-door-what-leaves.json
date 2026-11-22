@@ -1,0 +1,457 @@
+{
+ "what": "The deployed judge door as a judge meets it, read for what leaves the device and when: a fresh browser profile with no cookies, no storage, no App Check debug token, no sign-in and no settings. One practice search: a sighting note read on the laptop (no built-in model), then in the cloud after the consent tap, then Suggest plan. Nothing was saved or approved.",
+ "date": "2026-11-22",
+ "browser": "Playwright's Chrome (channel chrome) in a fresh context; it has no built-in model, so the on-device paths report that and send nothing",
+ "page": "https://buildhybridai-2026-yg3m.web.app/judge, deployed commit 522d88d20fd29b41d8a15427d082fe08144ffece",
+ "findings": [
+  "The public URL reaches the AI path with no settings or keys: App Check through reCAPTCHA Enterprise (exchangeRecaptchaEnterpriseToken 200), an anonymous sign-in (accounts:signUp 200), startJudgeSession 200, then the consented note read (templateGenerateContent 200) and the plan wording (generateContent 200), each after a fresh App Check exchange.",
+  "With no built-in model, Get this laptop ready says \"This browser has no built-in model. Nothing private was sent.\" and Read the note says \"This laptop has no local model. Nothing was sent.\"; no AI request follows either.",
+  "Before the note goes to the cloud the form says \"The note goes to Gemini in the cloud. Phone numbers are removed first.\" and waits for the consent tap.",
+  "Before Suggest plan the Plan section says \"Suggest plan words the draft on this laptop's built-in model, or with Gemini in the cloud when it has none. It sends only team ids, segment codes and percents, never a note or a name.\" (the screenshot).",
+  "No model output changed state: no Firestore write in the whole run; the read only filled the form, and the suggested plan waits for Approve."
+ ],
+ "screenshot": "2026-11-22-judge-door-plan-line.jpg",
+ "aiRequests": 2,
+ "firestoreWrites": 0,
+ "requests": [
+  {
+   "tMs": 193,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/judge",
+   "status": 200
+  },
+  {
+   "tMs": 223,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/main-BnpJTpUO.css",
+   "status": 200
+  },
+  {
+   "tMs": 223,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/base-Db5zGt2M.css",
+   "status": 200
+  },
+  {
+   "tMs": 278,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/registerSW.js",
+   "status": 200
+  },
+  {
+   "tMs": 303,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/main-BJ8Yp4Gf.js",
+   "status": 200
+  },
+  {
+   "tMs": 474,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/ScamPanel-BeF48lqs.js",
+   "status": 200
+  },
+  {
+   "tMs": 474,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/evidence/measured.json",
+   "status": 200
+  },
+  {
+   "tMs": 476,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/favicon.svg",
+   "status": 200
+  },
+  {
+   "tMs": 476,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/SpaceTimeCube-BtqxYphL.js",
+   "status": 200
+  },
+  {
+   "tMs": 476,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/ReplayPanel-2G5cV1an.js",
+   "status": 200
+  },
+  {
+   "tMs": 476,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/evidence/published-run.json",
+   "status": 200
+  },
+  {
+   "tMs": 529,
+   "method": "GET",
+   "url": "https://www.google.com/recaptcha/enterprise.js",
+   "status": 200
+  },
+  {
+   "tMs": 534,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/fonts/dinish/DINish-Variable.woff2",
+   "status": 200
+  },
+  {
+   "tMs": 565,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/fonts/ioskeley-mono/IoskeleyMono-SemiBold.woff2",
+   "status": 200
+  },
+  {
+   "tMs": 603,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/extras/passes/drill-dev-1-2026-11-19.passes.json",
+   "status": 200
+  },
+  {
+   "tMs": 617,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/extras/scam.json",
+   "status": 200
+  },
+  {
+   "tMs": 685,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/maplibre-gl-worker-BZdkatZW.mjs",
+   "status": 200
+  },
+  {
+   "tMs": 695,
+   "method": "GET",
+   "url": "https://www.gstatic.com/recaptcha/releases/4i3aN5wAweL7i3ADI7BSX4B-/recaptcha__en.js",
+   "status": 200
+  },
+  {
+   "tMs": 750,
+   "method": "POST",
+   "url": "https://firebaseinstallations.googleapis.com/v1/projects/buildhybridai-2026-yg3m/installations",
+   "status": 200
+  },
+  {
+   "tMs": 832,
+   "method": "GET",
+   "url": "https://www.google.com/recaptcha/enterprise/anchor",
+   "status": 200
+  },
+  {
+   "tMs": 839,
+   "method": "GET",
+   "url": "https://www.gstatic.com/recaptcha/releases/4i3aN5wAweL7i3ADI7BSX4B-/recaptcha__en.js",
+   "status": 200
+  },
+  {
+   "tMs": 862,
+   "method": "GET",
+   "url": "https://www.gstatic.com/recaptcha/releases/4i3aN5wAweL7i3ADI7BSX4B-/styles__ltr.css",
+   "status": 200
+  },
+  {
+   "tMs": 974,
+   "method": "GET",
+   "url": "https://www.gstatic.com/recaptcha/releases/4i3aN5wAweL7i3ADI7BSX4B-/recaptcha__en.js",
+   "status": 200
+  },
+  {
+   "tMs": 974,
+   "method": "GET",
+   "url": "https://www.google.com/recaptcha/enterprise/webworker.js",
+   "status": 200
+  },
+  {
+   "tMs": 1082,
+   "method": "POST",
+   "url": "https://firebaseremoteconfig.googleapis.com/v1/projects/buildhybridai-2026-yg3m/namespaces/firebase:fetch",
+   "status": 200
+  },
+  {
+   "tMs": 1187,
+   "method": "POST",
+   "url": "https://www.google.com/recaptcha/enterprise/reload",
+   "status": 200
+  },
+  {
+   "tMs": 1262,
+   "method": "POST",
+   "url": "https://www.google.com/recaptcha/enterprise/clr",
+   "status": 200
+  },
+  {
+   "tMs": 1411,
+   "method": "POST",
+   "url": "https://content-firebaseappcheck.googleapis.com/v1/projects/buildhybridai-2026-yg3m/apps/1:593239421521:web:5aeaabe9c07bf3db587e70:exchangeRecaptchaEnterpriseToken",
+   "status": 200
+  },
+  {
+   "tMs": 1941,
+   "method": "POST",
+   "url": "https://identitytoolkit.googleapis.com/v1/accounts:signUp",
+   "status": 200
+  },
+  {
+   "tMs": 2033,
+   "method": "POST",
+   "url": "https://identitytoolkit.googleapis.com/v1/accounts:lookup",
+   "status": 200
+  },
+  {
+   "tMs": 5627,
+   "method": "POST",
+   "url": "https://us-central1-buildhybridai-2026-yg3m.cloudfunctions.net/startJudgeSession",
+   "status": 200
+  },
+  {
+   "tMs": 5718,
+   "method": "POST",
+   "url": "https://securetoken.googleapis.com/v1/token",
+   "status": 200
+  },
+  {
+   "tMs": 5818,
+   "method": "POST",
+   "url": "https://firebaseremoteconfigrealtime.googleapis.com/v1/projects/buildhybridai-2026-yg3m/namespaces/firebase:streamFetchInvalidations",
+   "status": null
+  },
+  {
+   "tMs": 5829,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/",
+   "status": 200
+  },
+  {
+   "tMs": 5860,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/main-BnpJTpUO.css",
+   "status": 200
+  },
+  {
+   "tMs": 5860,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/base-Db5zGt2M.css",
+   "status": 200
+  },
+  {
+   "tMs": 5860,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/registerSW.js",
+   "status": 200
+  },
+  {
+   "tMs": 5907,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/main-BJ8Yp4Gf.js",
+   "status": 200
+  },
+  {
+   "tMs": 5909,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/fonts/ioskeley-mono/IoskeleyMono-SemiBold.woff2",
+   "status": 200
+  },
+  {
+   "tMs": 5910,
+   "method": "GET",
+   "url": "https://www.google.com/recaptcha/enterprise.js",
+   "status": 200
+  },
+  {
+   "tMs": 5910,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/fonts/dinish/DINish-Variable.woff2",
+   "status": 200
+  },
+  {
+   "tMs": 5914,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/favicon.svg",
+   "status": 200
+  },
+  {
+   "tMs": 5940,
+   "method": "GET",
+   "url": "https://www.gstatic.com/recaptcha/releases/4i3aN5wAweL7i3ADI7BSX4B-/recaptcha__en.js",
+   "status": 200
+  },
+  {
+   "tMs": 6000,
+   "method": "POST",
+   "url": "https://identitytoolkit.googleapis.com/v1/accounts:lookup",
+   "status": 200
+  },
+  {
+   "tMs": 6055,
+   "method": "GET",
+   "url": "https://www.gstatic.com/recaptcha/releases/4i3aN5wAweL7i3ADI7BSX4B-/styles__ltr.css",
+   "status": 200
+  },
+  {
+   "tMs": 6057,
+   "method": "GET",
+   "url": "https://www.gstatic.com/recaptcha/releases/4i3aN5wAweL7i3ADI7BSX4B-/recaptcha__en.js",
+   "status": 200
+  },
+  {
+   "tMs": 6084,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/maplibre-gl-worker-BZdkatZW.mjs",
+   "status": 200
+  },
+  {
+   "tMs": 6097,
+   "method": "GET",
+   "url": "https://www.google.com/recaptcha/enterprise/anchor",
+   "status": 200
+  },
+  {
+   "tMs": 6216,
+   "method": "GET",
+   "url": "https://www.gstatic.com/recaptcha/releases/4i3aN5wAweL7i3ADI7BSX4B-/recaptcha__en.js",
+   "status": 200
+  },
+  {
+   "tMs": 6216,
+   "method": "GET",
+   "url": "https://www.google.com/recaptcha/enterprise/webworker.js",
+   "status": 200
+  },
+  {
+   "tMs": 6246,
+   "method": "POST",
+   "url": "https://firebaseremoteconfig.googleapis.com/v1/projects/buildhybridai-2026-yg3m/namespaces/fireperf:fetch",
+   "status": 200
+  },
+  {
+   "tMs": 6340,
+   "method": "GET",
+   "url": "https://firebasestorage.googleapis.com/v0/b/buildhybridai-2026-yg3m.firebasestorage.app/o",
+   "status": 200
+  },
+  {
+   "tMs": 6524,
+   "method": "POST",
+   "url": "https://firestore.googleapis.com/google.firestore.v1.Firestore/Listen/channel",
+   "status": 200
+  },
+  {
+   "tMs": 6889,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/tiles/piedmont-park-dev.graph.json",
+   "status": 200
+  },
+  {
+   "tMs": 6890,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/tiles/piedmont-park-dev.pmtiles",
+   "status": 200
+  },
+  {
+   "tMs": 6904,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/PrintSession-DoDA2dJa.js",
+   "status": 200
+  },
+  {
+   "tMs": 6905,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/radioCard-BAFoC5U3.js",
+   "status": 200
+  },
+  {
+   "tMs": 6906,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/RadioCodeCheck-Brdweg2H.js",
+   "status": 200
+  },
+  {
+   "tMs": 6906,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/geojsonExport-CR5zSipz.js",
+   "status": 200
+  },
+  {
+   "tMs": 6906,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/assets/ReplayPanel-2G5cV1an.js",
+   "status": 200
+  },
+  {
+   "tMs": 7013,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/extras/terrain/piedmont-park-dev.elevation.json",
+   "status": 200
+  },
+  {
+   "tMs": 7062,
+   "method": "GET",
+   "url": "https://buildhybridai-2026-yg3m.web.app/extras/terrain/piedmont-park-dev.elevation.json",
+   "status": 200
+  },
+  {
+   "tMs": 7115,
+   "method": "POST",
+   "url": "https://firestore.googleapis.com/google.firestore.v1.Firestore/Listen/channel",
+   "status": 200
+  },
+  {
+   "tMs": 7115,
+   "method": "POST",
+   "url": "https://firestore.googleapis.com/google.firestore.v1.Firestore/Listen/channel",
+   "status": 200
+  },
+  {
+   "tMs": 12871,
+   "method": "POST",
+   "url": "https://firebaselogging-pa.googleapis.com/v1/firelog/legacy/log",
+   "status": 200
+  },
+  {
+   "tMs": 18008,
+   "method": "POST",
+   "url": "https://www.google.com/recaptcha/enterprise/reload",
+   "status": 200
+  },
+  {
+   "tMs": 18049,
+   "method": "POST",
+   "url": "https://www.google.com/recaptcha/enterprise/clr",
+   "status": 200
+  },
+  {
+   "tMs": 18222,
+   "method": "POST",
+   "url": "https://content-firebaseappcheck.googleapis.com/v1/projects/buildhybridai-2026-yg3m/apps/1:593239421521:web:5aeaabe9c07bf3db587e70:exchangeRecaptchaEnterpriseToken",
+   "status": 200
+  },
+  {
+   "tMs": 19473,
+   "method": "POST",
+   "url": "https://firebasevertexai.googleapis.com/v1beta/projects/buildhybridai-2026-yg3m/templates/pls-sighting-note-v1:templateGenerateContent",
+   "status": 200
+  },
+  {
+   "tMs": 19903,
+   "method": "POST",
+   "url": "https://www.google.com/recaptcha/enterprise/reload",
+   "status": 200
+  },
+  {
+   "tMs": 19957,
+   "method": "POST",
+   "url": "https://www.google.com/recaptcha/enterprise/clr",
+   "status": 200
+  },
+  {
+   "tMs": 20116,
+   "method": "POST",
+   "url": "https://content-firebaseappcheck.googleapis.com/v1/projects/buildhybridai-2026-yg3m/apps/1:593239421521:web:5aeaabe9c07bf3db587e70:exchangeRecaptchaEnterpriseToken",
+   "status": 200
+  },
+  {
+   "tMs": 21044,
+   "method": "POST",
+   "url": "https://firebasevertexai.googleapis.com/v1beta/projects/buildhybridai-2026-yg3m/models/gemini-3.5-flash-lite:generateContent",
+   "status": 200
+  }
+ ],
+ "note": "Requests keep the method, the address without its query string and the status; no headers or bodies were saved, so no token or user id is in this file."
+}

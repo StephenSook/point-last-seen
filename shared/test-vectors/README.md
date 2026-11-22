@@ -131,7 +131,7 @@ the file by hand, and `scripts/test_phone_vectors.py` checks that the required c
   not contain `number`, must contain no number character in any script (Unicode categories Nd, Nl and No, so an
   Adlam or a dingbat digit counts; the number is the only digit run in `input`), must contain none of
   `forbidden` (parts of a number written in words), and must still contain every string in `keep` (the text around
-  the number).
+  the number). `number` may appear more than once (`same_number_twice`); every copy must go, not only the first.
 - `mustKeep[]`: `{ name, input }`. The output must equal `input` exactly: times, segment numbers, counts, percents
   and dates (11/19/2026, 2026-11-19, 11/19, Nov 19) are not phone numbers; a date in a note is search information.
   So are coordinates (`GPS 33.7490, -84.3880`), a ZIP+4 code after a state, a grouped count under seven digits
@@ -211,7 +211,7 @@ sequences and emoji modifiers).
 `tools/vectors/phone_corpus.ts` builds it; `npx tsx tools/vectors/phone_corpus_cli.ts --write` rewrites the file and
 `--check` exits 1 unless the file is exactly what `--write` would write. A change to the web rule changes `rule`, so the
 web test fails until the file is written again. The file's SHA-256 is
-`7f39359c20652e5b8f44ac5ec4006aff8f70e6e522f4dc5adc6063ec547e7b5b`.
+`1f9548def9c2c9a066608061fca0ede5debc02f5d04c5bcded092adc8c2599d3`.
 
 ## language.json (hand-written)
 

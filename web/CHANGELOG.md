@@ -2727,3 +2727,72 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `aiClient` builds the page's one instance with `useLimitedUseAppCheckTokens: true` and reads no Remote Config value for it. Reading the key once per page (the previous commit) could still lock in an early or stale value: Remote Config loads its saved values in the background, so a page that loaded an old `false` before the newly published `true` would have kept `false`, and with replay protection enforced every cloud call on that page would fail. The web's `use_limited_use_tokens` default and `activatedLimitedUseTokens` are gone; the phones still read the key, with `true` as their default.
 - Source: review (Codex, scoped pass on the read-once fix).
 - Verified: the updated tests (a Remote Config `false` leaves it on; no web file reads the key or passes another flag; client.ts builds with `true`) failed first, then passed, and fail again with the flag set to `false`; web unit suite, typecheck and every gate pass.
+
+### fix(command): the Plan section says, before Suggest plan, where the wording is made and what it sends
+- What: one line under "Draft for the current reports." says "Suggest plan words the draft on this laptop's built-in model, or with Gemini in the cloud when it has none. It sends only team ids, segment codes and percents, never a note or a name." (what `planPrompt` holds), or, while command has paused cloud reading, "Cloud reading is paused, so Suggest plan uses fixed wording and sends nothing." Before, the screen said nothing until after the tap, when a Cloud mark and a closed What ran appeared.
+- Source: review of the deployed judge door in a fresh browser profile (a practice search's Suggest plan went to the cloud with no word beforehand).
+- Verified: a new harness test (both lines, and the cloud one absent while paused) failed first, then passed; the fallback test's no-laptop-notice check now leaves out this line. Plan harness spec (15), web unit suite, typecheck, harness suite and every gate pass.
+
+### test(evidence): the judge door evidence is checked against itself and the Plan section
+- What: `judgeDoorEvidence.test.ts` reads docs/evidence/web/2026-11-22-judge-door-what-leaves.json and asserts it holds only methods, query-free addresses and statuses, that its AI calls answered 200 with no Firestore write, and that it quotes the Plan section's line exactly as `WhatChanged.tsx` has it.
+- Source: review of the deployed judge door.
+- Verified: passes with the file (3) and fails without it.
+### fix(command): an older sign-in token never clears the line a newer one set
+- What: the sign-in watch keeps the issue time of the newest token it applied and ignores a token issued before it, even when its change event comes last: a refresh that started before another window moved this account to another search could return this drill's older token, which the SDK stores and announces, and that read cleared the "signed in to another search" line. A sign-out starts the count again.
+- Source: review (backlog issue #317).
+- Verified: a new unit test (the other search's 12:05 token applied, then this drill's 12:00 token ignored, then a 12:10 token applied) failed first, then passed; the claims tests (12) and typecheck pass.
+
+### fix(command): the newest sign-in token wins by when it was issued, per account
+- What: the watch now applies a token when it was issued no earlier than the newest one applied, whatever order the reads finish in, so a newer forced refresh is no longer dropped because an older token's read started later; it starts again when the signed-in account changes (another account's older cached token still applies) and drops a token for an account no longer signed in. A reply with no readable issue time still falls back to the newest read.
+- Source: review (Codex, first round on the token-order fix).
+- Verified: three new unit tests (another account; a newer forced refresh finishing after an older read; a token for an account that left) failed first, then passed; the claims tests (15) and typecheck pass.
+
+### fix(command): within one second, the newer sign-in read wins
+- What: issue times count whole seconds, so two tokens can share one; a later token still wins whatever order the reads finish in, but within the same second the newer read now wins, as it did before the issue-time rule, so an earlier read can no longer bring back a line a newer one cleared.
+- Source: review (Codex, second round on the token-order fix).
+- Verified: a new unit test (two tokens of the same second finishing out of order) failed first, then passed; the claims tests (16) and typecheck pass.
+
+### fix(judge): a browser that fails the security check is told why the practice search cannot start
+- What: when the server refuses the practice search for a failed App Check (or sign-in), the judge's page now says "This browser did not pass the site's security check, so a practice search cannot start. Nothing private was sent. Reload and try again; the drill replay on this page plays without it." instead of "This browser could not be checked." A deployed-only check (`e2e/judgeNoAppCheck.spec.ts`) blocks every App Check exchange in a fresh profile and asserts the line within 30 s, a usable button, the replay and no page errors; it answers the start call in the page with the server's own refusal (HTTP 401), so it can never start a practice search.
+- Source: review of the deployed judge door with App Check failing (the page answered in 8 s with no crash or hang, but did not say what failed or what still works).
+- Verified: the updated unit test failed first, then passed (11); the deployed check fails on the live site's old line, as expected before the deploy.
+
+### test(e2e): Suggest plan sends only what the Plan section says it sends
+- What: a deployed-only check (`e2e/planPayload.spec.ts`) removes the built-in model on the test drill, presses Suggest plan and reads the one model request: every line of its text is a fixed heading, a team id with its segment codes, or a segment code with its percents (so no note or name), and the receipt's "Sent: N bytes of plan text." counts exactly that text. Nothing is approved, so nothing is written. With #308's note check, both cloud payloads a judge can send are compared with what the screen says.
+- Source: review of the deployed judge door (compare the shown cloud payload with the request).
+- Verified: passes on the live site; a copy whose segment-line pattern never matches fails on a real line ("AD 1.1% (was 1.1%)").
+
+### test(e2e): the security-check judge door check names the replay region it shows
+- What: with a published run the judge's page names the region "Watch the drill replay" ("Replay the training drill" is the no-run name), so the check now looks for that; its other assertions (the plain line within 30 s, a usable button, no page errors) were already passing on the live site.
+- Source: live suite after the deploy of 4c9587de.
+- Verified: the check passes in the full live suite (96 of 96).
+
+### test(e2e): the plan payload check presses again when other checks change the draft
+- What: other live checks write reports to the test drill at the same time, and a reply for a draft that changed meanwhile is never shown (by design), so the check presses Suggest plan up to three times; it now checks every request those presses sent (one content, one text part, only headings, team lines and segment lines) and compares the receipt with the last one, whose reply is on screen.
+- Source: live suite after the deploy of 4c9587de (the check passed alone and timed out in the full suite).
+- Verified: passes in the full live suite (96 of 96).
+
+### test(e2e): with no built-in model, the on-device-only reads send nothing to any model
+- What: a deployed-only check (`e2e/noModelSendsNothing.spec.ts`) removes `window.LanguageModel` before load and presses each on-device-only path up to its no-model answer, short of any consent or cloud button: Get this laptop ready on the judge's page, Read the note, and the paper debrief sheet read. No request may go to a model host, carry a model method (`:generateContent`, `:countTokens`) or reach the unresolvable fallback host the private reads use, since the SDK sends even an ONLY_ON_DEVICE call to the cloud when the browser has no LanguageModel (firebase-js-sdk #10635) and only the gate stops it.
+- Source: review (another team showed the SDK's cloud fallback with no LanguageModel).
+- Verified: passes on the live site; against a scratch build of main whose note read skipped the gate (served to the test browser at the live address, nothing deployed), it failed with `POST https://on-device-only.invalid/.../gemini-3.5-flash-lite:generateContent`. The scratch copy was deleted.
+
+### feat(support): the support page gives a contact email
+- What: /support now says "Email stevefunds2006@gmail.com about a problem with the app, an abusive post or member, or deleting your data." as a mailto link, above the GitHub issues line, which stays as the second way to get help. Published contact for an app with user content (App Store guideline 1.2); the owner chose the address.
+- Source: App Store review requirement.
+- Verified: a new unit test (the line, one mailto, no other address) failed first, then passed; the public pages checks (6) pass against a preview build, with one more that the live /support HTML serves the line, run after the deploy.
+
+### fix(command): the sighting form says a debrief was opened, not that it is open
+- What: after "Open segment XX's debrief", the line now reads "Segment XX's debrief was opened below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway.", which stays true if that debrief is cancelled or Details is closed; it used to say "is open below" until the note changed or the form closed.
+- Source: review (backlog issue #318).
+- Verified: the harness and deployed checks expecting the new line failed first, then the sighting harness spec passed (27); typecheck passes.
+
+### fix(data): the sign-in line drops replies from an earlier session and ranks untimed replies by read order
+- What: each sign-in is its own session, so a reply from a read started before a sign-out is dropped even when the same account signs in again; while the line comes from a reply with no readable issue time, a timed reply applies only if its read started later and its token was issued after the newest one applied.
+- Source: review (backlog issue #327).
+- Verified: three new unit tests (the same account signing out and in again; an earlier read's timed reply landing after a newer untimed one; an older token from a later read after an untimed reply, from review) failed first, then passed with the 16 existing claims tests (19); typecheck passes.
+
+### docs(evidence): describe the clip of the command post removing a member
+- What: docs/evidence/web/README.md describes a 20.96 s screen recording (1920 x 1080) of the deployed command post on the App Review drill removing a test searcher ("Removed" on screen, the other searcher kept), then opening the new-code confirm and cancelling it, moment by moment, with the file's SHA-256. The clip is kept outside the repository (it takes no video files); it was made for the App Store review.
+- Source: App Store review asks to see an abusive member removed.
+- Verified: stills at 0, 25, 50, 75 and 99 percent and one a second were checked by eye (no join code, member id or personal data on screen); a fresh sign-in afterwards read Team 1 searcher active and Team 2 searcher removed.

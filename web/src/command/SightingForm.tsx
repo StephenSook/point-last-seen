@@ -76,7 +76,8 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
   // is a sighting. It only warns, in English only: a second tap saves it as typed, and an edit asks again.
   const [reportAsked, setReportAsked] = useState<string | null>(null);
   // The segment whose debrief this form opened below. The sighting draft stays as it is: command copies what belongs
-  // in the debrief, then cancels this sighting or saves it anyway.
+  // in the debrief, then cancels this sighting or saves it anyway. The line says "was opened", which stays true if
+  // that debrief is later cancelled or Details is closed.
   const [debriefOpened, setDebriefOpened] = useState<string | null>(null);
 
   // The words of the note the read took its answer from (checked against the note by the read itself).
@@ -339,7 +340,7 @@ export function SightingForm({ place, placeSegmentId, choices, onPlace, onSave, 
         <div className="note-state" role="alert">
           <p>{SEARCH_REPORT_LINE}</p>
           {debriefOpened && (
-            <p role="status">{`Segment ${debriefOpened}'s debrief is open below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway.`}</p>
+            <p role="status">{`Segment ${debriefOpened}'s debrief was opened below. Copy what belongs there, then cancel this sighting, or save it as a sighting anyway.`}</p>
           )}
           <div className="row">
             {placeSegmentId && onOpenDebrief && debriefable?.has(placeSegmentId) && (
