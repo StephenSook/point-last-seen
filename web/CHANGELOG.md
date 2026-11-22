@@ -2788,6 +2788,6 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Verified: the harness and deployed checks expecting the new line failed first, then the sighting harness spec passed (27); typecheck passes.
 
 ### fix(data): the sign-in line drops replies from an earlier session and ranks untimed replies by read order
-- What: each sign-in is its own session, so a reply from a read started before a sign-out is dropped even when the same account signs in again; while the line comes from a reply with no readable issue time, a later reply applies only if its read started later.
+- What: each sign-in is its own session, so a reply from a read started before a sign-out is dropped even when the same account signs in again; while the line comes from a reply with no readable issue time, a timed reply applies only if its read started later and its token was issued after the newest one applied.
 - Source: review (backlog issue #327).
-- Verified: two new unit tests (the same account signing out and in again; an earlier read's timed reply landing after a newer untimed one) failed first, then passed with the 16 existing claims tests (18); typecheck passes.
+- Verified: three new unit tests (the same account signing out and in again; an earlier read's timed reply landing after a newer untimed one; an older token from a later read after an untimed reply, from review) failed first, then passed with the 16 existing claims tests (19); typecheck passes.

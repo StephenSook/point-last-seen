@@ -301,6 +301,21 @@ describe("watchClaims: replies from an earlier sign-in session, and replies with
     vi.doUnmock("firebase/auth");
   });
 
+  it("keeps a token issued later than a newer read's token, with an untimed reply between them", async () => {
+    const { vi, fire, pending, lines } = await setup();
+    fire();
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:05") });
+    await tick();
+    fire();
+    pending[1]!({ claims: { inc: "judge-abc", role: "command" } });
+    await tick();
+    fire();
+    pending[2]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:00") });
+    await tick();
+    expect(lines).toEqual([OTHER_SEARCH_LINE, OTHER_SEARCH_LINE]);
+    vi.doUnmock("firebase/auth");
+  });
+
   it("never lets an earlier read's timed reply overwrite a newer reply that had no issue time", async () => {
     const { vi, fire, pending, lines } = await setup();
     fire();

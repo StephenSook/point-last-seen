@@ -28,8 +28,8 @@ export function claimsLine(claims: Record<string, unknown> | null, ctx: ClaimsCo
  * moved this account to another search), a newer one applies even if a later read started first, a token for an account
  * no longer signed in is dropped, and another account starts again. Each sign-in is its own session: a reply from a read
  * started before a sign-out is dropped even when the same account signs in again. A reply with no readable issue time
- * applies only from the newest read, and while the line comes from such a reply, a later reply applies only if its read
- * started later. Nothing is applied after `stop`. A forced read runs at most once in 30 seconds and not while another is running, except that an urgent
+ * applies only from the newest read, and while the line comes from such a reply, a timed reply applies only if its read
+ * started later and its token was issued after the newest token applied. Nothing is applied after `stop`. A forced read runs at most once in 30 seconds and not while another is running, except that an urgent
  * recheck (after a refusal) skips the spacing, and one that comes while a forced read runs waits for it and then runs.
  * A forced read still running after 30 seconds is treated as stalled and no longer holds the next one back.
  */
@@ -87,9 +87,11 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
         const issued = Date.parse(r.issuedAtTime ?? "");
         const signedIn = auth.currentUser?.uid === user.uid && readSession === session;
         // A token issued later wins whatever order the reads finish in; within the same second (the issue time's
-        // resolution) the newer read does. With no readable issue time on either side, read order decides.
+        // resolution) the newer read does. While the line comes from a reply with no readable issue time, a timed
+        // reply must also come from a later read.
         const timed = Number.isFinite(issued);
-        const newest = !timed ? seq === latest : newestUntimed ? seq > newestSeq : issued > newestIssued || (issued === newestIssued && seq > newestSeq);
+        const laterToken = issued > newestIssued || (issued === newestIssued && seq > newestSeq);
+        const newest = !timed ? seq === latest : laterToken && (!newestUntimed || seq > newestSeq);
         if (!stopped && signedIn && newest) {
           if (timed) newestIssued = issued;
           newestUntimed = !timed;
