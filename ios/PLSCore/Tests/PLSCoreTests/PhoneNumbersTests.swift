@@ -336,6 +336,20 @@ import Testing
         return nil
     }
 
+    /// Scrubbing twice gives the same text as scrubbing once, for every case run here (the README's "Scrubbing
+    /// twice"): a note is scrubbed when it is read and again when it is saved.
+    @Test func scrubbingAgainChangesNothing() throws {
+        let f = try file()
+        let inputs = f.mustRemove.filter { Self.runsHere($0.pendingOn) }.map(\.input)
+            + f.mustKeep.filter { Self.runsHere($0.pendingOn) }.map(\.input)
+            + (f.exact ?? []).filter { Self.runsHere($0.pendingOn) }.map(\.input)
+        #expect(inputs.count > 100)
+        for input in inputs {
+            let once = PhoneNumbers.scrub(input)
+            #expect(Array(PhoneNumbers.scrub(once).unicodeScalars) == Array(once.unicodeScalars), "\(input) -> \(once)")
+        }
+    }
+
     /// The cases a pending mark leaves out here that already pass: each is a fixed gap whose mark must go.
     static func fixedButPending(_ f: File) -> [String] {
         var fixed: [String] = []

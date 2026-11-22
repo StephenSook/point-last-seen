@@ -232,9 +232,32 @@ public enum PhoneNumbers {
         var alone = false
     }
 
-    /// Removes phone numbers from a note. A run made only of clock times is decided first, as a whole (the shared
-    /// vectors' README); the text between decided runs, and every note NFKC changes, follows the shared rule (`byRule`).
+    /// Removes phone numbers from a note: one pass of the rule (`scrubOnce`) until the text stops changing, so a note
+    /// scrubbed again changes nothing (a note is scrubbed when it is read and again when it is saved). The warning
+    /// names no note text.
     public static func scrub(_ text: String) -> String {
+        settle(text, once: scrubOnce, onCap: { print("phone-number removal did not settle in \(maxPasses) passes") })
+    }
+
+    /// The most passes of the rule one scrub runs; every note in the shared corpus settles in two.
+    public static let maxPasses = 4
+
+    /// Runs `once` until the text stops changing, at most `maxPasses` times in all, compared scalar by scalar. When it
+    /// never settles, `onCap` is told and the last pass's text, the most scrubbed, is returned.
+    static func settle(_ text: String, once: (String) -> String, onCap: () -> Void) -> String {
+        var out = once(text)
+        for _ in 1..<maxPasses {
+            let next = once(out)
+            if next.unicodeScalars.elementsEqual(out.unicodeScalars) { return out }
+            out = next
+        }
+        onCap()
+        return out
+    }
+
+    /// One pass of the rule. A run made only of clock times is decided first, as a whole (the shared vectors' README);
+    /// the text between decided runs, and every note NFKC changes, follows the shared rule (`byRule`).
+    static func scrubOnce(_ text: String) -> String {
         let s = text.precomposedStringWithCompatibilityMapping          // full-width digits become ASCII
         // A note NFKC changes skips the times step: folding can turn other characters into the ASCII digits a run is
         // made of. Compared scalar by scalar, since String equality calls a decomposed note unchanged.

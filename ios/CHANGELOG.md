@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### fix(ios-core): a note scrubbed again changes nothing
+- What: the public scrub now runs one pass of the phone rule (`scrubOnce`) until the text stops changing, at most four
+  passes, compared scalar by scalar, as the web and Android rules do. A note that never settles keeps the fourth
+  pass's text and logs a fixed line with no note text. A note is scrubbed when it is read and again when it is saved,
+  so both must give the same text.
+- Source: the shared vectors' "Scrubbing twice" rule.
+- Verified: new core tests of the settle loop (stops when unchanged, at most four passes, a settled note read twice)
+  failed first (no settle) and pass; a check that scrubbing each shared case's output again changes nothing passes;
+  the full core suite passes (474).
+
 ### fix(ios): the practice drill neither blocks nor unblocks a description
 - What: Block on this phone is no longer offered in the practice drill, and practice never reads a block as its own
   or clears one. The bundled practice pack uses a real drill's incident id, so a block set in practice hid that
