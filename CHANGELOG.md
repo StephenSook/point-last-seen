@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: the plan reason line gives the per-team run's own counts in place of "the picks were the same", which could
+  read as the order effect being gone: on the same made-up plan, one team picked the same fact in 6 of 6 runs and the
+  other in 3 of 3 in the fixed order and 2 of 3 reversed. Source: review (a qualifier dropped from a post-fix number).
+  Verified: the counts recounted by team and order from
+  docs/evidence/web/2026-11-22-plan-reason-per-team-schema-chrome.json; the hygiene guard passes in public mode.
 - Test matrix: a row for the cloud fallback of plan reason codes (the deployed command post, 3 calls on
   gemini-3.5-flash-lite, all used), citing the live capture. Source: the live cloud capture. Verified:
   `scripts/test_test_matrix.py` passes (the code line holds its call, the evidence file is tracked).
