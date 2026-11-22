@@ -2564,3 +2564,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the panel remembers which code a Copy wrote, so a Copy that finishes after command pressed Done and made another code never marks the new one copied.
 - Source: review (Codex, first round on the join-code panel).
 - Verified: a new harness test (a slow searcher Copy finishing over a family code) failed first, then passed; the members harness spec (11) passes.
+
+### fix(command): the join-code panel shows only on an open drill
+- What: the panel needs the drill's status to be open, as the server does, so an older drill saved as found no longer offers a replacement the server refuses.
+- Source: review (Codex, first round on the join-code panel).
+- Verified: typecheck and the web unit suite pass.

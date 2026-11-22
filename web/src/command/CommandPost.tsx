@@ -1054,7 +1054,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             <MergeLanes lanes={lanes} />
             <MembersPanel rows={people} stale={membersStale} onRemove={(uid) => removeMember(pls.functions, incidentId, uid)} />
             {/* New join codes for an open drill only: a practice search has none, an ended search takes no new members. */}
-            {incident?.mode === "drill" && !closedHere && <JoinCodes onRotate={(role) => rotateJoinCode(pls.functions, incidentId, role)} />}
+            {/* Only while the drill is open: the server refuses a new code for any other status (an older "found" drill too). */}
+            {incident?.mode === "drill" && incident.status === "open" && !closedHere && <JoinCodes onRotate={(role) => rotateJoinCode(pls.functions, incidentId, role)} />}
             {/* queued: a close this browser has written that the server has not confirmed (also after a reload offline). */}
             {incident && !ended && <EndSearch queued={incident.status === "closed"} onEnd={(reason) => endSearch(pls.db, incidentId, reason)} />}
           </details>
