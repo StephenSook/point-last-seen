@@ -2983,3 +2983,14 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - The timer is cancelled when the read settles first, and at stop.
 - Source: issue #336.
 - Verified: new watchClaims tests (a stalled read, a read that settles first, stop, another account, a sign-out) failed first where the behaviour changed, then passed (24); typecheck passes.
+
+### fix(ai): each team's reason code comes from a schema that offers only that team's facts
+- What: on the live site, Suggest plan's cloud answer was refused every time: gemini-3.5-flash-lite named "highest_poa" for both teams, while only one team had that fact. The list schema let every team name any known code, so every plan fell back to fixed wording on the cloud path.
+  - The schema is now one property per team id, each a single code from an enum of only that team's own facts, every team required (planWordingJson with choiceTeams). So a constrained reply cannot name another team's fact.
+  - checkChoice reads that object and refuses a missing or extra team, a code the team does not have, a code that is not text, and a team with segments but no fact to choose.
+  - The command post and the measurement page ask with each team's codes.
+- Source: deployed stills (the cloud path's What ran said "Not used" on every press).
+- Verified:
+  - new and changed checkChoice, schema and caller tests failed first, then passed (54 in the plan wording suites);
+  - 6 runs on Chrome's built-in model: all on device and used, every code a team fact, reasons and summary matching, the main picks as before;
+  - typecheck passes; replanWording.ts lines 47 and 232, which the test matrix cites, are unchanged.

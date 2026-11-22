@@ -3,7 +3,7 @@
 
 import type { FirebaseApp } from "firebase/app";
 import { getAI, getGenerativeModel, getTemplateGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel, type InferenceSource, type TemplateRequest } from "firebase/ai";
-import { REPLY_TIMEOUT_MS, wordingOnDeviceParams, wordingParams, type WordingDeps } from "./replanWording";
+import { REPLY_TIMEOUT_MS, wordingOnDeviceParams, wordingParams, type ChoiceTeams, type WordingDeps } from "./replanWording";
 import { photoParams, type PhotoDeps } from "./photoCues";
 import { debriefSheetParams, type SheetDeps } from "./debriefSheetRead";
 import { sightingTextParams, type SightingTextDeps } from "./sightingText";
@@ -44,12 +44,12 @@ export function generatorFor(model: TextModel): WordingDeps["generate"] {
 }
 
 /** Plan wording on the SDK's PREFER_ON_DEVICE mode (wordingParams), cloud and on-device parameters both set. */
-export function wordingGenerator(ai: AI, model: string, teamIds: readonly string[] | null = null): WordingDeps["generate"] {
+export function wordingGenerator(ai: AI, model: string, teamIds: ChoiceTeams | null = null): WordingDeps["generate"] {
   return generatorFor(getGenerativeModel(ai, wordingParams(model, teamIds), { timeout: REPLY_TIMEOUT_MS }));
 }
 
 /** Plan wording on this laptop only (ONLY_ON_DEVICE), with the wording's own on-device options: for measurement pages. */
-export function wordingOnDeviceGenerator(ai: AI, teamIds: readonly string[] | null = null): WordingDeps["generate"] {
+export function wordingOnDeviceGenerator(ai: AI, teamIds: ChoiceTeams | null = null): WordingDeps["generate"] {
   return generatorFor(getGenerativeModel(ai, wordingOnDeviceParams(teamIds), PRIVATE_REQUEST_OPTIONS));
 }
 

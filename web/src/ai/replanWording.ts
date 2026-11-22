@@ -18,31 +18,31 @@ export const REPLY_TIMEOUT_MS = 15_000;
 
 // Every sentence the page shows is written by code: task lines here, reasons and the summary in reasonCodes.ts.
 
-export const PLAN_WORDING_JSON = {
+/**
+ * The reply's shape: one property per team id, holding the code of that team's main fact. This general form names no
+ * team; a plan's own schema (planWordingJson) names its teams and gives each an enum of only that team's own facts,
+ * so a constrained reply can never pick another team's fact (the cloud model did, on the earlier list shape, which let
+ * every team name any code).
+ * No summary and no sentences: code writes them from the codes chosen.
+ */
+export const PLAN_WORDING_JSON: PlanWordingSchema = {
   type: "object",
-  properties: {
-    assignments: {
-      type: "array",
-      maxItems: 12,
-      items: {
-        type: "object",
-        properties: { teamId: { type: "string" }, reasons: { type: "array", minItems: 0, maxItems: 1, items: { type: "string", enum: FACT_CODES } } },
-        required: ["teamId", "reasons"],
-      },
-    },
-    // No summary and no sentences: code writes them from the codes chosen.
-  },
-  required: ["assignments"],
-} as const;
+  properties: {},
+  required: [],
+};
+/** Each team with a fact to choose, with its own fact codes in FACT_CODES order. */
+export type ChoiceTeams = Readonly<Record<string, readonly FactCode[]>>;
+// The per-plan form, built from the plan's facts.
+export type PlanWordingSchema = { type: "object"; properties: Record<string, { type: "string"; enum: readonly FactCode[] }>; required: readonly string[] };
 
 const SYSTEM = [
   "Code has already decided which team searches which segment, and code writes every sentence of the plan.",
   "For each team, choose the one fact from that team's own list that best explains why it searches there.",
-  "Use only codes from that team's own list. A team with no facts gets an empty list.",
-  "Return JSON with assignments (teamId, reasons).",
+  "Use only codes from that team's own list. Teams with no segment are left out.",
+  "Return JSON with one property per team id: the code of that team's main fact.",
 ].join(" ");
 
-export function wordingParams(model: string, teamIds: readonly string[] | null = null): HybridParams {
+export function wordingParams(model: string, teamIds: ChoiceTeams | null = null): HybridParams {
   return {
     mode: InferenceMode.PREFER_ON_DEVICE,
     inCloudParams: {
@@ -94,28 +94,28 @@ export function templateWording(draft: PlanDraft): PlanWording {
 }
 
 export const NOT_A_TEAM_FACT = "a reason code is not one of that team's own facts";
-/** The model's reply: per team, its main reason code (none for a team with no segment). Any other field is ignored. */
-type ModelChoice = { assignments: { teamId: string; reasons: unknown }[] };
+/** Each team with segments and a fact, with its codes (what the schema offers it); one with no fact is left out. */
+export function choiceTeams(draft: PlanDraft): Record<string, FactCode[]> {
+  return Object.fromEntries([...teamFacts(draft)].filter(([, f]) => f.size > 0).map(([t, f]) => [t, [...f.keys()]]));
+}
 
 /**
- * Whether the reply names exactly the draft's teams, each once, and gives each team with segments exactly one code
- * from its own facts (teamFacts), and each team without segments none. On success, the codes chosen.
+ * Whether the reply names exactly the teams with a fact, each with one code from its own facts and nothing else.
  */
 export function checkChoice(draft: PlanDraft, reply: unknown): { ok: true; codes: Map<string, FactCode[]> } | { ok: false; reason: string } {
-  const m = reply as ModelChoice | null;
-  if (!m || typeof m !== "object" || !Array.isArray(m.assignments)) return { ok: false, reason: "no assignments" };
-  const want = draft.assignments.map((a) => a.teamId).sort();
-  const got = m.assignments.map((a) => a?.teamId).sort();
-  if (want.length !== got.length || want.some((t, i) => t !== got[i])) return { ok: false, reason: "team ids differ from the draft" };
+  if (!reply || typeof reply !== "object" || Array.isArray(reply)) return { ok: false, reason: "no assignments" };
+  const m = reply as Record<string, unknown>;
   const facts = teamFacts(draft);
+  if ([...facts.values()].some((f) => f.size === 0)) return { ok: false, reason: "a team with segments has no fact to choose" };
+  const want = [...facts.keys()].sort();
+  const got = Object.keys(m).sort();
+  if (want.length !== got.length || want.some((t, i) => t !== got[i])) return { ok: false, reason: "team ids differ from the draft" };
   const codes = new Map<string, FactCode[]>();
-  for (const a of m.assignments) {
-    const own = facts.get(a.teamId);
-    const r = a.reasons;
-    if (!Array.isArray(r) || !r.every((c): c is string => typeof c === "string") || new Set(r).size !== r.length) return { ok: false, reason: "reason codes are not a list of different codes" };
-    if (own ? r.length !== 1 : r.length !== 0) return { ok: false, reason: "a team has the wrong number of reason codes" };
-    if (r.some((c) => !own?.has(c as FactCode))) return { ok: false, reason: NOT_A_TEAM_FACT };
-    codes.set(a.teamId, r as FactCode[]);
+  for (const team of want) {
+    const c = m[team];
+    if (typeof c !== "string") return { ok: false, reason: "a team's reason code is not text" };
+    if (!facts.get(team)!.has(c as FactCode)) return { ok: false, reason: NOT_A_TEAM_FACT };
+    codes.set(team, [c as FactCode]);
   }
   return { ok: true, codes };
 }
@@ -228,46 +228,17 @@ async function wordPlanInner(draft: PlanDraft, deps: WordingDeps): Promise<Worde
  * The wording's own on-device options, ONLY_ON_DEVICE and with no cloud params: what a measurement page asks for, since
  * a dev page never builds a cloud model. With the built-in model available, PREFER_ON_DEVICE runs these same options.
  */
-export function wordingOnDeviceParams(teamIds: readonly string[] | null = null): HybridParams {
+export function wordingOnDeviceParams(teamIds: ChoiceTeams | null = null): HybridParams {
   return { mode: InferenceMode.ONLY_ON_DEVICE, onDeviceParams: wordingParams("", teamIds).onDeviceParams };
 }
 
-/**
- * The wording's JSON schema for one plan: exactly one assignment per team, naming only that plan's teams. On Chrome's
- * built-in model the general schema let a reply repeat the teams up to its 12 items, which code then rejected
- * (docs/evidence/web/2026-11-21-plan-wording-chrome.json). With no teams it is the general schema.
- */
-export type PlanWordingSchema = {
-  type: "object";
-  properties: {
-    assignments: {
-      type: "array";
-      minItems?: number;
-      maxItems: number;
-      items: {
-        type: "object";
-        properties: { teamId: { type: "string"; enum?: string[] }; reasons: { type: "array"; minItems: number; maxItems: number; items: { type: "string"; enum: readonly FactCode[] } } };
-        required: readonly string[];
-      };
-    };
-  };
-  required: readonly string[];
-};
-
-export function planWordingJson(teamIds: readonly string[] | null): PlanWordingSchema {
-  if (!teamIds || teamIds.length === 0) return PLAN_WORDING_JSON;
-  const a = PLAN_WORDING_JSON.properties.assignments;
+/** The schema for one plan: each team with a fact gets a required code from an enum of its own facts only. */
+export function planWordingJson(teams: ChoiceTeams | null): PlanWordingSchema {
+  if (!teams || Object.keys(teams).length === 0) return PLAN_WORDING_JSON;
   return {
-    ...PLAN_WORDING_JSON,
-    properties: {
-      ...PLAN_WORDING_JSON.properties,
-      assignments: {
-        ...a,
-        minItems: teamIds.length,
-        maxItems: teamIds.length,
-        items: { ...a.items, properties: { ...a.items.properties, teamId: { type: "string", enum: [...teamIds] } } },
-      },
-    },
+    type: "object",
+    properties: Object.fromEntries(Object.entries(teams).map(([t, codes]) => [t, { type: "string", enum: [...codes] }])),
+    required: Object.keys(teams),
   };
 }
 
