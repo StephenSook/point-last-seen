@@ -53,9 +53,15 @@ final class AppModel {
     @ObservationIgnored private(set) var speech: Task<Void, Never>?
     /// Notification permission, and where "asked once" is kept.
     private let alerts: AlertPermission
+    /// Files Report a problem's content reports; Firestore unless a test supplies one.
+    private let contentReports: ContentReportWriter
     private let defaults: UserDefaults
     static let alertsAskedKey = "pls.alertsAsked"
     static let topicsKey = "pls.pushTopics"
+    /// The searches whose family description this phone blocked (Block on this phone).
+    static let blockedDescriptionsKey = "pls.blockedFamilyDescriptions"
+    /// Read once at launch and kept here, so the screen follows a block at once.
+    private(set) var blockedDescriptions: Set<String> = []
     /// True while the one-time alerts question should show (after a join, before an answer).
     private(set) var offersAlerts = false
     /// Counts taps on new-assignment pushes; the screen returns to the task on each.
@@ -112,14 +118,17 @@ final class AppModel {
          pushTopics: PushTopics? = nil,
          alerts: AlertPermission? = nil,
          defaults: UserDefaults = .standard,
-         accountEvents: AccountEvents? = nil) {
+         accountEvents: AccountEvents? = nil,
+         contentReports: ContentReportWriter? = nil) {
         self.accountEvents = accountEvents ?? FirebaseAccountEvents()
         self.signIn = signIn
         self.joinBackend = joinBackend ?? FirebaseJoinBackend(signIn: { await signIn.ensure() })
         self.missionReader = missionReader ?? FirestoreMissionReader()
         self.pushTopics = pushTopics ?? FirebasePushTopics()
         self.alerts = alerts ?? SystemAlerts()
+        self.contentReports = contentReports ?? FirestoreContentReportWriter()
         self.defaults = defaults
+        self.blockedDescriptions = Set(defaults.stringArray(forKey: Self.blockedDescriptionsKey) ?? [])
         self.appVersion = appVersion
         self.speaker = speaker ?? AssignmentSpeaker()
         self.uid = uid
@@ -549,6 +558,86 @@ final class AppModel {
             return true
         }.map(\.eventId) ?? [])
     }
+    /// What Report a problem can be about now: the team's task while command's plan gave one, and the family's
+    /// description while the search has one. Nothing in the practice drill (no report leaves the phone) or with no
+    /// search loaded.
+    var reportTargets: [ContentReport.Target] {
+        guard practice == nil, let mission, !mission.isPractice else { return [] }
+        var targets: [ContentReport.Target] = []
+        if mission.planVersion != nil { targets.append(.task) }
+        if mission.sharedProfile != nil { targets.append(.familyDescription) }
+        return targets
+    }
+
+    /// What a Report a problem form opened on: the search, and the plan whose task was on the phone. A report is about
+    /// these, so a plan command publishes while the form is open does not move it.
+    struct ReportContext: Equatable {
+        let incidentId: String
+        let planVersion: Int?
+    }
+
+    /// Whether the family's description of the person can be blocked on this phone: the loaded search has one, and it
+    /// is a real search. The practice drill's description is bundled sample data, not a member's, and its id is a real
+    /// search's too, so practice neither blocks nor unblocks.
+    var canBlockFamilyDescription: Bool { blockableSearch?.sharedProfile != nil }
+
+    /// Whether this phone blocked the loaded search's family description: it is not shown here. Never in practice.
+    var familyDescriptionBlocked: Bool {
+        guard let incidentId = blockableSearch?.incidentId else { return false }
+        return blockedDescriptions.contains(incidentId)
+    }
+
+    /// The loaded mission when it is a real search, which is where a block belongs.
+    private var blockableSearch: Mission? {
+        guard practice == nil, let mission, !mission.isPractice else { return nil }
+        return mission
+    }
+
+    /// Block on this phone: the family's description of the person is no longer shown on this phone, for this search.
+    /// Nothing is sent; command still has the description, and Show again undoes it.
+    func blockFamilyDescription() {
+        guard canBlockFamilyDescription, let incidentId = blockableSearch?.incidentId else { return }
+        setBlocked(blockedDescriptions.union([incidentId]))
+    }
+
+    /// Show again: the family's description shows on this phone again.
+    func showFamilyDescriptionAgain() {
+        guard let incidentId = blockableSearch?.incidentId else { return }
+        setBlocked(blockedDescriptions.subtracting([incidentId]))
+    }
+
+    private func setBlocked(_ incidents: Set<String>) {
+        blockedDescriptions = incidents
+        defaults.set(incidents.sorted(), forKey: Self.blockedDescriptionsKey)
+    }
+
+    /// What a form that opened on `context` can file about: no task when it opened before any plan, and nothing once
+    /// the search changed.
+    func reportTargets(in context: ReportContext) -> [ContentReport.Target] {
+        guard mission?.incidentId == context.incidentId else { return [] }
+        return reportTargets.filter { $0 != .task || context.planVersion != nil }
+    }
+
+    /// The context a form opening now would report about, or nil when there is nothing to report.
+    var reportContext: ReportContext? {
+        guard !reportTargets.isEmpty, let mission else { return nil }
+        return ReportContext(incidentId: mission.incidentId, planVersion: mission.planVersion)
+    }
+
+    /// Files a report about the task or the family's description to command, as this phone's searcher, about what the
+    /// form opened on: refused when the search changed since, or when the task it opened on had no plan. The note loses
+    /// its phone numbers and is cut to the rule's limit before it leaves the phone.
+    func reportProblem(about target: ContentReport.Target, in context: ReportContext, reason: ContentReport.Reason,
+                       note: String) async -> ReportProblemResult {
+        guard reportTargets.contains(target), let mission, mission.incidentId == context.incidentId, let author = uid(),
+              mission.ownerUid == author else { return .unavailable }
+        if target == .task, context.planVersion == nil { return .unavailable }
+        let targetId = target == .task ? context.planVersion.map(ContentReport.taskId) : nil
+        guard let report = ContentReport(authorUid: author, role: .searcher, target: target, targetId: targetId, reason: reason,
+                                         note: note) else { return .failed }
+        return ReportProblemResult(await contentReports.file(report, reportId: ContentReport.newReportId(), incidentId: mission.incidentId))
+    }
+
     /// Ready check offers Leave while a search is loaded, read again, or ended on screen.
     var offersLeave: Bool { mission != nil || canRetryMission || endedSearch != nil }
     private(set) var endedSearch: EndedSearch?

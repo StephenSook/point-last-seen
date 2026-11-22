@@ -17,11 +17,16 @@ struct ReadyCheckView: View {
     @AppStorage("pls.showSources") private var showSources = false
     @State private var confirmingLeave = false
     @State private var leaveRefused = false
+    @State private var confirmingBlock = false
 
-    static let leaveLabel = "Leave this search"
+    static let leaveLabel = "Leave and delete this sign-in"
     static let endPracticeLabel = "End the practice drill"
     static let endPracticeDetail = "Its reports are deleted from this phone. You can then join a search or start the practice drill again."
     static let leaveDetail = "This phone stops getting this team's tasks and its sign-in is deleted, so it can join another search. Reports already sent stay with command."
+    static let blockLabel = "Block on this phone"
+    static let blockDetail = "The family's description is hidden on this phone for this search. Command still has it. You can show it again here."
+    static let blockedLine = "You blocked the family's description on this phone."
+    static let showAgainLabel = "Show again"
 
     var body: some View {
         ScrollView {
@@ -35,8 +40,36 @@ struct ReadyCheckView: View {
                         if let text = model.urgency.chipText, let rule = try? BundledConstants.urgencyRule() {
                             UrgencyChip(text: text, source: rule.sourceLine)
                         }
-                        if let profile = model.mission?.sharedProfile, let notes = try? BundledConstants.approachNotes() {
-                            ApproachCardView(card: ApproachCard.build(profile: profile, notes: notes, aids: try? BundledConstants.trackingAids()))
+                        if model.familyDescriptionBlocked {
+                            // Blocked on this phone: the description is not shown, and Show again brings it back.
+                            Text(Self.blockedLine).font(.title3.weight(.semibold))
+                                .accessibilityIdentifier("family-description-blocked")
+                            Button { model.showFamilyDescriptionAgain() } label: {
+                                Label(Self.showAgainLabel, systemImage: "eye").frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(theme.accentColor)
+                            .accessibilityIdentifier("family-description-show-again")
+                        } else {
+                            if let profile = model.mission?.sharedProfile, let notes = try? BundledConstants.approachNotes() {
+                                ApproachCardView(card: ApproachCard.build(profile: profile, notes: notes, aids: try? BundledConstants.trackingAids()))
+                            }
+                            // Flag the family's description to command.
+                            ReportProblemLink(model: model, target: .familyDescription)
+                            if model.canBlockFamilyDescription {
+                                Button { confirmingBlock = true } label: {
+                                    Label(Self.blockLabel, systemImage: "hand.raised").frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(theme.accentColor)
+                                .accessibilityIdentifier("family-description-block")
+                                .confirmationDialog(Self.blockLabel, isPresented: $confirmingBlock, titleVisibility: .visible) {
+                                    Button("Block", role: .destructive) { model.blockFamilyDescription() }
+                                    Button("Cancel", role: .cancel) {}
+                                } message: {
+                                    Text(Self.blockDetail)
+                                }
+                            }
                         }
                     }
                 }

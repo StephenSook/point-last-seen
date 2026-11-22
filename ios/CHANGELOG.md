@@ -3,7 +3,166 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-22
+
+### fix(ios): the practice drill neither blocks nor unblocks a description
+- What: Block on this phone is no longer offered in the practice drill, and practice never reads a block as its own
+  or clears one. The bundled practice pack uses a real drill's incident id, so a block set in practice hid that
+  real search's description once joined, and Show again in practice cleared a block set in the real search. The
+  practice description is bundled sample data, not a member's, so there is nothing to block there.
+- Source: third review of the Report a problem and Block change.
+- Verified: a test that blocks and unblocks in the practice drill, with a block kept for the real search under the
+  same id, failed first (four expectations) and passes; the full app suite passes.
+
+### docs(limits): what Block on this phone does and does not do
+- What: LIMITS says Block on this phone hides the family's description on that iPhone only, for that search, until
+  Show again; nothing is sent and command is not told; it hides the card only, so cloud reading (when on) still gets
+  the description's clothing and appearance, and the phone still checks a report's words against the person's names.
+- Source: the Block on this phone change.
+- Verified: each statement checked against the model, the Ready check and the reading code (`subjectNames` feeds the
+  found-kind rule only).
+
+### test(ios): the task screen's report field and Send carry accessibility ids
+- What: the report field is `task-report-text` and its Send button `task-send`, so a UI test can find them by id
+  rather than by their words. Nothing on screen changes.
+- Source: the App Review walkthrough UI test.
+- Verified: the full app suite passes; the walkthrough finds both on the simulator.
+
+### fix(ios): the Leave button says it deletes the sign-in
+- What: the Ready check's "Leave this search" is now "Leave and delete this sign-in" (the confirmation's title too), so
+  account deletion is named on the button itself, not only in the dialog under it. LIMITS uses the new name.
+- Source: App Review guideline 5.1.1(v) (account deletion easy to find), for the review recording.
+- Verified: a wording test failed first (the old label) and passes; the full app suite passes.
+
+### feat(ios): Block on this phone on the Ready check and after a report about the description
+- What: under the person's description on the Ready check, "Block on this phone" (with a confirmation saying it hides
+  the description on this phone for this search, that command still has it, and that it can be shown again) hides the
+  approach card; the section then says "You blocked the family's description on this phone." with "Show again". Right
+  after a Report a problem about the family's description, the form offers "Also block it on this phone".
+- Source: App Review guideline 1.2 (the ability to block abusive users).
+- Verified: a wording test failed first (no such words) and passes; the block model's tests pass; the full app suite
+  passes.
+
+### feat(ios): the model can block the family's description on this phone
+- What: `blockFamilyDescription()` hides the family's description of the person on this phone, for the loaded search,
+  and `showFamilyDescriptionAgain()` undoes it. The choice is kept on the phone (`pls.blockedFamilyDescriptions`), so it
+  stays after the app starts again, and it is per search, so another search's description still shows. Nothing is
+  sent: command still has the description. `canBlockFamilyDescription` is true only while the search has one.
+- Source: App Review guideline 1.2 (the ability to block abusive users), for the one kind of member content a searcher
+  sees.
+- Verified: new tests failed first (nothing to call) and pass: block, kept after a restart, Show again; a block in
+  another search hides nothing here; nothing to block without a description; nothing filed. The full app suite
+  passes.
+
+### fix(ios): the Report a problem form offers only what it can file and keeps its choice after Send
+- What: the form's target choice comes from the context it opened on: a form that opened before any plan offers no
+  task (a plan arriving later does not add it), and a search that changed offers nothing. The choice is fixed once a
+  report is sent, so "Sent to command." always speaks of the target on screen; before, a plan arriving after a sent
+  description report added "Your task" beside the old line.
+- Source: second review of the Report a problem change.
+- Verified: a test of the targets for a context with a plan, without one, and for another search failed before the
+  change (no such function) and passes; the full app suite passes.
+
 ## 2026-11-21
+
+### chore(ios): version 1.0.0 for the App Store release
+- What: MARKETING_VERSION goes from 0.1.0 to 1.0.0, so the next archive is 1.0.0 (its build number is still set
+  when it is archived).
+- Source: the App Store release.
+- Verified: no other file names 0.1.0 for the app; the full app suite passes.
+
+### fix(ios): a report is about the plan and search the form opened on
+- What: the form now takes the search and the plan on the phone once, when it opens, and the report is about those.
+  Before, Send read the newest plan, so a plan command published while the form was open moved a note written about
+  the old task onto the new one. A search that changed while the form was open (a new join, another account) takes
+  nothing, and a task report whose form opened before any plan is refused.
+- Source: review of the Report a problem change.
+- Verified: a test filing about plan 1 while plan 2 is loaded failed before the change (no context to pass) and
+  passes, with target id "0001"; a different search and a missing plan each take nothing. The full app suite
+  passes.
+
+### docs(ios): the Report a problem entry claims only the report seen to land
+- What: the form's entry said a report about the family's description was sent during the live check. Its result
+  line was hidden behind the keyboard and never seen, so the entry now says it was tried and not confirmed; only the
+  task report's "Sent to command." was read on screen.
+- Source: rereading the live check against its screenshots.
+- Verified: the entry matches the screenshots of the check (the hidden line, then the task report's result).
+
+### docs(limits): what Report a problem on the iPhone does and does not do
+- What: LIMITS says the iPhone's Report a problem flags the task or the family's description with a reason and an
+  optional note (phone numbers removed, 500 characters at most); each report is filed once and cannot be changed or
+  taken back; without signal it waits and the phone cannot say whether the server later took it; there is no way to
+  flag another searcher's report, since the iPhone shows only its own; and nothing is offered in the practice drill.
+- Source: the Report a problem change.
+- Verified: each statement checked against the writer, the model and the form on this branch.
+
+### feat(ios): Report a problem on the task screen and the Ready check
+- What: a "Report a problem" link under the report controls (about the task) and under the approach card on the
+  Ready check (about the family's description) opens one form: what it is about (when both can be reported), four
+  reasons in the command post's words, an optional note (it stops at 500 characters as typed; phone numbers are
+  removed before it is sent), and Send. Send closes the keyboard so the line saying what became of the report shows;
+  the keyboard also has its own Done key, since Return starts a new line. The links show only while there is
+  something to report, so never in the practice drill.
+- Source: App Review guideline 1.2 (a way to report user content).
+- Verified: on the simulator against the dev drill, a task report with a note came back "Sent to command." (the
+  server took the create, with the server's time, under the rule); a report about the family's description was
+  tried before the keyboard fix, but its result line was hidden behind the keyboard, so whether it landed was not
+  seen (the emulator test covers that shape); the links showed only after joining; Done closed the keyboard; Leave
+  then deleted each test account. The full app suite passes.
+
+### feat(ios-core): one cut for the note as typed and as stored
+- What: `ContentReport.capped` cuts text to the rule's 500 code points between whole characters and changes nothing
+  else. The Report a problem note field uses it as the searcher types, and `cleanNote` uses it after removing phone
+  numbers and trimming, so the field and the stored note stop at the same place.
+- Source: building the Report a problem form.
+- Verified: a core test of the typing cut (no trimming, no phone removal, a five-scalar emoji kept whole or dropped
+  whole) failed first (no function) and passes; the note tests still pass; the full core suite passes (470).
+
+### feat(ios): the model files a Report a problem content report to command
+- What: `AppModel.reportProblem(about:reason:note:)` files a content report about the team's task (named by its
+  plan's document id) or the family's description (no id) to the loaded search, as this phone's searcher, through
+  `FirestoreContentReportWriter`. The writer creates `incidents/{id}/contentReports/{reportId}` once, with the server's
+  time in `createdAt`. `reportTargets` lists what can be reported now: the task while a plan gave one, and the
+  family's description while there is one; nothing in the practice drill or with no search loaded. The reporter is
+  told "Sent to command.", or that the report waits on the phone for signal (no server answer within 8 seconds;
+  Firestore keeps the write and sends it later), or that the rules refused it, or to try again.
+- Source: App Review guideline 1.2 (a way to report user content).
+- Verified: the new tests failed first (nothing to call) and pass: the targets with and without a search, what is
+  written (incident, report id, author, role, target id, the note without its phone number), the family's
+  description with no id, nothing written without a search, each outcome's line, and the Firestore error mapping
+  (permission denied is a refusal; others can be tried again). The full app suite passes.
+
+### test(rules): the iPhone's content reports against the create rule in the emulator
+- What: functions/test/rules/contentReportsIos.test.ts writes every case of shared/test-vectors/content-report-ios.json
+  to the emulator as the searcher, with the server's time, and expects each accepted. It then breaks copies of the
+  first case the ways a client could (no server time, the phone's own time, a note over 500 code points, an extra
+  field, another role, someone else's name, no reason, a target id that does not fit the target) and expects each
+  refused, and the unbroken copy accepted, so each refusal comes from its change. The Rules workflow now also runs
+  when that vector changes.
+- Source: proving the create rule against the iPhone's own documents, as the first client to write them.
+- Verified: in CI's Rules workflow (the emulators run there); the local gates pass, including the workflow-path test.
+
+### test(ios-core): the shared vector of what the iPhone writes for Report a problem
+- What: shared/test-vectors/content-report-ios.json holds the fields the iPhone writes for four inputs: a task report
+  whose note holds a phone number, the family's description with an empty note, a note cut at 500 code points, and
+  one exactly 500 code points ending in a five-scalar emoji. A core test builds a `ContentReport` from each input and
+  expects exactly those fields, so the file cannot drift from the phone; the rules tests use it.
+- Source: proving the create rule against the iPhone's own documents, as the first client to write them.
+- Verified: the test passes, and with the first expected note changed back to holding its number it fails; the full
+  core suite passes.
+
+### feat(ios-core): the content report a member files from Report a problem
+- What: `ContentReport` mirrors shared/schemas/content-report.schema.json: author, role, target (the task, the
+  family's description, or an event), target id, reason and note, with `createdAt` left to the server's timestamp.
+  It refuses a target id that does not fit its target, as the create rule does. The note loses its phone numbers,
+  is trimmed, and is capped at 500 code points (the rule counts code points), cut between whole characters. The
+  report id is 32 lowercase hex, and a task is named by its plan's document id. The schema's iOS parity pointer now
+  names the type instead of "pending".
+- Source: App Review guideline 1.2 (a way to report user content), with the shared schema and rule already on main.
+- Verified: the new core tests failed first (no type) and pass: fields, required keys and enum values match the
+  schema; the note cases; the target id cases; the report id; the reasons in the command post's words. The parity
+  gate passes and its extractor finds exactly the schema's seven fields (a renamed field is caught). The full core
+  suite passes (468).
 
 ### fix(ios): Leave reads an ended search again before passing over its reports
 - What: a drill can be reset to open under the same id after the phone saw it end, and the incident listener stops at

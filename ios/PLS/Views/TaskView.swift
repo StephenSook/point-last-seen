@@ -46,6 +46,7 @@ struct TaskView: View {
                     .focused($focused)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(2...6)
+                    .accessibilityIdentifier("task-report-text")
                 Button("Send") {
                     let report = text
                     focused = false
@@ -53,6 +54,7 @@ struct TaskView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.sending || model.heldForReview == text)
+                .accessibilityIdentifier("task-send")
                 // Kept because the team changed: sent again only once the searcher has checked the new task.
                 if let held = model.heldForReview, held == text, !text.isEmpty {
                     Button("Send to my new team") {
@@ -87,6 +89,8 @@ struct TaskView: View {
                         PhotoPicker { image in Task { _ = await model.submitPhoto(image) } }.ignoresSafeArea()
                     }
                 }
+                // Flag the team's task to command (it shows only while command's plan gave one).
+                ReportProblemLink(model: model, target: .task)
                 if model.sending {
                     ProgressView("Reading your report")
                 }

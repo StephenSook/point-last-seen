@@ -43,7 +43,7 @@ each line says what the limit is and why.
   search has no code, so its post sends you back to the judge's page instead. The post checks again whenever its tab
   is shown or focused and every five minutes while it is shown, at most once in 30 seconds, and at once after a
   refused action. Use a separate browser profile to run two searches side by side.
-- "Leave this search" on the iPhone first asks the server to delete the phone's anonymous account (the
+- "Leave and delete this sign-in" on the iPhone first asks the server to delete the phone's anonymous account (the
   `deleteMyAccount` callable), then leaves the team's push topic, drops the mission and signs out, so the next join
   is a new user. Leaving needs signal: it waits until every report from the phone is settled with the server, since
   a report still in that user's write queue would otherwise be stranded, and when the delete fails it changes nothing
@@ -66,6 +66,16 @@ each line says what the limit is and why.
   at once from a listener on the incident; without signal it learns at the next check in signal (a launch, a return
   to the app or to signal, or a push it opens). A report sent offline after the search ended is refused by the
   server when the phone reconnects, and its receipt then says "Not taken: the search had ended."
+- "Report a problem" on the iPhone flags the team's task or the family's description to command, with a reason and an
+  optional note (phone numbers removed, 500 characters at most). Each report is filed once and cannot be changed or
+  taken back. Without signal it waits on the phone and goes when signal returns; the phone then cannot say whether the
+  server later took it. The iPhone shows only this phone's own reports, so it offers no way to flag another
+  searcher's report. Reports are not offered in the practice drill, where nothing leaves the phone.
+- "Block on this phone" hides the family's description of the person on that iPhone only, for that search, until
+  "Show again". Nothing is sent: command still has the description and is not told. It hides the card only: with
+  "Allow cloud reading" on, a report read in the cloud still gets the description's clothing and appearance, and the
+  phone still checks a report's words against the person's names, so a note naming them still reads as the person
+  found.
 
 - The iPhone acts on a mission only within the account session it was read in: the user Auth last reported
   plus a count of account changes, where every change of user starts a new session. A join signs in first,
