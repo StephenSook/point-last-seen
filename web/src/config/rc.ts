@@ -17,7 +17,6 @@ export const RC_DEFAULTS = {
 export type WebRc = {
   cloudModelWeb: string;
   killCloud: boolean;
-  useLimitedUseTokens: boolean;
   sightingTemplateId: string;
   photoTemplateId: string;
   /** Where cloud_model_web came from: the fetched config ("remote") or the in-app default. */
@@ -55,10 +54,22 @@ export function parseRc(values: Partial<Record<keyof typeof RC_DEFAULTS, string>
   return {
     cloudModelWeb: model(values.cloud_model_web, d.cloud_model_web),
     killCloud: bool(values.kill_cloud, d.kill_cloud),
-    useLimitedUseTokens: bool(values.use_limited_use_tokens, d.use_limited_use_tokens),
     sightingTemplateId: templateId(values.sighting_template_id, d.sighting_template_id),
     photoTemplateId: templateId(values.photo_template_id, d.photo_template_id),
   };
+}
+
+/**
+ * use_limited_use_tokens as Remote Config has it activated on this device, or the default when nothing is activated or
+ * the config cannot be read. The AI instance reads it once per page (getAI refuses a second instance with another
+ * flag), so a changed value applies on the next load.
+ */
+export function activatedLimitedUseTokens(app: FirebaseApp): boolean {
+  try {
+    return bool(getValue(getRemoteConfig(app), "use_limited_use_tokens").asString() || undefined, RC_DEFAULTS.use_limited_use_tokens);
+  } catch {
+    return RC_DEFAULTS.use_limited_use_tokens;
+  }
 }
 
 /** Fetches, activates and listens for real-time updates. `onChange` gets every activated set. */

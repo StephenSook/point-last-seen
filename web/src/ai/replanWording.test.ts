@@ -277,7 +277,7 @@ describe("the wording's schema for one plan: one entry per team, only that plan'
   it("the command post asks with its draft's own teams", async () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync(new URL("../command/CommandPost.tsx", import.meta.url), "utf8");
-    expect(src).toMatch(/wordingGenerator\(aiClient\(pls\.app, rc\.useLimitedUseTokens\), rc\.cloudModelWeb, draft\.assignments\.map\(\(a\) => a\.teamId\)\)/);
+    expect(src).toMatch(/wordingGenerator\(aiClient\(pls\.app\), rc\.cloudModelWeb, draft\.assignments\.map\(\(a\) => a\.teamId\)\)/);
   });
 });
 

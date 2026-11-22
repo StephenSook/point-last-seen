@@ -536,7 +536,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   };
   const suggest = (): Promise<WordedPlan> => {
     if (!draft) return Promise.reject(new Error("no draft"));
-    const generate = wordingGenerator(aiClient(pls.app, rc.useLimitedUseTokens), rc.cloudModelWeb, draft.assignments.map((a) => a.teamId));
+    const generate = wordingGenerator(aiClient(pls.app), rc.cloudModelWeb, draft.assignments.map((a) => a.teamId));
     return wordPlan(draft, { generate, now: () => Date.now(), timeoutMs: WORDING_WAIT_MS, model: rc.cloudModelWeb, killCloud: rc.killCloud }).then((w) => {
       // A model asked whose answer was not used is traced on its own, so it is never hidden behind the fixed wording.
       if (w.attempt) traced(w.attempt.route);
@@ -608,7 +608,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       (e: unknown) => setFirstReport({ phase: "idle", error: e instanceof Error ? e.message : "The report was saved but not confirmed. Confirm it under Sightings." }),
     );
   }, [firstReport, writes, cards]);
-  const ai = () => aiClient(pls.app, rc.useLimitedUseTokens);
+  const ai = () => aiClient(pls.app);
   const readNote = async (text: string) => {
     const t0 = Date.now();
     const r = await readSightingText(text, { available: (o) => onDeviceAvailable(o), generate: (t) => sightingTextGenerator(ai())(t), timeoutMs: NOTE_READ_TIMEOUT_MS });

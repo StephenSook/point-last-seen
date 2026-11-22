@@ -32,14 +32,12 @@ describe("Remote Config", () => {
     const rc = parseRc({ cloud_model_web: "gemini-3.5-flash-lite", kill_cloud: "true", use_limited_use_tokens: "false" });
     expect(rc.cloudModelWeb).toBe("gemini-3.5-flash-lite");
     expect(rc.killCloud).toBe(true);
-    expect(rc.useLimitedUseTokens).toBe(false);
   });
 
   it("falls back to the default for missing keys", () => {
     const rc = parseRc({});
     expect(rc.cloudModelWeb).toBe("gemini-3.5-flash-lite");
     expect(rc.killCloud).toBe(false);
-    expect(rc.useLimitedUseTokens).toBe(true);
   });
 
   it("keeps live paths on the flash-lite family", () => {

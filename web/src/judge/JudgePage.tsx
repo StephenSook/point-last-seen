@@ -60,7 +60,7 @@ export function JudgePage() {
       const r = await getLaptopReady({
         readState: () => readDeviceState(),
         // Firebase starts only when Chrome can download a model, not on page load.
-        initialize: (onProgress) => deviceModelInitializer(aiClient(getPls().app, RC_DEFAULTS.use_limited_use_tokens))(onProgress),
+        initialize: (onProgress) => deviceModelInitializer(aiClient(getPls().app))(onProgress),
         onPct: setPct,
       });
       setDevice(r.state);
