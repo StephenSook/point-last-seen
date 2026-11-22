@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Judge seed baseline: `scripts/judge_seed_baseline.json` gains the new keys from the live seed drill (0 content
+  reports, no members, the SHA-256 of each of the 30 seed writers); every existing value is unchanged. Source: the
+  seed check's new writer and content report checks. Verified: a new test that the committed baseline knows the seed
+  writers by hash only failed first, then passed (11 in the file); the live check exits 0; replaying the drill as it
+  was before today's cleanup fails with "events: 30 -> 31", "contentReports: 0 -> 3" and both test devices named, and
+  warns for its three members; `scripts/ci-local.sh --gates` passes.
 - Judge seed check: `scripts/judge_seed_check.py` also counts the seed drill's content reports, and fails on any event
   or content report written by a device that is not a seed writer, naming the device's first six characters and what
   it wrote ("Xt6F1l (event cleared x1) is not a seed writer"). A member who joined from a device the baseline does not

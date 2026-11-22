@@ -163,3 +163,12 @@ def test_a_member_from_an_unknown_device_warns_with_its_prefix_but_never_fails(t
     assert "ok," in out
     base = json.loads(baseline.read_text())
     assert jsc.diff(base, jsc.snapshot(fetcher(w), "drill-x", {"createdAt", "name", "status"})) == []
+
+
+def test_the_committed_baseline_knows_the_seed_writers_by_hash_only():
+    committed = json.loads((ROOT / "scripts/judge_seed_baseline.json").read_text())
+    assert committed["contentReports"]["count"] == 0 and committed["members"] == []
+    writers = committed["writers"]
+    assert 1 <= len(writers) <= committed["events"]["count"] and writers == sorted(writers)
+    assert all(len(h) == 64 and set(h) <= set("0123456789abcdef") for h in writers)
+    assert not [k for k in committed if k.startswith("_")]
