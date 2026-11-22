@@ -296,6 +296,18 @@
       "note": "Searched AB, subject hasn't been seen.",
       "report": true,
       "clause": "negation"
+    },
+    {
+      "name": "hyphen_splits_words",
+      "note": "Segment-4 done.",
+      "report": true,
+      "clause": "whole_words"
+    },
+    {
+      "name": "single_quotes_stay_on_the_word",
+      "note": "Team said 'cleared' for AB.",
+      "report": false,
+      "clause": "whole_words"
     }
   ]
 }

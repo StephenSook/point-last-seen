@@ -267,7 +267,9 @@ can still be saved with one more tap. English only. A note reads as a search rep
   the same clause does not count ("subject not seen", "no one saw"), and neither does `found` after `nothing` in the
   same clause. Pronouns are not sighting words ("no sign of him" is a search report).
 
-Words are whole words in any case, and either apostrophe counts. A clause ends at `.`, `!`, `?`, `;`, `:`, `,` or a line
+Words, exactly: lowercase the note, turn the curly apostrophes U+2018 and U+2019 into `'`, and take each run of `a-z`,
+`0-9` and `'` as a word; every other character separates words. So "Segment-4 done." holds `segment 4 done`, and
+"'cleared'" keeps its quotes and is not the word `cleared`. A clause ends at `.`, `!`, `?`, `;`, `:`, `,` or a line
 break: the negation look-back stays inside the sighting word's clause ("Searched AB, no sign. Footprints at the creek."
 is a sighting), while the search result may be anywhere in the note. Each case names the clause it tests, and every
 clause with two sides has a case on each.

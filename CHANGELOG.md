@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Search-report contract: the shared README states the word rule exactly (lowercase, curly apostrophes as ', a word is a
+  run of a-z, 0-9 and '), two cases pin it ("Segment-4 done." is a report; "'cleared'" in single quotes is not the
+  word), and the vector test checks schemaVersion and that every case names one of the README's ten clauses. Source:
+  review (before any phone ports the rule). Verified: the engine test passes (52).
 - Search-report rule: a negation now counts only inside the sighting word's own clause (split at . ! ? ; : , and line
   breaks), so "Searched AB, no sign. Footprints at the creek." is a sighting, and hasn't, haven't, hadn't, didn't,
   isn't, weren't and couldn't join the negations. Five new cases (a `negation_scope` clause and "hasn't been seen"); the
