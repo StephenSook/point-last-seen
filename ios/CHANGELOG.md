@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### feat(ios): a kit that turns a person's filled sheet into the eval's answer key
+- What: ios/scripts/eval_key_kit.py writes the blank 20-row sheet for the report-reading eval's answer key, draws the
+  piedmont-park-dev grid with its segment ids and feature classes, and turns a filled sheet into
+  docs/evidence/eval/pls-drill-reports-v1.json with every value exactly as written. It refuses a value the eval does not
+  score (a kind or feature outside the lists, more than two segment ids, an id not on the grid, an empty report or one
+  with a stray space) and never replaces a key that exists. It writes no report or answer itself.
+- Source: the eval needs a person-written key before its first run on the phone.
+- Verified: 13 pytest tests pass in the repo's virtual environment (not run in CI); with the kind check removed, the
+  kind test fails.
+
 ### fix(ios): the practice drill neither blocks nor unblocks a description
 - What: Block on this phone is no longer offered in the practice drill, and practice never reads a block as its own
   or clears one. The bundled practice pack uses a real drill's incident id, so a block set in practice hid that
