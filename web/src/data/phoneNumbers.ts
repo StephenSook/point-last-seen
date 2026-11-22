@@ -133,22 +133,17 @@ export function removePhoneNumbers(text: string): string {
   for (const m of folded.matchAll(TIMES_RUN)) {
     const first = startsAt.get(m.index);
     const last = endsAt.get(m.index + m[0].length);
-    // A run inside a group an earlier marker check already replaced.
-    if (first === undefined || last === undefined || m.index < from) continue;
-    // A "[number removed]" right before or after the run, with no letter or digit between, stands for digits joined to
-    // it, so the run goes, whatever else is beside it (Dial [number removed] 4:04 5:55 12:12), and so does every digit
-    // part joined to the run, written or spoken (Dial [number removed] 4:04 5:55 one two one two). Checked first.
-    if (MARKER_BEFORE.test(folded.substring(from, m.index)) || MARKER_AFTER.test(folded.substring(m.index + m[0].length))) {
-      let a = first;
-      let b = last;
-      while (a > 0 && parts[a - 1]!.start >= from && joins(folded, parts[a - 1]!, parts[a]!)) a--;
-      while (b + 1 < parts.length && joins(folded, parts[b]!, parts[b + 1]!)) b++;
-      out += removeByRule(folded.substring(from, parts[a]!.start)) + REPLACEMENT;
-      from = parts[b]!.end;
-      continue;
-    }
+    if (first === undefined || last === undefined) continue;
     const joined = (first > 0 && joins(folded, parts[first - 1]!, parts[first]!))
       || (last + 1 < parts.length && joins(folded, parts[last]!, parts[last + 1]!));
+    // A "[number removed]" right before or after a run with nothing joined to it, with no letter or digit between,
+    // stands for digits joined to the run, so the run goes, whatever else is beside it (Dial [number removed] 4:04 5:55
+    // 12:12). A run with digits joined to it is left to the shared rule below, as it was before this check.
+    if (!joined && (MARKER_BEFORE.test(folded.substring(from, m.index)) || MARKER_AFTER.test(folded.substring(m.index + m[0].length)))) {
+      out += removeByRule(folded.substring(from, m.index)) + REPLACEMENT;
+      from = m.index + m[0].length;
+      continue;
+    }
     // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which changes
     // how the shared rule groups the digits around it, so such a run stays with the text around it.
     const month = (i: number) => i >= 0 && i < parts.length && !parts[i]!.written && MONTHS.has(word(folded, parts[i]!));
