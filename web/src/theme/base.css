@@ -47,7 +47,9 @@ button, input, select { font: inherit; color: inherit; }
 .rail.right { border-right: 0; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px; }
 /* The sections command opens less often, under one closed disclosure at the foot of the rail. */
 .rail-details > summary { cursor: pointer; min-height: 28px; display: flex; align-items: center; gap: 6px; }
-.rail-details[open] { display: flex; flex-direction: column; gap: 20px; }
+/* 20px between the summary and each section, as margins: Chrome lays an open details' content out in a box of its own,
+   so a flex gap on the details reached only the summary and the sections touched (0px apart). */
+.rail-details > * + * { margin-top: 20px; }
 .rail h2 { margin: 0 0 8px; }
 
 .map-wrap { position: relative; min-height: 0; background: var(--bg-0); }
