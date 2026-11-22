@@ -2983,3 +2983,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - The timer is cancelled when the read settles first, and at stop.
 - Source: issue #336.
 - Verified: new watchClaims tests (a stalled read, a read that settles first, stop, another account, a sign-out) failed first where the behaviour changed, then passed (24); typecheck passes.
+
+### fix(judge): the Measured block no longer says a model words the plan
+- What: the judge page's Measured block ended its plan line with "A plan is worded on the laptop only when its browser has Chrome's built-in model." Since plan reasons became fact codes, a model chooses each team's main reason and code writes every word, so that present-tense sentence was untrue. It now reads "A plan uses the laptop's model only when its browser has Chrome's built-in model.", true before and after that change. The counts and their label describe the stored runs and are unchanged.
+- Source: deployed stills.
+- Verified: the changed measured test failed first, then passed (7); typecheck passes.
