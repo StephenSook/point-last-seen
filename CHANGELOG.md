@@ -5,6 +5,10 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: new "Photo clues (web command post)" section with the web photo read's measured run (16 on-device reads of
+  8 synthetic drawings: 0 invented sign-text words, 2 of 33 landmarks not drawn). Source: the web photo-read
+  evidence on main. Verified: every count matches the evidence file's counts block and its 8 scenes (4 with text, 4
+  without); the gates and the hygiene guard in public mode pass.
 - README, judges line: says "this device's own built-in model", matching the judge page's "Get this device ready"
   button. Source: the web copy change to "this device". Verified: no README or docs line outside the historical
   evidence quotes the old button or status text (a search of README.md and docs/); the hygiene guard passes in public
