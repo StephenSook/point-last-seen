@@ -5,6 +5,18 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: new "Note reads (web command post)" section: a note naming a place with a direction word ("north trail")
+  can get that direction as a suggested direction of travel, 2 of 2 reads on 2026-11-22, shown as a suggestion that
+  nothing saves until Command presses Save. Source: the web note-read evidence on main. Verified: both north-trail
+  reads in the evidence file's runs filled only the direction (n), on device; the form's text is in
+  `web/src/command/SightingForm.tsx`; the direction check in `shared/engine-ts/src/ground.ts` keeps a direction
+  whenever its word appears anywhere in the note; the gates and the hygiene guard in public mode pass.
+- Test matrix: a new Web sighting-note row for the 2026-11-22 run (8 made-up notes read twice: 36 of 36 stated
+  fields right on the 5 person notes, 28 of 30 fields empty on the 3 that describe nobody, first read 14,011 ms),
+  placed above the 2026-11-21 row, which stays as its own record. Source: the web note-read evidence on main.
+  Verified: every figure matches the evidence file's counts block (16 of 16 on-device, no Google or Firebase request,
+  later reads 1,735 to 2,882 ms); `web/src/ai/sightingText.ts:44` still holds the ONLY_ON_DEVICE call; the gates
+  (including the test-matrix test) and the hygiene guard in public mode pass.
 - Limits: new "Photo clues (web command post)" section with the web photo read's measured run (16 on-device reads of
   8 synthetic drawings: 0 invented sign-text words, 2 of 33 landmarks not drawn). Source: the web photo-read
   evidence on main. Verified: every count matches the evidence file's counts block and its 8 scenes (4 with text, 4
