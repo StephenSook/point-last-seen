@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { contrast as contrastRatio } from "../theme/contrast";
+import { segmentContaining } from "./geo";
 import { centreFeatures, formatPct, MAP_INK, POA_RAMP, poaClass8, segmentFeatures } from "./poaStyle";
 
 describe("poaClass8", () => {
@@ -60,8 +61,14 @@ describe("segmentFeatures", () => {
 describe("second signal and segment edges", () => {
   const seg = (id: string, lon: number) => ({
     segmentId: id,
-    geometry: { type: "Polygon" as const, coordinates: [[[lon, 0], [lon + 1, 0], [lon + 1, 1], [lon, 0]]] },
+    geometry: { type: "Polygon" as const, coordinates: [[[lon, 0], [lon + 1, 0], [lon + 1, 1], [lon, 1], [lon, 0]]] },
     centroid: { lat: 0.5, lon: lon + 0.5 },
+  });
+
+  it("puts a segment's dot inside it when its centroid lies outside (a U shape), so a click on the dot picks it", () => {
+    const u = { segmentId: "AU", geometry: { type: "Polygon" as const, coordinates: [[[0, 0], [3, 0], [3, 3], [2, 3], [2, 1], [1, 1], [1, 3], [0, 3], [0, 0]]] }, centroid: { lat: 1.36, lon: 1.5 } };
+    const [lon, lat] = centreFeatures([u], {}).features[0]!.geometry.coordinates;
+    expect(segmentContaining({ lat, lon }, [u])).toBe("AU");
   });
 
   it("measures contrast like the spec table (fg-4 on bg-0 is 5.23)", () => {

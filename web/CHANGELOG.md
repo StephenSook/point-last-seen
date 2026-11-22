@@ -2702,3 +2702,18 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the debrief section keeps the newest open request a row has acted on, so a row that leaves (its clear taken back) and comes back does not open its form and take the cursor again without a new click.
 - Source: review (Codex, scoped pass on the open-only handoff).
 - Verified: a new harness test (the row leaves and comes back) failed first, then passed; both debrief harness specs (27), web unit suite and typecheck pass.
+
+### fix(map): a sighting placed from the Place list lands inside its segment
+- What: `segmentChoices` gives each segment a point inside it: its centroid when that lies inside, else the middle of the widest stretch of the segment along one of 15 lines of latitude. Five shipped segments had a centroid outside themselves (Kennesaw EN and EQ, Piedmont AJ, AQ and AY), so a sighting placed there from the list was stored outside the segment and the form said "Outside the search area".
+- Source: review (Codex, while reviewing the search-report guard).
+- Verified: two new unit tests (a U-shaped segment; every segment of both shipped grids is placed inside itself) failed first, then passed; the old test's triangle, whose centroid sat on its edge, is now the square it was meant to be. Web unit suite, typecheck and harness suite pass.
+
+### fix(map): a segment's place point resolves to that segment among all of them
+- What: `insidePoint` (now exported) keeps the centroid only when it resolves to its own segment among all segments, since a centroid on an edge a neighbour shares can count as the neighbour first; otherwise it takes the widest stretch inside along 15, then 63, lines of latitude kept off round values, again only where it resolves to its own segment. It finds a ring's latitude range with a loop, so a ring of 150,000 points no longer overflows the stack.
+- Source: review (Codex, first round on the Place list fix).
+- Verified: two new unit tests (a centroid on a shared edge; a 150,000-point ring) failed first, then passed (13); about 4 ms for the 338-segment Kennesaw grid.
+
+### fix(map): the map's centre dot sits inside its segment
+- What: `centreFeatures` puts each dot at `insidePoint`, so on the five segments whose centroid lies outside them, a click on the dot picks the segment it belongs to instead of "Outside the search area". The old test's triangle, whose centroid sat on its edge, is now a square.
+- Source: review (Codex, first round on the Place list fix).
+- Verified: a new unit test (a U-shaped segment's dot resolves to it) failed first, then passed; map tests (25), web unit suite, typecheck and harness suite pass.
