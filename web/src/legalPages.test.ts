@@ -40,10 +40,18 @@ describe("the public privacy and support pages", () => {
   it("the support page says what the app is, that drills are made up, where to get help, and links the policy", () => {
     const html = read("../support.html");
     expect(mainText(html)).toBe(
-      "Support Point Last Seen is a field app for search team training drills. Every drill uses made-up information. Nobody is missing. Help, questions or a data request: open an issue at https://github.com/StephenSook/point-last-seen/issues. Don't post personal details in an issue. Privacy policy",
+      "Support Point Last Seen is a field app for search team training drills. Every drill uses made-up information. Nobody is missing. Email stevefunds2006@gmail.com about a problem with the app, an abusive post or member, or deleting your data. Help, questions or a data request: open an issue at https://github.com/StephenSook/point-last-seen/issues. Don't post personal details in an issue. Privacy policy",
     );
     expect(html).toContain('<a href="/privacy">Privacy policy</a>');
     expect(html).toContain('href="https://github.com/StephenSook/point-last-seen/issues"');
+  });
+
+  // App Review (guideline 1.2): published contact for an app with user content, the address the owner chose.
+  it("the support page gives one email address to write to, as a mailto link, and says what to write about", () => {
+    const html = read("../support.html");
+    expect(html).toContain('<p>Email <a href="mailto:stevefunds2006@gmail.com">stevefunds2006@gmail.com</a> about a problem with the app, an abusive post or member, or deleting your data.</p>');
+    expect(html.match(/mailto:/g)).toHaveLength(1);
+    expect(html.match(/[\w.+-]+@[\w-]+\.[\w.]+/g)).toEqual(["stevefunds2006@gmail.com", "stevefunds2006@gmail.com"]);
   });
 
   // The policy's retention words must agree with the job that deletes drills (functions/src/retention.ts).

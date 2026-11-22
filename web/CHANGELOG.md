@@ -2776,3 +2776,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: a deployed-only check (`e2e/noModelSendsNothing.spec.ts`) removes `window.LanguageModel` before load and presses each on-device-only path up to its no-model answer, short of any consent or cloud button: Get this laptop ready on the judge's page, Read the note, and the paper debrief sheet read. No request may go to a model host, carry a model method (`:generateContent`, `:countTokens`) or reach the unresolvable fallback host the private reads use, since the SDK sends even an ONLY_ON_DEVICE call to the cloud when the browser has no LanguageModel (firebase-js-sdk #10635) and only the gate stops it.
 - Source: review (another team showed the SDK's cloud fallback with no LanguageModel).
 - Verified: passes on the live site; against a scratch build of main whose note read skipped the gate (served to the test browser at the live address, nothing deployed), it failed with `POST https://on-device-only.invalid/.../gemini-3.5-flash-lite:generateContent`. The scratch copy was deleted.
+
+### feat(support): the support page gives a contact email
+- What: /support now says "Email stevefunds2006@gmail.com about a problem with the app, an abusive post or member, or deleting your data." as a mailto link, above the GitHub issues line, which stays as the second way to get help. Published contact for an app with user content (App Store guideline 1.2); the owner chose the address.
+- Source: App Store review requirement.
+- Verified: a new unit test (the line, one mailto, no other address) failed first, then passed; the public pages checks (6) pass against a preview build, with one more that the live /support HTML serves the line, run after the deploy.
