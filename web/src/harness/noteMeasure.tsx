@@ -1,8 +1,10 @@
 // Dev-server-only measurement page (web/harness/note-measure.html): times the command post's on-device read of a
-// sighting note (readSightingText with sightingTextGenerator, the same path as CommandPost's readNote) on five made-up
-// drill notes in a row in a newly opened page, so the first read is cold, and compares each reading with the fields
-// the note states. A bare Firebase app (no App Check, no sign-in) supplies AI Logic; the page lists every request it
-// made to a Google or Firebase host.
+// sighting note (readSightingText with sightingTextGenerator, the same path as CommandPost's readNote) on made-up
+// drill notes, two passes in a row in a newly opened page, so the first read is cold. Five notes describe a person and
+// three describe nobody. Each reading is scored with scoreNote against the fields its note states (fixed here before
+// the run): stated fields right, and fields the note does not state that the reading filled. The model's raw reply is
+// kept beside what the code kept. A bare Firebase app (no App Check, no sign-in) supplies AI Logic; the page lists
+// every request it made to a Google or Firebase host.
 
 import { initializeApp } from "firebase/app";
 import { getAI, GoogleAIBackend } from "firebase/ai";
@@ -12,42 +14,59 @@ import { sightingTextGenerator } from "../ai/client";
 import { availabilityOf, onDeviceAvailable } from "../ai/gate";
 import { NOTE_READ_TIMEOUT_MS, SIGHTING_TEXT_OPTS, readSightingText } from "../ai/sightingText";
 import { readEnv } from "../firebaseConfig";
+import { scoreNote, type NoteFields } from "./noteScore";
 import "../theme/fonts.css";
 import "../theme/base.css";
 
 const GOOGLE_HOST = /(^|\.)(googleapis\.com|google\.com|gstatic\.com|firebaseio\.com|firebaseapp\.com|web\.app)$/;
 
-/** Made-up drill notes and the fields each one states (no real person, no number). */
-export const NOTES = [
-  { text: "Training drill. Caller saw an older man in a blue coat and grey trousers walking north on the path, carrying a brown bag.", want: { direction: "n", topColor: "blue", bottomColor: "gray" } },
-  { text: "Training drill. A woman in a red jacket and black pants, white sneakers, heading east toward the road.", want: { direction: "e", topColor: "red", bottomColor: "black" } },
-  { text: "Training drill. Man in a green sweater and brown slacks going downstream along the creek, holding a cane.", want: { direction: "downstream", topColor: "green", bottomColor: "brown" } },
+/**
+ * Made-up drill notes (no real person, no number) and the fields each one states. `skip` names a field the note leaves
+ * unclear ("with a small dog" is not clearly carried), scored neither way. The last three describe nobody, so every
+ * field should come back "unknown" or empty.
+ */
+export const NOTES: readonly { text: string; want: Partial<NoteFields>; skip?: readonly (keyof NoteFields)[] }[] = [
+  { text: "Training drill. Caller saw an older man in a blue coat and grey trousers walking north on the path, carrying a brown bag.", want: { direction: "n", topColor: "blue", bottomColor: "gray", carried: "brown bag" } },
+  { text: "Training drill. A woman in a red jacket and black pants, white sneakers, heading east toward the road.", want: { direction: "e", topColor: "red", bottomColor: "black", footwear: "white sneakers" } },
+  { text: "Training drill. Man in a green sweater and brown slacks going downstream along the creek, holding a cane.", want: { direction: "downstream", topColor: "green", bottomColor: "brown", carried: "cane" } },
   { text: "Training drill. Someone in a yellow raincoat and blue jeans was seen walking south past the gate.", want: { direction: "s", topColor: "yellow", bottomColor: "blue" } },
-  { text: "Training drill. An older woman in a purple cardigan and tan skirt, moving west across the field with a small dog.", want: { direction: "w", topColor: "purple", bottomColor: "tan" } },
-] as const;
+  { text: "Training drill. An older woman in a purple cardigan and tan skirt, moving west across the field with a small dog.", want: { direction: "w", topColor: "purple", bottomColor: "tan" }, skip: ["carried"] },
+  { text: "Training drill. Checked the pavilion, nothing seen.", want: {} },
+  { text: "Training drill. Radio check, all teams moving.", want: {} },
+  { text: "Training drill. Team two finished the north trail, no sign of anyone.", want: {} },
+];
+
+const PASSES = 2;
 
 async function measure(): Promise<object> {
   const app = initializeApp(readEnv(import.meta.env).firebase, "note-measure");
   const generate = sightingTextGenerator(getAI(app, { backend: new GoogleAIBackend() }));
   const availability = await availabilityOf(SIGHTING_TEXT_OPTS);
   const reads: object[] = [];
-  for (const n of NOTES) {
-    let replyMs = 0;
-    let inferenceSource: string | null = null;
-    const result = await readSightingText(n.text, {
-      available: (o) => onDeviceAvailable(o),
-      generate: async (t) => {
-        const t0 = performance.now();
-        const r = await generate(t);
-        replyMs = Math.round(performance.now() - t0);
-        inferenceSource = r.inferenceSource ?? null;
-        return r;
-      },
-      timeoutMs: 180_000,
-    });
-    const got = "reading" in result ? result.reading : null;
-    const fields = Object.entries(n.want).map(([k, v]) => ({ field: k, want: v, got: got ? (got as Record<string, unknown>)[k] : null }));
-    reads.push({ note: n.text, replyMs, inferenceSource, result, fieldsRight: fields.filter((f) => f.got === f.want).length, fields });
+  for (let pass = 1; pass <= PASSES; pass++) {
+    for (const n of NOTES) {
+      let replyMs = 0;
+      let inferenceSource: string | null = null;
+      let raw: unknown = null;
+      const result = await readSightingText(n.text, {
+        available: (o) => onDeviceAvailable(o),
+        generate: async (t) => {
+          const t0 = performance.now();
+          const r = await generate(t);
+          replyMs = Math.round(performance.now() - t0);
+          inferenceSource = r.inferenceSource ?? null;
+          try {
+            raw = JSON.parse(r.text);
+          } catch {
+            raw = r.text;
+          }
+          return r;
+        },
+        timeoutMs: 180_000,
+      });
+      const got = "reading" in result ? result.reading : null;
+      reads.push({ pass, note: n.text, describesNobody: Object.keys(n.want).length === 0, replyMs, inferenceSource, raw, result, score: scoreNote(n.want, got, n.skip) });
+    }
   }
   const googleRequests = performance
     .getEntriesByType("resource")

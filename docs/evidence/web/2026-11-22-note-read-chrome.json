@@ -1,0 +1,438 @@
+{
+  "what": "The command post's on-device read of a sighting note (readSightingText with sightingTextGenerator, ONLY_ON_DEVICE, the same path as CommandPost's readNote), measured on a local page with the same code path. Eight made-up drill notes, five that describe a person and three that describe nobody, each read twice in a row in a newly opened page (16 reads).",
+  "date": "2026-11-22",
+  "browser": "Stephen's Google Chrome 157.0.8103.80 on this Mac (macOS 27.0.0, Apple M5 Pro); the built-in model reported available for text; the model version was not recorded",
+  "page": "web/harness/note-measure.html (dev server http://127.0.0.1:5175), bare Firebase app with no App Check and no sign-in, at the commit that adds the nobody notes",
+  "method": [
+    "The notes and the fields each one states were fixed in web/src/harness/noteMeasure.tsx before the run, and each reading was scored by web/src/harness/noteScore.ts (5 unit tests).",
+    "A stated direction or colour is right only on its exact value. Stated footwear or a stated carried item is right when it matches ignoring case, outer spaces and a leading article (\"a cane\" matches \"cane\").",
+    "A field the note does not state counts as filled when the reading gives anything but \"unknown\" or an empty string. On a note that describes nobody, every field is unstated.",
+    "Note 5's \"with a small dog\" is not clearly something carried, so its carried field was scored neither way (the model gave \"small dog\" both times).",
+    "For all 16 reads the page compared the model's raw reply with what the code kept: the only change was \"unknown\" footwear or carried becoming empty, so the grounding step blanked nothing. Every evidence quote is a substring of its note."
+  ],
+  "notes": [
+    {
+      "noteIndex": 1,
+      "text": "Training drill. Caller saw an older man in a blue coat and grey trousers walking north on the path, carrying a brown bag.",
+      "describesNobody": false,
+      "want": {
+        "direction": "n",
+        "topColor": "blue",
+        "bottomColor": "gray",
+        "carried": "brown bag"
+      }
+    },
+    {
+      "noteIndex": 2,
+      "text": "Training drill. A woman in a red jacket and black pants, white sneakers, heading east toward the road.",
+      "describesNobody": false,
+      "want": {
+        "direction": "e",
+        "topColor": "red",
+        "bottomColor": "black",
+        "footwear": "white sneakers"
+      }
+    },
+    {
+      "noteIndex": 3,
+      "text": "Training drill. Man in a green sweater and brown slacks going downstream along the creek, holding a cane.",
+      "describesNobody": false,
+      "want": {
+        "direction": "downstream",
+        "topColor": "green",
+        "bottomColor": "brown",
+        "carried": "cane"
+      }
+    },
+    {
+      "noteIndex": 4,
+      "text": "Training drill. Someone in a yellow raincoat and blue jeans was seen walking south past the gate.",
+      "describesNobody": false,
+      "want": {
+        "direction": "s",
+        "topColor": "yellow",
+        "bottomColor": "blue"
+      }
+    },
+    {
+      "noteIndex": 5,
+      "text": "Training drill. An older woman in a purple cardigan and tan skirt, moving west across the field with a small dog.",
+      "describesNobody": false,
+      "want": {
+        "direction": "w",
+        "topColor": "purple",
+        "bottomColor": "tan"
+      }
+    },
+    {
+      "noteIndex": 6,
+      "text": "Training drill. Checked the pavilion, nothing seen.",
+      "describesNobody": true,
+      "want": {}
+    },
+    {
+      "noteIndex": 7,
+      "text": "Training drill. Radio check, all teams moving.",
+      "describesNobody": true,
+      "want": {}
+    },
+    {
+      "noteIndex": 8,
+      "text": "Training drill. Team two finished the north trail, no sign of anyone.",
+      "describesNobody": true,
+      "want": {}
+    }
+  ],
+  "runs": [
+    {
+      "pass": 1,
+      "noteIndex": 1,
+      "replyMs": 14011,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "n",
+        "topColor": "blue",
+        "bottomColor": "gray",
+        "footwear": "",
+        "carried": "brown bag"
+      },
+      "score": {
+        "stated": 4,
+        "right": 4,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 1,
+      "noteIndex": 2,
+      "replyMs": 1787,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "e",
+        "topColor": "red",
+        "bottomColor": "black",
+        "footwear": "white sneakers",
+        "carried": ""
+      },
+      "score": {
+        "stated": 4,
+        "right": 4,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 1,
+      "noteIndex": 3,
+      "replyMs": 2654,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "downstream",
+        "topColor": "green",
+        "bottomColor": "brown",
+        "footwear": "",
+        "carried": "a cane"
+      },
+      "score": {
+        "stated": 4,
+        "right": 4,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 1,
+      "noteIndex": 4,
+      "replyMs": 2372,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "s",
+        "topColor": "yellow",
+        "bottomColor": "blue",
+        "footwear": "",
+        "carried": ""
+      },
+      "score": {
+        "stated": 3,
+        "right": 3,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 1,
+      "noteIndex": 5,
+      "replyMs": 2882,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "w",
+        "topColor": "purple",
+        "bottomColor": "tan",
+        "footwear": "",
+        "carried": "small dog"
+      },
+      "score": {
+        "stated": 3,
+        "right": 3,
+        "misses": [],
+        "unstatedFilled": []
+      },
+      "skipped": [
+        "carried"
+      ]
+    },
+    {
+      "pass": 1,
+      "noteIndex": 6,
+      "replyMs": 1735,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "unknown",
+        "topColor": "unknown",
+        "bottomColor": "unknown",
+        "footwear": "",
+        "carried": ""
+      },
+      "score": {
+        "stated": 0,
+        "right": 0,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 1,
+      "noteIndex": 7,
+      "replyMs": 2270,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "unknown",
+        "topColor": "unknown",
+        "bottomColor": "unknown",
+        "footwear": "",
+        "carried": ""
+      },
+      "score": {
+        "stated": 0,
+        "right": 0,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 1,
+      "noteIndex": 8,
+      "replyMs": 2038,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "n",
+        "topColor": "unknown",
+        "bottomColor": "unknown",
+        "footwear": "",
+        "carried": ""
+      },
+      "score": {
+        "stated": 0,
+        "right": 0,
+        "misses": [],
+        "unstatedFilled": [
+          "direction"
+        ]
+      }
+    },
+    {
+      "pass": 2,
+      "noteIndex": 1,
+      "replyMs": 2576,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "n",
+        "topColor": "blue",
+        "bottomColor": "gray",
+        "footwear": "",
+        "carried": "brown bag"
+      },
+      "score": {
+        "stated": 4,
+        "right": 4,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 2,
+      "noteIndex": 2,
+      "replyMs": 2849,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "e",
+        "topColor": "red",
+        "bottomColor": "black",
+        "footwear": "white sneakers",
+        "carried": ""
+      },
+      "score": {
+        "stated": 4,
+        "right": 4,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 2,
+      "noteIndex": 3,
+      "replyMs": 2639,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "downstream",
+        "topColor": "green",
+        "bottomColor": "brown",
+        "footwear": "",
+        "carried": "cane"
+      },
+      "score": {
+        "stated": 4,
+        "right": 4,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 2,
+      "noteIndex": 4,
+      "replyMs": 2518,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "s",
+        "topColor": "yellow",
+        "bottomColor": "blue",
+        "footwear": "",
+        "carried": ""
+      },
+      "score": {
+        "stated": 3,
+        "right": 3,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 2,
+      "noteIndex": 5,
+      "replyMs": 2516,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "w",
+        "topColor": "purple",
+        "bottomColor": "tan",
+        "footwear": "",
+        "carried": "small dog"
+      },
+      "score": {
+        "stated": 3,
+        "right": 3,
+        "misses": [],
+        "unstatedFilled": []
+      },
+      "skipped": [
+        "carried"
+      ]
+    },
+    {
+      "pass": 2,
+      "noteIndex": 6,
+      "replyMs": 2237,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "unknown",
+        "topColor": "unknown",
+        "bottomColor": "unknown",
+        "footwear": "",
+        "carried": ""
+      },
+      "score": {
+        "stated": 0,
+        "right": 0,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 2,
+      "noteIndex": 7,
+      "replyMs": 2200,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "unknown",
+        "topColor": "unknown",
+        "bottomColor": "unknown",
+        "footwear": "",
+        "carried": ""
+      },
+      "score": {
+        "stated": 0,
+        "right": 0,
+        "misses": [],
+        "unstatedFilled": []
+      }
+    },
+    {
+      "pass": 2,
+      "noteIndex": 8,
+      "replyMs": 2750,
+      "inferenceSource": "on_device",
+      "shown": {
+        "direction": "n",
+        "topColor": "unknown",
+        "bottomColor": "unknown",
+        "footwear": "",
+        "carried": ""
+      },
+      "score": {
+        "stated": 0,
+        "right": 0,
+        "misses": [],
+        "unstatedFilled": [
+          "direction"
+        ]
+      }
+    }
+  ],
+  "counts": {
+    "personNotes": {
+      "statedFieldsRight": "36 of 36 (18 of 18 each pass)",
+      "directionAndColoursRight": "30 of 30",
+      "footwearAndCarriedRight": "6 of 6",
+      "unstatedFieldsFilled": "0 of 12"
+    },
+    "nobodyNotes": {
+      "fieldsEmptyOrUnknown": "28 of 30",
+      "notesAllEmpty": {
+        "pavilion": "2 of 2",
+        "radio check": "2 of 2",
+        "north trail": "0 of 2"
+      },
+      "filled": "direction n on \"Team two finished the north trail, no sign of anyone.\", both passes"
+    },
+    "onDevice": "16 of 16",
+    "firstReadMs": 14011,
+    "laterReadsMs": "1,735 to 2,882",
+    "commandPostLimitMs": 90000
+  },
+  "googleRequests": [],
+  "codeCheck": "On the command post a note reading fills the sighting form's fields as a suggestion: the form says \"Suggested from the note. Check every field.\" and nothing is saved until Command presses Save (web/src/command/SightingForm.tsx). So the north-trail note would pre-select north as the direction for Command to check.",
+  "findings": [
+    "On the five notes that describe a person, every stated field was right on both passes: 36 of 36. That is direction and both colours 30 of 30, and the footwear and carried item the notes state 6 of 6. The 2026-11-21 miss (\"grey trousers\" read as unknown) did not recur: both passes read gray.",
+    "On the person notes, no field the note does not state was filled: 0 of 12.",
+    "On the three notes that describe nobody, 28 of 30 fields came back unknown or empty. \"Checked the pavilion, nothing seen.\" and \"Radio check, all teams moving.\" came back empty both times. \"Team two finished the north trail, no sign of anyone.\" came back with direction north both times: the model read the trail's name as a direction of travel, and the code kept it because the note does say \"north\".",
+    "All 16 reads ran on device as the SDK reported, and the page made no request to a Google or Firebase host. The first read took 14,011 ms and the rest 1,735 to 2,882 ms."
+  ],
+  "limits": [
+    "Made-up notes on one machine, read twice each: 10 reads of person notes and 6 of nobody notes. Not an accuracy rate.",
+    "One first-read sample; the browser had run other model reads earlier the same day.",
+    "The free-text match rule and the skipped carried field are choices stated above; the raw values are in runs."
+  ],
+  "earlierRun": "docs/evidence/web/2026-11-21-note-read-chrome.json (5 person notes, one pass, 14 of 15 direction and colour fields right, first read 27,900 ms) stays as its own record.",
+  "n": 16
+}
