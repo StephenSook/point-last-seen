@@ -9,8 +9,10 @@ struct ReportEchoView: View {
     let entry: OutboxEntry
     /// The practice drill: lines that say to ask command say so for a real search.
     var practice = false
-    /// The search this report belongs to has ended: a refused report says why, and nothing offers a retry.
+    /// The search this report belongs to has ended: nothing offers a retry.
     var searchEnded = false
+    /// The report was refused because the search had ended, and says so.
+    var refusedByTheEnd = false
     let retry: () -> Void
     var canUndo = false
     var undo: () -> Void = {}
@@ -48,7 +50,7 @@ struct ReportEchoView: View {
                 }
             }
             HStack {
-                Text(EchoText.deliveryLine(entry.state, searchEnded: searchEnded)).font(.title3.bold())
+                Text(EchoText.deliveryLine(entry.state, searchEnded: refusedByTheEnd)).font(.title3.bold())
                 Spacer()
                 if canUndo {
                     Button("Undo", action: undo).buttonStyle(.bordered).frame(minHeight: 60)

@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-21
 
+### fix(ios): a refusal from before the search ended keeps its own line
+- What: in an ended search's read-only list, "Not taken: the search had ended." now shows only for a report refused
+  after the phone learned the search ended. A report already refused before that (a team move, say, whose refusal
+  looks the same) keeps its own line. The reports already refused are recorded when the search is seen to end, by
+  the listener, the access check, a push or a load at launch.
+- Source: second review of the ended-search change.
+- Verified: a test with one report refused before the end and one still on the phone at the end failed before the
+  change and passes after; the full app suite passes.
+
 ### fix(ios): a read that outlives the searcher's own Leave holds nothing for review
 - What: words whose mission was dropped while they were read wait for review ("Send to my new team"), but not when
   the drop was the searcher's own Leave: leaving was their choice, so a read that finishes after it keeps the words

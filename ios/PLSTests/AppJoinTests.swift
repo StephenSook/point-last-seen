@@ -685,6 +685,30 @@ final class FakeMissionReader: MissionReader, @unchecked Sendable {
         #expect(m.heldForReview == nil && m.problem == nil && store.entries.isEmpty)
     }
 
+    /// Only a report refused after the search ended reads as the end: one already refused before it (a team move,
+    /// say) keeps its own line, since both refusals look the same.
+    @Test func aRefusalFromBeforeTheEndKeepsItsOwnLine() async throws {
+        let reader = FakeMissionReader(docs: try drillDocs())
+        let m = model(FakeJoinBackend(), reader)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("ended-before-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let server = FakeEventServer()
+        server.writeErrors = [NSError(domain: "FIRFirestoreErrorDomain", code: 7)]
+        server.readBacks = [.absent]
+        let store = try EventStore(server: server, outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        let segment = try #require(m.mission?.assignedSegmentIds.first)
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        for _ in 0..<1000 where store.entries.first?.state != .rejected(reason: "permission-denied") { await Task.yield() }
+        let before = try #require(store.entries.first?.eventId)
+        server.holdWrites = true
+        #expect(await m.submitPick(PickListChoice(kind: .clue, segmentId: segment, minutes: nil, searchers: nil)))
+        let after = try #require(store.entries.last?.eventId)
+        reader.onIncident?(IncidentState(status: "closed", closedReason: "suspended"))
+        #expect(!m.refusalShowsTheEnd(before) && m.refusalShowsTheEnd(after))
+    }
+
     /// A drop silences the voice, and the next membership starts fresh: after T1 is dropped and
     /// given back, T1's assignment is spoken again.
     @Test func aDropStopsTheVoiceAndTheNextMembershipSpeaksAgain() async throws {

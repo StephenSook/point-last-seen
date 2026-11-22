@@ -428,7 +428,7 @@ final class AppModel {
             // A search that is no longer open keeps its reports on screen, with the line saying why, unless a newer load
             // or another account took over while this read ran.
             if case let .notOpen(line) = failure, generation == missionGeneration, isCurrent(session) {
-                endedSearch = EndedSearch(incidentId: incidentId, line: line, owner: session.uid)
+                endedSearch = EndedSearch(incidentId: incidentId, line: line, owner: session.uid, refusedBefore: refusedNow(incidentId))
             }
             return .failed(failure)
         } catch MissionReadError.accessDenied {
@@ -521,6 +521,22 @@ final class AppModel {
         let line: String
         /// The account that was in the search; only its reports are shown.
         var owner: String? = nil
+        /// Reports already refused when the phone learned the search ended: they keep their own line.
+        var refusedBefore: Set<String> = []
+    }
+    /// Whether a refused report in the ended search reads as refused because the search ended: only one refused after
+    /// the phone learned it, since a refusal from before (a team move) looks the same.
+    func refusalShowsTheEnd(_ eventId: String) -> Bool {
+        guard let ended = endedSearch else { return false }
+        return !ended.refusedBefore.contains(eventId)
+    }
+
+    /// The reports of an incident already refused, by event id.
+    private func refusedNow(_ incidentId: String) -> Set<String> {
+        Set(store?.entries.filter { e in
+            guard e.doc.incidentId == incidentId, case .rejected = e.state else { return false }
+            return true
+        }.map(\.eventId) ?? [])
     }
     /// Ready check offers Leave while a search is loaded, read again, or ended on screen.
     var offersLeave: Bool { mission != nil || canRetryMission || endedSearch != nil }
@@ -535,7 +551,7 @@ final class AppModel {
     /// so in the command post's words, and that search's reports stay on screen, read-only.
     private func searchEnded(incidentId: String, line: String) {
         dropMissionNow()
-        endedSearch = EndedSearch(incidentId: incidentId, line: line, owner: uid())
+        endedSearch = EndedSearch(incidentId: incidentId, line: line, owner: uid(), refusedBefore: refusedNow(incidentId))
         joinMessage = line
     }
 

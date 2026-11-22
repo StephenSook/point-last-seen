@@ -109,7 +109,7 @@ struct TaskView: View {
                 Text(ended.line).font(.title3.bold()).foregroundStyle(theme.text(.primary))
                     .accessibilityIdentifier("search-ended")
                 List(model.endedEntries.reversed(), id: \.eventId) { entry in
-                    ReportEchoView(entry: entry, searchEnded: true, retry: {})
+                    ReportEchoView(entry: entry, searchEnded: true, refusedByTheEnd: model.refusalShowsTheEnd(entry.eventId), retry: {})
                         .listRowBackground(theme.backgroundColor)
                 }
                 .listStyle(.plain)
