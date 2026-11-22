@@ -1082,6 +1082,52 @@
       "name": "marker_beside_times",
       "input": "Dial [number removed] 4:04 5:55 12:12",
       "output": "Dial [number removed] [number removed]"
+    },
+    {
+      "name": "marker_run_then_spoken_digits",
+      "input": "Dial [number removed] 4:04 5:55 one two one two",
+      "output": "Dial [number removed] [number removed]",
+      "pendingOn": [
+        "ios",
+        "android"
+      ]
+    },
+    {
+      "name": "marker_run_then_spoken_digits_then_times",
+      "input": "Dial [number removed] 4:04 5:55 one two one two, seen at 14:03 14:10.",
+      "output": "Dial [number removed] [number removed], seen at 14:03 14:10.",
+      "pendingOn": [
+        "ios",
+        "android"
+      ]
+    },
+    {
+      "name": "marker_run_then_spoken_digits_across_a_line",
+      "input": "Dial [number removed] 4:04 5:55 one two\none two",
+      "output": "Dial [number removed] [number removed]\n[number removed]",
+      "pendingOn": [
+        "ios",
+        "android"
+      ]
+    },
+    {
+      "name": "marker_run_then_spoken_digits_then_a_count",
+      "input": "Dial [number removed] 4:04 5:55 one two\n2 searchers canvassed Pine Street.",
+      "output": "Dial [number removed] [number removed]\n[number removed] searchers canvassed Pine Street.",
+      "pendingOn": [
+        "ios",
+        "android"
+      ]
+    },
+    {
+      "name": "marker_then_spoken_digits_then_run",
+      "input": "[number removed] one two 4:04 5:55",
+      "output": "[number removed] [number removed]"
+    },
+    {
+      "name": "spoken_digits_then_run_then_marker",
+      "input": "Call one two 12:34 15:56 [number removed]",
+      "output": "Call [number removed] [number removed]"
     }
   ]
 }

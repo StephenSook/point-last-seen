@@ -107,7 +107,18 @@ REQUIRED_EXACT = [("Seen at 14:03, 404-555-0142", "Seen at 14:03, [number remove
                   # A known gap, pending on every platform (#298): a date before a run of times keeps its first hour.
                   ("Seen 11/19/2026 12:12 5:55 01:42", "Seen 11/19/2026 [number removed]"),
                   # A "[number removed]" right beside a run of times is digits joined to it: the run goes.
-                  ("Dial [number removed] 4:04 5:55 12:12", "Dial [number removed] [number removed]")]
+                  ("Dial [number removed] 4:04 5:55 12:12", "Dial [number removed] [number removed]"),
+                  # A run right after a "[number removed]" with digits joined only after it goes with those digits,
+                  # through joined parts only: never into another run of times, and line breaks stay (#348).
+                  ("Dial [number removed] 4:04 5:55 one two one two", "Dial [number removed] [number removed]"),
+                  ("Dial [number removed] 4:04 5:55 one two one two, seen at 14:03 14:10.",
+                   "Dial [number removed] [number removed], seen at 14:03 14:10."),
+                  ("Dial [number removed] 4:04 5:55 one two\none two", "Dial [number removed] [number removed]\n[number removed]"),
+                  ("Dial [number removed] 4:04 5:55 one two\n2 searchers canvassed Pine Street.",
+                   "Dial [number removed] [number removed]\n[number removed] searchers canvassed Pine Street."),
+                  # Digits joined before the run, or a marker after it, were already removed whole; pinned so they stay so.
+                  ("[number removed] one two 4:04 5:55", "[number removed] [number removed]"),
+                  ("Call one two 12:34 15:56 [number removed]", "Call [number removed] [number removed]")]
 
 
 def number_chars(text: str) -> bool:

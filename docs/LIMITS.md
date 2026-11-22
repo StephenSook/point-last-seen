@@ -230,13 +230,15 @@ each line says what the limit is and why.
 - A pair of decimals that starts with "+" is removed on every platform, since a phone number can be written that
   way ("Call +44.2071, -23.4567"); so a coordinate written with a leading "+" ("+33.7490, -84.3880") is removed too.
   Without the "+" a pair stays.
-- Of the 130 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 119, the iPhone
-  118 and the web 119. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). Eleven are
+- Of the 136 shared phone-number test cases (`shared/test-vectors/phone-numbers.json`), Android passes 121, the iPhone
+  120 and the web 125. Six of them are for Spanish digit words (cero to nueve, as in "cuatro cero cuatro"). Eleven are
   pending on every platform: five known gaps where a colon breaks a digit run, so a number written as two times
   beside a month name ("Call 5:55 01:42 May", "Seen 14 May 5:55 01:42") survives; five more below where a number is
   kept; and one where times right after a date take the date with them (below)
-  (`scripts/test_phone_vectors.py` checks these counts against the file). One more is pending on the iPhone until it
-  is ported: a note scrubbed a second time keeps the times after a "[number removed]" (the web and Android pass it).
+  (`scripts/test_phone_vectors.py` checks these counts against the file). Four more are pending on Android and the
+  iPhone until they are ported: a run of times right after a "[number removed]" with spoken digits after it (below).
+  One more is pending on the iPhone until it is ported: a note scrubbed a second time keeps the times after a "[number
+  removed]" (the web and Android pass it).
 - It also keeps a phone number written in these ways, on every platform: as times with a slash between two of them
   ("Call 4:04/5:55 06:42", where "04/5" reads as a date); as times with a digit from another script or a spoken digit
   inside one ("Call 4:04 5:٥5 01:42", "Call 4:04 cinco:55 01:42"); as superscript or full-width times ("Call ⁴:⁰⁴
@@ -245,7 +247,7 @@ each line says what the limit is and why.
 - Times right after a date can take the date with them. The web and Android scrub a note until it stops changing (at
   most four passes), and a run of times right after a date is then removed together with the date: "Seen 11/19/2026
   12:12 5:55 01:42" gives "Seen [number removed]:[number removed]", with no digit of the number left. 18 of the
-  9,130 notes in the shared corpus lose a date this way, measured on the web. The iPhone still scrubs once until it
+  9,136 notes in the shared corpus lose a date this way, measured on the web. The iPhone still scrubs once until it
   is ported; this note was not measured there.
 - Three more ways part of a number can be left, measured on the web (the phones share its rule but were not measured
   on these): times written with a third field ("Call 4:04 5:55:01:42" is kept whole, since the run of times is not

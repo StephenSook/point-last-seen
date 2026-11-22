@@ -1,5 +1,5 @@
 {
- "rule": "sha256:7156919d0c6c4f63fa9bd6fad158f4c87d823e4c55265b9afdf393631bcb19f5",
+ "rule": "sha256:58c026de728da68d2feba142e0557ea3d5c5dc71db4426f187c0bd8969773719",
  "replacement": "[number removed]",
  "rows": [
   {"input":"Her son is at 4 0 4 5 5 5 0 1 4 2, call him.","output":"Her son is at [number removed], call him."},
@@ -132,6 +132,12 @@
   {"input":"Seen 14 May 5:55 01:42","output":"Seen 14 May 5:55 01:42"},
   {"input":"Seen 11/19/2026 12:12 5:55 01:42","output":"Seen [number removed]:[number removed]"},
   {"input":"Dial [number removed] 4:04 5:55 12:12","output":"Dial [number removed] [number removed]"},
+  {"input":"Dial [number removed] 4:04 5:55 one two one two","output":"Dial [number removed] [number removed]"},
+  {"input":"Dial [number removed] 4:04 5:55 one two one two, seen at 14:03 14:10.","output":"Dial [number removed] [number removed], seen at 14:03 14:10."},
+  {"input":"Dial [number removed] 4:04 5:55 one two\none two","output":"Dial [number removed] [number removed]\n[number removed]"},
+  {"input":"Dial [number removed] 4:04 5:55 one two\n2 searchers canvassed Pine Street.","output":"Dial [number removed] [number removed]\n[number removed] searchers canvassed Pine Street."},
+  {"input":"[number removed] one two 4:04 5:55","output":"[number removed] [number removed]"},
+  {"input":"Call one two 12:34 15:56 [number removed]","output":"Call [number removed] [number removed]"},
   {"input":"Ca͏ll ́5:56 ͏","output":"Ca͏ll ́5:56 ͏"},
   {"input":"16:42 11:09","output":"[number removed]"},
   {"input":"४四","output":"४四"},

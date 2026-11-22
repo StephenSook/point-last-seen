@@ -194,7 +194,13 @@ read past the same way and are never a cue, since they stand for digits that wer
 at 14:03 14:10` stays, `marker_then_times`). For the same reason a `[number removed]` right before or after a run,
 with no letter or digit between, is digits joined to the run, and the run is removed (`Dial [number removed] 4:04 5:55
 12:12` gives `Dial [number removed] [number removed]`, `marker_beside_times`). This holds for a run with nothing joined
-to it; a run with digits joined to it, written or spoken, is left to the rule above, as it was before. The text between decided runs follows the rule above unchanged. A note that NFKC changes skips this step entirely, since
+to it. A run right after a `[number removed]` with digits joined only after it is removed together with them (`Dial
+[number removed] 4:04 5:55 one two one two` gives `Dial [number removed] [number removed]`,
+`marker_run_then_spoken_digits`); the removal goes through joined parts only, never into another run of times, and
+keeps line breaks (`marker_run_then_spoken_digits_then_times`, `marker_run_then_spoken_digits_across_a_line`,
+`marker_run_then_spoken_digits_then_a_count`). Written digits right after a run are not always read as joined to it,
+so they can leave the run's first hour (`docs/LIMITS.md`, issue #358). Any other run with digits joined to it is left
+to the rule above, as it was before. The text between decided runs follows the rule above unchanged. A note that NFKC changes skips this step entirely, since
 folding can turn other characters (superscript or full-width digits) into the ASCII digits a run is made of. A number
 written as rising times with no cue (`2:12 5:55 6:42`) stays; `docs/LIMITS.md` says so.
 
@@ -224,7 +230,7 @@ sequences and emoji modifiers).
 `tools/vectors/phone_corpus.ts` builds it; `npx tsx tools/vectors/phone_corpus_cli.ts --write` rewrites the file and
 `--check` exits 1 unless the file is exactly what `--write` would write. A change to the web rule changes `rule`, so the
 web test fails until the file is written again. The file's SHA-256 is
-`752069060478c882eb1acb8196cd0b0bd57832acf3635cf5175915d77af4d65f`.
+`80c2dcca7a6980cfac242691c2e8abd02b6e49fcedd60d948e507f74e7cea77b`.
 
 ## language.json (hand-written)
 

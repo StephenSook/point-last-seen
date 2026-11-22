@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Phone vectors: six new exact cases for a run of times right after a "[number removed]" with spoken digits after it
+  (four, pending on Android and the iPhone until they are ported: the run goes with the digits, through joined parts
+  only, never into another run of times, keeping line breaks) and two already removed whole (pinned);
+  `scripts/test_phone_vectors.py` pins all six. The corpus is written again (9,136 rows: the six new inputs added, no
+  existing row changed) and the shared README names its SHA-256 and the rule. Limits gives the new counts (136 cases;
+  Android 121, the iPhone 120, the web 125). Source: issue #348 (PR #357). Verified: each output measured with the
+  web's removePhoneNumbers on the branch and on main; the iPhone (`swift test`) and Android (Gradle) vector tests on
+  this tree pass, with the four cases still failing there as their pending guards require;
+  `scripts/test_phone_vectors.py`, the corpus `--check` and `scripts/ci-local.sh --gates` pass. Android's corpus test
+  fails on the four pending rows until it skips cases pending on Android (its own commit).
 - Docs: the README's Android row and the production checklist name android-judge-5
   (`point-last-seen-family-8fcc0803.apk`, built from main 8fcc0803) instead of android-judge-4. The judge page and the
   README link GitHub's `/releases/latest`, which now redirects to android-judge-5, so no link changed. Source: a new
