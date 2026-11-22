@@ -91,6 +91,17 @@ final class FakeContentReports: ContentReportWriter {
         #expect(reports.filed.count == 1)
     }
 
+    /// The form offers only what it can file about the context it opened on: no task when it opened before any plan
+    /// (a plan arriving later does not add it), and nothing once the search changed.
+    @Test func theFormOffersOnlyWhatItsContextCanFile() async throws {
+        let m = model(FakeContentReports(), docs: try docs())
+        await m.trySignIn()
+        let opened = try #require(m.reportContext)
+        #expect(m.reportTargets(in: opened) == [.task, .familyDescription])
+        #expect(m.reportTargets(in: AppModel.ReportContext(incidentId: opened.incidentId, planVersion: nil)) == [.familyDescription])
+        #expect(m.reportTargets(in: AppModel.ReportContext(incidentId: "another-incident", planVersion: 2)).isEmpty)
+    }
+
     @Test func eachOutcomeSaysWhatHappened() async throws {
         let reports = FakeContentReports()
         let m = model(reports, docs: try docs())

@@ -37,9 +37,12 @@ struct ReportProblemView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Text(Self.lead).font(.title3).foregroundStyle(theme.text(.secondary))
-                if model.reportTargets.count > 1 {
-                    FieldChoice(options: model.reportTargets.map { (Self.words($0), $0) }, selection: $target,
-                                hint: "What the report is about.")
+                // Only what the form's context can file, and fixed once a report is sent, so the line under Send always
+                // speaks of the target on screen.
+                let targets = context.map(model.reportTargets(in:)) ?? []
+                if targets.count > 1 {
+                    FieldChoice(options: targets.map { (Self.words($0), $0) }, selection: $target, hint: "What the report is about.")
+                        .disabled(done || sending)
                 } else {
                     Text(Self.words(target)).font(.title3.weight(.semibold))
                 }

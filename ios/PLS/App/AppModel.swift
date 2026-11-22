@@ -571,6 +571,13 @@ final class AppModel {
         let planVersion: Int?
     }
 
+    /// What a form that opened on `context` can file about: no task when it opened before any plan, and nothing once
+    /// the search changed.
+    func reportTargets(in context: ReportContext) -> [ContentReport.Target] {
+        guard mission?.incidentId == context.incidentId else { return [] }
+        return reportTargets.filter { $0 != .task || context.planVersion != nil }
+    }
+
     /// The context a form opening now would report about, or nil when there is nothing to report.
     var reportContext: ReportContext? {
         guard !reportTargets.isEmpty, let mission else { return nil }

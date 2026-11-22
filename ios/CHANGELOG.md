@@ -3,6 +3,17 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-22
+
+### fix(ios): the Report a problem form offers only what it can file and keeps its choice after Send
+- What: the form's target choice comes from the context it opened on: a form that opened before any plan offers no
+  task (a plan arriving later does not add it), and a search that changed offers nothing. The choice is fixed once a
+  report is sent, so "Sent to command." always speaks of the target on screen; before, a plan arriving after a sent
+  description report added "Your task" beside the old line.
+- Source: second review of the Report a problem change.
+- Verified: a test of the targets for a context with a plan, without one, and for another search failed before the
+  change (no such function) and passes; the full app suite passes.
+
 ## 2026-11-21
 
 ### chore(ios): version 1.0.0 for the App Store release
