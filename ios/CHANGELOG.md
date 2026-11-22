@@ -5,6 +5,12 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### fix(ios): the Leave button says it deletes the sign-in
+- What: the Ready check's "Leave this search" is now "Leave and delete this sign-in" (the confirmation's title too), so
+  account deletion is named on the button itself, not only in the dialog under it. LIMITS uses the new name.
+- Source: App Review guideline 5.1.1(v) (account deletion easy to find), for the review recording.
+- Verified: a wording test failed first (the old label) and passes; the full app suite passes.
+
 ### feat(ios): Block on this phone on the Ready check and after a report about the description
 - What: under the person's description on the Ready check, "Block on this phone" (with a confirmation saying it hides
   the description on this phone for this search, that command still has it, and that it can be shown again) hides the

@@ -19,7 +19,7 @@ struct ReadyCheckView: View {
     @State private var leaveRefused = false
     @State private var confirmingBlock = false
 
-    static let leaveLabel = "Leave this search"
+    static let leaveLabel = "Leave and delete this sign-in"
     static let endPracticeLabel = "End the practice drill"
     static let endPracticeDetail = "Its reports are deleted from this phone. You can then join a search or start the practice drill again."
     static let leaveDetail = "This phone stops getting this team's tasks and its sign-in is deleted, so it can join another search. Reports already sent stay with command."

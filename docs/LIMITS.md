@@ -40,7 +40,7 @@ each line says what the limit is and why.
   search has no code, so its post sends you back to the judge's page instead. The post checks again whenever its tab
   is shown or focused and every five minutes while it is shown, at most once in 30 seconds, and at once after a
   refused action. Use a separate browser profile to run two searches side by side.
-- "Leave this search" on the iPhone first asks the server to delete the phone's anonymous account (the
+- "Leave and delete this sign-in" on the iPhone first asks the server to delete the phone's anonymous account (the
   `deleteMyAccount` callable), then leaves the team's push topic, drops the mission and signs out, so the next join
   is a new user. Leaving needs signal: it waits until every report from the phone is settled with the server, since
   a report still in that user's write queue would otherwise be stranded, and when the delete fails it changes nothing
