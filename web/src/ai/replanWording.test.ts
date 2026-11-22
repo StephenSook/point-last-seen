@@ -450,6 +450,12 @@ describe("never where the person is, or that they will be found", () => {
     expect(checkWording(draft, withReason("Team T1 will find the missing person in AC."))).toEqual({ ok: false, reason: PERSON_CLAIM });
     expect(checkWording(draft, withReason("T1 has the best chance to find her."))).toEqual({ ok: false, reason: PERSON_CLAIM });
   });
+  it("refuses any reference to the missing person, whatever it says", () => {
+    for (const r of ["His last sighting was near AC.", "The subject walks fast, so AC first.", "The patient was seen by AC.", "AC is closest to where she was seen.", "Search AC for him.", "AC is where the person was last seen."]) {
+      expect(checkWording(draft, withReason(r)), r).toEqual({ ok: false, reason: PERSON_CLAIM });
+    }
+    expect(checkWording(draft, withReason("Highest.", "Teams search for the missing child."))).toEqual({ ok: false, reason: PERSON_CLAIM });
+  });
   it("keeps a plain team reason, and a segment that is in a ranking", () => {
     expect(checkWording(draft, withReason("Highest POA now."))).toEqual({ ok: true });
     expect(checkWording(draft, withReason("AC is in the top three."))).toEqual({ ok: true });

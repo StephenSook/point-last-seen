@@ -97,7 +97,7 @@ export const NUMBER_NOT_IN_PLAN = "a number that is not in the plan";
 export const OUTSIDE_TEAMS_ROWS = "a reason uses a number from outside its own team's rows";
 export const EARLIER_AS_CURRENT = "a reason gives an earlier POA as the current one";
 export const CURRENT_AS_EARLIER = "a reason gives the current POA as an earlier one";
-export const PERSON_CLAIM = "a reason or the summary says where the person is or that they will be found";
+export const PERSON_CLAIM = "a reason or the summary mentions the missing person, where they are, or that they will be found";
 export const SPELLS_OUT_A_CODE = "a reason or the summary says what a segment code stands for";
 export const WRONG_DIRECTION = "a reason says a POA moved in a direction none of its team's segments did";
 // A minus sign or dash belongs to its number, so "-31.0" or "\u221231.0" is never read as the plan's "31.0"; one joined
@@ -217,23 +217,24 @@ function spellsOutCode(text: string, c: CodeCheck): boolean {
   return false;
 }
 
-// The missing person, as a model would name them, and words that place someone.
-const PERSON = String.raw`(?:she|he|they|him|her|them|the (?:missing )?(?:person|subject|child|man|woman|boy|girl|walker))`;
-const PLACE = String.raw`(?:in|at|near|inside|around|by|beside|along|into|on|toward|towards|hiding|there|here|located|found)`;
 /**
- * Claims about the missing person that no plan can make: an outcome promised ("will be found", "will find her"), a
- * place given as likely ("probably near the creek", "is located", "must be in"), or the person placed somewhere with
- * any verb ("she is likely in AC", "remains in AC", "wandered toward the creek"). The prompt forbids them; this
- * refuses them, and a false refusal only falls back to the fixed wording.
+ * A team reason explains why a team searches its segments; it never needs to mention who is being searched for, so
+ * any word for the missing person is refused, whatever the sentence says ("she is likely in AC", "his last sighting
+ * was near AC", "the subject walks fast"). The plan carries no name for the person, so there is no name to match.
+ */
+const PERSON_WORD = /\b(?:person|missing|subject|child|patient|she|her|hers|herself|he|him|his|himself)\b/i;
+/**
+ * Claims that need no word for the person: an outcome promised ("will be found", "Team T1 will find"), or a place
+ * given as likely ("probably near the creek", "likely in AC", "is located", "must be in"). The prompt forbids them;
+ * this refuses them, and a false refusal only falls back to the fixed wording.
  */
 const PERSON_CLAIMS = [
+  PERSON_WORD,
   /\b(?:will|would|should|is going to)\s+be\s+found\b/i,
   /\b(?:will|would|should|shall|can|could|(?:is|are)\s+going\s+to|(?:is|are)\s+(?:likely|sure|certain)\s+to)\s+(?:\w+\s+)?find\b/i,
-  new RegExp(`\\bfind(?:s|ing)?\\s+${PERSON}\\b`, "i"),
   /\b(?:likely|probably|possibly|presumably|certainly)\s+(?:to\s+be\s+)?(?:in|at|near|inside|around|by|hiding)\b/i,
   /\bis\s+located\b/i,
   /\bmust\s+be\s+(?:in|at|near|inside|around|by|there|here)\b/i,
-  new RegExp(`\\b${PERSON}\\s+(?:\\w+\\s+){0,3}?${PLACE}\\b`, "i"),
 ];
 
 export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: true } | { ok: false; reason: string } {
@@ -253,7 +254,7 @@ export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: tru
   const texts = [...wording.assignments.map((a) => a.reason), wording.summary];
   const codes = codeCheck(known);
   if (texts.some((t) => spellsOutCode(t, codes))) return { ok: false, reason: SPELLS_OUT_A_CODE };
-  // Never where the person is or that they will be found: shown beside a task, that would read as fact.
+  // Never the missing person, where they are, or that they will be found: beside a task, that would read as fact.
   if (texts.some((t) => PERSON_CLAIMS.some((re) => re.test(t)))) return { ok: false, reason: PERSON_CLAIM };
   // Every number the model writes must be one it was given: an invented figure would reach command as fact.
   const given = new Set(planPrompt(draft).match(NUMBER) ?? []);
