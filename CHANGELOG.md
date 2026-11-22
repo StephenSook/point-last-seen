@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Leave deletes the member record: `deleteMyAccount` (functions/src/account.ts) deletes the caller's
+  incidents/{id}/members/{uid} in every incident that has one, in one batch, before it deletes the Auth user, so a
+  search the account joined earlier and one whose command removed it (claims cleared) are covered, and a failed Auth
+  delete leaves a retry that still finishes. Command's removed/{uid} record and the caller's reports stay. An account
+  that is command by its claims or by any member record is refused and keeps everything; with more than 1,000
+  incidents to check or more than 500 records the call fails and deletes nothing. Source: review (App Review 5.1.1(v):
+  three test accounts left with "Leave and delete this sign-in" and their member records stayed). Verified: eight new
+  emulator tests in functions/test/deleteMyAccount.test.ts failed first, then passed (16 in the file); the functions
+  typecheck and the full emulator suite (384) pass.
 - Production checklist: names bash scripts/predeploy.sh as the step before every hosting deploy. Source: review.
   Verified: the hygiene guard passes in public mode.
 - Pre-deploy checks: scripts/predeploy.sh runs every check before a hosting deploy in one command (clean tree at
