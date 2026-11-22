@@ -15,7 +15,7 @@ import { createRoot } from "react-dom/client";
 import { wordingOnDeviceGenerator } from "../ai/client";
 import { availabilityOf, onDeviceCreateOptions } from "../ai/gate";
 import { renderReason, renderSummary, teamFacts, type FactCode } from "../ai/reasonCodes";
-import { checkChoice, REPLY_TIMEOUT_MS, wordPlan, type PlanDraft } from "../ai/replanWording";
+import { checkChoice, choiceTeams, REPLY_TIMEOUT_MS, wordPlan, type PlanDraft } from "../ai/replanWording";
 import { factsSent, reverseFacts } from "./reverseFacts";
 import { readEnv } from "../firebaseConfig";
 import "../theme/fonts.css";
@@ -50,7 +50,7 @@ const FIRST_KEY = "wording-measure-first-order";
 
 async function measure(): Promise<object> {
   const app = initializeApp(readEnv(import.meta.env).firebase, "wording-measure");
-  const asked = wordingOnDeviceGenerator(getAI(app, { backend: new GoogleAIBackend() }), DRAFT.assignments.map((a) => a.teamId));
+  const asked = wordingOnDeviceGenerator(getAI(app, { backend: new GoogleAIBackend() }), choiceTeams(DRAFT));
   // The raw reply, so a rejected wording says why (the command post keeps only the kind of failure).
   let raw = "";
   let replyMs = 0;
