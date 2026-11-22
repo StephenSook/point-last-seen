@@ -3024,3 +3024,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - TimeRuler draws the model's anchor.
 - Source: deployed stills, 390 px wide, Chromium and WebKit.
 - Verified: a new ruler test (a 21-hour drill on a 205 px ruler, plus 230, 390 and 600 px) failed first, then passed (21); the extras harness specs pass (72); typecheck passes.
+### test(e2e): the live suite runs every check on the shared test drill one at a time
+- What: the live suite ran all its checks side by side on one shared test drill, so one check's report could become another's "newest report". The beat check failed once that way and then passed 3 of 3 alone, so a red run did not always mean a real failure.
+  - The suite's config now finds every spec that joins or names the drill (joinCommand, PLS_SMOKE_INCIDENT) and runs those in a "chrome-drill" project with a single worker. The rest stay parallel in "chrome".
+  - Both projects keep the harness and extras specs out, which their own configs run.
+- Source: deployed stills (a beat check failure during the parallel live run).
+- Verified:
+  - a new e2eConfig test (each drill spec only in the serial project, each other spec only in the parallel one, no harness or extras spec in either) failed first, then passed;
+  - the listing is 100 tests (46 serial, 53 parallel, setup);
+  - the whole live suite passed 100 of 100 against the live site in 2.6 minutes (1.2 minutes before);
+  - typecheck passes.
