@@ -55,7 +55,7 @@ import { rotateJoinCode } from "../data/joinCodes";
 import { JoinCodes } from "./JoinCodes";
 import { endedLine, endSearch, writesOpen } from "../data/endSearch";
 import { EndSearch } from "./EndSearch";
-import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
+import { joinErrorField, joinErrorMessage, joinIncident, joinOffersReload, joinRequest, signInErrorMessage } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
@@ -262,6 +262,11 @@ function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
           <p className="error" role="alert">
             {err}
           </p>
+        )}
+        {err && joinOffersReload(err) && (
+          <button type="button" className="btn ghost" onClick={() => location.reload()}>
+            Reload page
+          </button>
         )}
         {signIn && (
           <div className="row">
