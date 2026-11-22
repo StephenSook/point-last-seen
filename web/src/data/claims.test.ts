@@ -198,3 +198,60 @@ describe("watchClaims: an older token never overwrites a newer one", () => {
     vi.doUnmock("firebase/auth");
   });
 });
+
+describe("watchClaims: the newest token wins by when it was issued, per account", () => {
+  async function setup() {
+    const { vi } = await import("vitest");
+    let listener: ((u: unknown) => void) | null = null;
+    vi.doMock("firebase/auth", () => ({ onIdTokenChanged: (_a: unknown, cb: (u: unknown) => void) => ((listener = cb), () => {}) }));
+    vi.resetModules();
+    const { watchClaims } = await import("./claims");
+    type R = { claims: Record<string, unknown>; issuedAtTime: string };
+    const pending: ((v: R) => void)[] = [];
+    const userA = { uid: "a", getIdTokenResult: () => new Promise<R>((r) => pending.push(r)) };
+    const userB = { uid: "b", getIdTokenResult: () => new Promise<R>((r) => pending.push(r)) };
+    const auth = { currentUser: userA as unknown };
+    const lines: (string | null)[] = [];
+    const w = watchClaims(auth as never, drill, (l) => lines.push(l), () => 1_000_000);
+    return { vi, fire: () => listener!(auth.currentUser), pending, auth, userB, lines, w };
+  }
+  const at = (hhmm: string) => `Sat, 21 Nov 2026 ${hhmm}:00 GMT`;
+
+  it("starts again for another account, so its older cached token still applies", async () => {
+    const { vi, fire, pending, auth, userB, lines } = await setup();
+    fire();
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:05") });
+    await new Promise((r) => setTimeout(r, 0));
+    auth.currentUser = userB;
+    fire();
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:03") });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([OTHER_SEARCH_LINE, null]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("applies a newer forced refresh that finishes after an older token's later read", async () => {
+    const { vi, fire, pending, lines, w } = await setup();
+    fire();
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:05") });
+    await new Promise((r) => setTimeout(r, 0));
+    w.recheck(true);
+    fire();
+    pending[2]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:00") });
+    await new Promise((r) => setTimeout(r, 0));
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:10") });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([OTHER_SEARCH_LINE, null]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("drops a token for an account that is no longer signed in", async () => {
+    const { vi, fire, pending, auth, userB, lines } = await setup();
+    fire();
+    auth.currentUser = userB;
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:05") });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([]);
+    vi.doUnmock("firebase/auth");
+  });
+});

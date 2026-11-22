@@ -2737,3 +2737,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the sign-in watch keeps the issue time of the newest token it applied and ignores a token issued before it, even when its change event comes last: a refresh that started before another window moved this account to another search could return this drill's older token, which the SDK stores and announces, and that read cleared the "signed in to another search" line. A sign-out starts the count again.
 - Source: review (backlog issue #317).
 - Verified: a new unit test (the other search's 12:05 token applied, then this drill's 12:00 token ignored, then a 12:10 token applied) failed first, then passed; the claims tests (12) and typecheck pass.
+
+### fix(command): the newest sign-in token wins by when it was issued, per account
+- What: the watch now applies a token when it was issued no earlier than the newest one applied, whatever order the reads finish in, so a newer forced refresh is no longer dropped because an older token's read started later; it starts again when the signed-in account changes (another account's older cached token still applies) and drops a token for an account no longer signed in. A reply with no readable issue time still falls back to the newest read.
+- Source: review (Codex, first round on the token-order fix).
+- Verified: three new unit tests (another account; a newer forced refresh finishing after an older read; a token for an account that left) failed first, then passed; the claims tests (15) and typecheck pass.
