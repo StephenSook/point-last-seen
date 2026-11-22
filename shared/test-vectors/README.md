@@ -131,7 +131,7 @@ the file by hand, and `scripts/test_phone_vectors.py` checks that the required c
   not contain `number`, must contain no number character in any script (Unicode categories Nd, Nl and No, so an
   Adlam or a dingbat digit counts; the number is the only digit run in `input`), must contain none of
   `forbidden` (parts of a number written in words), and must still contain every string in `keep` (the text around
-  the number).
+  the number). `number` may appear more than once (`same_number_twice`); every copy must go, not only the first.
 - `mustKeep[]`: `{ name, input }`. The output must equal `input` exactly: times, segment numbers, counts, percents
   and dates (11/19/2026, 2026-11-19, 11/19, Nov 19) are not phone numbers; a date in a note is search information.
   So are coordinates (`GPS 33.7490, -84.3880`), a ZIP+4 code after a state, a grouped count under seven digits
