@@ -5,6 +5,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Rules gate: web code outside tests and docs may no longer name Chrome's other built-in AI APIs (Translator,
+  LanguageDetector, Summarizer, Writer, Rewriter, Proofreader), and no other platform may prompt a model session by
+  hand (`.prompt(` or `.promptStreaming(` outside tests). Web code was already held to the prompt rule, tests
+  included. A regression guard only: nothing in the repo uses them. Source: review. Verified: a new test fails on
+  each name in web code and on a prompt call in Android and functions code, and failed before the change; a second
+  test passes docs, tests, PrintWriter, lowercase "translator" and the functions' own `Writer` type; the gate is
+  clean on the repo (1,336 files); the gates and the hygiene guard in public mode pass.
 - Kennesaw seed record: new section for the switch back to urban terrain at prior version 4, made through the live
   command post so the drill's map starts the way the write-up's quoted search and rescue lead would treat the park,
   with the new terrain note and the plan approved before the drill. Source: the drill's terrain decision. Verified:
