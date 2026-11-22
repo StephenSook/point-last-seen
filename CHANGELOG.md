@@ -5,9 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Phone corpus: regenerated, so it holds the same_number_twice input with both copies replaced. Source: the new
+  shared case. Verified: `phone_corpus_cli.ts --check` matches; the web and Android corpus tests pass.
 - Phone numbers: a new shared case, `same_number_twice`, writes the same number twice in one note, and every copy
   must go. The vector check now allows a case's number to appear more than once, and proves the contract fails a
-  scrubber that replaces only the first copy. The corpus gains the new row. Source: review (a scrubber that masks
+  scrubber that replaces only the first copy. Source: review (a scrubber that masks
   only the first copy leaks the second). Verified: the vector check passes; the web, iPhone (PLSCore) and Android
   phone suites pass the new case with no rule change; the corpus check matches.
 - Limits: a browser that fails the site's security check (App Check) cannot start a practice search; the drill replay
