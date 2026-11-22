@@ -42,6 +42,7 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
   // When the newest token this watch applied was issued (ms), and for which account, so an older token can never take
   // its place; another account starts again.
   let newestIssued = -Infinity;
+  let newestSeq = 0;
   let owner: string | null | undefined = null;
   const settled = (seq: number) => {
     if (forcing !== seq) return;
@@ -56,6 +57,7 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
     const user = auth.currentUser;
     if (!user) {
       newestIssued = -Infinity;
+      newestSeq = 0;
       owner = null;
       onLine(claimsLine(null, ctx));
       return;
@@ -63,6 +65,7 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
     if (user.uid !== owner) {
       owner = user.uid;
       newestIssued = -Infinity;
+      newestSeq = 0;
     }
     if (force) {
       forcing = seq;
@@ -72,9 +75,12 @@ export function watchClaims(auth: Auth, ctx: ClaimsContext, onLine: (line: strin
       (r) => {
         const issued = Date.parse(r.issuedAtTime ?? "");
         const signedIn = auth.currentUser?.uid === user.uid;
-        const newest = Number.isFinite(issued) ? issued >= newestIssued : seq === latest;
+        // A token issued later wins whatever order the reads finish in; within the same second (the issue time's
+        // resolution) the newer read does, as it does when there is no readable issue time.
+        const newest = Number.isFinite(issued) ? issued > newestIssued || (issued === newestIssued && seq > newestSeq) : seq === latest;
         if (!stopped && signedIn && newest) {
           if (Number.isFinite(issued)) newestIssued = issued;
+          newestSeq = seq;
           onLine(claimsLine(r.claims, ctx));
         }
         if (force) settled(seq);

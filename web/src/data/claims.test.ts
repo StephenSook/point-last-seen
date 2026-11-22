@@ -245,6 +245,18 @@ describe("watchClaims: the newest token wins by when it was issued, per account"
     vi.doUnmock("firebase/auth");
   });
 
+  it("lets the newer read win when two tokens were issued in the same second", async () => {
+    const { vi, fire, pending, lines } = await setup();
+    fire();
+    fire();
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:05") });
+    await new Promise((r) => setTimeout(r, 0));
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:05") });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(lines).toEqual([null]);
+    vi.doUnmock("firebase/auth");
+  });
+
   it("drops a token for an account that is no longer signed in", async () => {
     const { vi, fire, pending, auth, userB, lines } = await setup();
     fire();

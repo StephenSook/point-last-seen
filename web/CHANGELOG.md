@@ -2742,3 +2742,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the watch now applies a token when it was issued no earlier than the newest one applied, whatever order the reads finish in, so a newer forced refresh is no longer dropped because an older token's read started later; it starts again when the signed-in account changes (another account's older cached token still applies) and drops a token for an account no longer signed in. A reply with no readable issue time still falls back to the newest read.
 - Source: review (Codex, first round on the token-order fix).
 - Verified: three new unit tests (another account; a newer forced refresh finishing after an older read; a token for an account that left) failed first, then passed; the claims tests (15) and typecheck pass.
+
+### fix(command): within one second, the newer sign-in read wins
+- What: issue times count whole seconds, so two tokens can share one; a later token still wins whatever order the reads finish in, but within the same second the newer read now wins, as it did before the issue-time rule, so an earlier read can no longer bring back a line a newer one cleared.
+- Source: review (Codex, second round on the token-order fix).
+- Verified: a new unit test (two tokens of the same second finishing out of order) failed first, then passed; the claims tests (16) and typecheck pass.
