@@ -2,7 +2,7 @@
 // beyond the shared cases. The shared cases themselves run in phoneVectors.test.ts.
 
 import { describe, expect, it } from "vitest";
-import { REPLACEMENT, removePhoneNumbers } from "./phoneNumbers";
+import { REPLACEMENT, removeByRule, removePhoneNumbers } from "./phoneNumbers";
 
 const DIGIT = /\p{Nd}/u;
 const noDigit = (text: string) => expect(removePhoneNumbers(text), text).not.toMatch(DIGIT);
@@ -197,3 +197,38 @@ describe("removePhoneNumbers: a Mexican number in dot form is not a coordinate p
   });
 });
 
+
+describe("removePhoneNumbers: a run made only of clock times", () => {
+  it("a phone cue with a tab, a line break or a bracket before the run still removes it whole", () => {
+    for (const t of ["Call\t4:04 5:55 16:42", "Call\r\n4:04 5:55 16:42", "Call (4:04 5:55 16:42)"]) noDigit(t);
+  });
+  it("a cue a few words back still counts (Reach me at 4:04 5:55 06:42)", () => {
+    noDigit("Reach me at 4:04 5:55 06:42");
+    noDigit("Text her on 4:04 5:55 06:42");
+  });
+  it("a spoken digit or a Chinese numeral joined to the run leaves it to the shared rule", () => {
+    expect(removePhoneNumbers("Call four 4:04 5:55 6:42")).toBe(`Call ${REPLACEMENT}`);
+    gone("Call 4:04 5:55 01:42 five 0142", ["five", "0142", "5:55"]);
+    gone("Seen 四 4:04 5:55 6:42", ["5:55", "6:42"]);
+  });
+  it("a digit, written or spoken, between a cue and the run never hides the cue", () => {
+    expect(removePhoneNumbers("Call one: 4:04 5:55 6:42")).toBe(`Call one: ${REPLACEMENT}`);
+    expect(removePhoneNumbers("Call one two three: 4:04 5:55 6:42")).toBe(`Call one two three: ${REPLACEMENT}`);
+    expect(removePhoneNumbers("Call 5 at 4:04 5:55 6:42")).toBe(`Call 5 at ${REPLACEMENT}`);
+    // Digits are read past, not counted: three plain words still end the look.
+    expect(removePhoneNumbers("Seen 2 dogs at 14:03, 14:10")).toBe("Seen 2 dogs at 14:03, 14:10");
+  });
+  it("a month name beside the run leaves it to the shared rule, which reads the time as a day", () => {
+    expect(removePhoneNumbers("1.4045, -55.0142 14 May 6:00 7:00")).toBe(removeByRule("1.4045, -55.0142 14 May 6:00 7:00"));
+    expect(removePhoneNumbers("1.4045, -55.0142 14 May 6:00 7:00")).toBe(`${REPLACEMENT} May 6:00 7:00`);
+    expect(removePhoneNumbers("404 555 01 14 May 6:00 7:00")).toBe(`${REPLACEMENT} May 6:00 7:00`);
+    expect(removePhoneNumbers("6:00 7:14 May 2026 404 1.4045, -55.0142 notes 8:00 9:00")).toBe(`6:00 7:14 May ${REPLACEMENT} notes 8:00 9:00`);
+  });
+  it("a private-use character typed in the note stays where it was and moves no time", () => {
+    const t = "Seen . Times 4:04 5:55 6:42.";
+    expect(removePhoneNumbers(t)).toBe(t);
+  });
+  it("digits that NFKC turns into ASCII never count as a run of times", () => {
+    gone("⁴:⁰⁴ ⁵:⁵⁵ ⁶:⁴²", ["04", "5:55", "6:42"]);
+  });
+});

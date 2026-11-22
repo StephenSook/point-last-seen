@@ -2501,6 +2501,20 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (Codex, third round: the team lookup still lets a skewed phone clock win when one report lacks server time).
 - Verified: a new unit test in `contentReports.test.ts` failed first, then passed with the file (9); typecheck and the hygiene guard pass.
 
+### test(data): a fixed-seed fuzz holds the run-of-times step to the shared rule
+- What: `phoneNumbersFuzz.test.ts` compares `removePhoneNumbers` with the shared rule on its own (`removeByRule`, now exported) over 90,000 generated notes with a fixed seed: noise, focused runs of times, and planted ten-digit numbers in five forms (grouped, bracketed, spoken, written as times, a spoken digit before times) after cues and plain words. It checks that a note with no run, or one NFKC changes, comes out exactly as the shared rule gives it; that outside the runs the README lets stay, no more digits survive; that a planted number survives only where the shared rule leaves it or where it is itself a run that may stay (rising times, no cue); and that every run that may stay does. The rule for which runs may stay is written again in the test from the README, in tokens and gaps, so a slip in either copy shows. Three leaky stand-ins (keep the note as written; keep every run, joined or cued; drop a typed private-use character) must each be flagged.
+- Source: review (keep the differential fuzz as a committed test).
+- Verified: the five tests pass (37,000+ of the notes hold a run; all four properties at zero); each stand-in is flagged; the web unit suite, typecheck, build, gates and hygiene guard pass.
+
+### test(data): the run-of-times fuzz compares byte for byte with the README written again
+- What: the fuzz's digit-count checks could miss a leak by construction: a rejected run the shared rule mostly keeps refilled the count budget, a kept run was found again by text so the wrong copy could be blanked, the exact check covered only notes with no run, and the generator never put a spoken digit after the times, wrote two or four times, used most cue words or put punctuation between a cue and the run. The test now builds the README's output itself (the text between decided runs through the shared rule, each decided run kept or replaced, from tokens and gaps rather than the rule's parts) and requires `removePhoneNumbers` to match it byte for byte on every note. A planted number may survive only wholly inside a kept run or where the shared rule alone leaves it. The generator gains those forms and contexts, half its runs rise, and it uses mulberry32: the old generator's low bits repeated in short cycles and never drew some noise tokens. Floors hold the counts of notes with a run, with a kept run and with a typed private-use character.
+- Source: review (Gemini, fourth round on the phone rule's fuzz harness: two critical, two high, two medium findings about the oracle).
+- Verified: 90,000 notes agree byte for byte (25,557 hold a run, 4,762 keep one); no planted number gets through; each wrong stand-in is flagged, and a looser README that ignores joins is caught by the planted-number check; the web unit suite and typecheck pass.
+
+### test(data): the fuzz keeps noise off planted numbers and knows street names
+- What: at 1,000,000 notes two planted numbers read as getting through, but noise had glued onto a trailing spoken digit ("zerodouble", "nineat"), so it was no longer a digit, and a later digit completed the sequence by chance; the planted text now has a separator on each side. Three notes differed because the test's copy of the README joined a run to a street name's number (`四67th Ave`), which the shared rule never joins; the copy now has the same exception, and the shared README says so.
+- Source: review (a 1,000,000-note check before merge).
+- Verified: 1,000,000 notes on each of three random seeds (1544260262, 171560246, 1015165312): 0 differing, 0 planted numbers through, 0 isolation breaks, about 274,000 notes with a run and 49,500 keeping one per seed; the fixed-seed test passes (7).
 ### feat(judge): the Measured block says every count is from our own test runs
 - What: under "Stored on our servers", one line says "All counts come from our own test runs and practice drills (<first day> to <file day>); no real search has used the app yet.", with the days taken from the file; the on-device report row says it was measured in our own iPhone test runs. No number is typed in the page.
 - Source: review (every judge-facing number says where it came from).
@@ -2510,6 +2524,10 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (the day's 50 practice searches ran out at about 20:40 UTC, used by checks; no check may draw from the judges' quota).
 - Verified: the guard failed first (no @quota tag; the live config did not skip them), then passed (3 tests); the web unit suite, typecheck and the hygiene guard pass.
 
+### test(data): the web rule gives every stored output in the shared phone corpus
+- What: `phoneCorpus.test.ts` requires the committed corpus to be exactly what the generator writes for the current rule (its `rule` field is the SHA-256 of `phoneNumbers.ts`, so a rule change fails the test until the file is written again), at least 9,000 rows with the shared replacement, the stored output for every row with every mismatch listed, and the README to name the file's SHA-256. A planted wrong output in 50 rows is caught exactly once.
+- Source: review (one corpus every platform checks).
+- Verified: the five tests pass; the web unit suite (1216), typecheck, the gates and the hygiene guard pass.
 ### fix(command): Problem reports follow the rail's lead instead of preceding it
 - What: the Problem reports panel sat first in the right rail, so once the test drill had a flag, the rail no longer led with what changed, the plan and the top segments (the agreed rail order). It now comes straight after the top segments, before the rest of the rail, so the working view stays first and a flag is still above Details.
 - Source: live suite after the Problem reports deploy (`e2e/railOrder.spec.ts` failed with a flag present on the test drill).
@@ -2544,6 +2562,31 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the shared phone-number cases marked pending on the web were skipped; now they run, and the test fails with "un-pend <name>" for any the web rule already passes, so a stale mark can never hide a fixed case (the iPhone's test does the same). The check uses one `passes` function for each case kind, the same contract as the per-case tests; `PLS_FORCE_PENDING=1` still runs pending cases as ordinary ones.
 - Source: review (parity with the iPhone's vector test).
 - Verified: a control with a planted passing case, a planted failing one and one pending on another platform returns exactly "un-pend already_fixed"; the vector test passes (106); web unit suite, typecheck and hygiene guard pass.
+
+### fix(command): a post whose sign-in moved to another search says so
+- What: a browser's sign-in holds one search and one role. Starting a practice search or joining another drill in another tab moved it, and a command post still open for the first drill then failed every write with a bare refusal. The post now watches the sign-in (any tab) and, when its claims name another incident, shows "You're signed in to another search in this browser. Reopen this drill with its command code to act as command." with a Reopen this drill button (another role on the same drill has its own line); after a refusal it rechecks with fresh claims, and the no-access panel gives the same line. `docs/LIMITS.md` says so.
+- Source: review (a command who opens a practice search loses command).
+- Verified: new unit tests (the line for each case; the watch reports each change, rechecks with fresh claims and stops) failed first, then passed; web unit suite and typecheck pass.
+
+### fix(command): the sign-in line knows a practice search, a sign-out and a hidden tab
+- What: a practice search has no join code, so its post now says "This browser is no longer signed in to this practice search. Open it again from the judge's page." with a button to the judge's page (the no-access panel too), instead of pointing to a code. A signed-out browser, or one whose sign-in holds no search, says it is no longer signed in to this drill rather than "another search". The post asks for fresh claims whenever its tab is shown again and every five minutes, so a refused action whose token predates the move still gets the line. A read that finishes after its watch stopped is dropped.
+- Source: review (Codex, first round on the sign-in line: two medium, two low findings).
+- Verified: updated unit tests (practice, signed out, no search, a late read after stop) failed first, then passed (7); web unit suite (1192) and typecheck pass.
+
+### fix(command): only the newest sign-in check counts, and checks are spaced
+- What: a sign-in check that finished after a newer one could restore an old line (or clear a current one); now only the newest read decides. The post also checks when its window gets focus, so side-by-side windows (no tab switch) still show the line before a refused action; the 5-minute check runs only while the tab is shown, and a forced check runs at most once in 30 seconds and never while one is running. Whether the post is a practice search now comes from the incident's own mode once it has loaded (an id is only the first guess), and the no-access panel's drill button reloads with the drill still in the link ("Reopen this drill") instead of dropping it.
+- Source: review (Codex, second round on the sign-in line: three medium, two low findings).
+- Verified: new unit tests (a late older read is dropped; forced reads are spaced and never overlap) failed first, then passed (9); web unit suite (1196) and typecheck pass.
+
+### fix(command): a refusal's sign-in check is never dropped, and a stalled one does not block
+- What: the check after a refused read is urgent: it skips the 30-second spacing, and one that comes while a forced check is running waits for it and then runs, so the line is right at the moment it matters. A forced check still running after 30 seconds counts as stalled and no longer holds the next one back.
+- Source: review (Codex, third round on the sign-in line).
+- Verified: two new unit tests (an urgent recheck inside the spacing runs after the running one; a stalled read stops blocking after 30 s) failed first, then passed; the claims tests (11) and typecheck pass.
+
+### fix(command): the no-access panel never traps the browser
+- What: the panel is its own component (`NoAccessPanel`). A drill offers "Reopen this drill" (a reload, for a sign-in that is back) and "Join another search" (the join form), so an expired drill whose token still names it no longer reopens into the same denial. A practice search points to the judge's page. When the search's mode has not loaded and only its id suggests a practice search, all three are offered.
+- Source: review (Codex, third round on the sign-in line).
+- Verified: three new render tests (drill, practice, mode guessed from the id) failed first, then passed; web unit suite and typecheck pass.
 
 ### feat(data): command can ask for a new searcher or family join code
 - What: `web/src/data/joinCodes.ts` calls the `rotateJoinCode` callable, checks its answer (eight join-code characters for the role asked, and a whole count of replaced codes), and gives a plain sentence for every refusal the server names (not_command, practice_search, not_open, collision, bad_role, bad_incident_id, not_signed_in), a refused sign-in or App Check token, and a dropped link.

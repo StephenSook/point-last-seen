@@ -80,8 +80,63 @@ function range(first: number, last: number): number[] {
   return out;
 }
 
+// A run made only of clock times: two or more h:mm in ASCII digits (hour 0 to 23, minutes 00 to 59) separated by
+// commas or spaces, with no digit before or after it through anything but letters.
+const TIMES_RUN = /(?<!\p{N}[^\p{L}\p{N}]*)(?:[01]?\d|2[0-3]):[0-5]\d(?:[ ,]+(?:[01]?\d|2[0-3]):[0-5]\d)+(?![^\p{L}\p{N}]*\p{N})/gu;
+// Before a run of times, two more words cue a number (Text 21:25 5:50 1:42; Reach me at 4:04 5:55 6:42).
+const TIME_CUES = new Set([...PHONE_CUES, "text", "reach"]);
+// How many words before a run of times are read for a cue.
+const CUE_WINDOW = 3;
+
+/** Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it, or a "#". */
+function cuedRun(s: string, parts: Part[], first: number): boolean {
+  // A part carrying digits (written, spoken, or a counted double or triple) is read past and is not one of the three
+  // words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued.
+  let j = first - 1;
+  for (let words = 0; j >= 0 && words < CUE_WINDOW; j--) {
+    if (parts[j]!.digits > 0) continue;
+    if (TIME_CUES.has(word(s, parts[j]!))) return true;
+    words++;
+  }
+  return s.substring(j >= 0 ? parts[j]!.end : 0, parts[first]!.start).includes("#");
+}
+
+/**
+ * A run of times the shared rule reads as its own group (no digit, written or spoken, joined to it on either side) is
+ * decided whole. In clock order (each time no earlier than the one before) with no phone cue before it, it is search
+ * information and stays (The possible times are 14:03, 14:10, 14:17.). Out of order or after a cue it could be a
+ * number written as times (Call 21:25 5:50 1:42, 12:12 5:55 01:42), and the whole run goes: when in doubt, remove.
+ * The text between such runs follows the shared rule unchanged, and so does every note that NFKC changes, since
+ * folding can turn other characters into the ASCII digits a run is made of.
+ */
 export function removePhoneNumbers(text: string): string {
   const folded = text.normalize("NFKC");
+  if (folded !== text) return removeByRule(folded);
+  const parts = ruleParts(folded);
+  const startsAt = new Map(parts.map((p, i) => [p.start, i] as const));
+  const endsAt = new Map(parts.map((p, i) => [p.end, i] as const));
+  let out = "";
+  let from = 0;
+  for (const m of folded.matchAll(TIMES_RUN)) {
+    const first = startsAt.get(m.index);
+    const last = endsAt.get(m.index + m[0].length);
+    if (first === undefined || last === undefined) continue;
+    const joined = (first > 0 && joins(folded, parts[first - 1]!, parts[first]!))
+      || (last + 1 < parts.length && joins(folded, parts[last]!, parts[last + 1]!));
+    // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which changes
+    // how the shared rule groups the digits around it, so such a run stays with the text around it.
+    const month = (i: number) => i >= 0 && i < parts.length && !parts[i]!.written && MONTHS.has(word(folded, parts[i]!));
+    if (joined || month(first - 1) || month(last + 1)) continue;
+    const minutes = [...m[0].matchAll(/(\d+):(\d+)/g)].map((t) => Number(t[1]) * 60 + Number(t[2]));
+    const inOrder = minutes.every((v, i) => i === 0 || v >= minutes[i - 1]!);
+    out += removeByRule(folded.substring(from, m.index)) + (inOrder && !cuedRun(folded, parts, first) ? m[0] : REPLACEMENT);
+    from = m.index + m[0].length;
+  }
+  return out + removeByRule(folded.substring(from));
+}
+
+/** The parts of s as the shared rule reads them: a spoken repeat counted, and a street name's number set apart. */
+function ruleParts(folded: string): Part[] {
   const parts = partsOf(folded);
   for (let i = 0; i < parts.length - 1; i++) {
     const repeat = REPEATS[word(folded, parts[i]!)];
@@ -96,6 +151,13 @@ export function removePhoneNumbers(text: string): string {
       if (between.length > 0 && isBlank(between)) p.alone = true;
     }
   }
+  return parts;
+}
+
+/** The shared rule on its own, as every platform runs it, without the run-of-times step above. */
+export function removeByRule(text: string): string {
+  const folded = text.normalize("NFKC");
+  const parts = ruleParts(folded);
   const { found, kept, glued } = searchSpans(folded, parts);
   // Walk back from the end, so replacing one number never moves the ones before it.
   let out = folded;

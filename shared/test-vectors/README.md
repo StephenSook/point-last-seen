@@ -141,6 +141,11 @@ the file by hand, and `scripts/test_phone_vectors.py` checks that the required c
 - `pendingOn` (optional, on any case): the platforms (`ios`, `web`, `android`) whose rule does not pass that case
   yet. A platform's runner skips a case that names it and runs every other case; when its rule passes, the platform
   is removed from the list. Every runner checks all three case types.
+  The five `colon_gap_*` cases are pending on every platform: a known gap, not behaviour we want. A colon breaks a
+  digit run, so a number written as two times beside a month name ("Call 5:55 01:42 May") survives (two times after a
+  cue with no month beside them are removed whole by the run-of-times step); issue
+  #298 tracks closing it. Four are `mustRemove` and one is `exact` (it keeps the date beside the times); none is ever
+  moved to `mustKeep`.
 
 The rule below is the shared one. Its reference is the Android family app's
 `android/app/src/main/java/app/pointlastseen/family/core/PhoneNumbers.kt`, and the iPhone's matches it; where a
@@ -154,7 +159,7 @@ a time, a percent and a degree and so never join (a CRLF, or a line break with i
 a joiner
 inside a gap counts as nothing; a gap never holds a letter or a digit, since those are parts of their own). Search
 information made of digits can sit inside such a run (a written date, a time, a coordinate pair, a
-ZIP+4 code after a state, a month-name date, a number with a unit); it stays only
+ZIP+4 code after a state, a month-name date); it stays only
 when the rest of the run is nothing or whole numbers of seven or more digits, and when any other piece of 1 to 6
 digits is left beside it the whole run is removed. A number with an ordinal ending stays apart only when a street word
 follows it (`67th Ave`, `142nd St`: St, Ave, Rd, Blvd, Dr, Ln, Way, Pl, Ct, Pkwy, Hwy or their full forms); otherwise
@@ -168,6 +173,45 @@ information, and keeping the date leaks nothing once the number is removed. A ti
 date (`Seen 11/19/2026 14:03`) or on its own beside a number (`Seen at 14:03, [number removed]`); joined to other
 digits before its hour, or after a ZIP+4 code, it goes with the run (`Call 1 404 555 01:42`,
 `Call GA 40455-5014 2:30`).
+
+A run made only of clock times is decided first, as a whole. Such a run is two or more times written in ASCII digits
+(`h:mm` or `hh:mm`, hour 0 to 23, minutes 00 to 59) separated by commas or spaces. It is decided only when the rule
+above would read it as its own group: no digit stands before or after it through anything but letters, and no digit
+part of the rule above (a written digit, a spoken digit such as `four`, a Chinese numeral, or a counted `double` or
+`triple`; a street name's number such as `67th Ave` never joins) joins its first or last part, and no month name
+stands right before or after it (a month name reads the
+hour or minutes beside it as a day, which changes how the rule above groups the digits around it). A run that fails
+this goes to the rule above unchanged (`Call four 4:04 5:55 6:42` gives `Call [number removed]`;
+`1.4045, -55.0142 14 May 6:00 7:00` gives `[number removed] May 6:00 7:00`). A decided run stays whole when it reads in clock order
+(each time no earlier than the one before) with no phone cue before it (`The possible times are 14:03, 14:10, 14:17.`).
+Out of order (`Try 12:12 5:55 01:42`) or with a cue before it, it could be a number written as times, and the whole run
+is replaced by one `[number removed]`: when in doubt, remove. A cue here is one of the cue words above, or `text` or
+`reach`, among the three words just before the run (`Reach me at 4:04 5:55 06:42`), or a `#` between the run and the
+part before those words; spaces, tabs, line breaks and brackets between do not matter (`Call (4:04 5:55 16:43)`), and
+a digit between, written or spoken (or a counted `double` or `triple`), is read past and is not one of the three words
+(`Call one: 4:04 5:55 6:42`, `Call 5 at 4:04 5:55 06:44`). The
+text between decided runs follows the rule above unchanged. A note that NFKC changes skips this step entirely, since
+folding can turn other characters (superscript or full-width digits) into the ASCII digits a run is made of. A number
+written as rising times with no cue (`2:12 5:55 6:42`) stays; `docs/LIMITS.md` says so.
+
+## phone-numbers-corpus.json (generated)
+
+Every input of the cases above, then 9,000 notes made from a fixed seed, each with the output the web rule gives
+(`web/src/data/phoneNumbers.ts`). Every platform runs its own rule over every input and must give the stored output,
+character for character, so a port that drifts fails its own CI. The notes lean on what ports get wrong: runs of
+times beside cues, digits, spoken digits, months and street names, and characters that sit between code points and
+what a person sees (combining marks such as U+034F and U+0301, variation selectors, keycaps such as `#️⃣`, joiner
+sequences and emoji modifiers).
+
+```json
+{ "rule": "sha256:<hash of web/src/data/phoneNumbers.ts>", "replacement": "[number removed]",
+  "rows": [{ "input": "...", "output": "..." }] }
+```
+
+`tools/vectors/phone_corpus.ts` builds it; `npx tsx tools/vectors/phone_corpus_cli.ts --write` rewrites the file and
+`--check` exits 1 unless the file is exactly what `--write` would write. A change to the web rule changes `rule`, so the
+web test fails until the file is written again. The file's SHA-256 is
+`7f39359c20652e5b8f44ac5ec4006aff8f70e6e522f4dc5adc6063ec547e7b5b`.
 
 ## language.json (hand-written)
 
