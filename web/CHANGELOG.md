@@ -2970,3 +2970,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the report list orders reports by each phone's clock corrected by its measured offset, but lastReportChange picked "the newest report" by the phone's own time. A report sent at 10:00 from a phone one minute fast could outrank one sent at 10:00:20, so the change banner and a plan reason ("The newest report raised AA") could name the wrong report. lastReportChange now takes the incident's clock offsets per device and the command post passes them; a phone with no measured offset keeps its own time.
 - Source: review.
 - Verified: a new viewState test (a fast phone's earlier report against a later one) failed first, then passed (13), and with no offsets the order is unchanged; typecheck passes.
+
+### fix(command): the Plan line says code adds a second fact only when the team has one
+- What: supportingFact gives no second fact when a team has no other fact, so the line before Suggest plan now says "Code adds a second fact when the team has one and writes every word", matching LIMITS.
+- Source: review.
+- Verified: plan harness spec 15/15 with the new line; typecheck passes.
