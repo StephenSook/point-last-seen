@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### fix(ios-core): a "[number removed]" is read as removed digits beside a run of times
+- What: two rules the web and Android already have. Looking for a cue before a run of times, the words of a
+  "[number removed]" already in the note are read past like digits, so its "number" is never a cue and a note scrubbed
+  again reads the same words as the first time ("Witness [number removed] at 14:03 14:10" stays). And a run of times
+  with nothing joined to it, right beside a "[number removed]" with no letter or digit between, is removed, since the
+  marker stands for digits joined to the run ("Dial [number removed] 4:04 5:55 12:12"). Checking whether a word is
+  inside a marker looks back only the marker's length, so a long note stays fast.
+- Source: the shared vectors' cases marker_then_times and marker_beside_times.
+- Verified: marker_then_times now passes on the iPhone, and every exact case passes, marker_beside_times included;
+  the shared corpus check (next commit) gives the web rule's output on all 9,130 notes. The expected-failure guard
+  names marker_then_times until its iPhone pending mark is dropped in the shared file.
+
 ### fix(ios-core): a note scrubbed again changes nothing
 - What: the public scrub now runs one pass of the phone rule (`scrubOnce`) until the text stops changing, at most four
   passes, compared scalar by scalar, as the web and Android rules do. A note that never settles keeps the fourth

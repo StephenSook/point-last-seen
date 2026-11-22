@@ -283,6 +283,14 @@ public enum PhoneNumbers {
             guard let first = startsAt[run.lowerBound], let last = endsAt[run.upperBound] else { continue }
             let joined = (first > 0 && joins(scalars, parts[first - 1], parts[first]))
                 || (last + 1 < parts.count && joins(scalars, parts[last], parts[last + 1]))
+            // A "[number removed]" right before or after a run with nothing joined to it, with no letter or digit between,
+            // stands for digits joined to the run, so the run goes, whatever else is beside it (Dial [number removed]
+            // 4:04 5:55 12:12). A run with digits joined to it is left to the shared rule, as it was before this check.
+            if !joined, markerEnds(scalars[from..<run.lowerBound]) || markerStarts(scalars[run.upperBound...]) {
+                out += byRule(slice(from..<run.lowerBound)) + replacement
+                from = run.upperBound
+                continue
+            }
             // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00), which changes how the
             // shared rule groups the digits around it, so such a run stays with the text around it.
             func month(_ i: Int) -> Bool { i >= 0 && i < parts.count && !parts[i].written && months.contains(word(scalars, parts[i])) }
@@ -402,13 +410,59 @@ public enum PhoneNumbers {
     static func cuedRun(_ u: [Unicode.Scalar], _ parts: [ScalarPart], _ first: Int) -> Bool {
         var j = first - 1, words = 0
         while j >= 0, words < cueWindow {
-            if parts[j].digits > 0 { j -= 1; continue }
+            // So are the words of a "[number removed]" already in the note, which stands for removed digits: its
+            // "number" is never a cue, and a note scrubbed again reads the same words before the run as it did the first
+            // time (Witness [number removed] at 14:03 14:10 stays).
+            if parts[j].digits > 0 || inMarker(u, parts[j]) { j -= 1; continue }
             if timeCues.contains(word(u, parts[j])) { return true }
             words += 1
             j -= 1
         }
         // By code point: a keycap's "#" (#\u{FE0F}\u{20E3}) is a "#".
         return u[(j >= 0 ? parts[j].end : 0)..<parts[first].start].contains("#")
+    }
+
+    static let replacementScalars = Array(replacement.unicodeScalars)
+
+    /// Whether part p is a word of a "[number removed]" already in u. A marker word starts at most the marker's length
+    /// after its "[", so only that far back is read (a search back to the start of the note made a long note slow).
+    static func inMarker(_ u: [Unicode.Scalar], _ p: ScalarPart) -> Bool {
+        var at = p.start
+        while at >= 0, at > p.start - replacementScalars.count {
+            if u[at] == "[" {
+                return u[at...].starts(with: replacementScalars) && p.end <= at + replacementScalars.count
+            }
+            at -= 1
+        }
+        return false
+    }
+
+    /// Whether the text ends with a "[number removed]" followed only by characters that are neither letters nor digits.
+    /// The marker's own brackets are such characters too, so it is found first and only what follows it is checked.
+    static func markerEnds(_ text: ArraySlice<Unicode.Scalar>) -> Bool {
+        let n = replacementScalars.count
+        var at = text.endIndex - n
+        while at >= text.startIndex {
+            if text[at..<(at + n)].elementsEqual(replacementScalars) {
+                return text[(at + n)...].allSatisfy { !isLetter($0) && !isNumber($0) }
+            }
+            // Past a letter or digit, no marker further back can have only such characters after it.
+            if isLetter(text[at + n - 1]) || isNumber(text[at + n - 1]) { return false }
+            at -= 1
+        }
+        return false
+    }
+
+    /// Whether the text starts with characters that are neither letters nor digits and then a "[number removed]".
+    static func markerStarts(_ text: ArraySlice<Unicode.Scalar>) -> Bool {
+        let n = replacementScalars.count
+        var at = text.startIndex
+        while at + n <= text.endIndex {
+            if text[at..<(at + n)].elementsEqual(replacementScalars) { return true }
+            if isLetter(text[at]) || isNumber(text[at]) { return false }
+            at += 1
+        }
+        return false
     }
 
     /// A part as the web and Android rules read it, by code point: a run of digits (a decimal digit in any script, a
