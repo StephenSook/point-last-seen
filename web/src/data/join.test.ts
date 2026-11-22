@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { joinErrorMessage, joinRequest, signInErrorMessage } from "./join";
+import { APP_CHECK_JOIN_LINE, joinErrorMessage, joinOffersReload, joinRequest, signInErrorMessage } from "./join";
 
 describe("joinRequest", () => {
   it("trims, upper-cases and drops spaces and hyphens from the code", () => {
@@ -25,8 +25,19 @@ describe("joinRequest", () => {
 describe("joinErrorMessage", () => {
   const err = (code: string) => Object.assign(new Error("x"), { code });
 
-  it("says App Check refused this browser instead of blaming the code", () => {
-    expect(joinErrorMessage(err("functions/unauthenticated"))).toBe("Join refused by App Check. Try a normal browser window.");
+  it("says this browser failed the security check and to reload, instead of blaming the code", () => {
+    expect(joinErrorMessage(err("functions/unauthenticated"))).toBe(
+      "This browser did not pass the site's security check. Reload the page and try again; if it fails again, try a normal browser window.",
+    );
+    expect(joinErrorMessage(err("functions/unauthenticated"))).toBe(APP_CHECK_JOIN_LINE);
+  });
+
+  it("offers a reload for the security check refusal only", () => {
+    expect(joinOffersReload(joinErrorMessage(err("functions/unauthenticated")))).toBe(true);
+    for (const code of ["functions/permission-denied", "functions/resource-exhausted", "functions/unavailable", "functions/internal"]) {
+      expect(joinOffersReload(joinErrorMessage(err(code)))).toBe(false);
+    }
+    expect(joinOffersReload("Enter the incident id.")).toBe(false);
   });
 
   it("names the join limit (10 attempts an hour) instead of blaming the code", () => {

@@ -55,7 +55,7 @@ import { rotateJoinCode } from "../data/joinCodes";
 import { JoinCodes } from "./JoinCodes";
 import { endedLine, endSearch, writesOpen } from "../data/endSearch";
 import { EndSearch } from "./EndSearch";
-import { joinErrorField, joinErrorMessage, joinIncident, joinRequest, signInErrorMessage } from "../data/join";
+import { joinErrorField, joinErrorMessage, joinIncident, joinOffersReload, joinRequest, signInErrorMessage } from "../data/join";
 import { MapView } from "../map/MapView";
 import { MergeLanes } from "./MergeLanes";
 import { mergeModel, type MergeDoc } from "./mergeModel";
@@ -263,6 +263,11 @@ function JoinPanel({ pls, signIn, onJoined }: JoinPanelProps) {
             {err}
           </p>
         )}
+        {err && joinOffersReload(err) && (
+          <button type="button" className="btn ghost" onClick={() => location.reload()}>
+            Reload page
+          </button>
+        )}
         {signIn && (
           <div className="row">
             <p className="error" role="alert">
@@ -465,13 +470,13 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     const team = teams.find((t) => t.teamId === teamId)?.name;
     return team ? `${team} searcher` : "A searcher";
   };
-  // The people command can remove: the server's members records and the authors of the incident's reports.
+  // The people command can remove: the server's members records (someone who left has none, so is not listed).
   const [memberDocs, setMemberDocs] = useState<Record<string, MemberDoc>>({});
   const [removedUids, setRemovedUids] = useState<Set<string>>(() => new Set());
   // A refused read stops its listener for good, so the panel says the list may be out of date and offers no removal.
   const [membersStale, setMembersStale] = useState(false);
   useEffect(() => (denied ? undefined : subscribeMembers(pls.db, incidentId, setMemberDocs, setRemovedUids, () => setMembersStale(true))), [pls, incidentId, denied]);
-  const people = useMemo(() => memberRows(memberDocs, events, removedUids, teams, pls.auth.currentUser?.uid ?? null), [memberDocs, events, removedUids, teams, pls]);
+  const people = useMemo(() => memberRows(memberDocs, removedUids, teams, pls.auth.currentUser?.uid ?? null), [memberDocs, removedUids, teams, pls]);
   const incident = view?.incident ?? null;
   // Once command ends the search the rules take no new reports, so the post stops offering them. Only once the server
   // has the close: until then it is this browser's pending write, and the confirm stays up saying it is ending.

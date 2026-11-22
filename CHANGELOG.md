@@ -48,6 +48,33 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   three test accounts left with "Leave and delete this sign-in" and their member records stayed). Verified: eight new
   emulator tests in functions/test/deleteMyAccount.test.ts failed first, then passed (16 in the file); the functions
   typecheck and the full emulator suite (384) pass.
+- Judge seed baseline: `scripts/judge_seed_baseline.json` gains the new keys from the live seed drill (0 content
+  reports, no members, the SHA-256 of each of the 30 seed writers); every existing value is unchanged. Source: the
+  seed check's new writer and content report checks. Verified: a new test that the committed baseline knows the seed
+  writers by hash only failed first, then passed (11 in the file); the live check exits 0; replaying the drill as it
+  was before today's cleanup fails with "events: 30 -> 31", "contentReports: 0 -> 3" and both test devices named, and
+  warns for its three members; `scripts/ci-local.sh --gates` passes.
+- Judge seed check: `scripts/judge_seed_check.py` also counts the seed drill's content reports, and fails on any event
+  or content report written by a device that is not a seed writer, naming the device's first six characters and what
+  it wrote ("Xt6F1l (event cleared x1) is not a seed writer"). A member who joined from a device the baseline does not
+  know prints a WARN line with the same prefix and never fails the check, since real people can join the drill. The
+  baseline keeps only a SHA-256 of each device id. Source: review (a simulator test run wrote a cleared event and
+  three content reports into the seed drill; the content reports went unseen for three hours). Verified: the four new
+  tests in `scripts/test_judge_seed_check.py` failed first (no `writers` key, no content report count, no WARN line),
+  then passed (10); `scripts/ci-local.sh --gates` passes.
+- Content reports from the iPhone: `shared/test-vectors/content-report-ios.json` (hand-written, pinned) holds what the
+  iPhone writes for Report a problem, and the shared README describes it; `functions/test/rules/contentReportsIos.test.ts`
+  writes every case to the emulator against the content report create rule and checks that broken copies of the first
+  case are refused (no server time, the phone's own time, a note over 500 code points, an extra field, another role,
+  someone else's name, no reason, a target id that does not fit the target); `rules.yml` also runs when that vector
+  changes; the content report schema's iOS parity pointer names `ios/PLSCore/Sources/PLSCore/ContentReport.swift`
+  instead of a pending one. Source: the iPhone's Report a problem (PR #324). Verified: on merge commit 89fa09a3 the
+  Rules run (functions typecheck and `test:rules`, which runs the new test) and the Swift core run passed;
+  `scripts/check_schema_parity.py` checks content-report's 7 fields on ts, ios and android with 0 failures.
+- Limits: the iPhone's "Report a problem" (what it files, that a report is filed once and cannot be changed, the
+  offline case, no flag on another searcher's report, none in the practice drill) and "Block on this phone" (hides the
+  description on that iPhone only, sends nothing, and what it does not hide); the iPhone's leave button is named
+  "Leave and delete this sign-in". Source: PR #324. Verified: the hygiene guard passes in public mode.
 - Production checklist: names bash scripts/predeploy.sh as the step before every hosting deploy. Source: review.
   Verified: the hygiene guard passes in public mode.
 - Pre-deploy checks: scripts/predeploy.sh runs every check before a hosting deploy in one command (clean tree at

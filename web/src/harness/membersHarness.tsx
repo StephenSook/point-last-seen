@@ -16,8 +16,8 @@ const TEAMS = [{ teamId: "T1", name: "Team 1" }, { teamId: "T2", name: "Team 2" 
 
 function Harness() {
   const [removed, setRemoved] = useState<Set<string>>(new Set(q.get("removed") ? ["fam00001"] : []));
-  const rows = q.get("empty") === "1" ? [] : memberRows({ srch0001: { role: "searcher", team: "T1" }, fam00001: { role: "family", team: null } },
-    [{ authorUid: "srch0002", role: "searcher", teamId: "T2" }, { authorUid: "cmd00001", role: "command", teamId: null }], removed, TEAMS);
+  const rows = q.get("empty") === "1" ? [] : memberRows({ srch0001: { role: "searcher", team: "T1" }, fam00001: { role: "family", team: null },
+    srch0002: { role: "searcher", team: "T2" }, cmd00001: { role: "command", team: null } }, removed, TEAMS);
   const panels = (
     <>
       <MembersPanel
