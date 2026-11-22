@@ -3147,3 +3147,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `src/harness/noteScore.ts`, `scoreNote`: a stated direction or colour is right only on its exact value; stated footwear or a carried item is right ignoring case, outer spaces and a leading article; a field the note does not state counts as filled when the reading gives anything but "unknown" or an empty string; a skipped field counts neither way; a refused read misses every stated field and fills nothing. No product change.
 - Source: review (the note-read measurement had no note that describes nobody, and did not score footwear or carried).
 - Verified: `src/harness/noteScore.test.ts` (5 tests) failed first (module missing), then passed; web unit; typecheck.
+
+### test(harness): add notes that describe nobody to the note-read page
+- What: `web/harness/note-measure.html` (`src/harness/noteMeasure.tsx`) now reads eight made-up notes twice in one newly opened page: the five that describe a person, now also stating footwear and the carried item where the note says them ("with a small dog" scored neither way), and three that describe nobody ("Checked the pavilion, nothing seen.", "Radio check, all teams moving.", "Team two finished the north trail, no sign of anyone."), where every field should come back "unknown" or empty. Each read keeps the model's raw reply beside what the code kept and its `scoreNote` score. Same app code path; no product change.
+- Source: review (the note-read measurement had no case where there is nothing to find).
+- Verified: the dev-page cloud scan passes on the page; web unit 1449; typecheck; gates; hygiene; run in desktop Chrome on this Mac (next entry).
