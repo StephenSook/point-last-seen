@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Limits: the "three more ways" phone-number line gains the written-digit gap (written digits right after a run of
+  times can leave the run's first hour: "Dial 4:04 5:55 12 12" gives "Dial 4:[number removed]", issue #358) in place
+  of the case the web now removes whole, and says that case still stays pending on Android and the iPhone. Source:
+  issues #348 and #358. Verified: every example measured with the web's removePhoneNumbers on this branch and on
+  main ("Call 4:04 5:55:01:42" kept whole and "Sighted at 14:03 one two 4:04 5:55" giving "Sighted at 14:[number
+  removed]" on both); `scripts/test_phone_vectors.py` and the hygiene guard in public mode pass.
 - Phone vectors: six new exact cases for a run of times right after a "[number removed]" with spoken digits after it
   (four, pending on Android and the iPhone until they are ported: the run goes with the digits, through joined parts
   only, never into another run of times, keeping line breaks) and two already removed whole (pinned);
