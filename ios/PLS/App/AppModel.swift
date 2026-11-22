@@ -576,25 +576,33 @@ final class AppModel {
         let planVersion: Int?
     }
 
-    /// Whether the family's description of the person can be blocked on this phone: the loaded search has one.
-    var canBlockFamilyDescription: Bool { mission?.sharedProfile != nil }
+    /// Whether the family's description of the person can be blocked on this phone: the loaded search has one, and it
+    /// is a real search. The practice drill's description is bundled sample data, not a member's, and its id is a real
+    /// search's too, so practice neither blocks nor unblocks.
+    var canBlockFamilyDescription: Bool { blockableSearch?.sharedProfile != nil }
 
-    /// Whether this phone blocked the loaded search's family description: it is not shown here.
+    /// Whether this phone blocked the loaded search's family description: it is not shown here. Never in practice.
     var familyDescriptionBlocked: Bool {
-        guard let incidentId = mission?.incidentId else { return false }
+        guard let incidentId = blockableSearch?.incidentId else { return false }
         return blockedDescriptions.contains(incidentId)
+    }
+
+    /// The loaded mission when it is a real search, which is where a block belongs.
+    private var blockableSearch: Mission? {
+        guard practice == nil, let mission, !mission.isPractice else { return nil }
+        return mission
     }
 
     /// Block on this phone: the family's description of the person is no longer shown on this phone, for this search.
     /// Nothing is sent; command still has the description, and Show again undoes it.
     func blockFamilyDescription() {
-        guard canBlockFamilyDescription, let incidentId = mission?.incidentId else { return }
+        guard canBlockFamilyDescription, let incidentId = blockableSearch?.incidentId else { return }
         setBlocked(blockedDescriptions.union([incidentId]))
     }
 
     /// Show again: the family's description shows on this phone again.
     func showFamilyDescriptionAgain() {
-        guard let incidentId = mission?.incidentId else { return }
+        guard let incidentId = blockableSearch?.incidentId else { return }
         setBlocked(blockedDescriptions.subtracting([incidentId]))
     }
 

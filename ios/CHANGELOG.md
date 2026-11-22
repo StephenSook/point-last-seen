@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### fix(ios): the practice drill neither blocks nor unblocks a description
+- What: Block on this phone is no longer offered in the practice drill, and practice never reads a block as its own
+  or clears one. The bundled practice pack uses a real drill's incident id, so a block set in practice hid that
+  real search's description once joined, and Show again in practice cleared a block set in the real search. The
+  practice description is bundled sample data, not a member's, so there is nothing to block there.
+- Source: third review of the Report a problem and Block change.
+- Verified: a test that blocks and unblocks in the practice drill, with a block kept for the real search under the
+  same id, failed first (four expectations) and passes; the full app suite passes.
+
 ### docs(limits): what Block on this phone does and does not do
 - What: LIMITS says Block on this phone hides the family's description on that iPhone only, for that search, until
   Show again; nothing is sent and command is not told; it hides the card only, so cloud reading (when on) still gets

@@ -60,6 +60,27 @@ import Testing
         #expect(!m.familyDescriptionBlocked && defaults.stringArray(forKey: AppModel.blockedDescriptionsKey) == nil)
     }
 
+    /// The practice drill's description is bundled sample data, not a member's: nothing there blocks or unblocks, so
+    /// practice never touches a block kept for the real search it shares its id with.
+    @Test func thePracticeDrillNeitherBlocksNorUnblocks() async throws {
+        let defaults = freshDefaults()
+        let m = model(defaults, docs: nil)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("block-practice-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        #expect(await m.startPractice(directory: dir) == nil)
+        let practiceId = try #require(m.mission?.incidentId)
+        #expect(m.mission?.isPractice == true && !m.canBlockFamilyDescription)
+        m.blockFamilyDescription()
+        #expect(!m.familyDescriptionBlocked && defaults.stringArray(forKey: AppModel.blockedDescriptionsKey) == nil)
+        // A block kept for the real search with the same id is neither shown as practice's nor cleared by it.
+        defaults.set([practiceId], forKey: AppModel.blockedDescriptionsKey)
+        let again = model(defaults, docs: nil)
+        #expect(await again.startPractice(directory: dir) == nil)
+        #expect(!again.familyDescriptionBlocked)
+        again.showFamilyDescriptionAgain()
+        #expect(defaults.stringArray(forKey: AppModel.blockedDescriptionsKey) == [practiceId])
+    }
+
     /// Blocking is on this phone only: no report or anything else is filed.
     @Test func blockingSendsNothing() async throws {
         let reports = FakeContentReports()
