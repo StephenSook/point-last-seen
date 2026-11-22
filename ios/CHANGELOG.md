@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(eval): the answer key was written by the builder's AI assistant
+- What: the eval README says who wrote the key (the builder's AI assistant, Claude Opus 5.5, a different model family
+  from the model tested, at the builder's request, before any model run, having read the app's kind definitions and
+  this README with its tuning notes, and running no reader on the reports), that the key was converted unedited from
+  its sheet with both hashes pinned, and that the one labeller is that assistant. The second-labeller sentence stays.
+- Source: review (the key's record must say who wrote it).
+- Verified: hygiene guard (public mode) and gates pass; the README was read after the change.
+
 ### test(ios-core): the eval's answer key, its frozen sheet, and its pinned SHA-256
 - What: docs/evidence/eval/pls-drill-reports-v1-key.csv is the answer key's sheet as written, before any model run,
   by the builder's AI assistant at the builder's request (20 reports: 6 cleared, 6 clue, 3 sighting, 3 unclear, 2
