@@ -25,10 +25,17 @@ export async function joinIncident(functions: Functions, auth: Auth, req: JoinRe
   await auth.currentUser?.getIdToken(true);
 }
 
+/**
+ * The join form's line when App Check refused this browser. A reload often clears it: the App Check SDK backs off after
+ * a failed check and reads a stored token only when the page starts, so a tab that failed keeps failing until reloaded.
+ */
+export const APP_CHECK_JOIN_LINE =
+  "This browser did not pass the site's security check. Reload the page and try again; if it fails again, try a normal browser window.";
+
 /** The join form's sentence for a failed join. An App Check refusal never reads as a wrong code. */
 export function joinErrorMessage(e: unknown): string {
   const code = typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "";
-  if (code.endsWith("unauthenticated")) return "Join refused by App Check. Try a normal browser window.";
+  if (code.endsWith("unauthenticated")) return APP_CHECK_JOIN_LINE;
   if (code.endsWith("resource-exhausted")) return "Too many join attempts from this browser. Try again in an hour.";
   if (code.endsWith("permission-denied")) return "That code did not match this incident.";
   if (code.endsWith("unavailable")) return "No connection. Try again when the link is back.";
@@ -44,6 +51,11 @@ export function signInErrorMessage(e: unknown): string {
 }
 
 /** The field a join error is about, so the form can show it under that field; null for an error about the whole form. */
+/** Whether the join form offers "Reload page" beside this error: only the App Check refusal, which a reload can clear. */
+export function joinOffersReload(message: string): boolean {
+  return message === APP_CHECK_JOIN_LINE;
+}
+
 export function joinErrorField(message: string): "incident" | "code" | null {
   if (message === "Enter the incident id.") return "incident";
   if (message === "The join code has 8 characters." || message === "That code did not match this incident.") return "code";

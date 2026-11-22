@@ -29,36 +29,24 @@ export type MemberDoc = { role: string; team: string | null };
 export type MemberRow = { uid: string; role: "searcher" | "family"; teamId: string | null; label: string; removed: boolean };
 
 /**
- * Everyone command can remove: the members records joined with the authors of the incident's events (an account that
- * joined before the records existed is known only by what it wrote). Never listed: the caller, and command. A members
- * record decides an account's role and team (the server decides removal from it); for an account with no record, any
- * command event of it keeps it off the list. People with the same label are told apart by the end of their id, longer until every label
- * is distinct. Removed members come last.
+ * Everyone command can remove: the incident's members records (written by the server at join), never the caller and
+ * never a command record. An account with no record is not listed: it either left (Leave and delete this sign-in
+ * deletes its records) or never joined through the server. Its reports and flags still name its team from the events.
+ * People with the same label are told apart by the end of their id, longer until every label is distinct. Removed
+ * members come last.
  */
 export function memberRows(
   members: Readonly<Record<string, MemberDoc>>,
-  events: readonly Readonly<Record<string, unknown>>[],
   removed: ReadonlySet<string>,
   teams: readonly { teamId: string; name: string }[],
   selfUid: string | null = null,
 ): MemberRow[] {
-  const command = new Set<string>(selfUid ? [selfUid] : []);
-  for (const e of events) {
-    const uid = e["authorUid"];
-    if (e["role"] === "command" && typeof uid === "string" && !(uid in members)) command.add(uid);
-  }
-  for (const [uid, m] of Object.entries(members)) if (m.role === "command") command.add(uid);
   const known = new Map<string, { role: string; teamId: string | null }>();
-  for (const e of events) {
-    const uid = e["authorUid"], teamId = e["teamId"];
-    if (typeof uid !== "string" || known.has(uid)) continue;
-    known.set(uid, { role: String(e["role"]), teamId: typeof teamId === "string" ? teamId : null });
-  }
-  for (const [uid, m] of Object.entries(members)) known.set(uid, { role: m.role, teamId: m.team ?? null });
+  for (const [uid, m] of Object.entries(members)) if (uid !== selfUid) known.set(uid, { role: m.role, teamId: m.team ?? null });
   const name = (teamId: string | null) => teams.find((t) => t.teamId === teamId)?.name ?? teamId ?? "No team";
   const rows: MemberRow[] = [];
   for (const [uid, k] of known) {
-    if (command.has(uid) || (k.role !== "searcher" && k.role !== "family")) continue;
+    if (k.role !== "searcher" && k.role !== "family") continue;
     const label = k.role === "family" ? "Family member" : `${name(k.teamId)} searcher`;
     rows.push({ uid, role: k.role, teamId: k.teamId, label, removed: removed.has(uid) });
   }
