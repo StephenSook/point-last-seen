@@ -248,6 +248,16 @@ describe("a [number removed] beside a run of times", () => {
     expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two\none two")).toBe("Dial [number removed] [number removed]\n[number removed]");
     expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two\n2 searchers canvassed Pine Street.")).toBe("Dial [number removed] [number removed]\n[number removed] searchers canvassed Pine Street.");
   });
+  it("leaves a group with a lone time joined after it to the shared rule, so no digit after the time is exposed", () => {
+    expect(removePhoneNumbers("Dial [number removed] 4:04 5:55 one two 01:42 1234")).toBe("Dial [number removed] 4:[number removed]");
+  });
+  it("never joins across a sentence end, and leaves a single spoken number after the times to the shared rule", () => {
+    const t = "Witness [number removed]. 4:04 5:55. One searcher checked Pine Street.";
+    expect(removePhoneNumbers(t)).toBe(t);
+    for (const kept of ["Witness [number removed] 4:04 5:55. Two searchers went north.", "Witness [number removed] 4:04 5:55 one searcher checked Pine Street."]) {
+      expect(removePhoneNumbers(kept)).toBe(kept);
+    }
+  });
   it("leaves the other joined groups to the shared rule, with the same output as before", () => {
     expect(removePhoneNumbers("[number removed] one two 4:04 5:55")).toBe("[number removed] [number removed]");
     expect(removePhoneNumbers("Call one two 12:34 15:56 [number removed]")).toBe("Call [number removed] [number removed]");
@@ -255,6 +265,14 @@ describe("a [number removed] beside a run of times", () => {
   });
   it("keeps the times when a word stands between them and the marker", () => {
     expect(removePhoneNumbers("Witness [number removed] at 14:03 14:10")).toBe("Witness [number removed] at 14:03 14:10");
+  });
+  it("checks for a marker before each run without reading the note back to its start", () => {
+    // 336,000 characters: the check once read back from every run that joins only after it, and this took 1.6 s on a
+    // fast Mac; it now reads back only to the last letter or digit.
+    const note = "[number removed] note ".repeat(8000) + "Seen 4:04 5:55 one. ".repeat(8000);
+    const t = performance.now();
+    expect(removePhoneNumbers(note)).toBe(note);
+    expect(performance.now() - t).toBeLessThan(1000);
   });
 });
 

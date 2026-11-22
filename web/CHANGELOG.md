@@ -2980,3 +2980,14 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: "Dial [number removed] 4:04 5:55 one two one two" kept the first hour ("Dial [number removed] 4:[number removed]"): a run right after a marker with digits joined after it went to the shared rule, which leaves the hour. Such a run is now removed with the digits joined after it, through joined parts only and never into another run of times, keeping line breaks. Other joined groups keep their old output.
 - Source: issue #348.
 - Verified: new phone tests (the issue's case, a later time kept, line breaks kept, and three joined groups pinned to their old output) failed first where the behaviour changed, then passed (56); the rest of the web suite passes, except the corpus check, which waits for the corpus's rule hash to be regenerated. Regenerating the corpus locally changed 0 of its 9,130 rows.
+
+### fix(data): the marker-joined run rule acts only where nothing could be search information
+- What: from review of the rule above, three narrowings. Otherwise the shared rule decides, as before.
+  - The joined digits must end before a part that does not join, or before another run of times. A group that runs into a lone time ("... one two 01:42 1234" had left ":42 1234") or across a sentence end ("Witness [number removed]. 4:04 5:55. One searcher ...", whose times and words were lost) keeps the shared rule's output.
+  - At least two digits must be joined after the run, so a count after the times ("one searcher") stays.
+  - The marker check reads back only to the last letter or digit instead of re-reading the note for every run, so a 336,000-character note is checked in about 120 ms instead of 1.6 s.
+- Source: review.
+- Verified: new tests for each case failed first on the earlier rule, then passed (59).
+  - A differential against main's rule on 528,000 generated notes: 100,080 outputs changed, none leaves more digits than main, none removes anything from a note main left whole, none drops a word main kept, none is unsettled.
+  - The same check on the earlier rule flags 27,000 and 25,380 notes, which shows it can fail.
+  - Typecheck passes.

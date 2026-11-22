@@ -184,14 +184,15 @@ export function removePhoneNumbersOnce(text: string): string {
     }
     // A run right after a "[number removed]" with digits joined only after it (Dial [number removed] 4:04 5:55 one two one
     // two) is one number with them, and the shared rule alone would leave the run's first hour. The run goes with the
-    // digits joined after it, through joined parts only and never into another run of times, keeping line breaks.
-    if (!joinedBefore && joinedAfter && MARKER_BEFORE.test(folded.substring(from, m.index))) {
-      let hi = last;
-      while (hi + 1 < parts.length && !inTimes.has(hi + 1) && joins(folded, parts[hi]!, parts[hi + 1]!)) hi++;
-      const upper = Math.max(m.index + m[0].length, parts[hi]!.end);
-      const breaks = (folded.substring(m.index, upper).match(LINE_BREAK) ?? []).length;
+    // digits joined after it, keeping line breaks, but only where nothing could be search information: the joined
+    // digits end before a part that does not join, or before another run of times, never at a sentence end or a lone
+    // time; and there are at least two of them, so a count after the times (one searcher) stays. Otherwise the shared
+    // rule decides, as before.
+    const cut = joinedAfter && !joinedBefore ? markerJoinedGroup(folded, parts, inTimes, from, m.index, last) : null;
+    if (cut !== null) {
+      const breaks = (folded.substring(m.index, cut).match(LINE_BREAK) ?? []).length;
       out += removeByRule(folded.substring(from, m.index)) + Array.from({ length: breaks + 1 }, () => REPLACEMENT).join("\n");
-      from = upper;
+      from = cut;
       continue;
     }
     // A month name beside the run reads its hour or minutes as a day (14 May 6:00 7:00, 7:14 May 2026), which changes
@@ -204,6 +205,50 @@ export function removePhoneNumbersOnce(text: string): string {
     from = m.index + m[0].length;
   }
   return out + removeByRule(folded.substring(from));
+}
+
+// A sentence end between two joined parts: a stop, "!" or "?" before a space or line break.
+const SENTENCE_END = /[.!?][\s\u0085\u2028\u2029]/u;
+const LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
+
+/**
+ * Whether a "[number removed]" ends right before `at`, with nothing but separators between, and starts at or after
+ * `from` (what MARKER_BEFORE tests on s.substring(from, at)), read back only to the last letter or digit before `at`.
+ */
+function markerRightBefore(s: string, from: number, at: number): boolean {
+  let j = at;
+  while (j > from) {
+    let k = j - 1;
+    const c = s.charCodeAt(k);
+    if (c >= 0xdc00 && c <= 0xdfff && k > from && s.charCodeAt(k - 1) >= 0xd800 && s.charCodeAt(k - 1) <= 0xdbff) k--;
+    if (LETTER_OR_DIGIT.test(s.slice(k, j))) break;
+    j = k;
+  }
+  // j is just after the last letter or digit: a marker ending there ends with its "d]".
+  const start = j + 1 - REPLACEMENT.length;
+  return start >= from && j + 1 <= at && s.startsWith(REPLACEMENT, start);
+}
+
+/**
+ * Where a run of times right after a marker ends together with the digits joined after it (an index in s), or null
+ * when the shared rule should decide: when the joined digits run into a lone time or across a sentence end, which the
+ * shared rule reads with what follows, or when there are fewer than two of them. The digits stop before a part that
+ * does not join, or before another run of times, which is decided on its own.
+ */
+function markerJoinedGroup(s: string, parts: Part[], inTimes: ReadonlySet<number>, from: number, runStart: number, last: number): number | null {
+  if (!markerRightBefore(s, from, runStart)) return null;
+  const link = (a: Part, b: Part) => joins(s, a, b) && !SENTENCE_END.test(s.substring(a.end, b.start));
+  const timeShaped = (p: Part) => s[p.start - 1] === ":" || s[p.end] === ":";
+  let hi = last;
+  let digits = 0;
+  while (hi + 1 < parts.length && !inTimes.has(hi + 1) && !timeShaped(parts[hi + 1]!) && link(parts[hi]!, parts[hi + 1]!)) {
+    hi++;
+    digits += parts[hi]!.digits;
+  }
+  const next = hi + 1 < parts.length ? parts[hi + 1]! : null;
+  if (next && !inTimes.has(hi + 1) && joins(s, parts[hi]!, next)) return null;
+  if (digits < 2) return null;
+  return parts[hi]!.end;
 }
 
 /** The parts of s as the shared rule reads them: a spoken repeat counted, and a street name's number set apart. */
