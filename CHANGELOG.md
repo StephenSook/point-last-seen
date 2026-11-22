@@ -5,6 +5,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-21
 
+- Limits: a search report placed in a cleared segment can open that segment's debrief (it no longer fills it). Source:
+  review. Verified: the hygiene guard passes in public mode.
 - Search-report rule: fewer real sightings read as reports. A quote at either end of a word is trimmed ("'saw him'"
   holds saw); witness(es), recognized, recognised and identified are sighting words; and an en or em dash or a spaced
   hyphen ends a clause, so "no sign - footprints by the gate" keeps its footprints. Eleven new cases (62 in all), among

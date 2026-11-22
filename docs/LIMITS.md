@@ -156,7 +156,7 @@ each line says what the limit is and why.
   ("Segment 4 searched, subject not seen"), with one rule and no model (`shared/engine-ts/src/searchReport.ts`, cases in
   `shared/test-vectors/search-report.json`). It knows English words only: a search report in another language saves as
   a sighting with no warning. It never blocks a save: "Save as a sighting anyway" saves the note as typed, and a
-  report placed in a cleared segment can go to that segment's debrief instead. Only the web runs it so far.
+  report placed in a cleared segment can open that segment's debrief. Only the web runs it so far.
 
 ## Phone numbers in notes
 
