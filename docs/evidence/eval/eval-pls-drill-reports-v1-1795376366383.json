@@ -1,0 +1,1129 @@
+{
+  "arms" : [
+    {
+      "arm" : "on_device",
+      "outputs" : {
+        "n1" : {
+          "blocked" : false,
+          "latencyMs" : 1910.079833984375,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Team 1 finished AB, full sweep, nothing found.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "cleared",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+              "AB"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n10" : {
+          "blocked" : true,
+          "latencyMs" : 510.18212890625,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Man on a bike saw a kid alone near the restrooms in AZ.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "sighting",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "AZ"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n11" : {
+          "blocked" : false,
+          "latencyMs" : 2075.683837890625,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "name sticker",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Found a water bottle with a name sticker at the edge of the open field.",
+            "feature" : "water",
+            "footwear" : "",
+            "item" : "water bottle",
+            "kind" : "found",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n12" : {
+          "blocked" : false,
+          "latencyMs" : 1875.27099609375,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Done with BM, hasty search only, about 40 minutes, 3 searchers.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "person",
+            "kind" : "sighting",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "hasty",
+            "searchers" : null,
+            "segmentIds" : [
+              "BM"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n13" : {
+          "blocked" : false,
+          "latencyMs" : 2361.80322265625,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : 0,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Heading back to command, my radio battery is low.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n14" : {
+          "blocked" : false,
+          "latencyMs" : 1990.413818359375,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "A dog walker saw a woman in a green coat walking along the lake shore in BS.",
+            "feature" : "water",
+            "footwear" : "",
+            "item" : "woman",
+            "kind" : "sighting",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+              "BS"
+            ],
+            "topColor" : "green"
+          }
+        },
+        "n15" : {
+          "blocked" : false,
+          "latencyMs" : 1842.928955078125,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "We have him. Subject located in the woods in CE.",
+            "feature" : "woods",
+            "footwear" : "",
+            "item" : "Subject",
+            "kind" : "found",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+              "CE"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n16" : {
+          "blocked" : false,
+          "latencyMs" : 0.2060546875,
+          "path" : "rules\/evidence_protocol",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n17" : {
+          "blocked" : false,
+          "latencyMs" : 2345.4052734375,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : 0.8,
+            "detectionRangeM" : 100,
+            "direction" : "unknown",
+            "evidenceQuote" : "Searched the trees in CK and CL, voice and visual, nothing heard.",
+            "feature" : "woods",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "sound",
+            "minutes" : 15,
+            "searchType" : "sweep",
+            "searchers" : 2,
+            "segmentIds" : [
+              "CK",
+              "CL"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n18" : {
+          "blocked" : false,
+          "latencyMs" : 2012.671875,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Not sure what we saw, something moved behind the shed in AC, checking.",
+            "feature" : "structure",
+            "footwear" : "",
+            "item" : "person",
+            "kind" : "sighting",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "hasty",
+            "searchers" : null,
+            "segmentIds" : [
+              "AC"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n19" : {
+          "blocked" : false,
+          "latencyMs" : 2096.50390625,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : 80,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Cleared BX along the creek, about 80 percent coverage.",
+            "feature" : "creek_or_drainage",
+            "footwear" : "",
+            "item" : "BX",
+            "kind" : "cleared",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+              "BX"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n2" : {
+          "blocked" : false,
+          "latencyMs" : 1928.174072265625,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Cleared AK and AN along the road, no sign of him.",
+            "feature" : "road",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "cleared",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+              "AK",
+              "AN"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n20" : {
+          "blocked" : false,
+          "latencyMs" : 2307.34228515625,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Old campfire ring under the big rock outcrop in BK, ash still warm.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "BK"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n3" : {
+          "blocked" : false,
+          "latencyMs" : 2006.755126953125,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "footprints",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "downstream",
+            "evidenceQuote" : "Footprints in the mud by the creek in AF, small shoe, heading downstream.",
+            "feature" : "creek_or_drainage",
+            "footwear" : "",
+            "item" : "small shoe",
+            "kind" : "found",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+              "AF"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n4" : {
+          "blocked" : false,
+          "latencyMs" : 2170.103271484375,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "blue",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "A jogger says she saw a boy in a blue hoodie on the trail in CJ about 20 minutes ago.",
+            "feature" : "trail",
+            "footwear" : "",
+            "item" : "boy in a blue hoodie",
+            "kind" : "sighting",
+            "matchesProfile" : "consistent",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "hasty",
+            "searchers" : null,
+            "segmentIds" : [
+              "CJ"
+            ],
+            "topColor" : "blue"
+          }
+        },
+        "n5" : {
+          "blocked" : false,
+          "latencyMs" : 1863.89501953125,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Subject found sitting at the picnic shelter in BH. Bringing him back now.",
+            "feature" : "structure",
+            "footwear" : "",
+            "item" : "subject",
+            "kind" : "found",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+              "BH"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n6" : {
+          "blocked" : false,
+          "latencyMs" : 1969.95263671875,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "pink mitten",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Picked up a pink mitten on the trail in BC.",
+            "feature" : "trail",
+            "footwear" : "",
+            "item" : "pink mitten",
+            "kind" : "cleared",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+              "BC"
+            ],
+            "topColor" : "pink"
+          }
+        },
+        "n7" : {
+          "blocked" : false,
+          "latencyMs" : 1928.068115234375,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Radio check from Team 3, moving to staging.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "person",
+            "kind" : "sighting",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n8" : {
+          "blocked" : false,
+          "latencyMs" : 1927.271240234375,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Cleared CB and CC around the pond edge, nothing.",
+            "feature" : "creek_or_drainage",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "cleared",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+              "CB",
+              "CC"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n9" : {
+          "blocked" : false,
+          "latencyMs" : 1977.671875,
+          "path" : "on_device\/guided",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Candy wrapper and a broken branch in the thick brush in AV.",
+            "feature" : "brush",
+            "footwear" : "",
+            "item" : "Candy wrapper and a broken branch",
+            "kind" : "found",
+            "matchesProfile" : "unknown",
+            "method" : "visual",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+              "AV"
+            ],
+            "topColor" : "unknown"
+          }
+        }
+      },
+      "readByModel" : 17,
+      "right" : 9,
+      "rightInterval" : [
+        0.2581978582556243,
+        0.6579146575496578
+      ],
+      "summary" : {
+        "blocked" : 1,
+        "featureCorrect" : 15,
+        "featureScored" : 20,
+        "invalid" : 0,
+        "kindCorrect" : 9,
+        "misses" : [
+          "n3",
+          "n6",
+          "n7",
+          "n9",
+          "n10",
+          "n11",
+          "n12",
+          "n16",
+          "n17",
+          "n18",
+          "n20"
+        ],
+        "n" : 20,
+        "segmentCorrect" : 18
+      }
+    },
+    {
+      "arm" : "rules_only",
+      "outputs" : {
+        "n1" : {
+          "blocked" : false,
+          "latencyMs" : 0.85205078125,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Team 1 finished AB, full sweep, nothing found.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "sweep",
+            "searchers" : null,
+            "segmentIds" : [
+              "AB"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n10" : {
+          "blocked" : false,
+          "latencyMs" : 0.26513671875,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Man on a bike saw a kid alone near the restrooms in AZ.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "sighting",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "AZ"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n11" : {
+          "blocked" : false,
+          "latencyMs" : 0.281982421875,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Found a water bottle with a name sticker at the edge of the open field.",
+            "feature" : "water",
+            "footwear" : "",
+            "item" : "water bottle",
+            "kind" : "clue",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n12" : {
+          "blocked" : false,
+          "latencyMs" : 0.234130859375,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Done with BM, hasty search only, about 40 minutes, 3 searchers.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : 40,
+            "searchType" : "hasty",
+            "searchers" : 3,
+            "segmentIds" : [
+              "BM"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n13" : {
+          "blocked" : false,
+          "latencyMs" : 0.197998046875,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Heading back to command, my radio battery is low.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n14" : {
+          "blocked" : false,
+          "latencyMs" : 0.3330078125,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "A dog walker saw a woman in a green coat walking along the lake shore in BS.",
+            "feature" : "water",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "sighting",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "BS"
+            ],
+            "topColor" : "green"
+          }
+        },
+        "n15" : {
+          "blocked" : false,
+          "latencyMs" : 0.21923828125,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "We have him. Subject located in the woods in CE.",
+            "feature" : "woods",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "found",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "CE"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n16" : {
+          "blocked" : false,
+          "latencyMs" : 0.2041015625,
+          "path" : "rules\/evidence_protocol",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n17" : {
+          "blocked" : false,
+          "latencyMs" : 0.23681640625,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Searched the trees in CK and CL, voice and visual, nothing heard.",
+            "feature" : "woods",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "cleared",
+            "matchesProfile" : "unknown",
+            "method" : "both",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "CK",
+              "CL"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n18" : {
+          "blocked" : false,
+          "latencyMs" : 0.259765625,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Not sure what we saw, something moved behind the shed in AC, checking.",
+            "feature" : "structure",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "sighting",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "AC"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n19" : {
+          "blocked" : false,
+          "latencyMs" : 0.197998046875,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : 80,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Cleared BX along the creek, about 80 percent coverage.",
+            "feature" : "creek_or_drainage",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "cleared",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "BX"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n2" : {
+          "blocked" : false,
+          "latencyMs" : 0.295166015625,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Cleared AK and AN along the road, no sign of him.",
+            "feature" : "road",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "cleared",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "AK",
+              "AN"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n20" : {
+          "blocked" : false,
+          "latencyMs" : 0.267822265625,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Old campfire ring under the big rock outcrop in BK, ash still warm.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "BK"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n3" : {
+          "blocked" : false,
+          "latencyMs" : 0.287109375,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "downstream",
+            "evidenceQuote" : "Footprints in the mud by the creek in AF, small shoe, heading downstream.",
+            "feature" : "creek_or_drainage",
+            "footwear" : "shoe",
+            "item" : "shoe",
+            "kind" : "clue",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "AF"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n4" : {
+          "blocked" : false,
+          "latencyMs" : 0.437255859375,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "A jogger says she saw a boy in a blue hoodie on the trail in CJ about 20 minutes ago.",
+            "feature" : "trail",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "sighting",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : 20,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "CJ"
+            ],
+            "topColor" : "blue"
+          }
+        },
+        "n5" : {
+          "blocked" : false,
+          "latencyMs" : 0.279296875,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Subject found sitting at the picnic shelter in BH. Bringing him back now.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "found",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "BH"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n6" : {
+          "blocked" : false,
+          "latencyMs" : 0.233154296875,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Picked up a pink mitten on the trail in BC.",
+            "feature" : "trail",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "BC"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n7" : {
+          "blocked" : false,
+          "latencyMs" : 0.18798828125,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Radio check from Team 3, moving to staging.",
+            "feature" : "none",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n8" : {
+          "blocked" : false,
+          "latencyMs" : 0.197021484375,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Cleared CB and CC around the pond edge, nothing.",
+            "feature" : "water",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "cleared",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "CB",
+              "CC"
+            ],
+            "topColor" : "unknown"
+          }
+        },
+        "n9" : {
+          "blocked" : false,
+          "latencyMs" : 0.24609375,
+          "path" : "rules\/deterministic_parser",
+          "reading" : {
+            "bottomColor" : "unknown",
+            "carried" : "",
+            "coverage" : null,
+            "detectionRangeM" : null,
+            "direction" : "unknown",
+            "evidenceQuote" : "Candy wrapper and a broken branch in the thick brush in AV.",
+            "feature" : "brush",
+            "footwear" : "",
+            "item" : "",
+            "kind" : "unclear",
+            "matchesProfile" : "unknown",
+            "method" : "unknown",
+            "minutes" : null,
+            "searchType" : "unknown",
+            "searchers" : null,
+            "segmentIds" : [
+              "AV"
+            ],
+            "topColor" : "unknown"
+          }
+        }
+      },
+      "readByModel" : 0,
+      "right" : 13,
+      "rightInterval" : [
+        0.43285427668523635,
+        0.8188081758989179
+      ],
+      "summary" : {
+        "blocked" : 0,
+        "featureCorrect" : 15,
+        "featureScored" : 20,
+        "invalid" : 0,
+        "kindCorrect" : 13,
+        "misses" : [
+          "n1",
+          "n6",
+          "n9",
+          "n12",
+          "n16",
+          "n18",
+          "n20"
+        ],
+        "n" : 20,
+        "segmentCorrect" : 19
+      }
+    }
+  ],
+  "facts" : {
+    "answerKey" : "pls-drill-reports-v1",
+    "answerKeySha256" : "f98c6f5dd978674a50b7305ed50985ea4227fd6d91ebbf9206eaf70e85a33d20",
+    "appVersion" : "1.0.0",
+    "build" : "1",
+    "commit" : "ee331aaf4afffbd6084f05094e7eaee862022344",
+    "device" : "iPhone iOS 27.2.1",
+    "grid" : "piedmont-park-dev",
+    "promptSha256" : "39f302b090b8e4f0a984afa193ee7361d38ffaa216c93e59758a269350276dcc",
+    "ranAtMs" : 1795376366383.815,
+    "writtenBy" : "AI assistant (Claude Opus 5.5), at the builder's request"
+  },
+  "paired" : {
+    "onDeviceOnly" : 1,
+    "pValue" : 0.21875,
+    "rulesOnly" : 5
+  }
+}

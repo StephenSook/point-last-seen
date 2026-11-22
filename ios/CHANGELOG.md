@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(eval): the first report-reading eval result from the iPhone, unchanged
+- What: docs/evidence/eval/eval-pls-drill-reports-v1-1795376366383.json, the result file the eval screen saved on
+  the iPhone 17 Pro (iOS 27.2.1, debug build 1.0.0 (1) from commit ee331aaf, Airplane Mode on), copied over USB and
+  committed byte for byte. It names the frozen key (pls-drill-reports-v1, SHA-256 f98c6f5d...), both arms' readings
+  of all 20 rows, and the run time (2026-11-22 19:39:26 UTC).
+- Source: the eval plan; the run on the phone.
+- Verified: SHA-256 4ce67410... on the phone's copy and in the repo; its key SHA-256, writer, grid, app version, build
+  and commit match the pinned key and the installed build; both arms have exactly the key's 20 row ids.
+
 ### build(ios): the Debug app bundles the eval's pinned answer key
 - What: a build step copies docs/evidence/eval/pls-drill-reports-v1.json into the app in Debug builds only, like the
   eval screen that reads it, so "Report-reading eval" finds the key. archive_release.sh now also fails when the key is
