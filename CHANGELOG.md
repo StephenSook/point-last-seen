@@ -9,6 +9,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   (the eval answer-key kit's 13 tests). Source: the kit's new test file. Verified:
   `scripts/test_ci_local.py::test_every_python_test_file_runs_in_ci` failed without the line, naming the file, then
   passed; the kit's tests pass from the repo root; `scripts/ci-local.sh --gates` passes.
+- Limits: the phone-number line on ways part of a number can be left gains a fourth: written digits right after a run
+  of times can leave the run's first hour ("Dial 4:04 5:55 12 12" gives "Dial 4:[number removed]"; issue #358).
+  Source: issue #358 (a fix for the spoken-digit case, #348, was tried and not merged). Verified: all six examples in
+  the line measured with the web's removePhoneNumbers on main b7e03c3c; `scripts/test_phone_vectors.py` and the
+  hygiene guard in public mode pass.
 - Docs: the README's Android row and the production checklist name android-judge-5
   (`point-last-seen-family-8fcc0803.apk`, built from main 8fcc0803) instead of android-judge-4. The judge page and the
   README link GitHub's `/releases/latest`, which now redirects to android-judge-5, so no link changed. Source: a new
