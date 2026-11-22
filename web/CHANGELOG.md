@@ -2563,20 +2563,6 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (parity with the iPhone's vector test).
 - Verified: a control with a planted passing case, a planted failing one and one pending on another platform returns exactly "un-pend already_fixed"; the vector test passes (106); web unit suite, typecheck and hygiene guard pass.
 
-### feat(command): the sighting form asks before saving a note that reads as a search report
-- What: at Save, a note that reads as a team's search report rather than a sighting (`readsAsSearchReport`, shared engine) shows "This reads as a search report, not a sighting." with "Save as a sighting anyway" and, when the place is a cleared segment, "Add it to segment XX's debrief". It never blocks a save; an edited note asks again. The debrief scope guard lists the form and its harness: they hand a note to the debrief form and read no debrief.
-- Source: review (a team's search report typed into the sighting form).
-- Verified: three new harness tests (warning then save anyway; the debrief button only for a cleared segment, with nothing saved; a sighting saves on the first tap and an edit drops the warning) failed first, then passed; the sighting harness spec (26), web unit suite and typecheck pass.
-
-### feat(command): a debrief can open with a search report from the sighting form
-- What: `DebriefSection` takes a `prefill` (segment, note, seq). That segment's row opens its form as Add or Edit would, adds the note after what What worked already says, and puts the cursor there. Nothing saves until command fills the time and saves the debrief.
-- Source: review (a team's search report typed into the sighting form).
-- Verified: two new harness tests (a row with no debrief opens with the note, focused and unsaved, and saves it under What worked; a row with a debrief keeps its words and time and adds the note after them) failed first, then passed; both debrief harness specs (24) pass.
-
-### feat(command): the post sends a search report to its cleared segment's debrief
-- What: the command post gives the sighting form its cleared segments, and "Add it to segment XX's debrief" closes the form, opens Details and opens that segment's debrief with the note. A deployed-only check (`e2e/searchReport.spec.ts`) types a report on the drill, sends it to the first cleared segment's debrief, checks the box holds the note and has the cursor, and cancels, so it writes nothing.
-- Source: review (a team's search report typed into the sighting form).
-- Verified: typecheck, web unit suite and the harness suite (231) pass; the deployed check runs after the deploy.
 ### fix(command): a post whose sign-in moved to another search says so
 - What: a browser's sign-in holds one search and one role. Starting a practice search or joining another drill in another tab moved it, and a command post still open for the first drill then failed every write with a bare refusal. The post now watches the sign-in (any tab) and, when its claims name another incident, shows "You're signed in to another search in this browser. Reopen this drill with its command code to act as command." with a Reopen this drill button (another role on the same drill has its own line); after a refusal it rechecks with fresh claims, and the no-access panel gives the same line. `docs/LIMITS.md` says so.
 - Source: review (a command who opens a practice search loses command).
@@ -2601,6 +2587,56 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the panel is its own component (`NoAccessPanel`). A drill offers "Reopen this drill" (a reload, for a sign-in that is back) and "Join another search" (the join form), so an expired drill whose token still names it no longer reopens into the same denial. A practice search points to the judge's page. When the search's mode has not loaded and only its id suggests a practice search, all three are offered.
 - Source: review (Codex, third round on the sign-in line).
 - Verified: three new render tests (drill, practice, mode guessed from the id) failed first, then passed; web unit suite and typecheck pass.
+
+### test(e2e): the receipt's Sent line is checked against the request that left
+- What: a deployed check, `web/e2e/receiptSent.spec.ts`, types a sighting note with a phone number in it. With no built-in model it reads the note, and no request reaches an AI host. After the consent tap the cloud read sends exactly one request, to the server prompt template, whose whole body is `{"inputs":{"note":...}}` with the number removed and no other field. The receipt counts exactly that note's bytes ("Sent: 94 bytes of the note, with phone numbers removed."), and no digit of the number is in the request.
+- Source: review (make the receipt's honesty something a test proves).
+- Verified: the check passes twice on the deployed site (build b890674b, the test drill); web typecheck and the hygiene guard pass; the sighting is cancelled, never saved.
+
+### feat(data): command can ask for a new searcher or family join code
+- What: `web/src/data/joinCodes.ts` calls the `rotateJoinCode` callable, checks its answer (eight join-code characters for the role asked, and a whole count of replaced codes), and gives a plain sentence for every refusal the server names (not_command, practice_search, not_open, collision, bad_role, bad_incident_id, not_signed_in), a refused sign-in or App Check token, and a dropped link.
+- Source: review (command needs a way to replace a code that got out).
+- Verified: new unit tests failed first, then passed (4); typecheck passes.
+
+### feat(command): Give searchers or family a new code, beside the People list
+- What: on an open drill, a Join codes section under People offers "Give searchers a new code" and "Give family a new code". Each asks first ("Every searcher code given out stops working. People already in the search stay in."), then shows the new code once, large and selectable, with Copy and how many old codes it replaced; Done hides it. A refusal keeps the confirm open with the server's reason. A practice search and an ended search show no codes. The members harness renders the section with a stand-in.
+- Source: review (command needs a way to replace a code that got out).
+- Verified: three new harness checks (ask, Cancel, Replace, Copy and Done; a refusal; no codes on a practice search) failed first, then passed with the members checks (10); web unit suite (1191) and typecheck pass.
+
+### fix(data): a replacement with no answer says the code may already be replaced
+- What: when no answer came back (a deadline, a server error, or an answer that could not be read), the line is now "No answer came back, so the code may already have been replaced. Replacing it again makes the newest code the only one that works." instead of "Try again", since the server may already have made a code a second tap would stop. `parseRotation` also refuses a replaced count JavaScript cannot hold exactly.
+- Source: review (Codex, first round on the join-code panel).
+- Verified: the new and extended unit tests failed first, then passed (5).
+
+### fix(command): "Copied." names only the code the clipboard took
+- What: the panel remembers which code a Copy wrote, so a Copy that finishes after command pressed Done and made another code never marks the new one copied.
+- Source: review (Codex, first round on the join-code panel).
+- Verified: a new harness test (a slow searcher Copy finishing over a family code) failed first, then passed; the members harness spec (11) passes.
+
+### fix(command): the join-code panel shows only on an open drill
+- What: the panel needs the drill's status to be open, as the server does, so an older drill saved as found no longer offers a replacement the server refuses.
+- Source: review (Codex, first round on the join-code panel).
+- Verified: typecheck and the web unit suite pass.
+
+### fix(data): a dropped link also says the code may already be replaced
+- What: "unavailable" now gets the may-already-be-replaced line too, since a reply lost after the server committed (a 503 from the host) reads the same as no connection; a second replacement would stop the code the first one made.
+- Source: review (Codex, second round on the join-code panel).
+- Verified: the extended unit test failed first, then passed (5).
+
+### feat(command): the sighting form asks before saving a note that reads as a search report
+- What: at Save, a note that reads as a team's search report rather than a sighting (`readsAsSearchReport`, shared engine) shows "This reads as a search report, not a sighting." with "Save as a sighting anyway" and, when the place is a cleared segment, "Add it to segment XX's debrief". It never blocks a save; an edited note asks again. The debrief scope guard lists the form and its harness: they hand a note to the debrief form and read no debrief.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: three new harness tests (warning then save anyway; the debrief button only for a cleared segment, with nothing saved; a sighting saves on the first tap and an edit drops the warning) failed first, then passed; the sighting harness spec (26), web unit suite and typecheck pass.
+
+### feat(command): a debrief can open with a search report from the sighting form
+- What: `DebriefSection` takes a `prefill` (segment, note, seq). That segment's row opens its form as Add or Edit would, adds the note after what What worked already says, and puts the cursor there. Nothing saves until command fills the time and saves the debrief.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: two new harness tests (a row with no debrief opens with the note, focused and unsaved, and saves it under What worked; a row with a debrief keeps its words and time and adds the note after them) failed first, then passed; both debrief harness specs (24) pass.
+
+### feat(command): the post sends a search report to its cleared segment's debrief
+- What: the command post gives the sighting form its cleared segments, and "Add it to segment XX's debrief" closes the form, opens Details and opens that segment's debrief with the note. A deployed-only check (`e2e/searchReport.spec.ts`) types a report on the drill, sends it to the first cleared segment's debrief, checks the box holds the note and has the cursor, and cancels, so it writes nothing.
+- Source: review (a team's search report typed into the sighting form).
+- Verified: typecheck, web unit suite and the harness suite (231) pass; the deployed check runs after the deploy.
 
 ### feat(data): which segments stand cleared, with taken-back clears left out
 - What: `standingClears(events)` gives each segment with at least one clear that command has not taken back, so a search report is offered a segment's debrief only while that segment stands cleared.

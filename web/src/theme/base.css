@@ -226,6 +226,8 @@ fieldset.facing { grid-template-columns: repeat(3, auto); }
 .flags { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .flags p { margin: 0; overflow-wrap: anywhere; }
 .people { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+/* A new join code, shown once: large, spaced, and selectable as one word. */
+.code-once { margin: 8px 0; font: 600 20px/1.2 var(--mono); letter-spacing: 0.12em; color: var(--fg-1); user-select: all; }
 .people li { display: grid; gap: 4px; }
 .people .confirm { display: grid; gap: 6px; }
 fieldset.end-search { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
