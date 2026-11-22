@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(limits): what Block on this phone does and does not do
+- What: LIMITS says Block on this phone hides the family's description on that iPhone only, for that search, until
+  Show again; nothing is sent and command is not told; it hides the card only, so cloud reading (when on) still gets
+  the description's clothing and appearance, and the phone still checks a report's words against the person's names.
+- Source: the Block on this phone change.
+- Verified: each statement checked against the model, the Ready check and the reading code (`subjectNames` feeds the
+  found-kind rule only).
+
 ### test(ios): the task screen's report field and Send carry accessibility ids
 - What: the report field is `task-report-text` and its Send button `task-send`, so a UI test can find them by id
   rather than by their words. Nothing on screen changes.

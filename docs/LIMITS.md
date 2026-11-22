@@ -68,6 +68,11 @@ each line says what the limit is and why.
   taken back. Without signal it waits on the phone and goes when signal returns; the phone then cannot say whether the
   server later took it. The iPhone shows only this phone's own reports, so it offers no way to flag another
   searcher's report. Reports are not offered in the practice drill, where nothing leaves the phone.
+- "Block on this phone" hides the family's description of the person on that iPhone only, for that search, until
+  "Show again". Nothing is sent: command still has the description and is not told. It hides the card only: with
+  "Allow cloud reading" on, a report read in the cloud still gets the description's clothing and appearance, and the
+  phone still checks a report's words against the person's names, so a note naming them still reads as the person
+  found.
 
 - The iPhone acts on a mission only within the account session it was read in: the user Auth last reported
   plus a count of account changes, where every change of user starts a new session. A join signs in first,
