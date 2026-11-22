@@ -1,0 +1,21 @@
+report_text,expected_kind,segment_ids,place_feature
+"Team 1 finished AB, full sweep, nothing found.",cleared,AB,none
+"Cleared AK and AN along the road, no sign of him.",cleared,AK AN,road
+"Footprints in the mud by the creek in AF, small shoe, heading downstream.",clue,AF,creek_or_drainage
+A jogger says she saw a boy in a blue hoodie on the trail in CJ about 20 minutes ago.,sighting,CJ,trail
+Subject found sitting at the picnic shelter in BH. Bringing him back now.,found,BH,structure
+Picked up a pink mitten on the trail in BC.,clue,BC,trail
+"Radio check from Team 3, moving to staging.",unclear,,none
+"Cleared CB and CC around the pond edge, nothing.",cleared,CB CC,water
+Candy wrapper and a broken branch in the thick brush in AV.,clue,AV,brush
+Man on a bike saw a kid alone near the restrooms in AZ.,sighting,AZ,structure
+Found a water bottle with a name sticker at the edge of the open field.,clue,,field
+"Done with BM, hasty search only, about 40 minutes, 3 searchers.",cleared,BM,none
+"Heading back to command, my radio battery is low.",unclear,,none
+A dog walker saw a woman in a green coat walking along the lake shore in BS.,sighting,BS,water
+We have him. Subject located in the woods in CE.,found,CE,woods
+Fresh drag marks and a tissue in the drainage ditch between AH and AI.,clue,AH AI,creek_or_drainage
+"Searched the trees in CK and CL, voice and visual, nothing heard.",cleared,CK CL,woods
+"Not sure what we saw, something moved behind the shed in AC, checking.",unclear,AC,structure
+"Cleared BX along the creek, about 80 percent coverage.",cleared,BX,creek_or_drainage
+"Old campfire ring under the big rock outcrop in BK, ash still warm.",clue,BK,other
