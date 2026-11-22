@@ -2687,3 +2687,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the form remembers what the stored debrief said when it opened, and a save refuses with "This debrief was saved from another screen while you edited. Cancel and open it again to see it." if another screen has saved it since, instead of writing this form's older copy over it (a hazard another tab added was deleted). This held for a form opened by hand as well as from the sighting form.
 - Source: review (Codex, scoped pass on the open-only handoff).
 - Verified: a new harness test (another screen saves while the form is open) failed first, then passed; both debrief harness specs pass.
+
+### fix(command): an open request a debrief row already acted on is not acted on again
+- What: the debrief section keeps the newest open request a row has acted on, so a row that leaves (its clear taken back) and comes back does not open its form and take the cursor again without a new click.
+- Source: review (Codex, scoped pass on the open-only handoff).
+- Verified: a new harness test (the row leaves and comes back) failed first, then passed; both debrief harness specs (27), web unit suite and typecheck pass.

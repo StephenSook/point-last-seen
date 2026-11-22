@@ -24,12 +24,15 @@ type Props = {
 
 export function DebriefSection({ cleared, debriefs, teams, onSave, paperRead, openRequest = null }: Props) {
   const ids = [...new Set([...cleared.map((c) => c.segmentId), ...Object.keys(debriefs)])].sort();
+  // The newest request a row has acted on: a row that leaves (its clear taken back) and comes back is not opened again.
+  const handled = useRef(0);
+  const pending = openRequest && openRequest.seq > handled.current ? openRequest : null;
   return (
     <section aria-labelledby="debrief-h" className="layers">
       <h2 id="debrief-h" className="label">Debriefs</h2>
       {ids.length === 0 && <p className="muted small">Cleared segments get a debrief here.</p>}
       {ids.map((id) => (
-        <DebriefRow key={id} segmentId={id} cleared={cleared.find((c) => c.segmentId === id)} debrief={debriefs[id]} teams={teams} onSave={onSave} paperRead={paperRead} openSeq={openRequest?.segmentId === id ? openRequest.seq : undefined} />
+        <DebriefRow key={id} segmentId={id} cleared={cleared.find((c) => c.segmentId === id)} debrief={debriefs[id]} teams={teams} onSave={onSave} paperRead={paperRead} openSeq={pending?.segmentId === id ? pending.seq : undefined} onOpened={(seq) => { handled.current = Math.max(handled.current, seq); }} />
       ))}
     </section>
   );
@@ -42,7 +45,7 @@ function debriefWords(d: Debrief | undefined): string {
   return d ? JSON.stringify([d.tookMinutes, d.worked ?? "", d.didNotWork ?? "", d.coverageStatedPct ?? null, d.clues ?? "", d.hazards ?? "", d.byUid]) : "none";
 }
 
-function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead, openSeq }: { segmentId: string; cleared: ClearedSegment | undefined; debrief: Debrief | undefined; teams: Props["teams"]; onSave: Props["onSave"]; paperRead: PaperRead | undefined; openSeq: number | undefined }) {
+function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead, openSeq, onOpened }: { segmentId: string; cleared: ClearedSegment | undefined; debrief: Debrief | undefined; teams: Props["teams"]; onSave: Props["onSave"]; paperRead: PaperRead | undefined; openSeq: number | undefined; onOpened: (seq: number) => void }) {
   const [editing, setEditing] = useState(false);
   const [paper, setPaper] = useState(false);
   const [minutes, setMinutes] = useState("");
@@ -59,6 +62,7 @@ function DebriefRow({ segmentId, cleared, debrief, teams, onSave, paperRead, ope
   const focusAsked = useRef(false);
   useEffect(() => {
     if (openSeq === undefined) return;
+    onOpened(openSeq);
     if (!editing && !paper) open();
     focusAsked.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps

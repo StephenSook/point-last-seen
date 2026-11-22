@@ -51,8 +51,9 @@ const wrap = (section: ReactNode) => (inDetails ? <details open><summary>Details
 function Harness() {
   const [saved, setSaved] = useState<string>("");
   const [stored, setStored] = useState(initial);
-  // "Another screen saves": a debrief for the ?open segment (or AA) is saved from another tab while this one may have
-  // its form open.
+  // "Take back AA's clear" / "Clear AA again": AA's row leaves and comes back. "Another screen saves": a debrief for the
+  // ?open segment (or AA) is saved from another tab while this one may have its form open.
+  const [aaCleared, setAaCleared] = useState(true);
   const [openReq, setOpenReq] = useState(openSegment ? { segmentId: openSegment, seq: 1 } : null);
   const [jpeg, setJpeg] = useState("");
   const [reads, setReads] = useState(0);
@@ -72,7 +73,7 @@ function Harness() {
     <main className="rail right" style={{ width: 340 }}>
       <p className="drill">Synthetic segments, not drill data.</p>
       {wrap(<DebriefSection
-        cleared={cleared}
+        cleared={aaCleared ? cleared : cleared.filter((c) => c.segmentId !== "AA")}
         debriefs={stored}
         teams={teams}
         onSave={async (segmentId: string, input: DebriefInput, existing: boolean, clearedEventId: string | null) => {
@@ -85,6 +86,12 @@ function Harness() {
       />)}
       <button type="button" onClick={() => setOpenReq((r) => ({ segmentId: openSegment ?? "AA", seq: (r?.seq ?? 0) + 1 }))}>
         Ask to open
+      </button>
+      <button type="button" onClick={() => setAaCleared(false)}>
+        Take back AA's clear
+      </button>
+      <button type="button" onClick={() => setAaCleared(true)}>
+        Clear AA again
       </button>
       <button
         type="button"

@@ -140,3 +140,16 @@ test("a debrief saved from another screen while this form is open is never overw
   await expect(page.getByTestId("saved")).toHaveText("");
 });
 
+test("a debrief open request already handled does not open the row again when it leaves and comes back", async ({ page }) => {
+  await page.goto("/harness/debrief.html?open=AA");
+  const row = page.getByTestId("debrief-AA");
+  await expect(row.getByLabel("What worked (optional)")).toBeFocused();
+  await row.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Take back AA's clear" }).click();
+  await expect(row).toHaveCount(0);
+  await page.getByRole("button", { name: "Clear AA again" }).click();
+  await expect(row.getByRole("button", { name: "Add debrief" })).toBeVisible();
+  // The row reopened a moment after it drew; wait past that before checking that it did not.
+  await page.waitForTimeout(500);
+  await expect(row.getByLabel("What worked (optional)")).toHaveCount(0);
+});
