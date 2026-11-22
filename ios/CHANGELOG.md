@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### test(ios-core): the iPhone rule gives the web rule's output on the whole shared corpus
+- What: a core test runs every note of shared/test-vectors/phone-numbers-corpus.json (every shared case's input and
+  9,000 fixed-seed notes) through the iPhone's scrub and expects the stored web output, code point for code point. It
+  pins the corpus file by its SHA-256, so a new corpus is checked again on purpose. The core test target now depends on
+  swift-crypto for the hash.
+- Source: the shared corpus, so a port that drifts from the web rule fails here.
+- Verified: before the marker and settle rules 8 notes differed; with them all 9,130 match; the full core suite passes
+  except the expected-failure guard, which names marker_then_times until its iPhone pending mark is dropped.
+
 ### fix(ios-core): a "[number removed]" is read as removed digits beside a run of times
 - What: two rules the web and Android already have. Looking for a cue before a run of times, the words of a
   "[number removed]" already in the note are read past like digits, so its "number" is never a cue and a note scrubbed
