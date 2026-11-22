@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- App Check on functions: a test finds every client-callable function from the exports (six: joinIncident,
+  deleteIncidentMediaNow, removeMember, deleteMyAccount, rotateJoinCode, startJudgeSession), calls each with no App
+  Check token and with a bad one, and requires the wrapper's own 401 before the handler runs; it also requires the
+  security doc's App Check row to name each one and the right count. That row named only three and now names all six.
+  Source: review (a stale count in the security doc). Verified: the doc check failed first, then passed; with
+  `enforceAppCheck: false` on deleteMyAccount its check failed; the functions suite (373) and typecheck pass.
 - Security note (row 2): the web always asks for limited-use tokens and reads no Remote Config key for them; the phones
   still read use_limited_use_tokens, which defaults to true on both. Source: review. Verified: the hygiene guard passes
   in public mode.
