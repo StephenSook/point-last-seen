@@ -2801,3 +2801,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the sections under the command post rail's Details (conditions, prior, photos, debriefs, People, Join codes and the rest) were drawn touching, 0px apart, so a "Removed" tag sat against the "Join codes" heading. The 20px between them is now set with margins, because Chrome lays an open details' content out in its own box and the flex gap on the details reached only the summary.
 - Source: review of the command post recording for App Review.
 - Verified: measured 0px between sections on the live page in Chrome 159 first; a new members harness check (People and Join codes inside the rail's Details, with a Removed row) failed at 0px, then passed at 20px; the harness suite, web unit suite, typecheck and gates pass.
+
+### fix(ai): a plan reason may use only its own team's figures, each in its own role
+- What: a team's reason, shown beside its task, may now use only the numbers in that team's own rows of the plan the model was given (its segments' current and earlier POA, and its own team id). A value that is only an earlier POA needs a cue such as "was" or "from" just before it, and a current POA may not have one. A reason that quotes another team's POA, or gives an earlier POA as the current one, is refused and the plan falls back to the fixed wording, with "its wording failed the checks". The summary is still checked against the whole plan.
+- Source: review.
+- Verified: new unit tests for another team's POA, an earlier POA given as current, a current POA given as earlier, the template fallback for both refusals, and the summary still reading the whole plan failed first where they should, then passed (38); typecheck passes.

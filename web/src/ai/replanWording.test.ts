@@ -6,6 +6,9 @@ import {
   checkWording,
   planPrompt,
   NUMBER_NOT_IN_PLAN,
+  ANOTHER_TEAMS_NUMBER,
+  EARLIER_AS_CURRENT,
+  CURRENT_AS_EARLIER,
   templateWording,
   wordPlan,
   wordingParams,
@@ -294,5 +297,39 @@ describe("how long the command post waits for a plan's wording", () => {
     // The cloud request keeps its own 15 s limit, so a cloud fallback is no slower than before.
     expect(REPLY_TIMEOUT_MS).toBe(15_000);
     expect(readFileSync(new URL("../command/CommandPost.tsx", import.meta.url), "utf8")).toMatch(/wordPlan\(draft, \{ generate, now: \(\) => Date\.now\(\), timeoutMs: WORDING_WAIT_MS,/);
+  });
+});
+
+describe("a reason's numbers belong to that team's own rows", () => {
+  // T1 has AC (now 31.0%, was 20.0%); T2 has AB (now 22.0%, was 25.0%); AD (10.0%) is nobody's.
+  const withReason = (reason: string, summary = "Teams move to the two highest segments.") =>
+    ({ assignments: [{ teamId: "T1", taskText: "x", reason }, { teamId: "T2", taskText: "x", reason: "Second highest." }], summary });
+  it("refuses a reason that quotes another team's POA", () => {
+    expect(checkWording(draft, withReason("POA now 22.0%."))).toEqual({ ok: false, reason: ANOTHER_TEAMS_NUMBER });
+    expect(checkWording(draft, withReason("Ahead of AD at 10.0%."))).toEqual({ ok: false, reason: "a reason names another team's segment" });
+    expect(checkWording(draft, withReason("Ahead of 10.0%."))).toEqual({ ok: false, reason: ANOTHER_TEAMS_NUMBER });
+  });
+  it("refuses a reason that gives the earlier POA as the current one", () => {
+    expect(checkWording(draft, withReason("POA now 20.0%."))).toEqual({ ok: false, reason: EARLIER_AS_CURRENT });
+    expect(checkWording(draft, withReason("POA 20.0%."))).toEqual({ ok: false, reason: EARLIER_AS_CURRENT });
+  });
+  it("refuses a reason that gives the current POA as the earlier one", () => {
+    expect(checkWording(draft, withReason("POA was 31.0%."))).toEqual({ ok: false, reason: CURRENT_AS_EARLIER });
+  });
+  it("accepts a team's own figures in their own roles", () => {
+    expect(checkWording(draft, withReason("POA now 31.0%, up from 20.0%."))).toEqual({ ok: true });
+    expect(checkWording(draft, withReason("Rose to 31.0% from 20.0%."))).toEqual({ ok: true });
+    expect(checkWording(draft, withReason("Team T1 takes the highest segment, 31.0%."))).toEqual({ ok: true });
+  });
+  it("keeps the summary checked against the whole plan", () => {
+    expect(checkWording(draft, withReason("Highest.", "AC leads at 31.0%, then AB at 22.0%."))).toEqual({ ok: true });
+  });
+  it("either refusal falls back to the template wording, and the attempt says the checks failed", async () => {
+    for (const reason of ["POA now 22.0%.", "POA now 20.0%."]) {
+      const out = await wordPlan(draft, deps({ generate: async () => ({ text: JSON.stringify(withReason(reason)), inferenceSource: "in_cloud" }) }));
+      expect(out.wording).toEqual(templateWording(draft));
+      expect(out.route).toMatchObject({ path: "rules", reason: "template_fallback" });
+      expect(out.attempt).toMatchObject({ failure: "rejected", route: { path: "cloud" } });
+    }
   });
 });

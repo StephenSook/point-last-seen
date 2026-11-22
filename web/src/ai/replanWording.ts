@@ -2,9 +2,9 @@
 // local model, and the route records which one ran (the SDK's inferenceSource), never the mode asked for. The plan itself is
 // drafted by code, and so is each team's task line ("Search segment AA."): a
 // model writes only each team's reason and the summary, in a closed schema.
-// Code rejects wording whose teams differ from the draft, or whose reason names
-// a segment that team was not given. Any failure falls to a fixed template, and
-// the route says "rules".
+// Code rejects wording whose teams differ from the draft, whose reason names a segment that team was not given, or
+// whose reason uses a number from outside that team's own rows or gives an earlier POA as the current one. Any failure
+// falls to a fixed template, and the route says "rules".
 
 import { InferenceMode, type HybridParams } from "firebase/ai";
 import type { DraftAssignment, PlanWording, RankedSegment, RouteRecord } from "@pls/engine";
@@ -58,14 +58,17 @@ export function wordingParams(model: string, teamIds: readonly string[] | null =
 }
 
 const pct = (p: number) => `${(p * 100).toFixed(1)}%`;
+/** How many ranked segments the prompt lists. */
+const PROMPT_ROWS = 10;
+const assignmentLine = (a: DraftAssignment) => `${a.teamId}: ${a.segmentIds.join(", ")}`;
 
 /** The engine's table, in the user text (the SDK passes only contents and our prompt options to Chrome). */
 export function planPrompt(draft: PlanDraft): string {
   const lines = [
     "Assignments decided by code:",
-    ...draft.assignments.map((a) => `${a.teamId}: ${a.segmentIds.join(", ")}`),
+    ...draft.assignments.map(assignmentLine),
     "Segments by POA, highest first:",
-    ...draft.rank.slice(0, 10).map((r) => `${r.segmentId} ${pct(r.poa)} (was ${pct(r.priorPoa)})`),
+    ...draft.rank.slice(0, PROMPT_ROWS).map((r) => `${r.segmentId} ${pct(r.poa)} (was ${pct(r.priorPoa)})`),
   ];
   return lines.join("\n");
 }
@@ -91,7 +94,60 @@ export function templateWording(draft: PlanDraft): PlanWording {
 type ModelWording = { assignments: { teamId: string; reason: string; taskText?: unknown }[]; summary: string };
 
 export const NUMBER_NOT_IN_PLAN = "a number that is not in the plan";
+export const ANOTHER_TEAMS_NUMBER = "a reason uses a number from another team's rows";
+export const EARLIER_AS_CURRENT = "a reason gives an earlier POA as the current one";
+export const CURRENT_AS_EARLIER = "a reason gives the current POA as an earlier one";
 const NUMBER = /\d+(?:\.\d+)?/g;
+const numbersIn = (t: string) => t.match(NUMBER) ?? [];
+
+/**
+ * The numbers one team's reason may use, from the prompt as the model saw it: the current and "was" POA of that team's
+ * own segments' rows, and any number in that team's own assignment line (its team id).
+ */
+function teamNumbers(draft: PlanDraft, teamId: string): { now: Set<string>; was: Set<string>; line: Set<string> } {
+  const a = draft.assignments.find((d) => d.teamId === teamId);
+  const own = new Set(a?.segmentIds ?? []);
+  const rows = draft.rank.slice(0, PROMPT_ROWS).filter((r) => own.has(r.segmentId));
+  return {
+    now: new Set(rows.flatMap((r) => numbersIn(pct(r.poa)))),
+    was: new Set(rows.flatMap((r) => numbersIn(pct(r.priorPoa)))),
+    line: new Set(a ? numbersIn(assignmentLine(a)) : []),
+  };
+}
+
+const EARLIER_CUES = new Set(["was", "were", "from", "prior", "previously", "before", "earlier", "had"]);
+const CURRENT_CUES = new Set(["now", "currently", "current", "is", "at", "to"]);
+
+/** Whether the up to three words since the last number mark the next one as earlier or current; the nearest cue wins. */
+function cueBefore(words: string): "earlier" | "current" | null {
+  for (const w of (words.toLowerCase().match(/[a-z]+/g) ?? []).slice(-3).reverse()) {
+    if (EARLIER_CUES.has(w)) return "earlier";
+    if (CURRENT_CUES.has(w)) return "current";
+  }
+  return null;
+}
+
+/**
+ * A reason sits beside that team's task, so each number in it must be one of the team's own figures, in its own role:
+ * a value that is only a "was" figure needs an earlier cue ("was", "from") just before it, and a value that is only a
+ * current figure must not have one. A value that is both may appear either way.
+ */
+function reasonNumbersFail(draft: PlanDraft, teamId: string, reason: string): string | null {
+  const { now, was, line } = teamNumbers(draft, teamId);
+  let since = 0;
+  for (const m of reason.matchAll(NUMBER)) {
+    const n = m[0];
+    const cue = cueBefore(reason.slice(since, m.index));
+    since = m.index + n.length;
+    if (!now.has(n) && !was.has(n)) {
+      if (line.has(n)) continue;
+      return ANOTHER_TEAMS_NUMBER;
+    }
+    if (!now.has(n) && cue !== "earlier") return EARLIER_AS_CURRENT;
+    if (!was.has(n) && cue === "earlier") return CURRENT_AS_EARLIER;
+  }
+  return null;
+}
 
 export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: true } | { ok: false; reason: string } {
   if (!wording || !Array.isArray(wording.assignments)) return { ok: false, reason: "no assignments" };
@@ -110,6 +166,12 @@ export function checkWording(draft: PlanDraft, wording: ModelWording): { ok: tru
   const given = new Set(planPrompt(draft).match(NUMBER) ?? []);
   const written = [...wording.assignments.map((a) => a.reason), wording.summary].flatMap((t) => t.match(NUMBER) ?? []);
   if (written.some((n) => !given.has(n))) return { ok: false, reason: NUMBER_NOT_IN_PLAN };
+  // A reason is shown beside its team's task: it may use only that team's own figures, each in its own role. The
+  // summary stays checked against the whole plan above.
+  for (const a of wording.assignments) {
+    const fail = reasonNumbersFail(draft, a.teamId, a.reason);
+    if (fail) return { ok: false, reason: fail };
+  }
   return { ok: true };
 }
 
