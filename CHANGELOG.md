@@ -5,6 +5,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Production checklist: names bash scripts/predeploy.sh as the step before every hosting deploy. Source: review.
+  Verified: the hygiene guard passes in public mode.
 - Pre-deploy checks: scripts/predeploy.sh runs every check before a hosting deploy in one command (clean tree at
   origin/main, .env.local present, the live commit an ancestor of HEAD, npm ci when the lockfile changed, the web build,
   main's stylesheet before base.css, mapCascade.spec.ts, the judge seed check) and never deploys, ending with the deploy
