@@ -2792,6 +2792,11 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (backlog issue #327).
 - Verified: three new unit tests (the same account signing out and in again; an earlier read's timed reply landing after a newer untimed one; an older token from a later read after an untimed reply, from review) failed first, then passed with the 16 existing claims tests (19); typecheck passes.
 
+### docs(evidence): describe the clip of the command post removing a member
+- What: docs/evidence/web/README.md describes a 20.96 s screen recording (1920 x 1080) of the deployed command post on the App Review drill removing a test searcher ("Removed" on screen, the other searcher kept), then opening the new-code confirm and cancelling it, moment by moment, with the file's SHA-256. The clip is kept outside the repository (it takes no video files); it was made for the App Store review.
+- Source: App Store review asks to see an abusive member removed.
+- Verified: stills at 0, 25, 50, 75 and 99 percent and one a second were checked by eye (no join code, member id or personal data on screen); a fresh sign-in afterwards read Team 1 searcher active and Team 2 searcher removed.
+
 ### fix(command): the rail's Details sections keep their space apart
 - What: the sections under the command post rail's Details (conditions, prior, photos, debriefs, People, Join codes and the rest) were drawn touching, 0px apart, so a "Removed" tag sat against the "Join codes" heading. The 20px between them is now set with margins, because Chrome lays an open details' content out in its own box and the flex gap on the details reached only the summary.
 - Source: review of the command post recording for App Review.
