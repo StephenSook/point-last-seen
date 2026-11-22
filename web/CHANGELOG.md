@@ -3008,3 +3008,14 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
   - Accepted: a reply with a team named twice is read with its last value, which must still be one of that team's own facts, so nothing untrue is shown.
 - Source: review.
 - Verified: the changed schema test failed first, then passed (34); against the live site before the fix the check still fails with 0 of 3 used; typecheck passes; the cited lines 47 and 232 are unchanged.
+
+### feat(command): the cloud consent shows the exact note it sends
+- What: the consent box before a cloud note read said "The note goes to Gemini in the cloud. Phone numbers are removed first." It now shows the note exactly as the read will send it, with phone numbers already replaced by "[number removed]", and a count when any were removed ("1 phone number removed."), so the person approves the real text.
+  - The shown text comes from consentPreview, which uses the same removePhoneNumbers call the cloud read sends.
+  - A "[number removed]" mark the person typed is not counted.
+- Source: review of how consent is asked before a cloud read.
+- Verified:
+  - new unit tests failed first, then passed: the preview equals the text the cloud read sends; the count; no count when nothing was removed;
+  - two harness checks failed first, then passed (harness 242/242);
+  - the deployed receipt check now also requires the shown text to equal the note in the request body;
+  - typecheck passes; stills at 390 and 1440 px.
