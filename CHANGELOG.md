@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Phone vectors: `marker_then_times` is no longer pending on the iPhone, which now scrubs to a fixpoint like the web
+  and Android (at most four passes, keeping the fourth pass's text and logging a fixed line with no note text); the
+  shared README says all three platforms check that a second scrub changes nothing; Limits says the iPhone passes
+  119 of the 130 cases, drops the iPhone-pending sentence, and says times right after a date take the date with them
+  on all three. Source: the iPhone's port of the marker and fixpoint rules. Verified: 11 cases stay pending, each on
+  every platform; `scripts/test_phone_vectors.py`, the corpus `--check`, the web phone tests (248) and the iPhone
+  core phone tests (55, including the vector and corpus suites) pass; the iPhone's output for "Seen 11/19/2026 12:12
+  5:55 01:42" ("Seen [number removed]:[number removed]") was measured on the iPhone core; `scripts/ci-local.sh
+  --gates` passes.
 - Phone corpus: written again for the web rule's faster marker check (it reads back only a marker's length); only
   its rule hash changed, every row is the same, and the shared README names the new SHA-256. Source: review of
   PR #349 (a long note took about 3 s a pass). Verified: the 9,130 rows compare equal before and after; the file

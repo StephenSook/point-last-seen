@@ -204,8 +204,8 @@ A note can be scrubbed more than once, for example when a paper sheet is read an
 Scrubbing twice must give the same text as scrubbing once: for every case in this file that a platform runs, scrubbing
 its output again changes nothing. So every platform runs the rule until the text stops changing, at most four
 passes in all; if it still changes after the fourth, it keeps the fourth pass's text (the most scrubbed) and logs a
-fixed line with no note text. Each platform checks this in its own test of this file. The web and Android check
-it; on 2026-11-22 it is pending on the iPhone until it adds the check, together with `marker_then_times`.
+fixed line with no note text. Each platform checks this in its own test of this file: the web, Android and the
+iPhone all do.
 
 ## phone-numbers-corpus.json (generated)
 

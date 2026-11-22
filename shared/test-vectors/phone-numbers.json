@@ -986,10 +986,7 @@
     },
     {
       "name": "marker_then_times",
-      "input": "Witness [number removed] at 14:03 14:10",
-      "pendingOn": [
-        "ios"
-      ]
+      "input": "Witness [number removed] at 14:03 14:10"
     }
   ],
   "exact": [
