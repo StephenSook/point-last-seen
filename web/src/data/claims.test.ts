@@ -267,3 +267,64 @@ describe("watchClaims: the newest token wins by when it was issued, per account"
     vi.doUnmock("firebase/auth");
   });
 });
+
+describe("watchClaims: replies from an earlier sign-in session, and replies with no issue time", () => {
+  async function setup() {
+    const { vi } = await import("vitest");
+    let listener: ((u: unknown) => void) | null = null;
+    vi.doMock("firebase/auth", () => ({ onIdTokenChanged: (_a: unknown, cb: (u: unknown) => void) => ((listener = cb), () => {}) }));
+    vi.resetModules();
+    const { watchClaims } = await import("./claims");
+    type R = { claims: Record<string, unknown>; issuedAtTime?: string };
+    const pending: ((v: R) => void)[] = [];
+    const user = { uid: "a", getIdTokenResult: () => new Promise<R>((r) => pending.push(r)) };
+    const auth = { currentUser: user as unknown };
+    const lines: (string | null)[] = [];
+    watchClaims(auth as never, drill, (l) => lines.push(l), () => 1_000_000);
+    return { vi, fire: () => listener!(auth.currentUser), pending, auth, user, lines };
+  }
+  const at = (hhmm: string) => `Sat, 21 Nov 2026 ${hhmm}:00 GMT`;
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+
+  it("drops a reply from before a sign-out, even when the same account signs in again", async () => {
+    const { vi, fire, pending, auth, user, lines } = await setup();
+    fire();
+    auth.currentUser = null;
+    fire();
+    auth.currentUser = user;
+    fire();
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:00") });
+    await tick();
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:01") });
+    await tick();
+    expect(lines).toEqual([NOT_SIGNED_IN_LINE, null]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("keeps a token issued later than a newer read's token, with an untimed reply between them", async () => {
+    const { vi, fire, pending, lines } = await setup();
+    fire();
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:05") });
+    await tick();
+    fire();
+    pending[1]!({ claims: { inc: "judge-abc", role: "command" } });
+    await tick();
+    fire();
+    pending[2]!({ claims: { inc: "drill-test-1", role: "command" }, issuedAtTime: at("12:00") });
+    await tick();
+    expect(lines).toEqual([OTHER_SEARCH_LINE, OTHER_SEARCH_LINE]);
+    vi.doUnmock("firebase/auth");
+  });
+
+  it("never lets an earlier read's timed reply overwrite a newer reply that had no issue time", async () => {
+    const { vi, fire, pending, lines } = await setup();
+    fire();
+    fire();
+    pending[1]!({ claims: { inc: "drill-test-1", role: "command" } });
+    await tick();
+    pending[0]!({ claims: { inc: "judge-abc", role: "command" }, issuedAtTime: at("12:00") });
+    await tick();
+    expect(lines).toEqual([null]);
+    vi.doUnmock("firebase/auth");
+  });
+});
