@@ -134,11 +134,15 @@ object PhoneNumbers {
     /** Whether a phone cue sits before the run starting at parts[first]: a cue word among the three words before it, or a "#". */
     private fun cuedRun(s: String, parts: List<Part>, first: Int): Boolean {
         // A part carrying digits (written, spoken, or a counted double or triple) is read past and is not one of the
-        // three words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued.
+        // three words: "Call one: 4:04 5:55 6:42" and "Call 5 at 4:04 5:55 6:42" are cued. The words of a
+        // "[number removed]" already in the note are read past the same way, so its "number" is never a cue and a second
+        // pass reads the same words before the run as the first did (Witness [number removed] at 14:03 14:10 stays).
+        val markers = Regex(Regex.escape(REPLACEMENT)).findAll(s).map { it.range }.toList()
+        fun inMarker(p: Part) = markers.any { p.start >= it.first && p.end <= it.last + 1 }
         var j = first - 1
         var words = 0
         while (j >= 0 && words < CUE_WINDOW) {
-            if (parts[j].digits > 0) {
+            if (parts[j].digits > 0 || inMarker(parts[j])) {
                 j--
                 continue
             }
