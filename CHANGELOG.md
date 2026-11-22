@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Evidence: docs/evidence/web/2026-11-22-plan-wording-grid-squares-chrome.json records plan wording on Chrome's
+  built-in model with the prompt line saying segment codes are map grid squares: 6 runs, every reply on device with
+  no Google request, 4 used and 2 on fixed wording (a reason named another team's segment; one timed out in a
+  reloaded page), and no reason or summary spelling out a code. Source: the measurement of that prompt line and the
+  check that refuses a spelled-out code. Verified: valid JSON; every reason and summary read; the replay claim
+  checked by hand (3 of the 6 figure-free runs spell out a code in capitalized initials or brackets); one finding
+  corrected with its author (a reason calling T2's segment the highest riser, though CC rose more); the hygiene guard
+  passes in public mode.
 - Limits: the plan's per-team reasons are written by a model and checked by code (only the team's own figures, each
   in its own role; a rise or fall word must match one of the team's segments); if any reason fails the plan uses
   fixed wording; the check reads words, so a direction outside its word lists or an untrue "highest" can still pass;
