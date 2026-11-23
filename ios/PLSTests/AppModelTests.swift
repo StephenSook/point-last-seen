@@ -92,11 +92,15 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(model.urgency == .coolWet)
     }
 
+    /// A grid segment AC and command's task line for it, as the command post writes it (the cloud voice
+    /// speaks only a line the phone can rebuild from the grid's ids).
     func spokenMission() throws -> Mission {
-        Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
-                assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
-                profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget,
-                assignment: Assignment(teamId: "T1", segmentIds: ["AC"], taskText: "Walk the creek bank.", reason: "r"))
+        let ac = GridSegment(segmentId: "AC", areaM2: 1, centroid: Coordinate(lon: -84.4, lat: 33.8),
+                             geometry: SegmentGeometry(polygons: []), neighbors: [], upstream: [], downstream: [])
+        return Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [ac], prior: [],
+                       assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
+                       profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget,
+                       assignment: Assignment(teamId: "T1", segmentIds: ["AC"], taskText: "Search segment AC.", reason: "r"))
     }
 
     /// The AI Logic voice runs only once the phone is signed in; before that the phone's own voice speaks.

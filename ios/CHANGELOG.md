@@ -5,6 +5,21 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### fix(ios): the cloud voice speaks only a task line the phone rebuilds from grid segment ids
+- What: `SpokenAssignment.path` now takes the assignment and the incident's grid ids. The cloud voice is used only
+  when every segment id is a grid segment in plain letters, digits or underscores (checked by byte) and the task
+  line is exactly the command post's code-built line for those ids ("Search segment AB, AC." or "No segment left
+  to assign."), byte for byte. Any other task line (a name, a phone number, free text up to the rules' 200
+  characters) is spoken by the phone's own voice and never sent to a model. `AssignmentSpeaker.update` takes the
+  grid ids and `AppModel.load` passes the mission's grid; the phone-number scrub stays for a grid id made of
+  digits. No consent input is needed: what the cloud voice can get holds only grid segment ids.
+- Source: review (the rules accept any task text from a command writer; only the command post's code kept it to
+  segment ids).
+- Verified: the new `SpokenAssignmentTests` case failed to compile first, then passed; mutating each clause (the
+  plain-id check, the grid check, byte equality, the whole guard) turns a test red; core suite 472 tests passed;
+  app suite 280 tests in 51 suites passed on an iPhone 17 Pro simulator (iOS 27.2), with two fixtures moved to the
+  command post's task line and a control that the cloud voice was asked.
+
 ### docs(eval): the README reports the blind second labeller, 7 of 10 rows agreed
 - What: a "Second labeller" section: the builder labelled 10 rows (seed 20261122) without seeing the key and agreed
   on 7 of 10 (Cohen's kappa 0.52); the differences are n7 and n13 (key unclear, builder cleared) and n19 (key

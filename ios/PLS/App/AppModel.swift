@@ -1086,7 +1086,7 @@ final class AppModel {
         let previous = speech, assignment = mission.assignment, template = config.voiceTemplateId
         let generation = missionGeneration, incidentId = mission.incidentId, teamId = mission.teamId
         let online = connectivity.isOnline, killCloud = config.killCloud, signedIn = signIn.signedIn
-        let owner = mission.owner
+        let owner = mission.owner, gridIds = Set(mission.grid.map(\.segmentId))
         // Checked right before any sound, on both voices: still this mission's task, and the session it
         // was read in is still the current one (a mission read in no session is never spoken).
         let isCurrent: @MainActor () -> Bool = { [weak self] in
@@ -1099,7 +1099,7 @@ final class AppModel {
             await previous?.value
             guard let self, isCurrent() else { return }
             await self.speaker.update(assignment, voiceTemplate: template, online: online,
-                                      killCloud: killCloud, signedIn: signedIn, isCurrent: isCurrent)
+                                      killCloud: killCloud, signedIn: signedIn, gridIds: gridIds, isCurrent: isCurrent)
         }
     }
 
