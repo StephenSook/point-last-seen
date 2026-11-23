@@ -45,7 +45,12 @@ export function clipFacts(bytes: number, durationS: number | null): string {
 export function clipOutcomeMessage(o: ClipReadOutcome): string | null {
   if (o.kind === "refused") return o.message;
   if (o.kind === "could-not-read") return "Couldn't read this clip. Nothing changed.";
-  if (o.kind === "failed") return "The clip was not read. Try again.";
+  if (o.kind === "failed") {
+    // A refused call names its cause: "Try again" is the wrong next step when App Check refused or the quota ran out.
+    if (o.status === 401 || o.status === 403) return "Cloud step refused by App Check. Try a normal browser window.";
+    if (o.status === 429) return "The cloud is busy right now. Try again in a minute.";
+    return "The clip was not read. Try again.";
+  }
   return null;
 }
 
