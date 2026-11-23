@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(limits): practice lines name the route check, the consented cloud read and the traces
+- What: in `docs/LIMITS.md`, the spoken-assignment residual now says an assignment can list up to six grid ids in
+  any order, so up to six two-letter ids are what command's ids can carry. The practice sentence names the route
+  check's cloud route (fixed sentence and sample tools, the sample person's description included) and says a
+  tester's own report goes to the cloud only with the cloud-read switch on, as in a real search. The drill-data
+  line says practice writes neither reports nor timings to Firestore and its Performance traces carry only the
+  route, the outcome and the timing. The "Report a problem" line says no problem report leaves the phone in
+  practice, not that nothing does.
+- Source: review (lane A's LIMITS review of this branch).
+- Verified: the practice pack's mode is `judge`, a model mode (`ReadPlan.modelModes`), and `submit` passes the
+  cloud consent with no practice guard; `ReportReader` records a `report_read` trace for every read; the rules
+  allow up to six ids per assignment and `codeTaskLine` keeps their order.
+
 ### docs(ios): LIMITS states the two-letter residual; the practice comment names the traces
 - What: the "Spoken assignments (iPhone)" limit says the phone checks the grid builder's form, not that the builder
   issued each id, and that command can still choose which two capital letters name a segment, so two letters are
