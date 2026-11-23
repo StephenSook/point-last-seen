@@ -98,6 +98,21 @@ class CopyTest {
         assertEquals("Leave this search? You will need a new code from the search lead to join again.", Copy.LEAVE_CONFIRM)
     }
 
+    /**
+     * The clip's cloud tick names both things that one press does: the clip is stored with the search, and Gemini
+     * reads it. Its day count is the Storage lifecycle rule's age for clips (repo root storage.lifecycle.json), so
+     * the words cannot drift from the rule that deletes the clip.
+     */
+    @Test fun theClipCloudTickNamesTheStorageTheDaysAndTheRead() {
+        assertEquals("Send it to the cloud: stored with this search for up to 30 days and read by Gemini", Copy.CLIP_CLOUD)
+        val rule = java.io.File("../../storage.lifecycle.json").readText()
+        assertTrue("the lifecycle rule covers clips/", rule.contains("\"clips/\""))
+        val age = Regex("\"age\"\\s*:\\s*(\\d+)").findAll(rule).map { it.groupValues[1] }.toList()
+        assertEquals("one age in the lifecycle rule", 1, age.size)
+        assertTrue(Copy.CLIP_CLOUD, Copy.CLIP_CLOUD.contains("up to ${age[0]} days"))
+        assertTrue(Copy.CLIP_CLOUD.contains("stored with this search") && Copy.CLIP_CLOUD.contains("Gemini"))
+    }
+
     /** About names the App Check provider in words, and as a provider, not as a passed check. */
     @Test fun aboutNamesTheAppCheckProvider() {
         assertEquals("App Check provider: Play Integrity", Copy.appCheckProvider("play_integrity"))

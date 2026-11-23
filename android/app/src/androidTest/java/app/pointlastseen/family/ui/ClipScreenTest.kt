@@ -32,7 +32,7 @@ class ClipScreenTest {
         read.performScrollTo().assertIsNotEnabled()
         tick("The person in the clip agrees")
         tick("I own this footage or have the owner's OK")
-        tick("Send it to the cloud to read it")
+        tick(Copy.CLIP_CLOUD)
         read.performScrollTo().assertIsNotEnabled()
         rule.onNodeWithText("When the clip starts (HH:MM)").performScrollTo().performTextInput("14:01")
         tick("The camera's clock is right")
@@ -56,7 +56,7 @@ class ClipScreenTest {
         rule.setContent { PaperTheme { ClipScreen("drill", false, clipLabel = "door.mp4", ui = ClipUi.Idle, onPick = {}, onRead = { form = it }, onConfirm = {}, onBack = {}) } }
         tick("The person in the clip agrees")
         tick("I own this footage or have the owner's OK")
-        tick("Send it to the cloud to read it")
+        tick(Copy.CLIP_CLOUD)
         tick("It may be shown in the drill film (optional)")
         rule.onNodeWithText("When the clip starts (HH:MM)").performScrollTo().performTextInput("14:01")
         tick("The camera's clock is right")
@@ -83,7 +83,7 @@ class ClipScreenTest {
         rule.setContent { PaperTheme { ClipScreen(null, false, clipLabel = label.value, ui = ClipUi.Idle, onPick = {}, onRead = {}, onConfirm = {}, onBack = {}) } }
         tick("The person in the clip agrees")
         tick("I own this footage or have the owner's OK")
-        tick("Send it to the cloud to read it")
+        tick(Copy.CLIP_CLOUD)
         rule.onNodeWithText("When the clip starts (HH:MM)").performScrollTo().performTextInput("14:01")
         tick("The camera's clock is right")
         rule.onNodeWithText("Read the clip").performScrollTo().assertIsEnabled()

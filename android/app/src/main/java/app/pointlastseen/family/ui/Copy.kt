@@ -14,6 +14,11 @@ object Copy {
     const val NO_LONGER_MEMBER = "You are no longer part of this search. Ask the search lead for a new code."
     const val NOT_ENGLISH = "This note doesn't look like English, so it isn't sent to the cloud to be read. Fill the fields by hand."
     const val LEAVE_CONFIRM = "Leave this search? You will need a new code from the search lead to join again."
+    /**
+     * The clip's cloud consent: one press stores the clip with the search (Storage clips/, deleted by the bucket
+     * lifecycle rule after 30 days, or sooner by command) and sends it to Gemini to read.
+     */
+    const val CLIP_CLOUD = "Send it to the cloud: stored with this search for up to 30 days and read by Gemini"
     /** Advice for the first minutes from a dementia-care expert, quoted as her advice. */
     const val FIRST_MINUTES = "Look in the immediate area now. If you don't find them within 5 minutes, call 911."
     const val FIRST_MINUTES_SOURCE = "Guidance from Kim Franklin, Alzheimer's Association Georgia"
