@@ -1091,7 +1091,7 @@ final class AppModel {
         let previous = speech, assignment = mission.assignment, template = config.voiceTemplateId
         let generation = missionGeneration, incidentId = mission.incidentId, teamId = mission.teamId
         let online = connectivity.isOnline, killCloud = config.killCloud, signedIn = signIn.signedIn
-        let owner = mission.owner, gridIds = Set(mission.grid.map(\.segmentId))
+        let owner = mission.owner
         // Checked right before any sound, on both voices: still this mission's task, and the session it
         // was read in is still the current one (a mission read in no session is never spoken).
         let isCurrent: @MainActor () -> Bool = { [weak self] in
@@ -1102,7 +1102,10 @@ final class AppModel {
         }
         speech = Task { [weak self] in
             await previous?.value
-            guard let self, isCurrent() else { return }
+            guard let self, isCurrent(), let held = self.mission else { return }
+            // The grid this phone holds now, not the one this load read: a reload meanwhile may have replaced
+            // it. No suspension falls between this read and the speaker's cloud check.
+            let gridIds = Set(held.grid.map(\.segmentId))
             await self.speaker.update(assignment, voiceTemplate: template, online: online,
                                       killCloud: killCloud, signedIn: signedIn, gridIds: gridIds, isCurrent: isCurrent)
         }

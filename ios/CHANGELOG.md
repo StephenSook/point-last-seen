@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### fix(ios): the cloud voice checks the grid the phone holds when the line is spoken
+- What: `AppModel.load` read the grid ids when it queued the line, so a reload that kept the assignment but dropped
+  its segment from the grid, before the queued line's turn, still sent the old id to the cloud voice. The speech
+  task now reads the grid of the mission the phone holds right after its `isCurrent` check, with no suspension
+  before the speaker's cloud check.
+- Source: review (adversarial pass, round 1: finding 2).
+- Verified: the new `theCloudVoiceChecksTheGridHeldWhenTheLineIsSpoken` test failed first (the line went to the
+  cloud after the grid changed), then passed, with an unchanged grid as the control that reaches the cloud voice;
+  app suite 281 tests in 51 suites passed on an iPhone 17 Pro simulator (iOS 27.2).
+
 ### fix(ios-core): the cloud voice takes only two-capital-letter grid ids, on the plan and the grid
 - What: `SpokenAssignment.rebuiltFromSegments` now accepts a segment id only in the grid builder's form, two
   capital letters A to Z (`isGridBuilderId`, by byte), and checks it against the grid's ids filtered to that same

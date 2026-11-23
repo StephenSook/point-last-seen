@@ -122,6 +122,28 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         }
     }
 
+    /// The cloud check reads the grid the phone holds when the line's turn comes, not the grid of the load
+    /// that queued it: a reload that keeps the assignment but drops its segment from the grid sends nothing.
+    @Test func theCloudVoiceChecksTheGridHeldWhenTheLineIsSpoken() async throws {
+        for gridChanges in [false, true] {
+            let onDevice = FakeVoice(), cloud = FakeVoice()
+            let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { false }),
+                                 speaker: AssignmentSpeaker(onDevice: onDevice, makeCloud: { _ in cloud }, record: { _ in }), uid: { "uid-1" })
+            model.config.voiceTemplateId = "voice-template"
+            model.connectivity.pathChanged(satisfied: true)
+            var mission = try spokenMission()
+            mission.owner = model.currentSession
+            await model.load(mission)
+            // Before the first line's turn: the same assignment again, with or without its segment in the grid.
+            if gridChanges { mission.grid = [] }
+            await model.load(mission)
+            await model.speech?.value
+            // An unchanged grid is the control: it proves this setup reaches the cloud voice.
+            #expect(cloud.spoken.count == (gridChanges ? 0 : 1))
+            #expect(onDevice.spoken.count == (gridChanges ? 1 : 0))
+        }
+    }
+
     /// The order a send takes: sign-in first, then the read. A failed sign-in reads and sends nothing.
     @MainActor final class CallLog { var events: [String] = [] }
     @MainActor final class SignState { var signed = false }
