@@ -282,6 +282,7 @@ test("a clip reading carries a closed What ran receipt with the bytes of the cli
   await expect(receipt).toContainText("Ran: in the cloud (reported by the SDK).");
   await expect(receipt).toContainText("Model: gemini-3.5-flash-lite.");
   await expect(receipt).toContainText("Sent: 5,000 bytes of the clip, as base64.");
+  await expect(receipt).toContainText("Stored: the clip, with this search, until command deletes it or for 30 days.");
 });
 
 test("a confirm that turned the elevation layer off says why where command confirmed", async ({ page }) => {
