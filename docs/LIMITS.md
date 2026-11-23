@@ -282,14 +282,15 @@ each line says what the limit is and why.
 
 ## Spoken assignments (iPhone)
 
-- The cloud voice (Firebase AI Logic) speaks a new assignment only when every segment id is one the grid builder
-  issues (two capital letters, AA to ZZ) and is in the incident's grid, and the task line is exactly the one the
-  command post writes for those ids ("Search segment AB, AC."). Any other task line or segment id, such as a name
-  or a number a command writer typed, is read by the phone's own voice and sent to no model
-  (`ios/PLSCore/Sources/PLSCore/SpokenAssignment.swift`). In the practice drill the cloud voice still speaks the
-  sample assignment when the phone is online and signed in (it signs in anonymously whenever it comes online), so
-  the drill's sample segment ids reach AI Logic; no report and no real search's data does. The cost: task words a
-  command writer adds by hand, or a grid with other ids, get the phone's voice, not the cloud one.
+- The cloud voice (Firebase AI Logic) speaks a new assignment only when every segment id has the grid builder's
+  form (two capital letters) and is in the incident's grid, and the task line is exactly the one the command post
+  writes for those ids ("Search segment AB, AC."). Any other task line or segment id, such as a name or a number a
+  command writer typed, is read by the phone's own voice and sent to no model
+  (`ios/PLSCore/Sources/PLSCore/SpokenAssignment.swift`). Command can still choose which two capital letters name a
+  segment, so two letters are all a segment id can carry to the model. In the practice drill the cloud voice still
+  speaks the sample assignment when the phone is online and signed in (it signs in anonymously whenever it comes
+  online), so the drill's sample segment ids reach AI Logic; no report and no real search's data does. The cost:
+  task words a command writer adds by hand, or a grid with other ids, get the phone's voice, not the cloud one.
 
 ## Photo clues (iPhone)
 

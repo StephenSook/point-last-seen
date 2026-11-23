@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(ios): LIMITS states the two-letter residual; the practice comment names the traces
+- What: the "Spoken assignments (iPhone)" limit says the phone checks the grid builder's form, not that the builder
+  issued each id, and that command can still choose which two capital letters name a segment, so two letters are
+  all a segment id can carry to the model. The `startPractice` comment says the drill's sample content leaves the
+  phone only in AI Logic calls, and that the anonymous sign-in and the Firebase Performance traces (voice path, read
+  route, outcome, timing) carry none of it.
+- Source: review (adversarial pass, round 2: findings 1 and 3).
+- Verified: every trace attribute the app sets is an enum, a model name or a timing
+  (`AssignmentSpeaker.trace`, `RouteTelemetry.attributes`); every changed line in `AppModel.swift` is a `///`
+  comment; gates and the public hygiene guard passed.
+
 ### docs(ios): LIMITS names the two-letter id rule; the practice comment scopes what leaves the phone
 - What: the "Spoken assignments (iPhone)" limit now says the cloud voice needs every segment id in the grid
   builder's form (two capital letters) and in the incident's grid, and that other ids also get the phone's voice.
