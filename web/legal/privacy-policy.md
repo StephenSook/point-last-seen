@@ -1,7 +1,8 @@
 # Point Last Seen: privacy policy
 
 Point Last Seen is a field app for search team training drills. Nobody is missing in a drill: every drill uses
-made-up information. This page says what the iPhone app collects, why, and where it goes.
+made-up information. This page says what the iPhone app collects, why, and where it goes. Its section on the
+command post website says what that website sends when it hits an error.
 
 ## What the app collects
 
@@ -51,9 +52,18 @@ Apple's; the app gets only the typed text.
 - The practice drill keeps its reports on the phone only; they are never sent. Ending the practice drill
   deletes them from the phone.
 
+## The command post website
+
+- **Error reports.** When the command post website hits an error it does not handle, it sends Firebase
+  Crashlytics a report: the kind of error, where in the website's code it happened, a Firebase error code or HTTP
+  status if there is one, the website's version, your browser's user-agent string (the browser and system names
+  and versions), and random session and installation numbers that Firebase keeps in your browser. The error's own
+  message is removed in your browser before the report is sent, so a report holds no report, note, photo, clip or
+  join code text, and no account number. A visit with no such error sends no report.
+
 ## Contact
 
 Questions, or a request to delete your data: https://github.com/StephenSook/point-last-seen/issues
 Don't post personal details in an issue.
 
-Last updated: November 20, 2026
+Last updated: November 23, 2026
