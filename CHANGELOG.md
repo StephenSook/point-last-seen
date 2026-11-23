@@ -3,6 +3,12 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-23
+
+- Hosting: `firebase.json` ignores `**/*.map`, so a source map the web build writes for the Crashlytics upload is
+  never deployed even if one is left in `web/dist`. Source: web Crashlytics. Verified: a new test in
+  `scripts/test_firebase_config.py` failed before the change and passes after it.
+
 ## 2026-11-22
 
 - Rules gate: web code outside tests and docs may no longer name Chrome's other built-in AI APIs (Translator,

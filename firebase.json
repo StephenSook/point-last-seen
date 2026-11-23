@@ -18,7 +18,7 @@
   ],
   "hosting": {
     "public": "web/dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/*.map"],
     "rewrites": [
       { "source": "/privacy", "destination": "/privacy.html" },
       { "source": "/support", "destination": "/support.html" },

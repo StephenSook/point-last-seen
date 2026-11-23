@@ -36,6 +36,13 @@ def test_the_app_shell_rewrite_never_answers_for_tiles_or_evidence():
         assert [r.get("source") for r in shell] == ["!/@(tiles|evidence)/**"], shell
 
 
+def test_source_maps_are_never_deployed():
+    # The web build writes source maps for the Crashlytics upload, and scripts/predeploy.sh uploads and deletes them.
+    # This ignore keeps a map left behind out of the release, so no map is ever served.
+    for site in hosting_sites():
+        assert "**/*.map" in site.get("ignore", []), site.get("ignore")
+
+
 def test_privacy_and_support_are_served_from_their_static_pages_before_the_app_shell():
     # Apple's reviewer fetches these URLs: each must answer with its own HTML, not the app shell.
     for site in hosting_sites():
