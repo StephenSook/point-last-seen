@@ -65,14 +65,16 @@ final class FakeVoice: AssignmentVoice {
         #expect(log.entries.map(\.path) == [.onDevice])
     }
 
-    /// The cloud voice is a model: it never gets a phone number, even one that is a grid segment id.
-    @Test func theCloudVoiceNeverGetsAPhoneNumber() async {
-        let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
-        let task = assignment(["4045550123"])
-        await speaker(onDevice: onDevice, cloud: cloud, log: log).update(task, voiceTemplate: "voice-model", online: true, killCloud: false,
-                                                                        signedIn: true, gridIds: ["4045550123"])
-        #expect(cloud.spoken.count == 1 && !cloud.spoken[0].contains("555") && !cloud.spoken[0].contains("5 5 5")
-                && cloud.spoken[0].contains(PhoneNumbers.replacement))
+    /// The cloud voice is a model: it never gets a name or a phone number, even one command wrote as a segment
+    /// id in the grid itself. The grid builder's ids are two capital letters; any other id stays on the phone.
+    @Test func theCloudVoiceNeverGetsANameOrNumberWrittenAsAGridId() async {
+        for id in ["4045550123", "1800FLOWERS", "MaryJones"] {
+            let onDevice = FakeVoice(), cloud = FakeVoice(), log = SpeechLog()
+            await speaker(onDevice: onDevice, cloud: cloud, log: log).update(assignment([id]), voiceTemplate: "voice-model", online: true,
+                                                                            killCloud: false, signedIn: true, gridIds: [id])
+            #expect(cloud.spoken.isEmpty, "\(id)")
+            #expect(onDevice.spoken.count == 1 && log.entries.map(\.path) == [.onDevice], "\(id)")
+        }
     }
 
     @Test func aFailedCloudVoiceFallsBackToTheDevice() async {

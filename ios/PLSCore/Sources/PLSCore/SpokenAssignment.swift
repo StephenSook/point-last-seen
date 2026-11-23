@@ -44,20 +44,22 @@ public enum SpokenAssignment {
         segmentIds.isEmpty ? "No segment left to assign." : "Search segment \(segmentIds.joined(separator: ", "))."
     }
 
-    /// True when every segment id is one of this incident's grid segments, written in plain letters,
-    /// digits or underscores, and the task line is exactly the code-built line for those ids, byte for
-    /// byte. The rules let a command writer store any 200 characters as the task line, so only this
-    /// check keeps a name, a phone number or other words in it away from the cloud voice.
+    /// True when every segment id is a grid builder id (`isGridBuilderId`) found among this incident's
+    /// grid builder ids, and the task line is exactly the code-built line for those ids, byte for byte.
+    /// The rules let a command writer store any 200 characters as the task line and any segmentId on a
+    /// segment document, so only this check keeps a name, a phone number or other words away from the
+    /// cloud voice.
     public static func rebuiltFromSegments(_ assignment: Assignment, gridIds: Set<String>) -> Bool {
-        assignment.segmentIds.allSatisfy { isPlainId($0) && gridIds.contains($0) }
+        let grid = gridIds.filter(isGridBuilderId)
+        return assignment.segmentIds.allSatisfy { isGridBuilderId($0) && grid.contains($0) }
             && Array(assignment.taskText.utf8) == Array(codeTaskLine(assignment.segmentIds).utf8)
     }
 
-    /// Letters, digits and underscores only, 1 to 16 bytes, as the rules write a segment id. Checked by
-    /// byte, because Swift compares strings by canonical equivalence ("\u{212A}" KELVIN SIGN equals "K").
-    static func isPlainId(_ id: String) -> Bool {
-        (1...16).contains(id.utf8.count)
-            && id.utf8.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) || $0 == 95 }
+    /// Two capital letters A to Z, the only ids the grid builder issues (AA to ZZ). Checked by byte, because
+    /// Swift compares strings by canonical equivalence ("\u{212A}" KELVIN SIGN equals "K"); with both sides
+    /// in this form, set membership is byte equality.
+    static func isGridBuilderId(_ id: String) -> Bool {
+        id.utf8.count == 2 && id.utf8.allSatisfy { (65...90).contains($0) }
     }
 
     /// "AC" is read as letters: "A C".

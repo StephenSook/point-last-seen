@@ -26,10 +26,10 @@ import Testing
         #expect(!SpokenAssignment.shouldSpeak(previous: a(["AC"]), current: nil))
     }
 
-    let grid: Set<String> = ["AA", "AB", "AC", "K"]
+    static let grid: Set<String> = ["AA", "AB", "AC", "AK"]
 
     func path(_ assignment: Assignment, model: String = "some-tts-model", online: Bool = true, killCloud: Bool = false,
-              signedIn: Bool = true) -> SpokenAssignment.Path {
+              signedIn: Bool = true, grid: Set<String> = Self.grid) -> SpokenAssignment.Path {
         SpokenAssignment.path(cloudModel: model, online: online, killCloud: killCloud, signedIn: signedIn,
                               assignment: assignment, gridIds: grid)
     }
@@ -67,14 +67,25 @@ import Testing
         #expect(path(a(["AB", "AC"], "Search segment AC, AB.")) == .onDevice)
         #expect(path(a(["AB"], "Search segment AB")) == .onDevice)
 
-        // Ids must be this incident's grid segments, in plain letters and digits: an id cannot carry a name or a number.
+        // Ids must be this incident's grid segments: an id outside the grid is not spoken in the cloud.
         #expect(path(a(["ZZ"], "Search segment ZZ.")) == .onDevice)
         #expect(path(a(["4045550123"], "Search segment 4045550123.")) == .onDevice)
         #expect(path(a(["MaryJones"], "Search segment MaryJones.")) == .onDevice)
-        #expect(path(a(["\u{212A}"], "Search segment \u{212A}.")) == .onDevice)  // KELVIN SIGN, canonically equal to "K"
-        #expect(path(a(["K"], "Search segment K.")) == .cloud)
         // Byte for byte: a line Swift calls equal (canonical equivalence) but with other bytes is not the code line.
-        #expect(path(a(["K"], "Search segment \u{212A}.")) == .onDevice)
+        #expect(path(a(["AK"], "Search segment A\u{212A}.")) == .onDevice)  // KELVIN SIGN, canonically equal to "K"
+    }
+
+    /// Command can write any segmentId on a segment document, so a name or a vanity number can sit in the grid
+    /// itself. The grid builder names every segment with two capital letters (AA to ZZ); only that form, on the
+    /// plan's ids and on the grid's, reaches the cloud voice, compared by byte.
+    @Test func onlyTwoCapitalLetterIdsReachTheCloudVoice() {
+        #expect(path(a(["AK"], "Search segment AK.")) == .cloud)
+        for id in ["MaryJones", "1800FLOWERS", "4045550123", "ABC", "A", "ab", "A1", "A_", "ROW"] {
+            #expect(path(a([id], "Search segment \(id)."), grid: [id]) == .onDevice, "\(id) in the grid")
+        }
+        // A Kelvin sign in either place: the plan's id or the grid's.
+        #expect(path(a(["A\u{212A}"], "Search segment A\u{212A}."), grid: ["A\u{212A}"]) == .onDevice)
+        #expect(path(a(["AK"], "Search segment AK."), grid: ["A\u{212A}"]) == .onDevice)
     }
 
     @Test func aVeryLongTaskIsCut() {

@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### fix(ios-core): the cloud voice takes only two-capital-letter grid ids, on the plan and the grid
+- What: `SpokenAssignment.rebuiltFromSegments` now accepts a segment id only in the grid builder's form, two
+  capital letters A to Z (`isGridBuilderId`, by byte), and checks it against the grid's ids filtered to that same
+  form. Command can write any `segmentId` on a segment document (the rules check only the prior), so a name
+  ("MaryJones") or a vanity number ("1800FLOWERS") written into the grid and the plan passed the earlier
+  letters-and-digits check and reached the cloud voice; a Kelvin-sign grid id also matched an ASCII plan id by
+  Swift's canonical equality. Both now go to the phone's own voice.
+- Source: review (adversarial pass, round 1: findings 1 and 3).
+- Verified: every tracked grid and seed uses two capital letters (3,918 `segmentId` values; only the engine's math
+  vectors use other ids); the grid builder issues only that form (`tools/grid-builder/src/cells.ts`). The new
+  `onlyTwoCapitalLetterIdsReachTheCloudVoice` test failed first (9 labels in the grid and the Kelvin grid id reached
+  the cloud), then passed; removing the grid filter, the length check or the capitals-only check each turns a test
+  red; core 473 tests passed; the speaker test now asserts a name or number written as a grid id is never sent.
+
 ### docs(limits): the cloud voice speaks only a rebuilt task line, and practice can reach it
 - What: `docs/LIMITS.md` gets a "Spoken assignments (iPhone)" section: the cloud voice speaks a new assignment only
   when the phone can rebuild its task line from the grid's segment ids; any other task line goes to the phone's own
