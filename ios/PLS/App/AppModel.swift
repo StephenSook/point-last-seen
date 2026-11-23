@@ -474,8 +474,12 @@ final class AppModel {
 
     /// Starts the practice drill from the bundled pack, with no join code and no account: the
     /// sample search loads, its assignment is spoken, and every report goes to a separate journal
-    /// that never leaves the phone. Nothing is read from or written to the server and no team
-    /// topic is followed. Returns why it did not start (also shown as the join message), or nil. While
+    /// that never leaves the phone. Nothing is read from or written to Firestore and no team topic
+    /// is followed. The only calls out are AI Logic calls on the drill's sample data: the cloud voice
+    /// speaks the sample assignment when the phone is online and signed in (the phone signs in
+    /// anonymously whenever it comes online), and the route check's cloud route sends its fixed
+    /// sentence with the sample tools (the sample person's description included) when the tester runs
+    /// it. Returns why it did not start (also shown as the join message), or nil. While
     /// a search is joined or a drill is running it does nothing and returns nil: the Join screen, the
     /// only place that offers it, is not shown then.
     func startPractice(packURL: URL? = PracticePack.bundledURL, directory: URL = PracticePack.defaultDirectory()) async -> String? {
@@ -519,7 +523,8 @@ final class AppModel {
         dropMissionNow()
     }
 
-    /// Ready check's sign-in line; nil in the practice drill, which never signs in, so a tester is not told to sign in.
+    /// Ready check's sign-in line; nil in the practice drill, which needs no sign-in, so a tester is not told to sign in.
+    /// The phone may still be signed in anonymously during the drill, and then the cloud voice can speak its sample assignment.
     var signInLine: String? {
         guard mission?.isPractice != true else { return nil }
         return signedIn ? "Signed in" : "Not signed in. Stay in signal."

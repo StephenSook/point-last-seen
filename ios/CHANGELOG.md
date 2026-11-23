@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(ios): the practice comments say the cloud voice can speak the sample assignment
+- What: two comments in `AppModel.swift` said the practice drill reads and writes nothing on the server and never
+  signs in. The phone signs in anonymously whenever it comes online, so during practice the cloud voice can speak
+  the sample assignment through AI Logic, and the route check's cloud route sends its fixed sentence with the sample
+  tools. The `startPractice` comment now says Firestore is never read or written and names those two AI Logic
+  calls; the `signInLine` comment says practice needs no sign-in but the phone may still be signed in. Behaviour
+  is unchanged: practice keeps the cloud voice (sample data only, as the route check already allows).
+- Source: review (the voice path takes no practice input; the comments did not match what happens).
+- Verified: every changed line in `AppModel.swift` is a `///` comment (0 code lines); the practice pack's task lines
+  are "Search segment BO." and "Search segment BP.", which the cloud voice may speak.
+
 ### fix(ios): the cloud voice speaks only a task line the phone rebuilds from grid segment ids
 - What: `SpokenAssignment.path` now takes the assignment and the incident's grid ids. The cloud voice is used only
   when every segment id is a grid segment in plain letters, digits or underscores (checked by byte) and the task
