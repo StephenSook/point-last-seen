@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(ios): the practice comment names the consented cloud read; the speaker comment drops digit ids
+- What: the `startPractice` comment now says a tester's own report goes to the cloud read only with "Allow cloud
+  reading" on, as in a real search. The comment over the cloud voice call in `AssignmentSpeaker.update` no longer
+  says a grid id can be digits: only two-capital-letter ids reach it, and the phone-number scrub stays as a second
+  guard.
+- Source: review (a LIMITS review of this branch).
+- Verified: every changed line is a comment (0 code lines); `isGridBuilderId` accepts only A to Z; the practice
+  pack's `judge` mode is a model mode and `submit` passes the cloud consent with no practice guard.
+
 ### docs(ios): the changelog's review source names no work stream
 - What: the source line of the entry below named an internal work stream; it now reads "a LIMITS review of this
   branch".

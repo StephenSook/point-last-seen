@@ -52,8 +52,8 @@ final class AssignmentSpeaker {
         let text = SpokenAssignment.text(assignment)
         if SpokenAssignment.path(cloudModel: voiceTemplate, online: online, killCloud: killCloud, signedIn: signedIn,
                                  assignment: assignment, gridIds: gridIds) == .cloud {
-            // The cloud voice is a model: it gets only a line rebuilt from grid ids, and never a phone number
-            // (a grid id can be digits). The phone's own voice reads any other task as written.
+            // The cloud voice is a model: it gets only a line rebuilt from two-capital-letter grid ids. The scrub
+            // stays as a second guard. The phone's own voice reads any other task as written.
             let voice = makeCloud(voiceTemplate.trimmingCharacters(in: .whitespaces))
             cloud = voice
             let start = await voice.speak(PhoneNumbers.scrub(text), ifStillWanted: isCurrent)

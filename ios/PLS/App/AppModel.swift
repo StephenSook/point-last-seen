@@ -480,7 +480,8 @@ final class AppModel {
     /// (voice path, read route, outcome, timing) carry none of it. The cloud voice speaks the sample
     /// assignment when the phone is online and signed in, and the route check's cloud route sends
     /// its fixed sentence with the sample tools (the sample person's description included) when the
-    /// tester runs it. Returns why it did not start (also shown as the join message), or nil. While
+    /// tester runs it. A tester's own report goes to the cloud read only with "Allow cloud reading"
+    /// on, as in a real search. Returns why it did not start (also shown as the join message), or nil. While
     /// a search is joined or a drill is running it does nothing and returns nil: the Join screen, the
     /// only place that offers it, is not shown then.
     func startPractice(packURL: URL? = PracticePack.bundledURL, directory: URL = PracticePack.defaultDirectory()) async -> String? {
