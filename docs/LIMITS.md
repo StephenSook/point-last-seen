@@ -280,6 +280,16 @@ each line says what the limit is and why.
   `web/src/data/endSearch.ts`). The cost is a clue that adds no weight and a card that can mislead a quick read.
   Evidence: docs/evidence/eval/eval-pls-drill-reports-v1-1795376366383.json.
 
+## Spoken assignments (iPhone)
+
+- The cloud voice (Firebase AI Logic) speaks a new assignment only when the phone can rebuild its whole task line
+  from the incident's grid segment ids, as the command post writes it ("Search segment AB, AC."). Any other task
+  line, such as a name or a number a command writer typed, is read by the phone's own voice and sent to no model
+  (`ios/PLSCore/Sources/PLSCore/SpokenAssignment.swift`). In the practice drill the cloud voice still speaks the
+  sample assignment when the phone is online and signed in (it signs in anonymously whenever it comes online), so
+  the drill's sample segment ids reach AI Logic; no report and no real search's data does. The cost: task words a
+  command writer adds by hand get the phone's voice, not the cloud one.
+
 ## Photo clues (iPhone)
 
 - A searcher can take a photo of something found. Apple's on-device model reads it (iOS 27 with the vision
@@ -438,8 +448,8 @@ each line says what the limit is and why.
   development drill), `drill-judge-1` (the judge sandboxes' seed), `drill-kennesaw-1` (the drill on film and on the
   judge page) and `drill-test-1` (the drill every live check and the daily probe use). A live search and a judge
   sandbox are never deleted by this job; a sandbox goes a day after it ends (`deleteEndedSandboxesJob`).
-- The iPhone's practice drill keeps its reports on that phone only: it never signs in and sends neither its reports nor
-  their timings (`ios/PLS/App/AppModel.swift`), so nothing of it is in Firestore to delete.
+- The iPhone's practice drill keeps its reports on that phone only: it needs no sign-in and sends neither its reports
+  nor their timings (`ios/PLS/App/AppModel.swift`), so nothing of it is in Firestore to delete.
 
 ## The published drill run
 

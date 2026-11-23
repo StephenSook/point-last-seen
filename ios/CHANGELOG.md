@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(limits): the cloud voice speaks only a rebuilt task line, and practice can reach it
+- What: `docs/LIMITS.md` gets a "Spoken assignments (iPhone)" section: the cloud voice speaks a new assignment only
+  when the phone can rebuild its task line from the grid's segment ids; any other task line goes to the phone's own
+  voice and no model; in practice the cloud voice can speak the sample assignment, so sample segment ids reach AI
+  Logic. The drill-data line on practice now says it "needs no sign-in" instead of "never signs in" (the phone signs
+  in anonymously whenever it comes online).
+- Source: review (the voice path's practice and consent inputs).
+- Verified: the section names `SpokenAssignment.swift`, which holds `rebuiltFromSegments`; the gates and the public
+  hygiene guard passed.
+
 ### docs(ios): the practice comments say the cloud voice can speak the sample assignment
 - What: two comments in `AppModel.swift` said the practice drill reads and writes nothing on the server and never
   signs in. The phone signs in anonymously whenever it comes online, so during practice the cloud voice can speak
