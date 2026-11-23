@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-23
 
+- Hosting: the app shell rewrite no longer answers for `/assets/`, so a missing hashed file or a removed source map
+  answers 404 instead of 200 with the app's HTML (measured live on 2026-11-23: `/assets/nope-xyz.js.map` returned
+  200 `text/html`). Pages, `/privacy` and `/support` keep their rewrites. Source: web Crashlytics, so a request for a
+  map can be checked for 404 after the deploy. Verified: the rewrite test in `scripts/test_firebase_config.py`
+  failed before the change and passes after it, and its glob reading keeps `/`, `/judge` and `/incident/abc` on the
+  app shell while `/assets/`, `/tiles/` and `/evidence/` paths fall through to 404.
 - Hosting: `firebase.json` ignores `**/*.map`, so a source map the web build writes for the Crashlytics upload is
   never deployed even if one is left in `web/dist`. Source: web Crashlytics. Verified: a new test in
   `scripts/test_firebase_config.py` failed before the change and passes after it.
