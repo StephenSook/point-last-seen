@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-23
 
+- Predeploy: `scripts/predeploy.sh` has two new steps (now ten). Step 6, right after the build, fails when a built
+  script or stylesheet names a source map, or when `web/dist/assets` holds no script to search (macOS grep with
+  `--include` skips a missing directory and exits 1). Step 10, the script's one write and only after every check has
+  passed, uploads the build's `.js.map` files to Crashlytics under the commit `web/dist/version.json` names (which
+  must be HEAD), with `--clean` so each uploaded map is deleted, then fails if any `.map` file is left. The CLI exits
+  0 with no map and with failed uploads (read in its source, firebase-tools 15.36.0), so a count before and the
+  leftover check after are the verdict. The closing line now says to check that a map path answers 404. Source: web
+  Crashlytics. Verified: four new tests in `scripts/test_predeploy.py` failed before the change and pass after it;
+  steps 6 and 10 were run against fixture builds (a named map, a clean build, a missing build, an empty build, no
+  maps, maps left behind, a missing or absent app ID), each with the expected pass or fail; `bash -n` passes. The
+  upload itself is not yet run: it needs `firebase crashlytics:setup` first.
 - Hosting: the app shell rewrite no longer answers for `/assets/`, so a missing hashed file or a removed source map
   answers 404 instead of 200 with the app's HTML (measured live on 2026-11-23: `/assets/nope-xyz.js.map` returned
   200 `text/html`). Pages, `/privacy` and `/support` keep their rewrites. Source: web Crashlytics, so a request for a
