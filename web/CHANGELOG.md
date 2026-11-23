@@ -3167,3 +3167,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `safeErrorReport` kept any stack line shaped like a frame on this site, so a message whose last line looked like one (`    at x (https://<this site>/a.js:1:2)` or `name@https://<this site>/a.js:1:2`) would have been sent. A V8 stack now has its "Name: message" header cut first (by the exact header, or by the message's line count when the message changed after the stack was taken), only V8 frames are read from a V8 stack and only Firefox or Safari frames from the others, and a frame's function name must look like code (`[\w$.<>[\]]`, Safari's `global code`, `module code`, `eval code`).
 - Source: review (automated security review of the previous commit).
 - Verified: two new tests in `src/telemetry/errorReport.test.ts` (a frame-shaped message line in either shape, also after the message changed; a Firefox frame whose name is prose) failed first, then all 16 passed; typecheck.
+
+### build(web): the bundle names the same commit as /version.json
+- What: `versionFilePlugin` reads the commit once and uses it twice: in `dist/version.json` as before, and as the build constant `__PLS_COMMIT__` (declared in `src/buildinfo/commit.d.ts`, absent in dev and tests). A crash report can then carry the release `/version.json` names. A build without a full SHA now fails before bundling instead of after.
+- Source: plan (Crashlytics for the web command post; report version = the served build id).
+- Verified: two new tests in `src/buildinfo/versionFile.test.ts` (the define and version.json carry one commit read once; a short SHA fails at config time) failed first, then all 5 passed; typecheck.
