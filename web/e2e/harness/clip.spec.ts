@@ -21,7 +21,8 @@ test("the clip form reads only after the three required consents and passes on w
   await page.getByLabel("The person in the clip").check();
   await page.getByLabel("The owner of the footage").check();
   await expect(read).toBeDisabled();
-  await page.getByLabel("Cloud reading").check();
+  // The full words: the press stores the clip with the search before Gemini reads it.
+  await page.getByLabel("Cloud reading (the clip is stored with this search for up to 30 days and read by Gemini)", { exact: true }).check();
   await expect(read).toBeEnabled();
   await read.click();
   await expect(page.getByTestId("asked")).not.toHaveText("");
