@@ -5,6 +5,12 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(ios): the changelog's review source names no work stream
+- What: the source line of the entry below named an internal work stream; it now reads "a LIMITS review of this
+  branch".
+- Source: the public hygiene guard (`scripts/hygiene_guard.py --public`, "a work stream named as a role").
+- Verified: the public hygiene guard passes after the change, and failed before it on `ios/CHANGELOG.md:16`.
+
 ### docs(limits): practice lines name the route check, the consented cloud read and the traces
 - What: in `docs/LIMITS.md`, the spoken-assignment residual now says an assignment can list up to six grid ids in
   any order, so up to six two-letter ids are what command's ids can carry. The practice sentence names the route
@@ -13,7 +19,7 @@ finding) and how it was verified. Newest first.
   line says practice writes neither reports nor timings to Firestore and its Performance traces carry only the
   route, the outcome and the timing. The "Report a problem" line says no problem report leaves the phone in
   practice, not that nothing does.
-- Source: review (lane A's LIMITS review of this branch).
+- Source: review (a LIMITS review of this branch).
 - Verified: the practice pack's mode is `judge`, a model mode (`ReadPlan.modelModes`), and `submit` passes the
   cloud consent with no practice guard; `ReportReader` records a `report_read` trace for every read; the rules
   allow up to six ids per assignment and `codeTaskLine` keeps their order.
