@@ -475,11 +475,12 @@ final class AppModel {
     /// Starts the practice drill from the bundled pack, with no join code and no account: the
     /// sample search loads, its assignment is spoken, and every report goes to a separate journal
     /// that never leaves the phone. Nothing is read from or written to Firestore and no team topic
-    /// is followed. The only calls out are AI Logic calls on the drill's sample data: the cloud voice
-    /// speaks the sample assignment when the phone is online and signed in (the phone signs in
-    /// anonymously whenever it comes online), and the route check's cloud route sends its fixed
-    /// sentence with the sample tools (the sample person's description included) when the tester runs
-    /// it. Returns why it did not start (also shown as the join message), or nil. While
+    /// is followed. The drill's data leaves the phone only in AI Logic calls on its sample data (the
+    /// phone's own anonymous sign-in, tried whenever it comes online, carries none of it): the cloud
+    /// voice speaks the sample assignment when the phone is online and signed in, and the route
+    /// check's cloud route sends its fixed sentence with the sample tools (the sample person's
+    /// description included) when the tester runs it. Returns why it did not start (also shown as
+    /// the join message), or nil. While
     /// a search is joined or a drill is running it does nothing and returns nil: the Join screen, the
     /// only place that offers it, is not shown then.
     func startPractice(packURL: URL? = PracticePack.bundledURL, directory: URL = PracticePack.defaultDirectory()) async -> String? {

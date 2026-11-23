@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-22
 
+### docs(ios): LIMITS names the two-letter id rule; the practice comment scopes what leaves the phone
+- What: the "Spoken assignments (iPhone)" limit now says the cloud voice needs every segment id in the grid
+  builder's form (two capital letters) and in the incident's grid, and that other ids also get the phone's voice.
+  The `startPractice` comment no longer says AI Logic makes the only calls out: the phone's anonymous sign-in, tried
+  whenever it comes online, is a call too, so the comment now says the drill's data leaves the phone only in AI
+  Logic calls on its sample data, and the sign-in carries none of it.
+- Source: review (adversarial pass, round 1: finding 5, and the LIMITS line after findings 1 and 3).
+- Verified: every changed line in `AppModel.swift` is a `///` comment (0 code lines); the LIMITS text matches
+  `isGridBuilderId` and `rebuiltFromSegments`; gates and the public hygiene guard passed.
+
 ### fix(ios): the cloud voice checks the grid the phone holds when the line is spoken
 - What: `AppModel.load` read the grid ids when it queued the line, so a reload that kept the assignment but dropped
   its segment from the grid, before the queued line's turn, still sent the old id to the cloud voice. The speech
