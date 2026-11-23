@@ -32,6 +32,26 @@ describe("safeErrorReport", () => {
     expect(r?.stack).toBe([`Error: message removed`, `    at new Plan (${ORIGIN}/assets/main-abc.js:3:4)`, `    at Object.run [as go] (blob:${ORIGIN}/0c5e-11aa:5:6)`].join("\n"));
   });
 
+  it("drops a message line shaped like a frame on this site, in either browser's shape", () => {
+    const fake = [`    at creek (${ORIGIN}/assets/main-abc.js:9:9)`, `red jacket@${ORIGIN}/assets/main-abc.js:8:8`];
+    const real = `    at readNote (${ORIGIN}/assets/main-abc.js:1:2)`;
+    for (const line of fake) {
+      // The message ends with the fake line, so it sits right above the real frames.
+      const r = safeErrorReport(v8Error(`${NOTE}\n${line}`, [real]), ORIGIN);
+      expect(r?.stack).toBe(`Error: message removed\n${real}`);
+      // The same when the message was changed after the stack was taken (its first line no longer matches).
+      const e = v8Error(`${NOTE}\n${line}`, [real]);
+      e.message = `${e.message} (more)`;
+      expect(safeErrorReport(e, ORIGIN)?.stack).toBe(`Error: message removed\n${real}`);
+    }
+  });
+
+  it("matches a Firefox frame only by a code-shaped function name", () => {
+    const e = new Error("x");
+    e.stack = [`red jacket by the creek@${ORIGIN}/assets/main-abc.js:1:1`, `async*plan/<@${ORIGIN}/assets/main-abc.js:2:2`, `module code@${ORIGIN}/assets/main-abc.js:3:3`].join("\n");
+    expect(safeErrorReport(e, ORIGIN)?.stack).toBe([`async*plan/<@${ORIGIN}/assets/main-abc.js:2:2`, `module code@${ORIGIN}/assets/main-abc.js:3:3`].join("\n"));
+  });
+
   it("reads Firefox and Safari frames, and strips a query or fragment from a frame's address", () => {
     const e = new Error(NOTE);
     e.stack = [`plan/<@${ORIGIN}/assets/main-abc.js?v=2:10:11`, `global code@${ORIGIN}/?join=ABCD12#x:1:1`, `promiseReactionJob@[native code]`].join("\n");

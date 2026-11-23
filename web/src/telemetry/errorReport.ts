@@ -46,23 +46,38 @@ export function safeErrorReport(reason: unknown, origin: string): SafeErrorRepor
   if (typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599) parts.push(`status ${status}`);
   const message = parts.join("; ");
 
-  // A frame is kept only when its address is on this site, so a line of message text cannot pass as a frame.
-  const site = `(?:${escape(origin)}|blob:${escape(origin)})/[^\\s()?#]*`;
+  // A frame is kept only when its function name looks like code and its address is on this site.
+  const site = `(?:${escape(origin)}|blob:${escape(origin)})/[\\w\\-./%~]*`;
   const loc = `(${site})(?:[?#][^\\s()]*?)?(:\\d+:\\d+)`;
-  const v8 = new RegExp(`^\\s+at (?:(?:new |async )?[^\\s()]+(?: \\[as [^\\]]+\\])? \\()?${loc}\\)?$`);
-  const gecko = new RegExp(`^[^@\\n]{0,200}@${loc}$`);
+  const v8 = new RegExp(`^ {4}at (?:(?:new |async )?[\\w$.<>\\[\\]]{1,200}(?: \\[as [\\w$.]{1,64}\\])? \\()?${loc}\\)?$`);
+  const gecko = new RegExp(`^(?:(?:global|module|eval) code|[\\w$.<>/\\[\\]*]{0,200})@${loc}$`);
+  const text = typeof reason.stack === "string" ? reason.stack : "";
+  const v8Style = /^ {4}at /m.test(text);
+  // A V8 stack starts with the message, which can be several lines of drill text: cut it before reading frames.
+  const lines = v8Style ? withoutV8Header(text, reason) : text.split("\n");
+  const re = v8Style ? v8 : gecko;
   const frames: string[] = [];
-  let v8Style = false;
-  for (const line of (typeof reason.stack === "string" ? reason.stack : "").split("\n")) {
+  for (const line of lines) {
     if (frames.length === MAX_FRAMES) break;
-    const re = v8.test(line) ? v8 : gecko.test(line) ? gecko : null;
-    if (!re) continue;
-    if (re === v8) v8Style = true;
     // Drop any query or fragment from the frame's address (a page address can hold a code).
-    frames.push(line.replace(re, (m, url: string, pos: string) => m.replace(/(?:https?:|blob:)[^\s()]*:\d+:\d+/, `${url}${pos}`)).slice(0, MAX_FRAME_LENGTH));
+    if (re.test(line)) frames.push(line.replace(re, (m, url: string, pos: string) => m.replace(/(?:https?:|blob:)[^\s()]*:\d+:\d+/, `${url}${pos}`)).slice(0, MAX_FRAME_LENGTH));
   }
   const stack = v8Style ? [`${name}: ${message}`, ...frames].join("\n") : frames.join("\n");
   return { name, message, stack };
+}
+
+/** The lines of a V8 stack after its "Name: message" header. */
+function withoutV8Header(stack: string, e: Error): string[] {
+  const m = String(e.message);
+  const names = new Set([e.name, "Error", e.constructor?.name].filter((n): n is string => typeof n === "string" && n !== ""));
+  for (const n of names) {
+    const header = m ? `${n}: ${m}` : n;
+    if (stack === header) return [];
+    if (stack.startsWith(`${header}\n`)) return stack.slice(header.length + 1).split("\n");
+  }
+  // The message changed after the stack was taken: skip as many lines as the message has. A header line left over
+  // must still pass the frame pattern with this site's address to be kept.
+  return stack.split("\n").slice(Math.max(1, m.split("\n").length));
 }
 
 /** Listens for uncaught errors and rejections on the page; returns a function that stops listening. */
