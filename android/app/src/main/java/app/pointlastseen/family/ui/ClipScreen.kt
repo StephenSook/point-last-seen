@@ -107,7 +107,7 @@ fun ClipScreen(
                 }
                 Tick("The person in the clip agrees", person) { person = it }
                 Tick("I own this footage or have the owner's OK", owner) { owner = it }
-                Tick("Send it to the cloud to read it", cloud) { cloud = it }
+                Tick(Copy.CLIP_CLOUD, cloud) { cloud = it }
                 // The drill film is our concern, not a family's: only a drill or judge search asks about it.
                 val drill = Copy.isDrill(mode)
                 if (drill) Tick("It may be shown in the drill film (optional)", public) { public = it }

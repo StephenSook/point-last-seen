@@ -64,6 +64,13 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-22
 
+- Evidence: `docs/evidence/android/a16-push-rehearsal-2026-11-22.md` records one rehearsal family push to the
+  `android-judge-5` file on a Samsung A16, with the app in the background: the question was committed at
+  20:43:35.559Z and the notice was posted on the phone at 20:43:39.867Z (4.31 s, n=1, not a typical latency).
+  Source: the film rehearsal. Verified: the question document's `createdAt` and create time read from Firestore
+  (one document on the incident), the phone's notification record read by adb with the phone clock checked
+  against UTC (4 ms), and the installed `base.apk` hash read on the phone.
+
 - Rules gate: web code outside tests and docs may no longer name Chrome's other built-in AI APIs (Translator,
   LanguageDetector, Summarizer, Writer, Rewriter, Proofreader), and no other platform may prompt a model session by
   hand (`.prompt(` or `.promptStreaming(` outside tests). Web code was already held to the prompt rule, tests
