@@ -65,9 +65,10 @@ is missing.
 
 ## How we built it
 
-- AI, all through Firebase AI Logic: on the web, the Firebase JS SDK's hybrid inference (the laptop's built-in model
-  in Chrome for the note, photo and clip-frame reads; on-device first, then Gemini in the cloud, for plan wording); on
-  iPhone, Apple's Foundation Models on the device and Gemini in the cloud; on Android, Firebase AI Logic's on-device
+- AI: every cloud call goes through Firebase AI Logic. On the web, the Firebase JS SDK's hybrid inference (the
+  laptop's built-in model in Chrome for the note, photo and clip-frame reads; on-device first, then Gemini in the
+  cloud, for plan wording); on iPhone, Apple's Foundation Models on the device, called directly as Firebase iOS SDK 13
+  directs, and Gemini in the cloud through Firebase AI Logic; on Android, Firebase AI Logic's on-device
   path (code path only, not run on a phone with Gemini Nano) and cloud model. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that allows only
   the listed models and bounds each reply.
 - Firebase: App Check (reCAPTCHA Enterprise on the web, App Attest on iPhone, Play Integrity on Android), enforced on
