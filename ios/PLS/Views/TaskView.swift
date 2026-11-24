@@ -1,16 +1,15 @@
 import PLSCore
 import SwiftUI
 
-/// The field screen: the Report bar, the typed or dictated report, and the sent reports.
-/// Tapping the bar focuses the field with the system keyboard, whose microphone key is in view;
-/// the app itself calls no speech API. The whole screen scrolls, and a report just put in the
+/// The field screen: the Report bar, the typed or dictated report (`ReportComposer`), and the sent
+/// reports. The app itself calls no speech API. The whole screen scrolls, and a report just put in the
 /// journal is brought into view whole, so the searcher sees what the phone made of it.
 struct TaskView: View {
     static let noMissionHint = "Join your team at the Ready check before you leave signal."
     static let practiceNotice = "Practice drill with sample data. Nobody is missing. Reports stay on this phone."
     @Bindable var model: AppModel
-    @State private var text = ""
-    @FocusState private var focused: Bool
+    /// Counts the "Log report" requests that found a mission loaded; each one focuses the report box.
+    @State private var focusRequests = 0
     @State private var picking = false
     @State private var photographing = false
     /// The scroll view's bottom inset (the home indicator): a receipt brought into view ends above it.
@@ -36,7 +35,7 @@ struct TaskView: View {
         }
         // The "Log report" control (Action button) asks for the Report field.
         .task(id: ReportFocus.shared.pending) {
-            if ReportFocus.shared.take(), model.mission != nil { focused = true }
+            if ReportFocus.shared.take(), model.mission != nil { focusRequests += 1 }
         }
     }
 
@@ -76,37 +75,7 @@ struct TaskView: View {
                     Text("Your assignment changes only when command approves.").font(.title3.weight(.semibold))
                         .foregroundStyle(theme.text(.secondary))
                 }
-                Button { focused = true } label: {
-                    Text("Report").font(.largeTitle.bold()).frame(maxWidth: .infinity, minHeight: 120)
-                        .foregroundStyle(theme.onAccentColor)
-                        .background(theme.accentColor, in: RoundedRectangle(cornerRadius: 16))
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Opens the keyboard. Tap the microphone key to dictate.")
-                TextField("Say or type what you found", text: $text, axis: .vertical)
-                    .focused($focused)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(2...6)
-                    .accessibilityIdentifier("task-report-text")
-                Button("Send") {
-                    let report = text
-                    focused = false
-                    Task { text = await model.submit(report, inputMethod: .typed) }
-                }
-                .buttonStyle(.bordered)
-                .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.sending || model.heldForReview == text)
-                .accessibilityIdentifier("task-send")
-                // Kept because the team changed: sent again only once the searcher has checked the new task.
-                if let held = model.heldForReview, held == text, !text.isEmpty {
-                    Button("Send to my new team") {
-                        let report = text
-                        focused = false
-                        Task { text = await model.sendToNewTeam(report, inputMethod: .typed) }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.sending)
-                    .accessibilityIdentifier("send-to-new-team")
-                }
+                ReportComposer(model: model, focusRequests: focusRequests)
                 Button { picking = true } label: {
                     Label("Pick instead of typing", systemImage: "hand.tap").frame(maxWidth: .infinity, minHeight: 60)
                 }
@@ -158,5 +127,54 @@ struct TaskView: View {
             }
         }
         .padding()
+    }
+}
+
+/// The Report bar, the report box and Send. The words being typed live here, so a keystroke
+/// redraws only this part, not the whole task screen with its receipts and its photo check.
+/// Tapping the bar focuses the box with the system keyboard, whose microphone key is in view.
+struct ReportComposer: View {
+    @Bindable var model: AppModel
+    /// Rises once per "Log report" request the task screen took; each rise focuses the box.
+    let focusRequests: Int
+    @State private var text = ""
+    @FocusState private var focused: Bool
+    @Environment(\.fieldTheme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button { focused = true } label: {
+                Text("Report").font(.largeTitle.bold()).frame(maxWidth: .infinity, minHeight: 120)
+                    .foregroundStyle(theme.onAccentColor)
+                    .background(theme.accentColor, in: RoundedRectangle(cornerRadius: 16))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens the keyboard. Tap the microphone key to dictate.")
+            TextField("Say or type what you found", text: $text, axis: .vertical)
+                .focused($focused)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(2...6)
+                .accessibilityIdentifier("task-report-text")
+            Button("Send") {
+                let report = text
+                focused = false
+                Task { text = await model.submit(report, inputMethod: .typed) }
+            }
+            .buttonStyle(.bordered)
+            .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.sending || model.heldForReview == text)
+            .accessibilityIdentifier("task-send")
+            // Kept because the team changed: sent again only once the searcher has checked the new task.
+            if let held = model.heldForReview, held == text, !text.isEmpty {
+                Button("Send to my new team") {
+                    let report = text
+                    focused = false
+                    Task { text = await model.sendToNewTeam(report, inputMethod: .typed) }
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.sending)
+                .accessibilityIdentifier("send-to-new-team")
+            }
+        }
+        .onChange(of: focusRequests) { focused = true }
     }
 }

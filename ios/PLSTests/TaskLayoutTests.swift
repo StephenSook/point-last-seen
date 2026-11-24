@@ -119,6 +119,45 @@ import UIKit
                            in: window, root: root)
     }
 
+    /// The phone's text input view under `root` (the report box).
+    func textInput(under root: UIView) -> (UIView & UITextInput)? {
+        if let input = root as? (UIView & UITextInput), input.isUserInteractionEnabled { return input }
+        for child in root.subviews { if let found = textInput(under: child) { return found } }
+        return nil
+    }
+
+    /// Typing in the report box redraws only the box: each keystroke does not re-run the whole
+    /// task screen, whose reads include Apple's model check for the photo button and every receipt.
+    @Test func typingRedrawsOnlyTheReportBox() async throws {
+        final class Count { var photoChecks = 0 }
+        let count = Count()
+        let m = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { true }),
+                         speaker: AssignmentSpeaker(onDevice: FakeVoice(), makeCloud: { _ in FakeVoice() }, record: { _ in }),
+                         uid: { "uid-1" }, measurements: FakeMeasurementWriter(),
+                         photoReaderAvailable: { count.photoChecks += 1; return true },
+                         joinBackend: FakeJoinBackend(), missionReader: FakeMissionReader(docs: nil), pushTopics: FakePushTopics(),
+                         alerts: FakeAlerts(), defaults: UserDefaults(suiteName: "typing-\(UUID().uuidString)")!)
+        #expect(await m.startPractice(directory: try tempDir()) == nil)
+        let (window, root) = try show(m)
+        defer { close(window) }
+        try await settle(window)
+        let box = try #require(textInput(under: root))
+        #expect(box.becomeFirstResponder())
+        try await settle(window)
+        let before = count.photoChecks
+        let typed = "cleared BO"
+        for character in typed {
+            box.insertText(String(character))
+            try await Task.sleep(for: .milliseconds(60))
+            window.layoutIfNeeded()
+        }
+        try await settle(window)
+        // The keystrokes reached the box, so a low count is not a box that took no text.
+        let range = try #require(box.textRange(from: box.beginningOfDocument, to: box.endOfDocument))
+        #expect(box.text(in: range) == typed)
+        #expect(count.photoChecks - before <= 2, "\(count.photoChecks - before) photo checks for \(typed.count) keystrokes")
+    }
+
     /// A screen opened on earlier reports starts at the top, with the Report bar in view: only a
     /// report sent while the screen is open moves it.
     @Test func aScreenOpenedOnEarlierReportsStartsAtTheTop() async throws {
