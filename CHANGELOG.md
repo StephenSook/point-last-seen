@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-24
 
+- Production checklist, judging window: new row for the Crashlytics source map bucket the first map upload created
+  (`firebasecrashlytics-sourcemaps-593239421521-us-central1`, us-central1, 2026-11-24 05:04 UTC). Its lifecycle
+  deletes each object 180 days after upload, so nothing goes before 2027-05-23; it has no public access. Source:
+  the web Crashlytics deploy. Verified: `gcloud storage buckets describe` on the bucket (lifecycle Delete at age
+  180, autoclass on, ACLs with project roles only, 10 objects) and 2026-11-24 plus 180 days is 2027-05-23; the
+  gates pass.
 - Security row 7 (template-only mode): "the apps use hybrid inference" now names the web and Android apps, and says
   the iPhone app routes between Apple's on-device model and Gemini itself. Source: review of the iOS wording.
   Verified: `ios/PLS/AI/ModelSessionFactory.swift` says "Our app is the router on iOS" and builds one session per
