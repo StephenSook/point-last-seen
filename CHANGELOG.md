@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-24
 
+- Test matrix: new row for the web plan wording's cloud fallback re-run on the 2026-11-24 deploy (5d59d16d), with its
+  evidence file `docs/evidence/web/2026-11-24-plan-reason-cloud-live.json`: `web/e2e/planUsed.spec.ts` in Google
+  Chrome with the page's built-in model removed, on the test drill, passed with 3 suggestions shown and 3 used. The
+  2026-11-22 row stays. Source: the organizer's "confirm the cloud fallback kicks in when on-device isn't available".
+  Verified: the run's Playwright summary (2 passed, 0 failed) and counts; `scripts/test_test_matrix.py` passes (the
+  cited code line and evidence file hold); the gates pass.
 - Production checklist, judging window: new row for the Crashlytics source map bucket the first map upload created
   (`firebasecrashlytics-sourcemaps-593239421521-us-central1`, us-central1, 2026-11-24 05:04 UTC). Its lifecycle
   deletes each object 180 days after upload, so nothing goes before 2027-05-23; it has no public access. Source:

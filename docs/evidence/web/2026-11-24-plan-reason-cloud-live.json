@@ -1,0 +1,19 @@
+{
+  "what": "Suggest plan on the cloud path of the live site, re-run on the 2026-11-24 deploy: web/e2e/planUsed.spec.ts against the deployed command post on the test drill (drill-test-1), in Google Chrome with the page's built-in model removed (window.LanguageModel deleted before load), so only the cloud route can answer. Nothing was approved, so nothing was written.",
+  "date": "2026-11-24",
+  "ranAt": "2026-11-24T06:56:57.572Z",
+  "deployedCommit": "5d59d16dbd53354c67b3589f47e03616f74f3f74",
+  "model": "gemini-3.5-flash-lite (Remote Config cloud_model_web)",
+  "spec": "web/e2e/planUsed.spec.ts",
+  "browser": "Google Chrome (Playwright channel chrome, project chrome-drill); version not recorded",
+  "result": {
+    "passed": true,
+    "suggestionsShown": 3,
+    "suggestionsUsed": 3,
+    "cloudRepliesNotUsed": "(none)",
+    "specSeconds": 6.5,
+    "totals": "2 passed (sign-in setup and the spec), 0 failed, 0 flaky, 12.9 s"
+  },
+  "notRecorded": "The replies themselves: the spec keeps only replies that were not used, and this run had none. The 2026-11-22 file holds per-call replies from a separate capture.",
+  "secrets": "The App Check debug token and the join code were read from the Mac's Keychain into the test process only; traces are off in this config and the run log's debug-token lines were filtered out."
+}
