@@ -92,11 +92,15 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
         #expect(model.urgency == .coolWet)
     }
 
+    /// A grid segment AC and command's task line for it, as the command post writes it (the cloud voice
+    /// speaks only a line the phone can rebuild from the grid's ids).
     func spokenMission() throws -> Mission {
-        Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [], prior: [],
-                assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
-                profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget,
-                assignment: Assignment(teamId: "T1", segmentIds: ["AC"], taskText: "Walk the creek bank.", reason: "r"))
+        let ac = GridSegment(segmentId: "AC", areaM2: 1, centroid: Coordinate(lon: -84.4, lat: 33.8),
+                             geometry: SegmentGeometry(polygons: []), neighbors: [], upstream: [], downstream: [])
+        return Mission(incidentId: "I1", mode: "drill", teamId: "T1", priorVersion: 1, grid: [ac], prior: [],
+                       assignedSegmentIds: ["AC"], params: try BundledConstants.engineParams(),
+                       profile: ModelProfile(shared: .null), sharedProfile: nil, visualDetectionRangeM: nil, rdBasis: .openTarget,
+                       assignment: Assignment(teamId: "T1", segmentIds: ["AC"], taskText: "Search segment AC.", reason: "r"))
     }
 
     /// The AI Logic voice runs only once the phone is signed in; before that the phone's own voice speaks.
@@ -115,6 +119,28 @@ final class NoClaimsJoinBackend: JoinBackend, @unchecked Sendable {
             // Signed in is the control: it proves this setup does reach the cloud voice.
             #expect(cloud.spoken.count == (signedIn ? 1 : 0))
             #expect(onDevice.spoken.count == (signedIn ? 0 : 1))
+        }
+    }
+
+    /// The cloud check reads the grid the phone holds when the line's turn comes, not the grid of the load
+    /// that queued it: a reload that keeps the assignment but drops its segment from the grid sends nothing.
+    @Test func theCloudVoiceChecksTheGridHeldWhenTheLineIsSpoken() async throws {
+        for gridChanges in [false, true] {
+            let onDevice = FakeVoice(), cloud = FakeVoice()
+            let model = AppModel(signIn: SignIn(isSignedIn: { true }, attempt: { false }),
+                                 speaker: AssignmentSpeaker(onDevice: onDevice, makeCloud: { _ in cloud }, record: { _ in }), uid: { "uid-1" })
+            model.config.voiceTemplateId = "voice-template"
+            model.connectivity.pathChanged(satisfied: true)
+            var mission = try spokenMission()
+            mission.owner = model.currentSession
+            await model.load(mission)
+            // Before the first line's turn: the same assignment again, with or without its segment in the grid.
+            if gridChanges { mission.grid = [] }
+            await model.load(mission)
+            await model.speech?.value
+            // An unchanged grid is the control: it proves this setup reaches the cloud voice.
+            #expect(cloud.spoken.count == (gridChanges ? 0 : 1))
+            #expect(onDevice.spoken.count == (gridChanges ? 1 : 0))
         }
     }
 

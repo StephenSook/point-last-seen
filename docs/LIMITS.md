@@ -78,7 +78,7 @@ each line says what the limit is and why.
   optional note (phone numbers removed, 500 characters at most). Each report is filed once and cannot be changed or
   taken back. Without signal it waits on the phone and goes when signal returns; the phone then cannot say whether the
   server later took it. The iPhone shows only this phone's own reports, so it offers no way to flag another
-  searcher's report. Reports are not offered in the practice drill, where nothing leaves the phone.
+  searcher's report. Reports are not offered in the practice drill, where no problem report leaves the phone.
 - "Block on this phone" hides the family's description of the person on that iPhone only, for that search, until
   "Show again". Nothing is sent: command still has the description and is not told. It hides the card only: with
   "Allow cloud reading" on, a report read in the cloud still gets the description's clothing and appearance, and the
@@ -280,6 +280,22 @@ each line says what the limit is and why.
   `web/src/data/endSearch.ts`). The cost is a clue that adds no weight and a card that can mislead a quick read.
   Evidence: docs/evidence/eval/eval-pls-drill-reports-v1-1795376366383.json.
 
+## Spoken assignments (iPhone)
+
+- The cloud voice (Firebase AI Logic) speaks a new assignment only when every segment id has the grid builder's
+  form (two capital letters) and is in the incident's grid, and the task line is exactly the one the command post
+  writes for those ids ("Search segment AB, AC."). Any other task line or segment id, such as a name or a number a
+  command writer typed, is read by the phone's own voice and sent to no model
+  (`ios/PLSCore/Sources/PLSCore/SpokenAssignment.swift`). Command can still choose which two capital letters name a
+  segment, and an assignment can list up to six of the grid's ids in any order (`firestore.rules`), so up to six
+  two-letter ids are all that command's ids can carry to the model. In the practice drill the cloud voice still
+  speaks the sample assignment when the phone is online and signed in (it signs in anonymously whenever it comes
+  online), so the drill's sample segment ids reach AI Logic. The route check, offered only in the practice drill,
+  sends its fixed sentence and the sample tools (the sample person's description included) on its cloud route when
+  the tester runs it. A tester's own report goes to the cloud only with the cloud-read switch on, as in a real
+  search. No real search's data goes. The cost: task words a command writer adds by hand, or a grid with other ids,
+  get the phone's voice, not the cloud one.
+
 ## Photo clues (iPhone)
 
 - A searcher can take a photo of something found. Apple's on-device model reads it (iOS 27 with the vision
@@ -438,8 +454,9 @@ each line says what the limit is and why.
   development drill), `drill-judge-1` (the judge sandboxes' seed), `drill-kennesaw-1` (the drill on film and on the
   judge page) and `drill-test-1` (the drill every live check and the daily probe use). A live search and a judge
   sandbox are never deleted by this job; a sandbox goes a day after it ends (`deleteEndedSandboxesJob`).
-- The iPhone's practice drill keeps its reports on that phone only: it never signs in and sends neither its reports nor
-  their timings (`ios/PLS/App/AppModel.swift`), so nothing of it is in Firestore to delete.
+- The iPhone's practice drill journals its reports on that phone only: it needs no sign-in and writes neither its
+  reports nor their timings to Firestore (`ios/PLS/App/AppModel.swift`), so nothing of it is in Firestore to delete.
+  Its Performance traces carry only the route, the outcome and the timing.
 
 ## The published drill run
 

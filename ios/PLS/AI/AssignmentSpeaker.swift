@@ -22,8 +22,10 @@ struct SpeechRecord: Equatable, Sendable {
 
 /// Speaks a new assignment while the app is open (P-06 push brings it to a locked screen later).
 /// The words are command's approved plan only (`SpokenAssignment`). The cloud voice is used only
-/// when `voice_template_id` names a template and the phone is online and signed in; any failure falls back to the
-/// phone's own voice. Every attempt is recorded, so the two voices can be compared on real numbers.
+/// when `voice_template_id` names a template, the phone is online and signed in, and the phone can
+/// rebuild the task line from the grid's segment ids (`SpokenAssignment.rebuiltFromSegments`); any
+/// other task line, and any failure, goes to the phone's own voice. Every attempt is recorded, so the
+/// two voices can be compared on real numbers.
 @MainActor
 final class AssignmentSpeaker {
     private let onDevice: AssignmentVoice
@@ -42,14 +44,16 @@ final class AssignmentSpeaker {
 
     /// Speaks a new assignment. `isCurrent` says whether it is still the loaded mission's; it is
     /// asked before any sound starts and before the phone's own voice stands in for a failed cloud
-    /// voice, so a line dropped meanwhile is never played.
+    /// voice, so a line dropped meanwhile is never played. `gridIds` are the incident's grid segment ids.
     func update(_ assignment: Assignment?, voiceTemplate: String, online: Bool, killCloud: Bool, signedIn: Bool,
-                isCurrent: @escaping @MainActor () -> Bool = { true }) async {
+                gridIds: Set<String>, isCurrent: @escaping @MainActor () -> Bool = { true }) async {
         guard SpokenAssignment.shouldSpeak(previous: lastSpoken, current: assignment), let assignment else { return }
         lastSpoken = assignment
         let text = SpokenAssignment.text(assignment)
-        if SpokenAssignment.path(cloudModel: voiceTemplate, online: online, killCloud: killCloud, signedIn: signedIn) == .cloud {
-            // The cloud voice is a model: it never gets a phone number. The phone's own voice reads the task as written.
+        if SpokenAssignment.path(cloudModel: voiceTemplate, online: online, killCloud: killCloud, signedIn: signedIn,
+                                 assignment: assignment, gridIds: gridIds) == .cloud {
+            // The cloud voice is a model: it gets only a line rebuilt from two-capital-letter grid ids. The scrub
+            // stays as a second guard. The phone's own voice reads any other task as written.
             let voice = makeCloud(voiceTemplate.trimmingCharacters(in: .whitespaces))
             cloud = voice
             let start = await voice.speak(PhoneNumbers.scrub(text), ifStillWanted: isCurrent)
