@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-23
 
+- Drill day guide: section 4 gives the publish command with `--kind`, says which kind gives which label, and checks
+  for the label from that step; section 6 (the role-player's GPS track and closest passes) is marked not used for the
+  at-home take on `drill-kennesaw-1`, kept for a field drill. Source: the park drill was replaced by an at-home take.
+  Verified: the command and both labels match `tools/extras/publish_drill_run.py` and its tests; the gates and the
+  hygiene guard in public mode pass.
 - Drill run publishing: `tools/extras/publish_drill_run.py` needs `--kind`, with no default. `field` keeps the label
   "REAL DRILL, <place>, <date>" for a drill run outdoors at the place; `home-demo` labels a run done elsewhere "HOME
   DEMO, <place> drill map, <date>", and any home-demo label that says "real drill" (any case or spacing) is refused
