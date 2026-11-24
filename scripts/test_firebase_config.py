@@ -29,11 +29,24 @@ def test_every_hosting_rewrite_to_a_function_names_an_exported_function():
                 assert name in exported, f"{rewrite['source']} routes to {name}, which functions/src/index.ts does not export"
 
 
-def test_the_app_shell_rewrite_never_answers_for_tiles_or_evidence():
-    # A missing /tiles/ or /evidence/ file must be a real 404, not the app shell served as a map or a run.
+def test_the_app_shell_rewrite_never_answers_for_tiles_evidence_or_assets():
+    # A missing /tiles/, /evidence/ or /assets/ file must be a real 404, not the app shell served as a map, a run, a
+    # script or a source map (a request for a removed map would otherwise answer 200 with HTML).
     for site in hosting_sites():
         shell = [r for r in site.get("rewrites", []) if r.get("destination") == "/index.html"]
-        assert [r.get("source") for r in shell] == ["!/@(tiles|evidence)/**"], shell
+        assert [r.get("source") for r in shell] == ["!/@(tiles|evidence|assets)/**"], shell
+        source = shell[0]["source"]
+        for path in ["/assets/index-klvD0fVz.js.map", "/assets/gone-Bq1x2y3z.js", "/tiles/x.pmtiles", "/evidence/x.json"]:
+            assert not matches(source, path), path
+        for path in ["/", "/judge", "/incident/abc", "/assetsx"]:
+            assert matches(source, path), path
+
+
+def test_source_maps_are_never_deployed():
+    # The web build writes source maps for the Crashlytics upload, and scripts/predeploy.sh uploads and deletes them.
+    # This ignore keeps a map left behind out of the release, so no map is ever served.
+    for site in hosting_sites():
+        assert "**/*.map" in site.get("ignore", []), site.get("ignore")
 
 
 def test_privacy_and_support_are_served_from_their_static_pages_before_the_app_shell():

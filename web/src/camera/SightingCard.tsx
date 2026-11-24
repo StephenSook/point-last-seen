@@ -9,6 +9,10 @@ import { ClipBand } from "../extras/clip/ClipBand";
 
 const POINTS = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
 
+// A read clip is stored with the search before Gemini reads it (deleted by command, or at 30 days
+// by the bucket lifecycle rule); the receipt says so, matching the clip form's cloud consent.
+export const CLIP_STORED_LINE = "Stored: the clip, with this search, until command deletes it or for 30 days.";
+
 export function compassName(deg: number): string {
   return POINTS[Math.round((((deg % 360) + 360) % 360) / 45) % 8]!;
 }
@@ -100,6 +104,7 @@ export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed
             .map((l) => (
               <p key={l} className="small">{l}</p>
             ))}
+          <p className="small">{CLIP_STORED_LINE}</p>
         </details>
       )}
       {clip && (

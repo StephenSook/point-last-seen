@@ -21,7 +21,8 @@ test("the clip form reads only after the three required consents and passes on w
   await page.getByLabel("The person in the clip").check();
   await page.getByLabel("The owner of the footage").check();
   await expect(read).toBeDisabled();
-  await page.getByLabel("Cloud reading").check();
+  // The full words: the press stores the clip with the search before Gemini reads it.
+  await page.getByLabel("Cloud reading (the clip is stored with this search for up to 30 days and read by Gemini)", { exact: true }).check();
   await expect(read).toBeEnabled();
   await read.click();
   await expect(page.getByTestId("asked")).not.toHaveText("");
@@ -281,6 +282,7 @@ test("a clip reading carries a closed What ran receipt with the bytes of the cli
   await expect(receipt).toContainText("Ran: in the cloud (reported by the SDK).");
   await expect(receipt).toContainText("Model: gemini-3.5-flash-lite.");
   await expect(receipt).toContainText("Sent: 5,000 bytes of the clip, as base64.");
+  await expect(receipt).toContainText("Stored: the clip, with this search, until command deletes it or for 30 days.");
 });
 
 test("a confirm that turned the elevation layer off says why where command confirmed", async ({ page }) => {
