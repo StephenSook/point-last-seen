@@ -3,6 +3,19 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-23
+
+- Drill run publishing: `tools/extras/publish_drill_run.py` needs `--kind`, with no default. `field` keeps the label
+  "REAL DRILL, <place>, <date>" for a drill run outdoors at the place; `home-demo` labels a run done elsewhere "HOME
+  DEMO, <place> drill map, <date>", and any home-demo label that says "real drill" (any case or spacing) is refused
+  before anything runs. A run done at home can no longer be published to the judge page as a field drill. The test file now
+  replaces the real command runner in every test, so a test that reaches it fails instead of exporting: run against
+  the code before the change, one new test had exported the incident into the local copy of the served run (the
+  exporter only reads Firestore; nothing was committed). Source:
+  review, after the park drill was replaced by an at-home take. Verified: with the tests written first, 13 of
+  the 17 tests in `tools/extras/test_publish_drill_run.py` failed before the change and all 17 pass after it; every
+  gates step in `ci.yml` passes locally.
+
 ## 2026-11-22
 
 - Rules gate: web code outside tests and docs may no longer name Chrome's other built-in AI APIs (Translator,
