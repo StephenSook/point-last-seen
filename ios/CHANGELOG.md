@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-23
 
+### docs(ios): the ended-search layout check fails with a list left in the scroll view
+- What: the entry below said the ended-search check also passed with a list left in, so it showed only that the rows
+  draw. That run selected no test (a Swift Testing name needs its "()" in -only-testing). Run properly, the check
+  fails with a list left in: the list draws no rows inside the scroll view. The entry below now says so.
+- Source: the mutation check, run again.
+- Verified: anEndedSearchStillShowsItsReports() with the ended search's receipts put back in a List failed with "no
+  element labelled Clue logged in AC."; with the plain rows it passes.
+
 ### fix(ios): the task screen scrolls, and a sent report's receipt comes into view whole
 - What: the task screen's controls and its receipts now share one scroll view. The receipts are plain rows, not a
   list squeezed into the space left under the buttons, so they no longer scroll one line at a time in a small box at
@@ -17,8 +25,8 @@ finding) and how it was verified. Newest first.
 - Verified: new TaskLayoutTests on a 402 by 874 window with the take's screen (photo button, source line on, numbers
   read by rules): after Send every receipt line sits inside the safe area. It failed before the fix, with the source
   line at y 803 and the delivery line at y 876, below the safe bottom at y 840. A screen opened on earlier reports
-  keeps the drill line and the Report bar in view. An ended search draws its line and its receipt (that check also
-  passed with a list left in, so it shows only that the rows draw). App suite: 282 tests in 52 suites passed on the
+  keeps the drill line and the Report bar in view. An ended search draws its line and its receipt (that check
+  fails with a list left in the scroll view, which draws no rows). App suite: 282 tests in 52 suites passed on the
   iPhone 17 Pro simulator.
 
 ## 2026-11-22
