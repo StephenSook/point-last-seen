@@ -5,6 +5,17 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-23
 
+### perf(ios): a keystroke in the report box redraws only the box
+- What: the Report bar, the report box and Send move into their own view (`ReportComposer`), which holds the words
+  being typed. Before, the words lived on the whole task screen, so each keystroke re-ran all of it: the photo
+  button's check of Apple's model (on iOS 27 a query of `SystemLanguageModel` for availability and vision), the
+  banner's count of waiting reports, the journal filter and every receipt. The "Log report" request is still taken
+  by the task screen and dropped when no mission is loaded; the box gets a count that focuses it.
+- Source: review of a take on build 10: typing in the report box lagged visibly, with or without signal.
+- Verified: new TaskLayoutTests.typingRedrawsOnlyTheReportBox() types 10 characters into the box and counts the photo
+  checks: 10 before the change; after it the test's bound of 2 holds; the 10 characters reach the box both times. The layout tests and
+  the app suite pass. The on-phone lag itself was not measured.
+
 ### docs(ios): the ended-search layout check fails with a list left in the scroll view
 - What: the entry below said the ended-search check also passed with a list left in, so it showed only that the rows
   draw. That run selected no test (a Swift Testing name needs its "()" in -only-testing). Run properly, the check
