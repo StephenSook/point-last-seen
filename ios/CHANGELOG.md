@@ -3,7 +3,153 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-23
+
+### perf(ios): a keystroke in the report box redraws only the box
+- What: the Report bar, the report box and Send move into their own view (`ReportComposer`), which holds the words
+  being typed. Before, the words lived on the whole task screen, so each keystroke re-ran all of it: the photo
+  button's check of Apple's model (on iOS 27 a query of `SystemLanguageModel` for availability and vision), the
+  banner's count of waiting reports, the journal filter and every receipt. The "Log report" request is still taken
+  by the task screen and dropped when no mission is loaded; the box gets a count that focuses it.
+- Source: review of a take on build 10: typing in the report box lagged visibly, with or without signal.
+- Verified: new TaskLayoutTests.typingRedrawsOnlyTheReportBox() types 10 characters into the box and counts the photo
+  checks: 10 before the change; after it the test's bound of 2 holds; the 10 characters reach the box both times. The layout tests and
+  the app suite pass. The on-phone lag itself was not measured.
+
+### docs(ios): the ended-search layout check fails with a list left in the scroll view
+- What: the entry below said the ended-search check also passed with a list left in, so it showed only that the rows
+  draw. That run selected no test (a Swift Testing name needs its "()" in -only-testing). Run properly, the check
+  fails with a list left in: the list draws no rows inside the scroll view. The entry below now says so.
+- Source: the mutation check, run again.
+- Verified: anEndedSearchStillShowsItsReports() with the ended search's receipts put back in a List failed with "no
+  element labelled Clue logged in AC."; with the plain rows it passes.
+
+### fix(ios): the task screen scrolls, and a sent report's receipt comes into view whole
+- What: the task screen's controls and its receipts now share one scroll view. The receipts are plain rows, not a
+  list squeezed into the space left under the buttons, so they no longer scroll one line at a time in a small box at
+  the bottom. When a report reaches the journal (`AppModel.lastSentEventId`, set where the event is appended), the
+  screen scrolls so that receipt ends above the home indicator. The scroll lines up a marker that hangs one bottom
+  inset below the receipt, because a scroll to a view lines it up with the scroll view's own bottom edge, under the
+  home indicator. A screen opened on earlier reports stays at the top. An ended search's receipts use the same rows.
+- Source: review of a take on build 10 on an iPhone 17 Pro (402 by 874 points): after Send the receipt started at
+  y 774 and its lines ran to about y 1044, so only its first line showed.
+- Verified: new TaskLayoutTests on a 402 by 874 window with the take's screen (photo button, source line on, numbers
+  read by rules): after Send every receipt line sits inside the safe area. It failed before the fix, with the source
+  line at y 803 and the delivery line at y 876, below the safe bottom at y 840. A screen opened on earlier reports
+  keeps the drill line and the Report bar in view. An ended search draws its line and its receipt (that check
+  fails with a list left in the scroll view, which draws no rows). App suite: 282 tests in 52 suites passed on the
+  iPhone 17 Pro simulator.
+
 ## 2026-11-22
+
+### docs(ios): the practice comment names the consented cloud read; the speaker comment drops digit ids
+- What: the `startPractice` comment now says a tester's own report goes to the cloud read only with "Allow cloud
+  reading" on, as in a real search. The comment over the cloud voice call in `AssignmentSpeaker.update` no longer
+  says a grid id can be digits: only two-capital-letter ids reach it, and the phone-number scrub stays as a second
+  guard.
+- Source: review (a LIMITS review of this branch).
+- Verified: every changed line is a comment (0 code lines); `isGridBuilderId` accepts only A to Z; the practice
+  pack's `judge` mode is a model mode and `submit` passes the cloud consent with no practice guard.
+
+### docs(ios): the changelog's review source names no work stream
+- What: the source line of the entry below named an internal work stream; it now reads "a LIMITS review of this
+  branch".
+- Source: the public hygiene guard (`scripts/hygiene_guard.py --public`, "a work stream named as a role").
+- Verified: the public hygiene guard passes after the change, and failed before it on `ios/CHANGELOG.md:16`.
+
+### docs(limits): practice lines name the route check, the consented cloud read and the traces
+- What: in `docs/LIMITS.md`, the spoken-assignment residual now says an assignment can list up to six grid ids in
+  any order, so up to six two-letter ids are what command's ids can carry. The practice sentence names the route
+  check's cloud route (fixed sentence and sample tools, the sample person's description included) and says a
+  tester's own report goes to the cloud only with the cloud-read switch on, as in a real search. The drill-data
+  line says practice writes neither reports nor timings to Firestore and its Performance traces carry only the
+  route, the outcome and the timing. The "Report a problem" line says no problem report leaves the phone in
+  practice, not that nothing does.
+- Source: review (a LIMITS review of this branch).
+- Verified: the practice pack's mode is `judge`, a model mode (`ReadPlan.modelModes`), and `submit` passes the
+  cloud consent with no practice guard; `ReportReader` records a `report_read` trace for every read; the rules
+  allow up to six ids per assignment and `codeTaskLine` keeps their order.
+
+### docs(ios): LIMITS states the two-letter residual; the practice comment names the traces
+- What: the "Spoken assignments (iPhone)" limit says the phone checks the grid builder's form, not that the builder
+  issued each id, and that command can still choose which two capital letters name a segment, so two letters are
+  all a segment id can carry to the model. The `startPractice` comment says the drill's sample content leaves the
+  phone only in AI Logic calls, and that the anonymous sign-in and the Firebase Performance traces (voice path, read
+  route, outcome, timing) carry none of it.
+- Source: review (adversarial pass, round 2: findings 1 and 3).
+- Verified: every trace attribute the app sets is an enum, a model name or a timing
+  (`AssignmentSpeaker.trace`, `RouteTelemetry.attributes`); every changed line in `AppModel.swift` is a `///`
+  comment; gates and the public hygiene guard passed.
+
+### docs(ios): LIMITS names the two-letter id rule; the practice comment scopes what leaves the phone
+- What: the "Spoken assignments (iPhone)" limit now says the cloud voice needs every segment id in the grid
+  builder's form (two capital letters) and in the incident's grid, and that other ids also get the phone's voice.
+  The `startPractice` comment no longer says AI Logic makes the only calls out: the phone's anonymous sign-in, tried
+  whenever it comes online, is a call too, so the comment now says the drill's data leaves the phone only in AI
+  Logic calls on its sample data, and the sign-in carries none of it.
+- Source: review (adversarial pass, round 1: finding 5, and the LIMITS line after findings 1 and 3).
+- Verified: every changed line in `AppModel.swift` is a `///` comment (0 code lines); the LIMITS text matches
+  `isGridBuilderId` and `rebuiltFromSegments`; gates and the public hygiene guard passed.
+
+### fix(ios): the cloud voice checks the grid the phone holds when the line is spoken
+- What: `AppModel.load` read the grid ids when it queued the line, so a reload that kept the assignment but dropped
+  its segment from the grid, before the queued line's turn, still sent the old id to the cloud voice. The speech
+  task now reads the grid of the mission the phone holds right after its `isCurrent` check, with no suspension
+  before the speaker's cloud check.
+- Source: review (adversarial pass, round 1: finding 2).
+- Verified: the new `theCloudVoiceChecksTheGridHeldWhenTheLineIsSpoken` test failed first (the line went to the
+  cloud after the grid changed), then passed, with an unchanged grid as the control that reaches the cloud voice;
+  app suite 281 tests in 51 suites passed on an iPhone 17 Pro simulator (iOS 27.2).
+
+### fix(ios-core): the cloud voice takes only two-capital-letter grid ids, on the plan and the grid
+- What: `SpokenAssignment.rebuiltFromSegments` now accepts a segment id only in the grid builder's form, two
+  capital letters A to Z (`isGridBuilderId`, by byte), and checks it against the grid's ids filtered to that same
+  form. Command can write any `segmentId` on a segment document (the rules check only the prior), so a name
+  ("MaryJones") or a vanity number ("1800FLOWERS") written into the grid and the plan passed the earlier
+  letters-and-digits check and reached the cloud voice; a Kelvin-sign grid id also matched an ASCII plan id by
+  Swift's canonical equality. Both now go to the phone's own voice.
+- Source: review (adversarial pass, round 1: findings 1 and 3).
+- Verified: every tracked grid and seed uses two capital letters (3,918 `segmentId` values; only the engine's math
+  vectors use other ids); the grid builder issues only that form (`tools/grid-builder/src/cells.ts`). The new
+  `onlyTwoCapitalLetterIdsReachTheCloudVoice` test failed first (9 labels in the grid and the Kelvin grid id reached
+  the cloud), then passed; removing the grid filter, the length check or the capitals-only check each turns a test
+  red; core 473 tests passed; the speaker test now asserts a name or number written as a grid id is never sent.
+
+### docs(limits): the cloud voice speaks only a rebuilt task line, and practice can reach it
+- What: `docs/LIMITS.md` gets a "Spoken assignments (iPhone)" section: the cloud voice speaks a new assignment only
+  when the phone can rebuild its task line from the grid's segment ids; any other task line goes to the phone's own
+  voice and no model; in practice the cloud voice can speak the sample assignment, so sample segment ids reach AI
+  Logic. The drill-data line on practice now says it "needs no sign-in" instead of "never signs in" (the phone signs
+  in anonymously whenever it comes online).
+- Source: review (the voice path's practice and consent inputs).
+- Verified: the section names `SpokenAssignment.swift`, which holds `rebuiltFromSegments`; the gates and the public
+  hygiene guard passed.
+
+### docs(ios): the practice comments say the cloud voice can speak the sample assignment
+- What: two comments in `AppModel.swift` said the practice drill reads and writes nothing on the server and never
+  signs in. The phone signs in anonymously whenever it comes online, so during practice the cloud voice can speak
+  the sample assignment through AI Logic, and the route check's cloud route sends its fixed sentence with the sample
+  tools. The `startPractice` comment now says Firestore is never read or written and names those two AI Logic
+  calls; the `signInLine` comment says practice needs no sign-in but the phone may still be signed in. Behaviour
+  is unchanged: practice keeps the cloud voice (sample data only, as the route check already allows).
+- Source: review (the voice path takes no practice input; the comments did not match what happens).
+- Verified: every changed line in `AppModel.swift` is a `///` comment (0 code lines); the practice pack's task lines
+  are "Search segment BO." and "Search segment BP.", which the cloud voice may speak.
+
+### fix(ios): the cloud voice speaks only a task line the phone rebuilds from grid segment ids
+- What: `SpokenAssignment.path` now takes the assignment and the incident's grid ids. The cloud voice is used only
+  when every segment id is a grid segment in plain letters, digits or underscores (checked by byte) and the task
+  line is exactly the command post's code-built line for those ids ("Search segment AB, AC." or "No segment left
+  to assign."), byte for byte. Any other task line (a name, a phone number, free text up to the rules' 200
+  characters) is spoken by the phone's own voice and never sent to a model. `AssignmentSpeaker.update` takes the
+  grid ids and `AppModel.load` passes the mission's grid; the phone-number scrub stays for a grid id made of
+  digits. No consent input is needed: what the cloud voice can get holds only grid segment ids.
+- Source: review (the rules accept any task text from a command writer; only the command post's code kept it to
+  segment ids).
+- Verified: the new `SpokenAssignmentTests` case failed to compile first, then passed; mutating each clause (the
+  plain-id check, the grid check, byte equality, the whole guard) turns a test red; core suite 472 tests passed;
+  app suite 280 tests in 51 suites passed on an iPhone 17 Pro simulator (iOS 27.2), with two fixtures moved to the
+  command post's task line and a control that the cloud voice was asked.
 
 ### docs(eval): the README reports the blind second labeller, 7 of 10 rows agreed
 - What: a "Second labeller" section: the builder labelled 10 rows (seed 20261122) without seeing the key and agreed

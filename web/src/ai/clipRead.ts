@@ -176,8 +176,11 @@ export function clipReadDeps(io: ClipIo, generate: ClipReadDeps["generate"], now
 export type ClipReadOutcome =
   | { kind: "refused"; message: string }
   | { kind: "could-not-read" }
-  /** `recorded`: a consent record for these bytes existed or was written before the failure (so a retry can use it). */
-  | { kind: "failed"; recorded?: boolean }
+  /**
+   * `recorded`: a consent record for these bytes existed or was written before the failure (so a retry can use it).
+   * `status`: the HTTP status the SDK reported for a refused call (401/403 App Check, 429 quota); absent otherwise.
+   */
+  | { kind: "failed"; recorded?: boolean; status?: number }
   | {
       kind: "read";
       sha256: string;
@@ -296,7 +299,9 @@ export async function readClip(r: ClipReadRequest, deps: ClipReadDeps): Promise<
     }
     if (!oldWindowedMiss) await deps.complete(sha, check.cleaned, route);
     return { kind: "read", sha256: sha, reading: check.cleaned, colorSuppressed: check.colorSuppressed, bearingDeg: bearingFromExit(r.cameraFacingDeg, check.cleaned.exitEdge), route, cached: false, sentBytes: clipB64.length };
-  } catch {
-    return { kind: "failed", recorded };
+  } catch (e) {
+    // Only the status number leaves this function: no raw error text reaches the page.
+    const status = (e as { customErrorData?: { status?: unknown } } | null)?.customErrorData?.status;
+    return typeof status === "number" ? { kind: "failed", recorded, status } : { kind: "failed", recorded };
   }
 }
