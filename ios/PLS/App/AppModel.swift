@@ -221,6 +221,8 @@ final class AppModel {
     @ObservationIgnored let missionKey = MissionKeyBox()
     private(set) var store: EventStore?
     private(set) var sending = false
+    /// The report this phone put in its journal last, by event id: the task screen brings its receipt into view.
+    private(set) var lastSentEventId: String?
     /// The last GPS fix this phone got; the screen theme uses it to know when it is dusk here.
     private(set) var lastFix: Position?
     var problem: String?
@@ -1346,6 +1348,7 @@ final class AppModel {
             let event = ReadOutcomeBuilder.event(from: outcome, rawText: rawText, position: position, context: context,
                                                  seq: try identity.nextSeq())
             try store.append(event, foundKindReason: outcome.foundKindReason, numbersFromRules: outcome.numbersFromRules ? true : nil)
+            lastSentEventId = event.eventId
             problem = nil
             recomputePosterior(mission)
             // A practice report's timings stay off the server, like the report.
