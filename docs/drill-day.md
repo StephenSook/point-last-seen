@@ -91,18 +91,22 @@ The judge page replays the published run. To replace the development run with th
 2. From the repository root, run:
 
    ```
-   python3 -I tools/extras/publish_drill_run.py --incident drill-kennesaw-1 --date 2026-11-22 --place "Kennesaw Mountain"
+   python3 -I tools/extras/publish_drill_run.py --incident drill-kennesaw-1 --date <YYYY-MM-DD> \
+       --place "Kennesaw Mountain" --kind <home-demo or field>
    ```
 
-   It exports the incident with the run exporter, labelled "REAL DRILL, Kennesaw Mountain, 2026-11-22". The exporter
-   refuses a run that breaks the public run's rules and writes nothing. If it refuses, it prints each breach; fix
-   the cause and run it again. The script then replaces `web/public/evidence/published-run.json`, re-pins
+   `--kind` has no default. Use `home-demo` for a run done away from the park, such as the at-home iPhone take: its
+   label is "HOME DEMO, Kennesaw Mountain drill map, <date>". Use `field` only for a drill run outdoors at the park:
+   its label is "REAL DRILL, Kennesaw Mountain, <date>". The script refuses any other label that says "real drill".
+
+   It exports the incident with the run exporter, under that label. The exporter refuses a run that breaks the public
+   run's rules and writes nothing. If it refuses, it prints each breach; fix the cause and run it again. The script then replaces `web/public/evidence/published-run.json`, re-pins
    `web/src/extras/replay/publishedRun.expect.json`, and runs the replay's check. It never commits, pushes or deploys.
 3. Compare the printed `endCode` with the match code on the live command post for `drill-kennesaw-1`. They must
    match. If they do not, stop: a report may have arrived after the export, or one may still be on its way.
 4. Commit the two files on a branch, open a pull request, run `bash scripts/ci-local.sh`, merge, and deploy hosting.
 5. On the judge page, check:
-   - The replay shows "REAL DRILL, Kennesaw Mountain, 2026-11-22" under "Watch the drill replay".
+   - The replay shows the label from step 2 under "Watch the drill replay".
    - Its last frame shows the same match code.
    - The space-time view appears only if the run passes its gate: four or more positioned reports, and one report
      that waited a minute or more for signal.
@@ -136,6 +140,9 @@ the app or ending a practice drill removes it, so do not reinstall before pullin
    the repository, and never commit it raw.
 
 ## 6. The role-player's GPS track and each team's closest pass
+
+Not used for the at-home take on `drill-kennesaw-1`: nobody played the missing person and no track was recorded, so
+publish no passes file with that run.
 
 Do this only if the person playing the missing person carried a GPS logger (or a phone app that records a track).
 The track itself is that person's location: it stays on this computer, outside the repository, and is never committed

@@ -3,6 +3,44 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-23
+
+- Drill day guide: section 4 gives the publish command with `--kind`, says which kind gives which label, and checks
+  for the label from that step; section 6 (the role-player's GPS track and closest passes) is marked not used for the
+  at-home take on `drill-kennesaw-1`, kept for a field drill. Source: the park drill was replaced by an at-home take.
+  Verified: the command and both labels match `tools/extras/publish_drill_run.py` and its tests; the gates and the
+  hygiene guard in public mode pass.
+- Drill run publishing: `tools/extras/publish_drill_run.py` needs `--kind`, with no default. `field` keeps the label
+  "REAL DRILL, <place>, <date>" for a drill run outdoors at the place; `home-demo` labels a run done elsewhere "HOME
+  DEMO, <place> drill map, <date>", and any home-demo label that says "real drill" (any case or spacing) is refused
+  before anything runs. A run done at home can no longer be published to the judge page as a field drill. The test file now
+  replaces the real command runner in every test, so a test that reaches it fails instead of exporting: run against
+  the code before the change, one new test had exported the incident into the local copy of the served run (the
+  exporter only reads Firestore; nothing was committed). Source:
+  review, after the park drill was replaced by an at-home take. Verified: with the tests written first, 13 of
+  the 17 tests in `tools/extras/test_publish_drill_run.py` failed before the change and all 17 pass after it; every
+  gates step in `ci.yml` passes locally.
+- Predeploy: `scripts/predeploy.sh` has two new steps (now ten). Step 6, right after the build, fails when a built
+  script or stylesheet names a source map, or when `web/dist/assets` holds no script to search (macOS grep with
+  `--include` skips a missing directory and exits 1). Step 10, the script's one write and only after every check has
+  passed, uploads the build's `.js.map` files to Crashlytics under the commit `web/dist/version.json` names (which
+  must be HEAD), with `--clean` so each uploaded map is deleted, then fails if any `.map` file is left. The CLI exits
+  0 with no map and with failed uploads (read in its source, firebase-tools 15.36.0), so a count before and the
+  leftover check after are the verdict. The closing line now says to check that a map path answers 404. Source: web
+  Crashlytics. Verified: four new tests in `scripts/test_predeploy.py` failed before the change and pass after it;
+  steps 6 and 10 were run against fixture builds (a named map, a clean build, a missing build, an empty build, no
+  maps, maps left behind, a missing or absent app ID), each with the expected pass or fail; `bash -n` passes. The
+  upload itself is not yet run: it needs `firebase crashlytics:setup` first.
+- Hosting: the app shell rewrite no longer answers for `/assets/`, so a missing hashed file or a removed source map
+  answers 404 instead of 200 with the app's HTML (measured live on 2026-11-23: `/assets/nope-xyz.js.map` returned
+  200 `text/html`). Pages, `/privacy` and `/support` keep their rewrites. Source: web Crashlytics, so a request for a
+  map can be checked for 404 after the deploy. Verified: the rewrite test in `scripts/test_firebase_config.py`
+  failed before the change and passes after it, and its glob reading keeps `/`, `/judge` and `/incident/abc` on the
+  app shell while `/assets/`, `/tiles/` and `/evidence/` paths fall through to 404.
+- Hosting: `firebase.json` ignores `**/*.map`, so a source map the web build writes for the Crashlytics upload is
+  never deployed even if one is left in `web/dist`. Source: web Crashlytics. Verified: a new test in
+  `scripts/test_firebase_config.py` failed before the change and passes after it.
+
 ## 2026-11-22
 
 - Evidence: `docs/evidence/android/a16-push-rehearsal-2026-11-22.md` records one rehearsal family push to the
@@ -12,6 +50,19 @@ Newest first. Each entry gives what changed, its source and how it was verified.
   (one document on the incident), the phone's notification record read by adb with the phone clock checked
   against UTC (4 ms), and the installed `base.apk` hash read on the phone.
 
+- Rules gate: web code outside tests and docs may no longer name Chrome's other built-in AI APIs (Translator,
+  LanguageDetector, Summarizer, Writer, Rewriter, Proofreader), and no other platform may prompt a model session by
+  hand (`.prompt(` or `.promptStreaming(` outside tests). Web code was already held to the prompt rule, tests
+  included. A regression guard only: nothing in the repo uses them. Source: review. Verified: a new test fails on
+  each name in web code and on a prompt call in Android and functions code, and failed before the change; a second
+  test passes docs, tests, PrintWriter, lowercase "translator" and the functions' own `Writer` type; the gate is
+  clean on the repo (1,336 files); the gates and the hygiene guard in public mode pass.
+- Kennesaw seed record: new section for the switch back to urban terrain at prior version 4, made through the live
+  command post so the drill's map starts the way the write-up's quoted search and rescue lead would treat the park,
+  with the new terrain note and the plan approved before the drill. Source: the drill's terrain decision. Verified:
+  the incident reads terrain urban, prior version 4 and the new note; `segment_contract.py` reports 339 docs at prior
+  version 4, readable by the apps; the urban rings and the 0.6306 outside-grid mass were read from the live
+  incident; the gates and the hygiene guard in public mode pass.
 - Limits: new "Report reads (iPhone)" section: Apple's on-device model read three object finds as "found" in the
   2026-11-22 on-phone eval (footprints, a wrapper, a water bottle), the found-kind rule changed none of them, and a
   "found" report has no effect on the map and sends no alert. Source: the on-phone eval result. Verified: n3, n9 and

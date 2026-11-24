@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clipFacts, clipOutcomeMessage } from "./ClipIntake";
+import { CLOUD_CONSENT_LABEL, clipFacts, clipOutcomeMessage } from "./ClipIntake";
 
 describe("clipFacts", () => {
   it("states length and size in short units", () => {
@@ -14,5 +14,25 @@ describe("clipOutcomeMessage", () => {
     expect(clipOutcomeMessage({ kind: "could-not-read" })).toBe("Couldn't read this clip. Nothing changed.");
     expect(clipOutcomeMessage({ kind: "failed" })).toBe("The clip was not read. Try again.");
     expect(clipOutcomeMessage({ kind: "refused", message: "Clip reading is paused right now." })).toBe("Clip reading is paused right now.");
+  });
+
+  it("names App Check when it refused the cloud step, where trying again would not help", () => {
+    const appCheck = "Cloud step refused by App Check. Try a normal browser window.";
+    expect(clipOutcomeMessage({ kind: "failed", recorded: true, status: 403 })).toBe(appCheck);
+    expect(clipOutcomeMessage({ kind: "failed", recorded: true, status: 401 })).toBe(appCheck);
+  });
+
+  it("says the cloud is busy and to wait a minute when the quota ran out", () => {
+    expect(clipOutcomeMessage({ kind: "failed", recorded: true, status: 429 })).toBe("The cloud is busy right now. Try again in a minute.");
+  });
+
+  it("keeps the try-again line for any other status", () => {
+    expect(clipOutcomeMessage({ kind: "failed", recorded: true, status: 500 })).toBe("The clip was not read. Try again.");
+  });
+});
+
+describe("CLOUD_CONSENT_LABEL", () => {
+  it("names both places the clip goes: stored with the search for up to 30 days, and read by Gemini", () => {
+    expect(CLOUD_CONSENT_LABEL).toBe("Cloud reading (the clip is stored with this search for up to 30 days and read by Gemini)");
   });
 });

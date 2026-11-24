@@ -1,9 +1,14 @@
 """Publish a finished drill's run to the judge page, in one command, from the repository root.
 
-    python3 -I tools/extras/publish_drill_run.py --incident drill-kennesaw-1 --date 2026-11-22 --place "Kennesaw Mountain"
+    python3 -I tools/extras/publish_drill_run.py --incident drill-kennesaw-1 --date 2026-11-23 \
+        --place "Kennesaw Mountain" --kind home-demo
+
+--kind has no default: "field" is a drill run outdoors at the place, labelled "REAL DRILL, <place>, <date>"; "home-demo"
+is a run of the same incident done away from the place, labelled "HOME DEMO, <place> drill map, <date>". Any other
+label that says "real drill" is refused, so a run done at home cannot be published as a field drill.
 
 It exports the incident with the run exporter (tools/export-run, which refuses any run that breaks the public run's
-rules and writes nothing then), labelled "REAL DRILL, <place>, <date>", copies it over
+rules and writes nothing then), under that label, copies it over
 web/public/evidence/published-run.json, re-pins the judge replay's expectations from it, and runs that check. It
 reads the incident (the exporter uses the signed-in gcloud user); it never writes to it, and it never commits,
 pushes or deploys. Compare the printed end code with the live command post before committing anything.
@@ -25,6 +30,8 @@ SERVED = ROOT / "web" / "public" / "evidence" / "published-run.json"
 EXPECT = ROOT / "web" / "src" / "extras" / "replay" / "publishedRun.expect.json"
 PIN_TEST = "extras/replay/publishedRun"
 
+KINDS = ("home-demo", "field")
+REAL_DRILL = re.compile(r"real\s+drill", re.IGNORECASE)
 INCIDENT_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -37,16 +44,24 @@ class Step:
     copy: tuple[Path, Path] | None = None
 
 
-def label_for(place: str, date: str) -> str:
-    """The run's own label. It names the drill and its date; the replay already shows the drill line."""
-    return f"REAL DRILL, {place}, {date}"
+def label_for(kind: str, place: str, date: str) -> str:
+    """The run's own label. It says what kind of run it was, the place and the date; the replay already shows the drill
+    line. Only a field drill may say "real drill"."""
+    if kind == "field":
+        return f"REAL DRILL, {place}, {date}"
+    if kind == "home-demo":
+        label = f"HOME DEMO, {place} drill map, {date}"
+        if REAL_DRILL.search(label):
+            raise ValueError(f"a home demo's label may not say REAL DRILL: {label!r}")
+        return label
+    raise ValueError(f"the kind must be one of {', '.join(KINDS)}, not {kind!r}")
 
 
 def run_id_for(incident: str, date: str) -> str:
     return f"{incident}-{date}"
 
 
-def plan(incident: str, date: str, place: str, out: Path, served: Path = SERVED) -> list[Step]:
+def plan(incident: str, date: str, place: str, kind: str, out: Path, served: Path = SERVED) -> list[Step]:
     """The steps, in order. Refuses arguments that would make a wrong or unsafe label or id."""
     if not INCIDENT_ID.match(incident):
         raise ValueError(f"not an incident id: {incident!r}")
@@ -55,10 +70,11 @@ def plan(incident: str, date: str, place: str, out: Path, served: Path = SERVED)
     place = place.strip()
     if not place or "\n" in place or "\r" in place or len(place) > 80:
         raise ValueError("the place must be one short line of text")
+    label = label_for(kind, place, date)
     export = [
         "npm", "run", "export", "-w", "tools/export-run", "--",
         "--incident", incident, "--out", str(out),
-        "--run-id", run_id_for(incident, date), "--label", label_for(place, date),
+        "--run-id", run_id_for(incident, date), "--label", label,
     ]
     return [
         Step("export", export),
@@ -95,10 +111,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--incident", required=True)
     p.add_argument("--date", required=True, help="the drill's date, YYYY-MM-DD")
     p.add_argument("--place", required=True, help='for the label, e.g. "Kennesaw Mountain"')
+    p.add_argument("--kind", required=True, choices=KINDS,
+                   help='"field" for a drill run outdoors at the place, "home-demo" for a run of it done elsewhere')
     args = p.parse_args(argv)
     with tempfile.TemporaryDirectory() as tmp:
         try:
-            steps = plan(args.incident, args.date, args.place, Path(tmp) / "published-run.json")
+            steps = plan(args.incident, args.date, args.place, args.kind, Path(tmp) / "published-run.json")
         except ValueError as e:
             print(f"publish_drill_run: {e}", file=sys.stderr)
             return 2

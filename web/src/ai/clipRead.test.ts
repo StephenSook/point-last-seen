@@ -331,6 +331,29 @@ describe("readClip", () => {
     const t = await setup({ stored: { createdByUid: "someone-else" }, exists: true, modelThrows: true });
     expect(await readClip(t.req, t.deps)).toEqual({ kind: "failed", recorded: true });
   });
+
+  // The SDK puts the HTTP status of a refused call in customErrorData; the form names the cause from it.
+  const refusedWith = (status: number) => async () => {
+    throw Object.assign(new Error("refused"), { customErrorData: { status } });
+  };
+
+  it("a model call App Check refused carries its status, and the record still allows a retry", async () => {
+    const t = await setup();
+    expect(await readClip(t.req, { ...t.deps, generate: refusedWith(403) })).toEqual({ kind: "failed", recorded: true, status: 403 });
+    expect(await readClip(t.req, { ...t.deps, generate: refusedWith(401) })).toEqual({ kind: "failed", recorded: true, status: 401 });
+  });
+
+  it("a model call over quota carries status 429, and the record still allows a retry", async () => {
+    const t = await setup();
+    expect(await readClip(t.req, { ...t.deps, generate: refusedWith(429) })).toEqual({ kind: "failed", recorded: true, status: 429 });
+  });
+
+  it("a failure with no HTTP status carries none", async () => {
+    const t = await setup({ modelThrows: true });
+    const r = await readClip(t.req, t.deps);
+    expect(r.kind).toBe("failed");
+    expect(r).not.toHaveProperty("status");
+  });
 });
 
 describe("parseCameraSighting", () => {
