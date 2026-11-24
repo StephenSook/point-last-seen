@@ -5,6 +5,11 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-24
 
+- Security row 7 (template-only mode): "the apps use hybrid inference" now names the web and Android apps, and says
+  the iPhone app routes between Apple's on-device model and Gemini itself. Source: review of the iOS wording.
+  Verified: `ios/PLS/AI/ModelSessionFactory.swift` says "Our app is the router on iOS" and builds one session per
+  model; Android's `AiClient.kt` and the web's `replanWording.ts` (`InferenceMode.PREFER_ON_DEVICE`) give one
+  Firebase AI Logic model an inference mode; the gates pass.
 - README "How we built it": the AI line no longer says all AI goes through Firebase AI Logic. It now says every cloud
   call does, and that the iPhone's on-device read uses Apple's Foundation Models directly, as Firebase iOS SDK 13
   directs, with Gemini in the cloud through Firebase AI Logic. Source: review of the iOS wording against the
