@@ -59,7 +59,7 @@ Apple's; the app gets only the typed text.
   status if there is one, the website's version, your browser's user-agent string (the browser and system names
   and versions), and random session and installation numbers that Firebase keeps in your browser. The error's own
   message is removed in your browser before the report is sent, so an error report holds none of your
-  text, photos, clips or join codes, and no account number. A visit with no such error sends no report.
+  text, photos, clips or join codes, and no account number. A visit with no such error sends no report. Error reports are kept for 30 days.
 
 ## Contact
 

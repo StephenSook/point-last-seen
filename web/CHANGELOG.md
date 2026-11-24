@@ -3192,3 +3192,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: the policy's "Error reports" entry (`web/legal/privacy-policy.md`, `web/privacy.html`) said a report "holds no report, note, photo, clip or join code text", which repeats "report" and calls a photo text. It now says "an error report holds none of your text, photos, clips or join codes, and no account number". The rest of the entry, the intro sentence and the support sentence are unchanged.
 - Source: review (wording review of the privacy section before merge).
 - Verified: `src/legalPages.test.ts` pinned to the new sentence failed first, then all 6 passed; the old phrase is in neither page.
+
+### docs(privacy): the website's error reports are kept for 30 days
+- What: the "Error reports" entry in `web/legal/privacy-policy.md` and `web/privacy.html` ends with "Error reports are kept for 30 days."
+- Source: plan (the retention line waited for the project's telemetry setup).
+- Verified: the telemetry config the setup wrote for the web app (Firebase Telemetry Admin API, `configs/1-593239421521-web-5aeaabe9c07bf3db587e70`) names `logBucket` `_Default`, and `gcloud logging buckets describe _Default` reads `retentionDays` 30. `src/legalPages.test.ts`, pinned to the new sentence, failed first, then all 6 passed.
