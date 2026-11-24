@@ -3158,6 +3158,16 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: review (the note-read measurement had no case where there is nothing to find).
 - Verified: run in desktop Chrome on this Mac; every score from `noteScore.ts`; the page checked that the code changed only "unknown" free text to empty and that every evidence quote is in its note.
 
+### fix(ai): a failed clip read carries the HTTP status of a refused call
+- What: `readClip` (`src/ai/clipRead.ts`) now returns `{ kind: "failed", recorded, status }` when the SDK error carries `customErrorData.status` (401 or 403 from App Check, 429 over quota), read the same way the plan wording does. Only the number leaves the function; no error text reaches the page. A failure with no status returns the old shape. The `recorded` flag and the retry rule (no consent renewal, no second upload) are unchanged.
+- Source: review (a refused clip read and a network failure looked the same to the clip form).
+- Verified: `src/ai/clipRead.test.ts`: two new tests (403 and 401; 429) failed first, then passed, each also asserting `recorded: true`; a third asserts no `status` on a plain failure; 43 of 43.
+
+### fix(camera): the clip form names why a refused read failed
+- What: `clipOutcomeMessage` (`src/camera/ClipIntake.tsx`) reads the failed read's `status`. 401 or 403: "Cloud step refused by App Check. Try a normal browser window." 429: "The cloud is busy right now. Try again in a minute." Any other failure keeps "The clip was not read. Try again." The retry rule is unchanged: a retry never renews consent and never uploads again.
+- Source: review ("Try again" was the wrong next step when App Check refused the call or the quota ran out).
+- Verified: `src/camera/clipIntake.test.ts`: the 401/403 and 429 tests failed first, then passed; a third keeps the try-again line for status 500; 5 of 5.
+
 ### fix(camera): the clip's cloud consent names that the clip is stored with the search
 - What: the clip form's cloud consent read "Cloud reading (the clip goes to Gemini)", but the same press first uploads the clip to the search's storage (`ai/clipRead.ts`, `deps.upload`), where it stays until command deletes it or the bucket lifecycle rule deletes it at 30 days (`storage.lifecycle.json`, prefix `clips/`). It now reads "Cloud reading (the clip is stored with this search for up to 30 days and read by Gemini)", kept as `CLOUD_CONSENT_LABEL` in `camera/ClipIntake.tsx`. The consent record stores only who gave each consent and when (`{byUid, atMs}`, `firestore.rules` exact keys), never the label text or a version, so records written under the old words read the same.
 - Source: review (the clip consent named the model but not the storage).
