@@ -23,6 +23,20 @@ describe("versionFilePlugin", () => {
     expect(JSON.parse(files[0]!.source).dirty).toBe(true);
   });
 
+  it("gives the bundle the same commit as version.json, read once", () => {
+    let reads = 0;
+    const plugin = versionFilePlugin({ sha: () => (reads++, `${SHA}\n`), dirty: () => false, now: () => new Date(0) });
+    const config = (plugin.config as unknown as () => { define: Record<string, string> })();
+    expect(config.define).toEqual({ __PLS_COMMIT__: JSON.stringify(SHA) });
+    expect(JSON.parse(emitted(plugin)[0]!.source).commit).toBe(SHA);
+    expect(reads).toBe(1);
+  });
+
+  it("fails the build before bundling when there is no full commit SHA", () => {
+    const plugin = versionFilePlugin({ sha: () => "abc123", dirty: () => false, now: () => new Date(0) });
+    expect(() => (plugin.config as unknown as () => unknown)()).toThrow(/commit/);
+  });
+
   it("fails the build when there is no full commit SHA", () => {
     expect(() => emitted(versionFilePlugin({ sha: () => "", dirty: () => false, now: () => new Date(0) }))).toThrow(/commit/);
     expect(() => emitted(versionFilePlugin({ sha: () => "abc123", dirty: () => false, now: () => new Date(0) }))).toThrow(/commit/);

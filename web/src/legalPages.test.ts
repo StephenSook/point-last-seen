@@ -40,7 +40,7 @@ describe("the public privacy and support pages", () => {
   it("the support page says what the app is, that drills are made up, where to get help, and links the policy", () => {
     const html = read("../support.html");
     expect(mainText(html)).toBe(
-      "Support Point Last Seen is a field app for search team training drills. Every drill uses made-up information. Nobody is missing. Email stevefunds2006@gmail.com about a problem with the app, an abusive post or member, or deleting your data. Help, questions or a data request: open an issue at https://github.com/StephenSook/point-last-seen/issues. Don't post personal details in an issue. Privacy policy",
+      "Support Point Last Seen is a field app for search team training drills. Every drill uses made-up information. Nobody is missing. Email stevefunds2006@gmail.com about a problem with the app, an abusive post or member, or deleting your data. Help, questions or a data request: open an issue at https://github.com/StephenSook/point-last-seen/issues. Don't post personal details in an issue. When the command post website hits an error, it sends an error report with none of your text in it; the privacy policy says what a report holds. Privacy policy",
     );
     expect(html).toContain('<a href="/privacy">Privacy policy</a>');
     expect(html).toContain('href="https://github.com/StephenSook/point-last-seen/issues"');
@@ -52,6 +52,26 @@ describe("the public privacy and support pages", () => {
     expect(html).toContain('<p>Email <a href="mailto:stevefunds2006@gmail.com">stevefunds2006@gmail.com</a> about a problem with the app, an abusive post or member, or deleting your data.</p>');
     expect(html.match(/mailto:/g)).toHaveLength(1);
     expect(html.match(/[\w.+-]+@[\w-]+\.[\w.]+/g)).toEqual(["stevefunds2006@gmail.com", "stevefunds2006@gmail.com"]);
+  });
+
+  // The website's error-report words must agree with the code that sends the reports (src/telemetry/).
+  it("says what the website's error reports hold exactly as the reporting code builds them", () => {
+    const text = markdownText(read("../legal/privacy-policy.md"));
+    expect(text).toContain("This page says what the iPhone app collects, why, and where it goes. Its section on the command post website says what that website sends when it hits an error.");
+    expect(text).toContain(
+      "The command post website Error reports. When the command post website hits an error it does not handle, it sends Firebase Crashlytics a report: the kind of error, where in the website's code it happened, a Firebase error code or HTTP status if there is one, the website's version, your browser's user-agent string (the browser and system names and versions), and random session and installation numbers that Firebase keeps in your browser. The error's own message is removed in your browser before the report is sent, so an error report holds none of your text, photos, clips or join codes, and no account number. A visit with no such error sends no report. Error reports are kept for 30 days.",
+    );
+    const report = read("./telemetry/errorReport.ts");
+    const wiring = read("./telemetry/crashReports.ts");
+    const main = read("./main.tsx");
+    // The message is always replaced; only the SDK's own code and status are added to it.
+    expect(report).toContain('const parts = ["message removed"];');
+    expect(report.match(/parts\.push\(/g)).toHaveLength(2);
+    // Only these cleaned reports are sent, with no custom keys or user id, and the SDK loads on the first error.
+    expect(report).toContain("captureUnhandledErrors: false");
+    expect(report).not.toMatch(/customAttributes|setUserId|breadcrumbs/);
+    expect(wiring).toContain('await import("firebase/crashlytics")');
+    expect(`${main}\n${wiring}`).not.toMatch(/from "firebase\/crashlytics/);
   });
 
   // The policy's retention words must agree with the job that deletes drills (functions/src/retention.ts).
