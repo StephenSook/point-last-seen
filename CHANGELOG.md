@@ -5,6 +5,21 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-23
 
+- Drill day guide: section 4 gives the publish command with `--kind`, says which kind gives which label, and checks
+  for the label from that step; section 6 (the role-player's GPS track and closest passes) is marked not used for the
+  at-home take on `drill-kennesaw-1`, kept for a field drill. Source: the park drill was replaced by an at-home take.
+  Verified: the command and both labels match `tools/extras/publish_drill_run.py` and its tests; the gates and the
+  hygiene guard in public mode pass.
+- Drill run publishing: `tools/extras/publish_drill_run.py` needs `--kind`, with no default. `field` keeps the label
+  "REAL DRILL, <place>, <date>" for a drill run outdoors at the place; `home-demo` labels a run done elsewhere "HOME
+  DEMO, <place> drill map, <date>", and any home-demo label that says "real drill" (any case or spacing) is refused
+  before anything runs. A run done at home can no longer be published to the judge page as a field drill. The test file now
+  replaces the real command runner in every test, so a test that reaches it fails instead of exporting: run against
+  the code before the change, one new test had exported the incident into the local copy of the served run (the
+  exporter only reads Firestore; nothing was committed). Source:
+  review, after the park drill was replaced by an at-home take. Verified: with the tests written first, 13 of
+  the 17 tests in `tools/extras/test_publish_drill_run.py` failed before the change and all 17 pass after it; every
+  gates step in `ci.yml` passes locally.
 - Predeploy: `scripts/predeploy.sh` has two new steps (now ten). Step 6, right after the build, fails when a built
   script or stylesheet names a source map, or when `web/dist/assets` holds no script to search (macOS grep with
   `--include` skips a missing directory and exits 1). Step 10, the script's one write and only after every check has
