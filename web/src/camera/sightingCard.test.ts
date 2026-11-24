@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardFacts, compassName } from "./SightingCard";
+import { CLIP_STORED_LINE, cardFacts, compassName } from "./SightingCard";
 
 const s = {
   personVisible: true, firstSeen: "00:03", lastSeen: "00:12", entryEdge: "right" as const, exitEdge: "left" as const,
@@ -28,5 +28,11 @@ describe("cardFacts", () => {
     const f = cardFacts({ ...s, topColor: "unknown", bottomColor: "unknown" }, START, 270, true, "UTC");
     expect(f.clothing).toBe("Rain jacket, boots, carrying umbrella (night: no colors)");
     expect(f.direction).toBe("Heading west");
+  });
+});
+
+describe("CLIP_STORED_LINE", () => {
+  it("says the read clip stays stored with the search until command deletes it or for 30 days", () => {
+    expect(CLIP_STORED_LINE).toBe("Stored: the clip, with this search, until command deletes it or for 30 days.");
   });
 });

@@ -3167,3 +3167,13 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `clipOutcomeMessage` (`src/camera/ClipIntake.tsx`) reads the failed read's `status`. 401 or 403: "Cloud step refused by App Check. Try a normal browser window." 429: "The cloud is busy right now. Try again in a minute." Any other failure keeps "The clip was not read. Try again." The retry rule is unchanged: a retry never renews consent and never uploads again.
 - Source: review ("Try again" was the wrong next step when App Check refused the call or the quota ran out).
 - Verified: `src/camera/clipIntake.test.ts`: the 401/403 and 429 tests failed first, then passed; a third keeps the try-again line for status 500; 5 of 5.
+
+### fix(camera): the clip's cloud consent names that the clip is stored with the search
+- What: the clip form's cloud consent read "Cloud reading (the clip goes to Gemini)", but the same press first uploads the clip to the search's storage (`ai/clipRead.ts`, `deps.upload`), where it stays until command deletes it or the bucket lifecycle rule deletes it at 30 days (`storage.lifecycle.json`, prefix `clips/`). It now reads "Cloud reading (the clip is stored with this search for up to 30 days and read by Gemini)", kept as `CLOUD_CONSENT_LABEL` in `camera/ClipIntake.tsx`. The consent record stores only who gave each consent and when (`{byUid, atMs}`, `firestore.rules` exact keys), never the label text or a version, so records written under the old words read the same.
+- Source: review (the clip consent named the model but not the storage).
+- Verified: `src/camera/clipIntake.test.ts` (the exact words) failed first (constant missing), then passed; `e2e/harness/clip.spec.ts` now ticks the consent by its full label with exact matching and passes; scripts/ci-local.sh --gates --web exit 0 (web unit 1450, harness 244); hygiene guard --public ok.
+
+### fix(camera): the clip card's receipt says the clip stays stored with the search
+- What: the camera sighting card's "What ran" receipt now ends with "Stored: the clip, with this search, until command deletes it or for 30 days." (`CLIP_STORED_LINE` in `camera/SightingCard.tsx`), so the receipt states the same storage the clip form's cloud consent names. It shows on a cached reading too, since the clip stored at the first read is the one that reading came from.
+- Source: review (the clip consent named the model but not the storage; this is the matching receipt line).
+- Verified: `src/camera/sightingCard.test.ts` (the exact words) failed first (constant missing), then passed; `e2e/harness/clip.spec.ts` checks the line in the opened receipt and passes; scripts/ci-local.sh --gates --web exit 0 (web unit 1451, harness 244); hygiene guard --public ok.

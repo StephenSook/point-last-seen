@@ -86,6 +86,10 @@ type Props = {
 
 const NO_CONSENT: ClipConsents = { personInClip: false, footageOwner: false, cloudProcessing: false, publicUse: false };
 
+// The same press stores the clip with the search (deleted by command or after 30 days by the bucket
+// lifecycle rule) before Gemini reads it, so the consent names both.
+export const CLOUD_CONSENT_LABEL = "Cloud reading (the clip is stored with this search for up to 30 days and read by Gemini)";
+
 const HELD = {
   "no-motion": "Nothing moves in this clip. Nothing was sent.",
   "no-person": "No person found on this device. Nothing was sent.",
@@ -286,7 +290,7 @@ export function ClipIntake({ camera, cameraSegmentId, choices, onPlaceCamera, on
         <legend>Consent for this clip</legend>
         {consent("personInClip", "The person in the clip")}
         {consent("footageOwner", "The owner of the footage")}
-        {consent("cloudProcessing", "Cloud reading (the clip goes to Gemini)")}
+        {consent("cloudProcessing", CLOUD_CONSENT_LABEL)}
         {consent("publicUse", "Public use, film or judge page (optional)")}
       </fieldset>
       {message && (
