@@ -5,6 +5,20 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### feat(ios): the lock-screen card says when the app set it
+- What: the app can change the lock-screen card only while it is open; a plan approved while it is closed reaches
+  the card when the searcher next opens the app. The card now ends with a line "Set by the app at 12:12 PM." (the
+  time it was set), so a card left from earlier can be told apart from a fresh one. A new task or report count
+  takes the time of the change; a change of colours at dusk keeps the time it had; a fresh card takes the time it
+  starts. The time is optional in the card's data, so a card put up by an earlier build still draws after the
+  update, without the line. A longer line ("... Updates when the app is open.") was cut off at the card's edge on
+  the simulator lock screen, and the card has no room for a fifth line, so the line is the short one.
+- Source: review: a lock-screen card showed a segment the team had left, with nothing on it to say how old it was.
+- Verified: failing test first (TaskActivityControllerTests.theCardSaysWhenItWasSet failed on its assertion before
+  the change); a guard test decodes a card without the time. All 9 tests in TaskActivityControllerTests and
+  ActivityKitClientTests pass. On the PLS iPhone 17 Pro simulator, the practice drill's card on the lock screen
+  shows four whole lines ending "Set by the app at 12:12 PM."
+
 ### fix(ios): the lock-screen card comes back after iOS ends it, so it never keeps an old segment
 - What: iOS ends a Live Activity after 8 hours and keeps its last card on the lock screen for up to 4 more. The app
   kept updating the ended activity, which changes nothing, and never started a new one, so the card could show a

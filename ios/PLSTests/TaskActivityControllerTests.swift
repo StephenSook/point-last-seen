@@ -7,17 +7,21 @@ import Testing
 @MainActor
 final class FakeActivityClient: LiveActivityClient {
     var calls: [String] = []
+    /// Every state the fake was asked to show, started or updated.
+    var states: [TaskActivityAttributes.ContentState] = []
     var allowStart = true
     /// Whether the card this fake started is still up; a test sets it false to play iOS ending it.
     var running = false
     var isRunning: Bool { running }
     func start(teamId: String, state: TaskActivityAttributes.ContentState) -> Bool {
         calls.append("start \(teamId) \(state.status.segments) \(state.status.waiting) night=\(state.night)")
+        states.append(state)
         running = allowStart
         return allowStart
     }
     func update(_ state: TaskActivityAttributes.ContentState) {
         calls.append("update \(state.status.segments) \(state.status.waiting) night=\(state.night)")
+        states.append(state)
     }
     func end() {
         calls.append("end")
@@ -80,6 +84,31 @@ final class FakeActivityClient: LiveActivityClient {
         fake.running = false
         c.refresh()
         #expect(fake.calls == ["start T1 GS 0 night=false", "end", "start T1 GS 0 night=false"])
+    }
+
+    /// The card says when it was set, so a searcher can tell a card the app keeps current from one
+    /// left from earlier (the app cannot change the card while it is closed).
+    @Test func theCardSaysWhenItWasSet() {
+        let fake = FakeActivityClient()
+        var clock = Date(timeIntervalSince1970: 1_000)
+        let c = TaskActivityController(client: fake, now: { clock })
+        c.sync(teamId: "T1", status: gs, night: false)
+        clock = Date(timeIntervalSince1970: 2_000)
+        c.sync(teamId: "T1", status: gs, night: true)                     // dusk only: the same time
+        clock = Date(timeIntervalSince1970: 3_000)
+        c.sync(teamId: "T1", status: hq, night: true)                     // a new task: a new time
+        clock = Date(timeIntervalSince1970: 4_000)
+        fake.running = false
+        c.refresh()                                                        // a fresh card is set now
+        #expect(fake.states.map { $0.setAt?.timeIntervalSince1970 } == [1_000, 1_000, 3_000, 4_000])
+    }
+
+    /// A card a build without the time put up still draws after the update (with no time line).
+    @Test func aCardWithoutATimeStillDecodes() throws {
+        let old = #"{"status":{"segments":"GS","waiting":0,"needsAction":0},"night":false}"#
+        let state = try JSONDecoder().decode(TaskActivityAttributes.ContentState.self, from: Data(old.utf8))
+        #expect(state.status.segments == "GS")
+        #expect(state.setAt == nil)
     }
 
     @Test func aRefusedStartIsTriedAgainOnTheNextChange() {

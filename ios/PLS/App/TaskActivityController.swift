@@ -26,9 +26,11 @@ final class TaskActivityController {
     private var runningTeam: String?
     private var last: TaskActivityAttributes.ContentState?
     private var input: (teamId: String?, status: TaskStatus?, night: Bool)?
+    private let now: () -> Date
 
-    init(client: LiveActivityClient = ActivityKitClient()) {
+    init(client: LiveActivityClient = ActivityKitClient(), now: @escaping () -> Date = Date.init) {
         self.client = client
+        self.now = now
     }
 
     /// The app came to the front: put back a card iOS ended meanwhile, also when nothing it shows changed.
@@ -45,7 +47,9 @@ final class TaskActivityController {
             last = nil
             return
         }
-        let state = TaskActivityAttributes.ContentState(status: status, night: night)
+        // The card shows when it was set: a fresh card, or a new task or report count, takes the time now; a
+        // change of colours at dusk keeps the time it had.
+        let state = TaskActivityAttributes.ContentState(status: status, night: night, setAt: now())
         // Another team, or a card iOS ended: take the old card down (an ended one stays on the lock screen
         // for up to 4 hours) and start a fresh one. In the background iOS refuses the start; no card then
         // beats a wrong one, and the next sync tries again.
@@ -58,9 +62,11 @@ final class TaskActivityController {
                 runningTeam = teamId
                 last = state
             }
-        } else if state != last {
-            client.update(state)
-            last = state
+        } else if let last, last.status != status || last.night != night {
+            let shown = TaskActivityAttributes.ContentState(status: status, night: night,
+                                                           setAt: last.status == status ? last.setAt : state.setAt)
+            client.update(shown)
+            self.last = shown
         }
     }
 }

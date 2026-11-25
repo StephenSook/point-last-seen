@@ -1,4 +1,5 @@
 import ActivityKit
+import Foundation
 import PLSCore
 
 /// The team's task on the lock screen and in the Dynamic Island (P-07): the drill label, the
@@ -8,6 +9,7 @@ struct TaskActivityAttributes: ActivityAttributes {
         var status: TaskStatus
         /// Drawn in the night colours when the app's screen is in night mode.
         var night: Bool
+        var setAt: Date? = nil
     }
 
     var teamId: String

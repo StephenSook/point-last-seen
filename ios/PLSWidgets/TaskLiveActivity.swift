@@ -12,6 +12,12 @@ struct TaskLiveActivity: Widget {
                 Text("Training drill. Nobody is missing.").font(.title3.weight(.semibold))
                 Text("Your segments: \(context.state.status.segments)").font(.title2.bold())
                 Text(context.state.status.line).font(.title3.weight(.semibold)).foregroundStyle(theme.text(.secondary))
+                // The app can change this card only while it is open, so the card says when it was set. One
+                // line: the lock screen gives a card no room for a fifth.
+                if let setAt = context.state.setAt {
+                    Text("Set by the app at \(setAt, style: .time).")
+                        .font(.title3.weight(.semibold)).foregroundStyle(theme.text(.secondary))
+                }
             }
             .foregroundStyle(theme.text(.primary))
             .font(.title3.weight(.semibold))
