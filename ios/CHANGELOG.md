@@ -3,6 +3,23 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-25
+
+### fix(ios): the lock-screen card comes back after iOS ends it, so it never keeps an old segment
+- What: iOS ends a Live Activity after 8 hours and keeps its last card on the lock screen for up to 4 more. The app
+  kept updating the ended activity, which changes nothing, and never started a new one, so the card could show a
+  segment the team had left while the app showed the new one. The client now reports whether its card is still
+  active (read from the system's list by id). When it is not, the controller takes the old card down and starts a
+  fresh one with the current task. The app also re-checks when it comes to the front, so an ended card comes back
+  even when the task did not change. In the background iOS refuses a new card: the old one is still taken down (no
+  card beats a wrong one) and the next sync tries again.
+- Source: review: on an iPhone running build 11, the lock-screen card read "Your segments: GS" after two approved
+  plans had moved the team to HQ and then HF; the card had been started almost 12 hours earlier.
+- Verified: failing tests first (TaskActivityControllerTests: an ended card is started again with the new task, a
+  refused restart still takes the old card down, coming to the front puts back an ended card; ActivityKitClientTests:
+  a card ended outside the client reads as not running). All four failed on their assertions before the change, and
+  all 7 tests in the two suites pass after it on the PLS iPhone 17 Pro simulator.
+
 ## 2026-11-24
 
 ### docs(readme): the iPhone app row says it is in App Store review, with no public link yet

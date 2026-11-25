@@ -11,21 +11,34 @@ protocol LiveActivityClient: AnyObject {
     func start(teamId: String, state: TaskActivityAttributes.ContentState) -> Bool
     func update(_ state: TaskActivityAttributes.ContentState)
     func end()
+    /// False once the started card is gone or ended. iOS ends a Live Activity after 8 hours and a person can
+    /// remove it; an update to an ended card changes nothing on the lock screen.
+    var isRunning: Bool { get }
 }
 
 /// Keeps one Live Activity in step with the loaded pack and the report journal: started when a
-/// pack is loaded, updated only when what it shows changes, ended when the pack is gone.
+/// pack is loaded, updated only when what it shows changes, ended when the pack is gone, and
+/// started again when iOS ended it (so the lock screen never keeps an old segment from a card
+/// the app can no longer update).
 @MainActor
 final class TaskActivityController {
     private let client: LiveActivityClient
     private var runningTeam: String?
     private var last: TaskActivityAttributes.ContentState?
+    private var input: (teamId: String?, status: TaskStatus?, night: Bool)?
 
     init(client: LiveActivityClient = ActivityKitClient()) {
         self.client = client
     }
 
+    /// The app came to the front: put back a card iOS ended meanwhile, also when nothing it shows changed.
+    func refresh() {
+        guard let input else { return }
+        sync(teamId: input.teamId, status: input.status, night: input.night)
+    }
+
     func sync(teamId: String?, status: TaskStatus?, night: Bool) {
+        input = (teamId, status, night)
         guard let teamId, let status else {
             if runningTeam != nil { client.end() }
             runningTeam = nil
@@ -33,7 +46,10 @@ final class TaskActivityController {
             return
         }
         let state = TaskActivityAttributes.ContentState(status: status, night: night)
-        if let running = runningTeam, running != teamId {
+        // Another team, or a card iOS ended: take the old card down (an ended one stays on the lock screen
+        // for up to 4 hours) and start a fresh one. In the background iOS refuses the start; no card then
+        // beats a wrong one, and the next sync tries again.
+        if let running = runningTeam, running != teamId || !client.isRunning {
             client.end()
             runningTeam = nil
         }
@@ -72,6 +88,14 @@ final class ActivityKitClient: LiveActivityClient {
     func update(_ state: TaskActivityAttributes.ContentState) {
         guard let activity else { return }
         Task { await activity.update(ActivityContent(state: state, staleDate: nil)) }
+    }
+
+    /// Read from the system's list, by id: an activity that iOS ended or a person removed is either gone
+    /// from it or no longer active there.
+    var isRunning: Bool {
+        guard let activity,
+              let current = Activity<TaskActivityAttributes>.activities.first(where: { $0.id == activity.id }) else { return false }
+        return current.activityState == .active || current.activityState == .stale
     }
 
     func end() {

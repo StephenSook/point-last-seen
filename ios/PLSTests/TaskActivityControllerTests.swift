@@ -8,18 +8,29 @@ import Testing
 final class FakeActivityClient: LiveActivityClient {
     var calls: [String] = []
     var allowStart = true
+    /// Whether the card this fake started is still up; a test sets it false to play iOS ending it.
+    var running = false
+    var isRunning: Bool { running }
     func start(teamId: String, state: TaskActivityAttributes.ContentState) -> Bool {
         calls.append("start \(teamId) \(state.status.segments) \(state.status.waiting) night=\(state.night)")
+        running = allowStart
         return allowStart
     }
-    func update(_ state: TaskActivityAttributes.ContentState) { calls.append("update \(state.status.waiting) night=\(state.night)") }
-    func end() { calls.append("end") }
+    func update(_ state: TaskActivityAttributes.ContentState) {
+        calls.append("update \(state.status.segments) \(state.status.waiting) night=\(state.night)")
+    }
+    func end() {
+        calls.append("end")
+        running = false
+    }
 }
 
 @MainActor
 @Suite struct TaskActivityControllerTests {
     let ac = TaskStatus.make(assignedSegmentIds: ["AC"], states: [])
     let acWaiting = TaskStatus.make(assignedSegmentIds: ["AC"], states: [.pending])
+    let gs = TaskStatus.make(assignedSegmentIds: ["GS"], states: [])
+    let hq = TaskStatus.make(assignedSegmentIds: ["HQ"], states: [])
 
     @Test func startsOnceUpdatesOnChangeAndEndsWhenThePackGoes() {
         let fake = FakeActivityClient()
@@ -31,7 +42,44 @@ final class FakeActivityClient: LiveActivityClient {
         c.sync(teamId: "T1", status: acWaiting, night: true)              // dusk: colours change
         c.sync(teamId: nil, status: nil, night: true)
         c.sync(teamId: nil, status: nil, night: true)                     // already ended
-        #expect(fake.calls == ["start T1 AC 0 night=false", "update 1 night=false", "update 1 night=true", "end"])
+        #expect(fake.calls == ["start T1 AC 0 night=false", "update AC 1 night=false", "update AC 1 night=true", "end"])
+    }
+
+    /// iOS ends a Live Activity after 8 hours and keeps its last card on the lock screen for up to 4 more.
+    /// An update to an ended activity does nothing, so a new assignment must put up a fresh card instead.
+    @Test func aCardIOSEndedIsStartedAgainWithTheNewAssignment() {
+        let fake = FakeActivityClient()
+        let c = TaskActivityController(client: fake)
+        c.sync(teamId: "T1", status: gs, night: false)
+        fake.running = false                                               // the 8-hour limit
+        c.sync(teamId: "T1", status: hq, night: false)
+        #expect(fake.calls == ["start T1 GS 0 night=false", "end", "start T1 HQ 0 night=false"])
+    }
+
+    /// In the background iOS refuses a new card. The ended card is still taken down (no old segment left
+    /// on the lock screen), and the next change tries again.
+    @Test func aRefusedRestartStillTakesTheOldCardDown() {
+        let fake = FakeActivityClient()
+        let c = TaskActivityController(client: fake)
+        c.sync(teamId: "T1", status: gs, night: false)
+        fake.running = false
+        fake.allowStart = false
+        c.sync(teamId: "T1", status: hq, night: false)
+        fake.allowStart = true
+        c.sync(teamId: "T1", status: hq, night: false)
+        #expect(fake.calls == ["start T1 GS 0 night=false", "end", "start T1 HQ 0 night=false", "start T1 HQ 0 night=false"])
+    }
+
+    /// Opening the app puts back a card iOS ended, also when the assignment did not change.
+    @Test func comingToTheFrontPutsBackAnEndedCard() {
+        let fake = FakeActivityClient()
+        let c = TaskActivityController(client: fake)
+        c.refresh()                                                        // nothing synced yet: nothing
+        c.sync(teamId: "T1", status: gs, night: false)
+        c.refresh()                                                        // still up: nothing
+        fake.running = false
+        c.refresh()
+        #expect(fake.calls == ["start T1 GS 0 night=false", "end", "start T1 GS 0 night=false"])
     }
 
     @Test func aRefusedStartIsTriedAgainOnTheNextChange() {
@@ -61,5 +109,24 @@ final class FakeActivityClient: LiveActivityClient {
             if stillUp { try await Task.sleep(for: .milliseconds(100)) }
         }
         #expect(!stillUp)
+    }
+
+    /// A card ended outside the client (as iOS does at the 8-hour limit) is no longer running.
+    @Test func theRealClientNoticesACardEndedOutsideIt() async throws {
+        let client = ActivityKitClient()
+        let state = TaskActivityAttributes.ContentState(status: TaskStatus.make(assignedSegmentIds: ["GS"], states: []), night: false)
+        #expect(client.start(teamId: "T-ended", state: state))
+        #expect(client.isRunning)
+        for activity in Activity<TaskActivityAttributes>.activities where activity.attributes.teamId == "T-ended" {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+        // The state change is an async system event: wait for it, at most 10 seconds.
+        var running = true
+        for _ in 0..<100 where running {
+            running = client.isRunning
+            if running { try await Task.sleep(for: .milliseconds(100)) }
+        }
+        #expect(!running)
+        client.end()
     }
 }
