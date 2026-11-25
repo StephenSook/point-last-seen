@@ -20,8 +20,9 @@ the lock screen and the home screen are not in any image. Times are UTC.
    (whisper.cpp, three runs) reads "New assignment, segment HQ. Search segment HQ." The frame at 20 s shows
    the app's header "HQ DRILL". On the server, the iOS app's speech call through the `pls-voice-v1`
    template succeeded with App Check valid for plan v2 at 05:27:47
-   (`docs/evidence/ios/2026-11-25-voice-cloud-server-side.json`); a read of the server logs during the
-   session found one more for plan v3 at 16:37:52 (local evidence, not in the repository). **Not shown:**
+   (`docs/evidence/ios/2026-11-25-voice-cloud-server-side.json`), and again for plan v3 at 16:37:52, 1.7 s
+   after the approval, with AI Logic reporting 2,030 ms
+   (`docs/evidence/ios/2026-11-25-voice-cloud-server-side-retry.json`). **Not shown:**
    which voice played. The app says the same words with the cloud voice or, when the cloud voice gives no
    sound, with the phone's own voice (`ios/PLS/AI/AssignmentSpeaker.swift:59-67`); no record here tells the
    two apart.
