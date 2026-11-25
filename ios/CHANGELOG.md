@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### docs(evidence): the build 11 iPhone session on a real iPhone
+- What: `docs/evidence/ios/iphone-2026-11-25-build11/` holds the session's crops, the spoken-assignment
+  recording and spectrogram, and the photo clue's route record, with a README that says step by step what
+  ran: the lock-screen card, a spoken assignment, a push with the app closed, a report and a photo clue with
+  no signal (read on the phone; two photos of a person refused), delivery back in signal, and the Action
+  button. It says what is not shown (which voice spoke) and what did not run (the route check).
+- Source: release plan (the iPhone device session for build 11).
+- Verified: each crop was checked by eye to hold only the app's screen, card or Dynamic Island (the island
+  crops were cut tighter so the lock-screen wallpaper and status bar are out); the route record holds ids,
+  route and timing only. Each claim in the README was checked against the session notes and, for code, the
+  cited lines.
+
 ### chore(ios): version 1.0.1
 - What: the app's version goes from 1.0.0 to 1.0.1 (`MARKETING_VERSION` in `ios/project.yml`), for the build that
   carries the lock-screen card fixes above. The build number is still set when the release is archived

@@ -1,0 +1,25 @@
+{
+  "clientTimeMs": 1795626849327.93,
+  "effect": {
+    "kind": "clue"
+  },
+  "eventId": "a040129f60d01806bde7e9ca93141a83",
+  "incidentId": "drill-kennesaw-1",
+  "inputMethod": "photo",
+  "positionSource": "assigned_segment",
+  "route": {
+    "blocked": null,
+    "decidedAtMs": 1795626849327.93,
+    "latencyMs": 2981.4469814300537,
+    "model": "AFM 3 Core Advanced",
+    "path": "on_device",
+    "platform": "ios",
+    "reason": "on_device_default",
+    "sdkReported": false,
+    "stage": "guided"
+  },
+  "state": {
+    "state": "pending"
+  },
+  "type": "clue"
+}
