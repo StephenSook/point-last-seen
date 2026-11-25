@@ -5,6 +5,45 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### docs(evidence): the speech call went through the pls-voice-v1 template; plan v3 was approved at 16:37:50
+- What: the entry below changed "through the `pls-voice-v1` template" to "through the template Remote Config
+  names" on the word that the server metrics carry no template label. They do: a re-read with every label shows
+  the render metric's `template_id` "pls-voice-v1" for both speech calls. The original wording is back in the
+  TEST-MATRIX row and the build 11 README. The README also gives plan v3's approval time from the plan document,
+  16:37:50, instead of "about 16:37:45". The AI Logic time (1,899 ms) from the entry below stands.
+- Source: review (docs review of the evidence PR, corrected by the reviewer).
+- Verified: `scripts/test_test_matrix.py` passes; the README's other plan time (v4, about 16:45:58) matches the
+  plan document (16:45:58.9).
+
+### docs(evidence): the speech call's time is AI Logic's, and the template is the one Remote Config names
+- What: the TEST-MATRIX row for the cloud spoken assignment gave 1.96 s, which is the before-generate trigger's
+  HTTP time; it now gives AI Logic's own time for the call, 1,899 ms. The row and the build 11 README now say the
+  call went "through the template Remote Config names (`pls-voice-v1`)", because the server metrics carry no
+  template label.
+- Source: review (docs review of the evidence PR).
+- Verified: both numbers read from `docs/evidence/ios/2026-11-25-voice-cloud-server-side.json`
+  (`trigger.latencySeconds` 1.96, `aiLogic.durationMsMean` 1899); `scripts/test_test_matrix.py` passes.
+
+### docs(test-matrix): two iPhone rows from the build 11 session
+- What: `docs/TEST-MATRIX.md` gains two iPhone rows: the on-device photo clue with no signal (AFM 3 Core Advanced,
+  2,981 ms, from the route record) and the cloud spoken assignment (the speech call succeeded on the server; the
+  row says which voice played is not shown).
+- Source: release plan (the build 11 device session).
+- Verified: `scripts/test_test_matrix.py` passes (3 tests); with the two rows' code lines moved by one, its check
+  reports both rows, so it reads them.
+
+### docs(evidence): the build 11 iPhone session on a real iPhone
+- What: `docs/evidence/ios/iphone-2026-11-25-build11/` holds the session's crops, the spoken-assignment
+  recording and spectrogram, and the photo clue's route record, with a README that says step by step what
+  ran: the lock-screen card, a spoken assignment, a push with the app closed, a report and a photo clue with
+  no signal (read on the phone; two photos of a person refused), delivery back in signal, and the Action
+  button. It says what is not shown (which voice spoke) and what did not run (the route check).
+- Source: release plan (the iPhone device session for build 11).
+- Verified: each crop was checked by eye to hold only the app's screen, card or Dynamic Island (the island
+  crops were cut tighter so the lock-screen wallpaper and status bar are out); the route record holds ids,
+  route and timing only. Each claim in the README was checked against the session notes and, for code, the
+  cited lines.
+
 ### chore(ios): version 1.0.1
 - What: the app's version goes from 1.0.0 to 1.0.1 (`MARKETING_VERSION` in `ios/project.yml`), for the build that
   carries the lock-screen card fixes above. The build number is still set when the release is archived
