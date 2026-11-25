@@ -5,6 +5,14 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- Test matrix: new Android row for the release check of the published `android-judge-8` file
+  (`point-last-seen-family-5914e20f.apk`, SHA-256 `676ec5c5...7eed`) on a Samsung A16, with its evidence file
+  `docs/evidence/android/a16-judge-8-release-check-2026-11-25.md`: App Check by Play Integrity issued a token, sign-in
+  worked and one cloud note read was accepted in 4,669 ms (n=1), through the typed-object read this build added. The
+  judge-6 row stays. Source: the test steps should point at the exact judged build. Verified: the run's `PLS-PROBE`
+  lines and `OK (1 test)`, the installed `base.apk` hash read on the phone after the run, and
+  `scripts/test_test_matrix.py` passes.
+
 - README and `docs/PRODUCTION-CHECKLIST.md` name `android-judge-8` (`point-last-seen-family-5914e20f.apk`, built from
   5914e20f) as the latest Android judge release, in place of android-judge-6. Judge-8 is the build whose note is read
   on a phone's own model (two fixes, both in `android/CHANGELOG.md`). Source: android-judge-8 was published as the
