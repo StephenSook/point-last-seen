@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### docs(evidence): the speech call's time is AI Logic's, and the template is the one Remote Config names
+- What: the TEST-MATRIX row for the cloud spoken assignment gave 1.96 s, which is the before-generate trigger's
+  HTTP time; it now gives AI Logic's own time for the call, 1,899 ms. The row and the build 11 README now say the
+  call went "through the template Remote Config names (`pls-voice-v1`)", because the server metrics carry no
+  template label.
+- Source: review (docs review of the evidence PR).
+- Verified: both numbers read from `docs/evidence/ios/2026-11-25-voice-cloud-server-side.json`
+  (`trigger.latencySeconds` 1.96, `aiLogic.durationMsMean` 1899); `scripts/test_test_matrix.py` passes.
+
 ### docs(test-matrix): two iPhone rows from the build 11 session
 - What: `docs/TEST-MATRIX.md` gains two iPhone rows: the on-device photo clue with no signal (AFM 3 Core Advanced,
   2,981 ms, from the route record) and the cloud spoken assignment (the speech call succeeded on the server; the

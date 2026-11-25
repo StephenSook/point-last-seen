@@ -18,8 +18,8 @@ the lock screen and the home screen are not in any image. Times are UTC.
    Command approved plan v3 (team T1 from GS to HQ) at about 16:37:45. The phone's screen and sound were
    recorded over USB. The phone spoke from about 16:37:58 for 4.6 s; a speech-to-text check of the recording
    (whisper.cpp, three runs) reads "New assignment, segment HQ. Search segment HQ." The frame at 20 s shows
-   the app's header "HQ DRILL". On the server, the iOS app's speech call through the `pls-voice-v1`
-   template succeeded with App Check valid for plan v2 at 05:27:47
+   the app's header "HQ DRILL". On the server, the iOS app's speech call through the template Remote
+   Config names (`pls-voice-v1`) succeeded with App Check valid for plan v2 at 05:27:47
    (`docs/evidence/ios/2026-11-25-voice-cloud-server-side.json`); a read of the server logs during the
    session found one more for plan v3 at 16:37:52 (local evidence, not in the repository). **Not shown:**
    which voice played. The app says the same words with the cloud voice or, when the cloud voice gives no
