@@ -5,6 +5,21 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- README and `docs/LIMITS.md` add the family-note eval to the Android on-device result: with the network off, the
+  Pixel 10 read 55 of 60 made-up notes right (95% interval 0.82 to 0.96, 1 refused by the app's checks, every wrong
+  kind came back as place). LIMITS no longer rests on 2 notes; its not-tested list now says no call raised an error
+  and gives the eval's median model time beside the 3.4 s app read. Source: the on-device sample was 2 notes.
+  Verified: each number against `docs/evidence/eval-android/README.md` and its result file.
+
+- Test matrix: new Android row and evidence folder `docs/evidence/eval-android/` for the family-note eval on a
+  Pixel 10 with the network off. 60 made-up notes from the frozen key (`pls-family-notes-v1`, SHA-256
+  `ab23c46d...`), each read once through the app's own note read with only the phone's model: 55 of 60 right (95%
+  interval 0.82 to 0.96), 59 read on the phone, 1 refused by the app's checks, no errors, median model time
+  1,445 ms. The README lists all 5 misses as they are: f06 refused, and f40, f46, f54 and f60 read as place. The run's
+  result file is committed unchanged. Source: the on-device sample was 2 notes. Verified: the summary recomputed from
+  the 60 rows (right count, Wilson interval, median, key order, each row's expected kind against the key), the
+  session log's airplane-mode times, the test's `OK (1 test)`, and `scripts/test_test_matrix.py` passes.
+
 - Drill wording corrected: no field drill with outside people ran, since the outdoor drill at Kennesaw Mountain was
   cancelled on 2026-11-23. README no longer says the extras' drill use is "filled in after the drill's debrief";
   `docs/LIMITS.md` no longer calls iPhone build 9 "the one used in the drill" (builds 10 and 11 carry the separator

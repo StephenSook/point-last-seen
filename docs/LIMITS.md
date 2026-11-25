@@ -353,16 +353,19 @@ each line says what the limit is and why.
   under the token cap even at one token per byte (android `OnDeviceBudgetTest`).
 - Run on one phone: a Google Pixel 10 (Android 17, AICore 26.10.15.11, model `nano-v4-full`) read an English
   family note on its own model with the published `android-judge-8` file, on Wi-Fi and in airplane mode (n=2,
-  not joined to a search, no cloud consent; `docs/evidence/android-nano/pixel-10-2026-11-25/README.md`).
+  not joined to a search, no cloud consent; `docs/evidence/android-nano/pixel-10-2026-11-25/README.md`). On the
+  same phone with the network off, a frozen key of 60 made-up family notes was read 55 of 60 right (95% interval
+  0.82 to 0.96): 59 read on the phone and 1 refused by the app's checks; every wrong kind came back as place
+  (`docs/evidence/eval-android/README.md`).
 - Found and fixed on that phone, and invisible in the cloud and on phones without a model: (1) ML Kit's
   on-device structured output refused the reply type before the model ran (GenAI error -110), because its
   `kind` field was an enum class; `kind` is now a String limited to the same four values, and
   `OnDeviceGenerableTest` fails on any reply field ML Kit cannot read (#399). (2) On the phone the reply comes
   back only as a typed object, with empty response text; the app now reads the typed object on both paths and
   checks it with the same parser as before (#400).
-- Not tested: whether the AICore safety filters refuse a note (the notes we sent were short and none was
-  refused), the token cap with a 2,000-character or non-English note, other phones and other models. The read
-  times (3.4 s in the app) are from one phone and one note.
+- Not tested: whether the AICore safety filters refuse a note (the notes we sent were short, and no call raised
+  an error), the token cap with a 2,000-character or non-English note, other phones and other models. The read
+  times are from one phone: 3.4 s in the app for one note, and a median of 1,445 ms across the 60-note eval.
 
 ## Media retention
 

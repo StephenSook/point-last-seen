@@ -49,7 +49,8 @@ drill at Kennesaw Mountain was cancelled on 2026-11-23, so none of these was use
   own model, with the cloud as the fallback where a call allows it). On Android, a Pixel 10 read a family note on its
   own model (Gemini Nano through AICore) with the published `android-judge-8` file, twice: on Wi-Fi and in airplane
   mode, not joined to a search and with no cloud consent
-  (`docs/evidence/android-nano/pixel-10-2026-11-25/README.md`).
+  (`docs/evidence/android-nano/pixel-10-2026-11-25/README.md`). With the network off, the same phone read 55 of 60
+  made-up family notes right in a frozen-key eval (`docs/evidence/eval-android/README.md`).
 - On iPhone, on-device reads use Apple Foundation Models (`SystemLanguageModel`), the on-device option for iOS, and
   cloud reads use Gemini through Firebase AI Logic in the same session.
   The iPhone's cloud route needs iOS 27; on iOS 26 it reads on the device, then by rules.
