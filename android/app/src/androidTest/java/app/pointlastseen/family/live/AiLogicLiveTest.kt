@@ -12,6 +12,7 @@ import app.pointlastseen.family.ai.DeviceModelStatus
 import app.pointlastseen.family.ai.FamilyNote
 import app.pointlastseen.family.ai.NoteMode
 import app.pointlastseen.family.ai.Source
+import app.pointlastseen.family.ai.noteReplyText
 import app.pointlastseen.family.config.RcValues
 import com.google.firebase.ai.type.FirebaseAIOnDeviceNotAvailableException
 import com.google.firebase.ai.type.PublicPreviewAPI
@@ -87,5 +88,28 @@ class AiLogicLiveTest {
         Log.i("PLS-PROBE", "on-device note source=${reply.source} latencyMs=${reply.latencyMs} parsed=${FamilyNote.parse(reply.text, note) != null}")
         assertEquals(Source.ON_DEVICE, reply.source)
         assertNotNull("the on-device reply did not pass the parser: ${reply.text}", FamilyNote.parse(reply.text, note))
+    }
+
+    /**
+     * Only with a ready on-device model: the SDK's own generateObject on this phone, so a failure says which part
+     * is missing. On the phone the reply comes only as a typed object (the response text is empty), and the app
+     * must read it from there.
+     */
+    @Test fun onDeviceGenerateObjectHandsBackATypedReplyTheAppReads(): Unit = runBlocking {
+        val status = client.deviceModelStatus()
+        assumeTrue("no ready on-device model here (status $status)", status == DeviceModelStatus.AVAILABLE)
+        val inst = InstrumentationRegistry.getInstrumentation()
+        inst.startActivitySync(Intent(inst.targetContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        inst.waitForIdleSync()
+        val r = client.familyNoteReply(NoteMode.ONLY_ON_DEVICE, FamilyNote.prompt(note))
+        val text = r.response.text
+        val typed = runCatching { r.getObject() }
+        val textState = if (text.isNullOrBlank()) "empty" else "set (${text.length} chars)"
+        Log.i("PLS-PROBE", "on-device generateObject text=$textState typed=${typed.isSuccess} source=${r.response.inferenceSource}")
+        assertNotNull("no typed object on device (text $textState): ${typed.exceptionOrNull()}", typed.getOrNull())
+        assertNotNull(
+            "typed object present (text $textState) but the app's reading was refused: ${typed.getOrNull()} -> ${noteReplyText(r)}",
+            FamilyNote.parse(noteReplyText(r), note),
+        )
     }
 }
