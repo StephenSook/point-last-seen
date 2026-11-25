@@ -65,10 +65,14 @@ class AiClient(private val rc: () -> RcValues) {
         onDeviceConfig = OnDeviceConfig(mode = mode),
     )
 
+    /** The note read's SDK reply as it comes back (the typed object and the text), for [familyNote] and its live test. */
+    internal suspend fun familyNoteReply(mode: NoteMode, prompt: String) =
+        noteModel(AiMapping.mode(mode, rc().killCloud)).generateObject(NoteReply.firebaseAISchema(), prompt)
+
     /** FamilyNote's model: the SDK's hybrid mode, with the source it reports. */
     val familyNote: NoteModel = NoteModel { mode, prompt ->
         val t0 = System.nanoTime()
-        val r = noteModel(AiMapping.mode(mode, rc().killCloud)).generateObject(NoteReply.firebaseAISchema(), prompt)
+        val r = familyNoteReply(mode, prompt)
         ModelReply(noteReplyText(r), AiMapping.source(r.response.inferenceSource), (System.nanoTime() - t0) / 1_000_000)
     }
 
