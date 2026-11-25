@@ -4,7 +4,12 @@
   "readAt": "2026-11-25T05:37:49Z",
   "readBy": "Read-only queries with project credentials; nothing was written",
   "window": {"from": "2026-11-25T05:20:00Z", "to": "2026-11-25T05:40:00Z"},
-  "context": "Reported by the iPhone session, not checked by these reads: command approved plan v2 in drill-kennesaw-1 (team T1, segment HE to GS) at about 05:27:50Z, and the phone (Ad Hoc build 11, 1.0.0 (11), App Attest production, iPhone 17 Pro, iOS 27.2.1) showed GS within seconds. The audio recording of that moment failed.",
+  "context": "Reported by the iPhone session, not checked by these reads: command approved plan v2 in drill-kennesaw-1 (team T1, segment HE to GS), and the phone (Ad Hoc build 11, 1.0.0 (11), App Attest production, iPhone 17 Pro, iOS 27.2.1) showed GS within seconds. The audio recording of that moment failed.",
+  "plan": {
+    "source": "Firestore, incidents/drill-kennesaw-1/plans/0002, field approvedAt (server timestamp), read 2026-11-25T17:58Z",
+    "version": 2,
+    "approvedAt": "2026-11-25T05:27:46.197Z"
+  },
   "trigger": {
     "source": "Cloud Logging, Cloud Run service cloudguard (the before-generate trigger)",
     "httpRequestAt": "2026-11-25T05:27:47.5Z",
@@ -37,7 +42,7 @@
     "platform": "ios",
     "appVersion": "1.0.0",
     "status": "success",
-    "template": "pls-voice-v1 (the template Remote Config names; the metric itself carries no template label)",
+    "template": "pls-voice-v1 (the metric's template_id label)",
     "bucketEnd": "2026-11-25T05:28:25Z"
   },
   "appCheck": {
@@ -60,5 +65,9 @@
   "caveats": [
     "The metrics name the platform and the app version (1.0.0), not the build number or the device, so they cannot by themselves say which iPhone made the call.",
     "The Firebase Performance trace assignment_speech (path, outcome, start_ms) was not readable here: the project has no BigQuery export and the trace is in the console only. Whether the phone played the audio is unproven."
+  ],
+  "corrections": [
+    "2026-11-25T17:58Z: templateRender.template said the metric carries no template label. It does: template_id is pls-voice-v1. The first read's label filter dropped every key containing \"id\". Re-read with raw labels.",
+    "2026-11-25T17:58Z: context gave the plan's approval as about 05:27:50Z, as reported. Firestore's approvedAt is 05:27:46.197Z (plan), 1.3 s before the trigger request."
   ]
 }

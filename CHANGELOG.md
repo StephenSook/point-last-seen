@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- `docs/evidence/ios/2026-11-25-voice-cloud-server-side.json` corrected: the template render metric does carry the
+  template, `template_id` pls-voice-v1 (the first read's label filter dropped every key containing "id"), and the
+  plan v2 approval is now the server's `approvedAt`, 05:27:46.197Z, in place of the reported "about 05:27:50Z". A
+  `corrections` list in the file says both. Source: review (a re-read for the 16:37Z call showed the label).
+  Verified: read-only Cloud Monitoring raw labels for 05:20 to 05:40Z and the Firestore plan document, 17:58Z.
+
 - `docs/LIMITS.md`, new section "Lock-screen card (iPhone)": the Live Activity card changes only while the app is
   open (build 11 has no ActivityKit push token), so after a plan approved with the app closed it shows the earlier
   segment until the app opens; iOS ends a card after 8 hours and keeps it up to 4 more, and build 11 restarts an ended
