@@ -24,7 +24,7 @@ profile, notes, photos and camera clips from their own app, and decides which of
 |---|---|---|
 | Web command post | Search command | https://buildhybridai-2026-yg3m.web.app (start at `/judge` for a practice search) |
 | iPhone searcher app | Searchers in the field | In App Store review (version 1.0.0), with no public install link yet; its recorded on-device and cloud runs are in [docs/evidence/ios](docs/evidence/ios) |
-| Android family app | The missing person's family | The signed APK on the [latest judge release](https://github.com/StephenSook/point-last-seen/releases/latest), with its SHA-256 file (on 2026-11-25, `point-last-seen-family-5914e20f.apk` in android-judge-8) |
+| Android family app | The missing person's family | The signed APK on the [latest judge release](https://github.com/StephenSook/point-last-seen/releases/latest), with its SHA-256 file (on 2026-11-25, `point-last-seen-family-8f7bc689.apk` in android-judge-9) |
 
 Which model paths ran on which hardware, and which have not run yet: [docs/TEST-MATRIX.md](docs/TEST-MATRIX.md).
 

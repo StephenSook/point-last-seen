@@ -5,6 +5,7 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- README's Android install row and the production checklist name `android-judge-9` (`point-last-seen-family-8f7bc689.apk`) as the latest judge release. Source: judge-9 published with the note-screen fix (#416). Verified: a signed-out fetch of `/releases/latest` lands on android-judge-9; `scripts/ci-local.sh --gates` and `hygiene_guard.py --public` pass.
 - `docs/TEST-MATRIX.md` has the Samsung A16 release check row for `android-judge-9` (`point-last-seen-family-8f7bc689.apk`, SHA-256 `2e79883d...e985`), with evidence `docs/evidence/android/a16-judge-9-release-check-2026-11-25.md` and two stills of a note being read ("Reading in the cloud." on the A16, "Reading on this phone." on a Pixel 10). Source: judge-9 published with the note-screen fix (#416). Verified: the probe log lines and the installed `base.apk` hash on the A16; the stills are frames from screen recordings of the two phones; `scripts/ci-local.sh --gates` (with `scripts/test_test_matrix.py`) and `hygiene_guard.py --public` pass.
 - New evidence file `docs/evidence/ios/2026-11-25-voice-cloud-server-side-retry.json`: the server side of the
   iPhone's cloud voice for plan v3 (approved 16:37:50.504Z). The cloudGuard trigger got the request at 16:37:52.24Z
