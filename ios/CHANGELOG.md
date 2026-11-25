@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### docs(evidence): the build 11 README cites the tracked record of the second speech call
+- What: the build 11 iPhone README said the plan v3 speech call at 16:37:52 came from "local evidence, not in the
+  repository". That call now has a tracked record, `docs/evidence/ios/2026-11-25-voice-cloud-server-side-retry.json`
+  (plan v3 approved 16:37:50.5, trigger 16:37:52.24 with HTTP 200, AI Logic success in 2,030 ms, template
+  `pls-voice-v1`, App Check valid), and the README cites it.
+- Source: review (the docs reviewer added the record).
+- Verified: the values were read from the tracked JSON; `scripts/test_test_matrix.py` and the local gates pass.
+
 ### docs(evidence): the speech call went through the pls-voice-v1 template; plan v3 was approved at 16:37:50
 - What: the entry below changed "through the `pls-voice-v1` template" to "through the template Remote Config
   names" on the word that the server metrics carry no template label. They do: a re-read with every label shows
