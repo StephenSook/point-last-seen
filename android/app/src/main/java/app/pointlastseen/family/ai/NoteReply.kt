@@ -27,6 +27,13 @@ data class NoteReply(
     companion object
 }
 
-/** The reply as JSON text for FamilyNote.parse: the response text, else the decoded object re-encoded. */
-fun noteReplyText(r: GenerateObjectResponse<NoteReply>): String? =
-    r.response.text ?: runCatching { r.getObject() }.getOrNull()?.let { Json.encodeToString(NoteReply.serializer(), it) }
+/** The reply as JSON text for FamilyNote.parse, which checks every field. */
+fun noteReplyText(r: GenerateObjectResponse<NoteReply>): String? = noteReplyJson(r.response.text) { r.getObject() }
+
+/**
+ * The typed reply re-encoded, else non-blank [text]. On the phone the SDK hands back the reply only as a typed
+ * object and the response text is empty; in the cloud the object is decoded from the text. So the typed reply is
+ * read first on both paths, and the text is the fallback when it cannot be decoded.
+ */
+fun noteReplyJson(text: String?, typed: () -> NoteReply?): String? =
+    runCatching(typed).getOrNull()?.let { Json.encodeToString(NoteReply.serializer(), it) } ?: text?.takeIf { it.isNotBlank() }
