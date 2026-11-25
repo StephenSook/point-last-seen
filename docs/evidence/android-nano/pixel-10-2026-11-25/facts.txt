@@ -1,0 +1,12 @@
+date_utc=2026-11-25T04:15:41Z
+model=Pixel 10 device=frankel
+android=17 sdk=37 build=CP3A.261005.005
+verified_boot_state=green flash_locked=1
+aicore versionName=26.10.15.11.release.prod_aicore_20261015.00_RC11
+private_compute_services versionName=1.0.release.1007995782
+play_services versionName=26.45.31
+data_free=86G
+pls_installed_sha256=676ec5c54abeb46c72042b60e260310dda233edb4d7283fd6f3193b38c3a7eed
+byt_installed_sha256=f711035d7f72c2b48ee091851b2a9251b65a26f9521cdad03652620353795f72
+pls_is_android_judge_8=yes
+byt_is_android_judge_7=yes

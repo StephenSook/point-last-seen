@@ -5,6 +5,31 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- Test matrix: the Android on-device row, "Not run" until now, records the first runs on a phone with an on-device
+  model: a Google Pixel 10 (Android 17, AICore 26.10.15.11, `nano-v4-full`) with the published `android-judge-8`
+  file. Two notes read in the app on the phone's own model, "Read on this phone in 3.4 s.", one with airplane mode
+  on; two live tests passed on the phone. New evidence folder `docs/evidence/android-nano/pixel-10-2026-11-25/`:
+  README, `facts.txt` (installed hash read on the phone), `live-tests.txt`, and four stills checked for
+  notifications. The README also records the send queue offline on the test drill: a sighting sent in airplane mode
+  showed "1 item waiting to send.", then reached the server once (0 of 298 events before, 1 after) 18.8 s later, when
+  the network came back. Source: the Pixel 10 session. Verified: the stills, the session log times, `facts.txt`
+  (`pls_is_android_judge_8=yes`), the live-test output (`OK (2 tests)`), the Firestore read-back of the one event
+  (`clientTimeMs` inside the airplane window, `serverTime` after it), and `scripts/test_test_matrix.py` passes.
+
+- Test matrix: new Android row for the release check of the published `android-judge-8` file
+  (`point-last-seen-family-5914e20f.apk`, SHA-256 `676ec5c5...7eed`) on a Samsung A16, with its evidence file
+  `docs/evidence/android/a16-judge-8-release-check-2026-11-25.md`: App Check by Play Integrity issued a token, sign-in
+  worked and one cloud note read was accepted in 4,669 ms (n=1), through the typed-object read this build added. The
+  judge-6 row stays. Source: the test steps should point at the exact judged build. Verified: the run's `PLS-PROBE`
+  lines and `OK (1 test)`, the installed `base.apk` hash read on the phone after the run, and
+  `scripts/test_test_matrix.py` passes.
+
+- README and `docs/PRODUCTION-CHECKLIST.md` name `android-judge-8` (`point-last-seen-family-5914e20f.apk`, built from
+  5914e20f) as the latest Android judge release, in place of android-judge-6. Judge-8 is the build whose note is read
+  on a phone's own model (two fixes, both in `android/CHANGELOG.md`). Source: android-judge-8 was published as the
+  latest release on 2026-11-25. Verified: a signed-out fetch of `/releases/latest` lands on
+  `/releases/tag/android-judge-8` (status 200) and the page names that APK.
+
 - README and `docs/PRODUCTION-CHECKLIST.md`: the Android family app row and the update-screen note name the latest
   judge release, `android-judge-6` (`point-last-seen-family-cc53d89d.apk`, built from cc53d89d), in place of
   android-judge-5. Its only app change is the clip's cloud consent wording. Source: android-judge-6 was published as
