@@ -280,6 +280,18 @@ each line says what the limit is and why.
   alert, and only command can end a search as found (`ios/PLSCore/Sources/PLSCore/ReadOutcomeBuilder.swift:110,174`;
   `web/src/data/endSearch.ts`). The cost is a clue that adds no weight and a card that can mislead a quick read.
   Evidence: docs/evidence/eval/eval-pls-drill-reports-v1-1795376366383.json.
+- A "Cleared" sent from the pick list never moves the map. The pick list gives the segment, the minutes and the
+  number of searchers, but no coverage and no detection range (`ios/PLSCore/Sources/PLSCore/PickList.swift:24-27`).
+  The rules turn minutes and searchers into coverage only with a detection range, either one measured at the Ready
+  check or one the report states (`ios/PLSCore/Sources/PLSCore/EffectDeriver.swift:97-110`,
+  `shared/engine-ts/src/effects.ts:28-36`). No app records a measured range yet
+  (`ios/PLS/Data/MissionBuilder.swift:60`), so every pick-list clear is logged with the effect `needs_command`: the
+  phone shows "Ask command." and the command post shows "Report logged. Map unchanged. Ask the team."
+  (`ios/PLSCore/Sources/PLSCore/EchoText.swift:38`, `web/src/command/changeModel.ts:85`). A typed or spoken clear
+  moves the map only when it states its coverage (for example "coverage point seven"), or its minutes, its searchers
+  and a detection range. Only the iPhone has a "Cleared" pick list; the hand entries on the web and Android are
+  family sightings. The cost: a searcher who reports only by pick list leaves the map as it was, and command must ask
+  the team for the coverage.
 
 ## Spoken assignments (iPhone)
 

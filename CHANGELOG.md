@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- `docs/LIMITS.md`, Report reads (iPhone): a "Cleared" sent from the iPhone pick list never moves the map. It carries
+  minutes and searchers but no coverage and no detection range, and no app records a measured range, so it is logged
+  `needs_command` ("Report logged. Map unchanged. Ask the team."). Only a typed or spoken clear that states its
+  coverage, or its minutes, searchers and a range, moves the map. Source: review of a build 11 pick-list clear on
+  `drill-kennesaw-1` on 2026-11-25 (effect none, needs_command). Verified: each cited line against the code at
+  origin/main 21c38e7a.
 - New evidence file `docs/evidence/ios/2026-11-25-voice-cloud-server-side.json`: the server side of the iPhone's
   cloud voice during the build 11 session on `drill-kennesaw-1`, window 05:20 to 05:40Z. One speech call: the
   cloudGuard trigger answered 200 at 05:27:47.5Z (cold start, 1.96 s) for `gemini-3.8-flash-lite-tts`; AI Logic
