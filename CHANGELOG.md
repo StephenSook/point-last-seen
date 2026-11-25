@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- Test matrix: the Android on-device row, "Not run" until now, records the first runs on a phone with an on-device
+  model: a Google Pixel 10 (Android 17, AICore 26.10.15.11, `nano-v4-full`) with the published `android-judge-8`
+  file. Two notes read in the app on the phone's own model, "Read on this phone in 3.4 s.", one with airplane mode
+  on; two live tests passed on the phone. New evidence folder `docs/evidence/android-nano/pixel-10-2026-11-25/`:
+  README, `facts.txt` (installed hash read on the phone), `live-tests.txt`, and four stills checked for
+  notifications. The README also records the send queue offline on the test drill: a sighting sent in airplane mode
+  showed "1 item waiting to send.", then reached the server once (0 of 298 events before, 1 after) 18.8 s later, when
+  the network came back. Source: the Pixel 10 session. Verified: the stills, the session log times, `facts.txt`
+  (`pls_is_android_judge_8=yes`), the live-test output (`OK (2 tests)`), the Firestore read-back of the one event
+  (`clientTimeMs` inside the airplane window, `serverTime` after it), and `scripts/test_test_matrix.py` passes.
+
 - Test matrix: new Android row for the release check of the published `android-judge-8` file
   (`point-last-seen-family-5914e20f.apk`, SHA-256 `676ec5c5...7eed`) on a Samsung A16, with its evidence file
   `docs/evidence/android/a16-judge-8-release-check-2026-11-25.md`: App Check by Play Integrity issued a token, sign-in
