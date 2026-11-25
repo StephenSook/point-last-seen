@@ -309,6 +309,18 @@ each line says what the limit is and why.
   search. No real search's data goes. The cost: task words a command writer adds by hand, or a grid with other ids,
   get the phone's voice, not the cloud one.
 
+## Lock-screen card (iPhone)
+
+- On the iPhone, the lock-screen card (Live Activity) changes only while the app is open. Build 11 asks for no
+  ActivityKit push token, so the plan push cannot change the card (`ios/PLS/App/TaskActivityController.swift:28-49,
+  64-65`). A plan approved while the app is closed reaches the card when the searcher next opens the app. Until then
+  the card shows the earlier segment, while the push says only that the team has a new task
+  (`functions/src/notify.ts:44-45`) and the app's own screen shows the new segment. iOS also ends a card after 8 hours
+  and keeps it on the lock screen for up to 4 more hours (Apple, ActivityKit, "Displaying live data with Live
+  Activities"). Build 11 does not put an ended card back while the app is still running in the background; only a
+  fresh start of the app makes a new card. So for up to 4 hours the card can keep showing a segment that has since
+  changed. Open the app to see the current assignment.
+
 ## Photo clues (iPhone)
 
 - A searcher can take a photo of something found. Apple's on-device model reads it (iOS 27 with the vision
