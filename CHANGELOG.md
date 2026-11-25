@@ -3,6 +3,15 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-25
+
+- Test matrix: new Android row for the release check of the published `android-judge-6` file
+  (`point-last-seen-family-cc53d89d.apk`, SHA-256 `88b49746...b59a`) on a Samsung A16, with its evidence file
+  `docs/evidence/android/a16-judge-6-release-check-2026-11-25.md`: App Check by Play Integrity issued a token,
+  sign-in worked and one cloud note read was accepted in 11,336 ms (n=1). The 2026-11-18 row stays. Source: the
+  test steps should point at the exact judged build. Verified: the run's `PLS-PROBE` lines and `OK (1 test)`, the
+  installed `base.apk` hash read on the phone after the run, and `scripts/test_test_matrix.py` passes.
+
 ## 2026-11-24
 
 - Test matrix: new row for the web plan wording's cloud fallback re-run on the 2026-11-24 deploy (5d59d16d), with its
