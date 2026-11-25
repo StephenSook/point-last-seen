@@ -13,10 +13,15 @@ final class FakeActivityClient: LiveActivityClient {
     /// Whether the card this fake started is still up; a test sets it false to play iOS ending it.
     var running = false
     var isRunning: Bool { running }
+    /// Cards an earlier run of the app left on the lock screen, by team (set before the controller is made).
+    var leftover: [String: TaskActivityAttributes.ContentState] = [:]
+    var hasCards: Bool { running || !leftover.isEmpty }
+    func leftovers() -> [String: TaskActivityAttributes.ContentState] { leftover }
     func start(teamId: String, state: TaskActivityAttributes.ContentState) -> Bool {
         calls.append("start \(teamId) \(state.status.segments) \(state.status.waiting) night=\(state.night)")
         states.append(state)
         running = allowStart
+        if allowStart { leftover = [:] }                                   // the real start ends old cards
         return allowStart
     }
     func update(_ state: TaskActivityAttributes.ContentState) {
@@ -26,6 +31,7 @@ final class FakeActivityClient: LiveActivityClient {
     func end() {
         calls.append("end")
         running = false
+        leftover = [:]
     }
 }
 
@@ -120,6 +126,40 @@ final class FakeActivityClient: LiveActivityClient {
         #expect(fake.states.map { $0.setAt?.timeIntervalSince1970 } == [1_000, 1_000, 3_000, 3_000, 5_000, 6_000])
     }
 
+    /// After a fresh start of the app (offline, from the cache) the new card keeps the time of the card the
+    /// earlier run left with the same content, instead of claiming a check made now.
+    @Test func aFreshRunKeepsTheTimeOfTheCardItFinds() {
+        let fake = FakeActivityClient()
+        fake.leftover = ["T1": TaskActivityAttributes.ContentState(status: gs, night: false,
+                                                                    setAt: Date(timeIntervalSince1970: 1_000))]
+        let c = TaskActivityController(client: fake, now: { Date(timeIntervalSince1970: 9_000) })
+        c.sync(teamId: "T1", status: gs, night: false)
+        #expect(fake.states.map { $0.setAt?.timeIntervalSince1970 } == [1_000])
+    }
+
+    /// A card left with other content, or by a build without the time, does not lend its time.
+    @Test func aFreshRunTakesTheTimeNowForOtherContent() {
+        for left in [TaskActivityAttributes.ContentState(status: gs, night: false, setAt: Date(timeIntervalSince1970: 1_000)),
+                     TaskActivityAttributes.ContentState(status: hq, night: false)] {
+            let fake = FakeActivityClient()
+            fake.leftover = ["T1": left]
+            let c = TaskActivityController(client: fake, now: { Date(timeIntervalSince1970: 9_000) })
+            c.sync(teamId: "T1", status: hq, night: false)
+            #expect(fake.states.map { $0.setAt?.timeIntervalSince1970 } == [9_000])
+        }
+    }
+
+    /// A run with no search loaded takes down a card an earlier run left (the searcher may have been taken
+    /// off the team meanwhile), once.
+    @Test func noSearchLoadedTakesDownACardAnEarlierRunLeft() {
+        let fake = FakeActivityClient()
+        fake.leftover = ["T1": TaskActivityAttributes.ContentState(status: gs, night: false)]
+        let c = TaskActivityController(client: fake)
+        c.sync(teamId: nil, status: nil, night: false)
+        c.refresh()
+        #expect(fake.calls == ["end"])
+    }
+
     /// A card a build without the time put up still draws after the update (with no time line).
     @Test func aCardWithoutATimeStillDecodes() throws {
         let old = #"{"status":{"segments":"GS","waiting":0,"needsAction":0},"night":false}"#
@@ -155,6 +195,25 @@ final class FakeActivityClient: LiveActivityClient {
             if stillUp { try await Task.sleep(for: .milliseconds(100)) }
         }
         #expect(!stillUp)
+    }
+
+    /// A new run of the app (a second client) sees the card the first left, with what it shows, and takes it
+    /// down with its own end.
+    @Test func aNewRunSeesAndEndsTheCardAnEarlierRunLeft() async throws {
+        let earlier = ActivityKitClient()
+        let shown = TaskActivityAttributes.ContentState(status: TaskStatus.make(assignedSegmentIds: ["GS"], states: []),
+                                                        night: false, setAt: Date(timeIntervalSince1970: 1_000))
+        #expect(earlier.start(teamId: "T-left", state: shown))
+        let later = ActivityKitClient()
+        #expect(later.hasCards)
+        #expect(later.leftovers()["T-left"] == shown)
+        later.end()
+        var listed = true
+        for _ in 0..<100 where listed {
+            listed = Activity<TaskActivityAttributes>.activities.contains { $0.attributes.teamId == "T-left" && $0.activityState == .active }
+            if listed { try await Task.sleep(for: .milliseconds(100)) }
+        }
+        #expect(!listed)
     }
 
     /// A card ended outside the client (as iOS does at the 8-hour limit) is no longer running.

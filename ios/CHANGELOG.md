@@ -5,11 +5,26 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### fix(ios): a new run of the app handles the lock-screen card an earlier run left
+- What: a card can outlive the app. A new run (for example after iOS closed the app, opened again offline from the
+  cache) started its card with the time now even when the earlier run's card showed the same content, and a new
+  run with no search loaded (the searcher may have been taken off the team meanwhile) never took down the earlier
+  run's card. The controller now reads, when it is made, what the cards an earlier run left show; a fresh card
+  with the same content keeps that card's time. With no search loaded, the app asks iOS to remove any card of
+  this app still listed. Also corrected the entry below: the card comes back at the next one-minute check while
+  the app is in front, when iOS allows a new card, rather than "within a minute".
+- Source: review (second-model pass on the branch, second round).
+- Verified: failing tests first (a fresh run keeps the time of the card it finds; no search loaded takes down a
+  card an earlier run left) failed on their assertions; a guard test (other content takes the time now) and a
+  real ActivityKit test on the simulator (a second client sees the first client's card with what it shows and
+  removes it) pass. The full app suite passes (295 tests before the real test was added; the 14 Live Activity
+  tests after) on the PLS iPhone 17 Pro simulator.
+
 ### fix(ios): the app re-checks the lock-screen card each minute while it is in front
 - What: iOS can end the card between the app's check that the card is still up and the update the app then sends,
   and iOS ignores an update to an ended card. The app now re-checks the card each minute while it is in front (the
-  screen's existing one-minute tick), so a card ended that way comes back with the current segments within a minute,
-  without waiting for the next change or the next time the app comes to the front.
+  screen's existing one-minute tick), so a card ended that way comes back with the current segments at the next check
+  (when iOS allows a new card), without waiting for the next change or the next time the app comes to the front.
 - Source: review (second-model pass on the branch).
 - Verified: a test pins the controller's part (an ignored update is put right on the next check). The full app
   suite passes (292 tests in 52 suites) on the PLS iPhone 17 Pro simulator. The one-minute wiring in RootView has
