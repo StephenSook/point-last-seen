@@ -1,0 +1,64 @@
+{
+  "what": "Server-side record of the iPhone's cloud voice for one assignment change, read after the fact: the AI Logic speech call through the pls-voice-v1 template during the build 11 iPhone session on drill-kennesaw-1. It shows that a speech call from the iOS app reached the model and succeeded; it does not show that the phone played the audio.",
+  "date": "2026-11-25",
+  "readAt": "2026-11-25T05:37:49Z",
+  "readBy": "Read-only queries with project credentials; nothing was written",
+  "window": {"from": "2026-11-25T05:20:00Z", "to": "2026-11-25T05:40:00Z"},
+  "context": "Reported by the iPhone session, not checked by these reads: command approved plan v2 in drill-kennesaw-1 (team T1, segment HE to GS) at about 05:27:50Z, and the phone (Ad Hoc build 11, 1.0.0 (11), App Attest production, iPhone 17 Pro, iOS 27.2.1) showed GS within seconds. The audio recording of that moment failed.",
+  "trigger": {
+    "source": "Cloud Logging, Cloud Run service cloudguard (the before-generate trigger)",
+    "httpRequestAt": "2026-11-25T05:27:47.5Z",
+    "httpStatus": 200,
+    "latencySeconds": 1.96,
+    "coldStart": "A new instance started for this request (autoscaling)",
+    "logLineAt": "2026-11-25T05:27:49.6Z",
+    "model": "gemini-3.8-flash-lite-tts",
+    "path": "direct",
+    "template": null,
+    "configKeys": ["responseModalities"],
+    "rewritten": true,
+    "note": "Every template call logs path direct and template null, because AI Logic expands a template before the trigger sees it (docs/SECURITY.md row 12). The rewrite added the speech model's 4,096-token output cap."
+  },
+  "aiLogic": {
+    "source": "Cloud Monitoring, firebasevertexai.googleapis.com/model/gen_ai_client_operation_duration",
+    "calls": 1,
+    "platform": "ios",
+    "appVersion": "1.0.0",
+    "operation": "generate_content",
+    "requestModel": "gemini-3.8-flash-lite-tts",
+    "responseModel": "gemini-3.8-flash-lite-tts",
+    "status": "success",
+    "durationMsMean": 1899,
+    "bucketEnd": "2026-11-25T05:29:04Z"
+  },
+  "templateRender": {
+    "source": "Cloud Monitoring, firebasevertexai.googleapis.com/PromptTemplate/render_count",
+    "renders": 1,
+    "platform": "ios",
+    "appVersion": "1.0.0",
+    "status": "success",
+    "template": "pls-voice-v1 (the template Remote Config names; the metric itself carries no template label)",
+    "bucketEnd": "2026-11-25T05:28:25Z"
+  },
+  "appCheck": {
+    "source": "Cloud Monitoring, firebaseappcheck.googleapis.com/services/verification_count on firebaseml.googleapis.com",
+    "verifications": 1,
+    "platform": "ios",
+    "security": "VALID",
+    "result": "ALLOW",
+    "bucketEnd": "2026-11-25T05:28:35Z"
+  },
+  "otherCalls": "None: this is the only speech call in 05:26 to 05:32Z (trigger log) and the only AI Logic call in the window (metrics)",
+  "remoteConfig": {
+    "source": "Remote Config REST template, read at readAt",
+    "templateVersion": 4,
+    "templateUpdated": "2026-11-19T05:46:52Z",
+    "voice_template_id": "pls-voice-v1",
+    "kill_cloud": "false",
+    "conditionalValues": "none on either key"
+  },
+  "caveats": [
+    "The metrics name the platform and the app version (1.0.0), not the build number or the device, so they cannot by themselves say which iPhone made the call.",
+    "The Firebase Performance trace assignment_speech (path, outcome, start_ms) was not readable here: the project has no BigQuery export and the trace is in the console only. Whether the phone played the audio is unproven."
+  ]
+}

@@ -5,6 +5,15 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- New evidence file `docs/evidence/ios/2026-11-25-voice-cloud-server-side.json`: the server side of the iPhone's
+  cloud voice during the build 11 session on `drill-kennesaw-1`, window 05:20 to 05:40Z. One speech call: the
+  cloudGuard trigger answered 200 at 05:27:47.5Z (cold start, 1.96 s) for `gemini-3.8-flash-lite-tts`; AI Logic
+  recorded one `generate_content` from iOS app version 1.0.0, status success, about 1,899 ms, and one template render,
+  status success; App Check on `firebaseml.googleapis.com` recorded one iOS verification, VALID and ALLOW; Remote
+  Config version 4 has `voice_template_id` "pls-voice-v1" and `kill_cloud` "false". Caveats in the file: the metrics
+  name the app version, not the build or device, and the `assignment_speech` Performance trace was not readable, so
+  playback is unproven; the README wording is unchanged. Source: review. Verified: read-only Cloud Logging, Cloud
+  Monitoring and Remote Config reads at 2026-11-25T05:37:49Z; no app id, token or device id is in the file.
 - README and `docs/LIMITS.md` add the family-note eval to the Android on-device result: with the network off, the
   Pixel 10 read 55 of 60 made-up notes right (95% interval 0.82 to 0.96, 1 refused by the app's checks, every wrong
   kind came back as place). LIMITS no longer rests on 2 notes; its not-tested list now says no call raised an error
