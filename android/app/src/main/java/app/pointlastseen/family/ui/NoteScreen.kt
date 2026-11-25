@@ -26,8 +26,25 @@ import app.pointlastseen.family.ai.NoteOutcome
 
 sealed class NoteUi {
     data object Idle : NoteUi()
-    data object Busy : NoteUi()
+    /** The note being read stays on screen; [where] says where it can be read. */
+    data class Busy(val text: String, val where: Where) : NoteUi()
     data class Done(val outcome: NoteOutcome, val text: String) : NoteUi()
+
+    enum class Where { PHONE, CLOUD, EITHER }
+
+    companion object {
+        /** Where a sort with these inputs can read the note, by FamilyNote.read's own routing. */
+        fun busy(text: String, consent: Boolean, killCloud: Boolean, status: DeviceModelStatus) = Busy(
+            text,
+            when {
+                // No consent, or cloud reading paused: any model call is device-only.
+                !consent || killCloud -> Where.PHONE
+                status != DeviceModelStatus.AVAILABLE -> Where.CLOUD
+                // A ready model with consent: the SDK prefers the phone and may fall back to the cloud.
+                else -> Where.EITHER
+            },
+        )
+    }
 }
 
 private val KIND_LABEL = mapOf(
@@ -58,7 +75,7 @@ fun NoteScreen(
 ) {
     FamilyScaffold(mode, killCloud) {
         when (ui) {
-            NoteUi.Idle, NoteUi.Busy -> {
+            NoteUi.Idle -> {
                 var text by rememberSaveable { mutableStateOf("") }
                 // The field opens focused, so the keyboard and its microphone key are one tap from
                 // dictation. The keyboard does the voice typing; the app calls no speech API.
@@ -69,7 +86,7 @@ fun NoteScreen(
                     text, { text = it.take(FamilyNote.MAX_NOTE) }, label = { Text("What did you remember?") },
                     minLines = 3, modifier = Modifier.fillMaxWidth().focusRequester(focus),
                 )
-                MainAction("Sort it", enabled = ui == NoteUi.Idle && text.isNotBlank()) { onSort(text.trim(), false) }
+                MainAction("Sort it", enabled = text.isNotBlank()) { onSort(text.trim(), false) }
                 // After the family's job: the model is ready, downloading, or offered (with its button); nothing for a
                 // phone without a model.
                 when (model.status) {
@@ -82,6 +99,15 @@ fun NoteScreen(
                 }
                 // Whatever the status says after it (unknown, say), a failed download is shown.
                 if (model.downloadFailed) Note(Copy.MODEL_FAILED)
+            }
+            is NoteUi.Busy -> {
+                // The note stays on screen, read-only, while it is read; the keyboard goes away.
+                Sentence("I remembered something.")
+                OutlinedTextField(
+                    ui.text, {}, readOnly = true, label = { Text("What did you remember?") },
+                    minLines = 3, modifier = Modifier.fillMaxWidth(),
+                )
+                Note(Copy.reading(ui.where))
             }
             is NoteUi.Done -> when (val o = ui.outcome) {
                 NoteOutcome.NeedsConsent -> {
@@ -118,7 +144,7 @@ fun NoteScreen(
                 }
             }
         }
-        OtherAction("Back", enabled = ui != NoteUi.Busy, onClick = onBack)
+        OtherAction("Back", enabled = ui !is NoteUi.Busy, onClick = onBack)
     }
 }
 

@@ -81,6 +81,7 @@ class AccessibilityChecksTest {
     }
     @Test fun photos() = audit { PhotosScreen(null, false, PhotosUi(uploaded = 2, busy = false, error = "The photo did not upload. Check the connection and try again."), onPick = {}, onBack = {}) }
     @Test fun noteInput() = audit { NoteScreen(null, false, NoteUi.Idle, onSort = { _, _ -> }, onAdd = {}, onBack = {}) }
+    @Test fun noteBeingRead() = audit { NoteScreen(null, false, NoteUi.busy("old mill", true, false, DeviceModelStatus.UNAVAILABLE), onSort = { _, _ -> }, onAdd = {}, onBack = {}) }
     @Test fun noteConsent() = audit { NoteScreen(null, false, NoteUi.Done(NoteOutcome.NeedsConsent, "old mill"), onSort = { _, _ -> }, onAdd = {}, onBack = {}) }
     @Test fun noteSuggested() = audit {
         NoteScreen(null, false, NoteUi.Done(NoteOutcome.Read(FamilyNoteReading("place", "The old mill", "s", "old mill"), route, "old mill", DeviceModelStatus.UNAVAILABLE), "old mill"), onSort = { _, _ -> }, onAdd = {}, onBack = {})

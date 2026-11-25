@@ -509,10 +509,12 @@ class FamilyViewModel(app: Application) : AndroidViewModel(app) {
     // I remembered something
     fun sortNote(text: String, consent: Boolean) {
         val mine = noteSorts.begin()
-        noteUi = NoteUi.Busy
+        noteUi = NoteUi.busy(text, consent, rc.current().killCloud, model.status)
         viewModelScope.launch {
             // A fresh check, not the shown state: another app may have finished the shared model's download.
             val env = NoteEnv(modelReadiness.current(), consent, rc.current().killCloud, System::currentTimeMillis, rc.current().cloudModelAndroid)
+            // The line under the note follows the fresh check too.
+            if (noteSorts.isLatest(mine)) noteUi = NoteUi.busy(text, consent, env.killCloud, env.status)
             val outcome = FamilyNote(ai.familyNote, evidence, app.pointlastseen.family.data.FirebaseSignIn, language).read(text, env)
             if (outcome is app.pointlastseen.family.ai.NoteOutcome.Read) telemetry.record(outcome.route)
             if (noteSorts.isLatest(mine)) noteUi = NoteUi.Done(outcome, text)
