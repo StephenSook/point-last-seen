@@ -5,6 +5,20 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- New evidence file `docs/evidence/ios/2026-11-25-voice-cloud-server-side-retry.json`: the server side of the
+  iPhone's cloud voice for plan v3 (approved 16:37:50.504Z). The cloudGuard trigger got the request at 16:37:52.24Z
+  and answered 200 in 2.70 s (cold start). AI Logic recorded one `generate_content` from the iOS app, 1.0.0, status
+  success, 2,030 ms, 12 input and 122 output tokens. The `pls-voice-v1` template rendered once, and App Check on
+  `firebaseml.googleapis.com` recorded VALID and ALLOW. The phone's sound started at about 16:37:58.1Z (the
+  recording's creation_time plus 19.1 s). The caveats say which voice played is not shown. Source: review of the
+  build 11 voice retry. Verified: read-only Cloud Logging, Cloud Monitoring, Firestore and Remote Config reads, and
+  the recording's ffprobe metadata; no app id, token or device id is in the file.
+- `docs/evidence/ios/2026-11-25-voice-cloud-server-side.json` corrected: the template render metric does carry the
+  template, `template_id` pls-voice-v1 (the first read's label filter dropped every key containing "id"), and the
+  plan v2 approval is now the server's `approvedAt`, 05:27:46.197Z, in place of the reported "about 05:27:50Z". A
+  `corrections` list in the file says both. Source: review (a re-read for the 16:37Z call showed the label).
+  Verified: read-only Cloud Monitoring raw labels for 05:20 to 05:40Z and the Firestore plan document, 17:58Z.
+
 - `docs/LIMITS.md`, new section "Lock-screen card (iPhone)": the Live Activity card changes only while the app is
   open (build 11 has no ActivityKit push token), so after a plan approved with the app closed it shows the earlier
   segment until the app opens; iOS ends a card after 8 hours and keeps it up to 4 more, and build 11 restarts an ended
