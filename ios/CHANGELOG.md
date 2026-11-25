@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### docs(test-matrix): two iPhone rows from the build 11 session
+- What: `docs/TEST-MATRIX.md` gains two iPhone rows: the on-device photo clue with no signal (AFM 3 Core Advanced,
+  2,981 ms, from the route record) and the cloud spoken assignment (the speech call succeeded on the server; the
+  row says which voice played is not shown).
+- Source: release plan (the build 11 device session).
+- Verified: `scripts/test_test_matrix.py` passes (3 tests); with the two rows' code lines moved by one, its check
+  reports both rows, so it reads them.
+
 ### docs(evidence): the build 11 iPhone session on a real iPhone
 - What: `docs/evidence/ios/iphone-2026-11-25-build11/` holds the session's crops, the spoken-assignment
   recording and spectrogram, and the photo clue's route record, with a README that says step by step what
