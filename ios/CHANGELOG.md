@@ -5,6 +5,14 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### test(ios): the links test fails on a partial snapshot and needs the line's first row in the band
+- What: the scrolled-line test now fails when the window's snapshot is incomplete (`drawHierarchy` returns
+  false), since missing pixels would count as no text. It also requires the line's top at the links' top and
+  its first row across the band, not any sliver of overlap.
+- Source: review (second-model pass on the fix; it found no product defect).
+- Verified: the layout suite passes (6 tests, 8 cases); with `.clipped()` removed, the scrolled test fails on its
+  pixel count at both type sizes, not on a requirement.
+
 ### fix(ios): a scrolled task screen goes out of view at the bar, not under the Map and Ready check links
 - What: the task screen's links float over the screen in a glass capsule with no backing. When the screen
   scrolled (the keyboard coming up for the report box, a new receipt brought into view, or the searcher's own

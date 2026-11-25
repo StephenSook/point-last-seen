@@ -225,9 +225,12 @@ import UIKit
     func lightPixels(in rect: CGRect, of window: UIWindow) throws -> Int {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
+        var complete = false
         let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
-            _ = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            complete = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
+        // A snapshot missing part of the screen would count as no light pixels there.
+        try #require(complete, "the window's snapshot is incomplete")
         let cg = try #require(image.cgImage)
         let width = cg.width, height = cg.height
         var bytes = [UInt8](repeating: 0, count: width * height * 4)
@@ -290,7 +293,8 @@ import UIKit
         #expect(try lightPixels(in: beside(below, y: below.minY), of: window) > 50, "line \(below), links \(pill)")
         // Across the links' band, none of it is drawn.
         let line = try await moveLine(to: pill.minY)
-        try #require(line.minY < pill.maxY && line.maxY > pill.minY, "line \(line), links \(pill)")
+        // The line's first row of text fills the band, not a sliver at its edge.
+        try #require(abs(line.minY - pill.minY) <= 2 && line.maxY >= pill.maxY - 8, "line \(line), links \(pill)")
         let band = beside(line, y: pill.minY)
         #expect(try lightPixels(in: band, of: window) == 0, "line \(line), links \(pill), band \(band)")
     }
