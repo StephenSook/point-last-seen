@@ -5,6 +5,13 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### refactor(ios): the task screen's Map and Ready check links are one modifier
+- What: the two links RootView puts in the task screen's navigation bar (Map while a mission is loaded, Ready
+  check always) move into `TaskLinks`, a view modifier in RootView.swift. RootView applies it as before; a layout
+  test can now show the task screen with the same links. No change to what the app shows.
+- Source: review (needed by the next change's layout test).
+- Verified: the app builds, and the full app suite (299 tests) passes on the simulator with this change and the next.
+
 ### docs(evidence): the build 11 README cites the tracked record of the second speech call
 - What: the build 11 iPhone README said the plan v3 speech call at 16:37:52 came from "local evidence, not in the
   repository". That call now has a tracked record, `docs/evidence/ios/2026-11-25-voice-cloud-server-side-retry.json`

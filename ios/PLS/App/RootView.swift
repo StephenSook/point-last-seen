@@ -17,12 +17,7 @@ struct RootView: View {
                                           place: ThemeStore.place(lastFix: model.lastFix, grid: model.mission?.grid ?? []))
             NavigationStack(path: $path) {
                 TaskView(model: model)
-                    .toolbar {
-                        if model.mission != nil {
-                            NavigationLink("Map", value: Route.map)
-                        }
-                        NavigationLink("Ready check", value: Route.readyCheck)
-                    }
+                    .modifier(TaskLinks(hasMission: model.mission != nil))
                     .navigationDestination(for: Route.self) { route in
                         switch route {
                         case .readyCheck: ReadyCheckView(model: model)
@@ -63,6 +58,20 @@ struct RootView: View {
             model.becameActive()
             // Puts back a lock-screen card iOS ended while the app was away (its 8-hour limit).
             activities.refresh()
+        }
+    }
+}
+
+/// The task screen's links in the navigation bar: Map (while a mission is loaded) and Ready check.
+struct TaskLinks: ViewModifier {
+    let hasMission: Bool
+
+    func body(content: Content) -> some View {
+        content.toolbar {
+            if hasMission {
+                NavigationLink("Map", value: RootView.Route.map)
+            }
+            NavigationLink("Ready check", value: RootView.Route.readyCheck)
         }
     }
 }
