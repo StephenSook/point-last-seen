@@ -1,5 +1,8 @@
 package app.pointlastseen.family.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
@@ -152,6 +155,36 @@ class NoteScreenTest {
         rule.onNodeWithText("Add to profile").performScrollTo().performClick()
         assertEquals("clothing", added!!.kind)
         assertEquals("red scarf", added!!.label)
+    }
+
+    /** After "Send to the cloud" the note stays on screen while it is read; it used to come back as an empty field. */
+    @Test fun theNoteStaysOnScreenWhileTheCloudReadsIt() {
+        var ui by mutableStateOf<NoteUi>(NoteUi.Done(NoteOutcome.NeedsConsent, "She used to walk to the old mill"))
+        rule.setContent {
+            PaperTheme {
+                NoteScreen(null, false, ui, onSort = { t, c -> ui = NoteUi.busy(t, c, false, DeviceModelStatus.UNAVAILABLE) }, onAdd = {}, onBack = {})
+            }
+        }
+        rule.onNodeWithText("Send to the cloud").performScrollTo().performClick()
+        rule.onNodeWithText("She used to walk to the old mill").assertIsDisplayed()
+        rule.onNodeWithText("Reading in the cloud.").assertIsDisplayed()
+        // Read-only while it is read: nothing on screen takes text.
+        rule.onNode(hasSetTextAction()).assertDoesNotExist()
+    }
+
+    /** The first sort keeps the typed note on screen too, and says it is read on this phone. */
+    @Test fun theTypedNoteStaysOnScreenWhileThisPhoneReadsIt() {
+        var ui by mutableStateOf<NoteUi>(NoteUi.Idle)
+        rule.setContent {
+            PaperTheme {
+                NoteScreen(null, false, ui, onSort = { t, c -> ui = NoteUi.busy(t, c, false, DeviceModelStatus.AVAILABLE) }, onAdd = {}, onBack = {})
+            }
+        }
+        rule.onNodeWithText("What did you remember?").performTextInput("She used to walk to the old mill")
+        rule.onNodeWithText("Sort it").performClick()
+        rule.onNodeWithText("She used to walk to the old mill").assertIsDisplayed()
+        rule.onNodeWithText("Reading on this phone.").assertIsDisplayed()
+        rule.onNode(hasSetTextAction()).assertDoesNotExist()
     }
 
     @Test fun theNoteFieldIsFocusedSoTheKeyboardMicIsOneTapAway() {

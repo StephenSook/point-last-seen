@@ -25,6 +25,13 @@ object Copy {
     /** Where the release APK is published (GitHub Releases). */
     const val DOWNLOAD_PAGE = "https://github.com/StephenSook/point-last-seen/releases/latest"
 
+    /** The line under a note while it is read. */
+    fun reading(where: NoteUi.Where) = when (where) {
+        NoteUi.Where.PHONE -> "Reading on this phone."
+        NoteUi.Where.CLOUD -> "Reading in the cloud."
+        NoteUi.Where.EITHER -> "Reading the note."
+    }
+
     /** A drill or judge search: made-up data, our own film and call-taker. */
     fun isDrill(mode: String?) = mode == "drill" || mode == "judge"
 
