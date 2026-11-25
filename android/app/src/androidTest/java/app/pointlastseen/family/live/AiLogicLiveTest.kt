@@ -1,9 +1,12 @@
 package app.pointlastseen.family.live
 
+import android.content.Intent
 import android.net.TrafficStats
 import android.os.Process
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import app.pointlastseen.family.MainActivity
 import app.pointlastseen.family.ai.AiClient
 import app.pointlastseen.family.ai.DeviceModelStatus
 import app.pointlastseen.family.ai.FamilyNote
@@ -16,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -64,5 +68,24 @@ class AiLogicLiveTest {
             assertTrue("expected FirebaseAIOnDeviceNotAvailableException, got ${result.exceptionOrNull()}", result.exceptionOrNull() is FirebaseAIOnDeviceNotAvailableException)
         }
         assertTrue("ONLY_ON_DEVICE sent $sent bytes", sent < 300)
+    }
+
+    /**
+     * Only where the phone has a ready on-device model (skipped elsewhere): the family note, read the way the
+     * app reads it, comes back from this phone and passes the parser. The first such phone showed that ML Kit's
+     * on-device structured output refuses a reply type it cannot read, which the cloud and the status check
+     * never reveal. The app is brought to the front first, since on-device calls from the background can be
+     * refused.
+     */
+    @Test fun aReadyModelSortsTheNoteOnThisPhone(): Unit = runBlocking {
+        val status = client.deviceModelStatus()
+        assumeTrue("no ready on-device model here (status $status)", status == DeviceModelStatus.AVAILABLE)
+        val inst = InstrumentationRegistry.getInstrumentation()
+        inst.startActivitySync(Intent(inst.targetContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        inst.waitForIdleSync()
+        val reply = client.familyNote.structure(NoteMode.ONLY_ON_DEVICE, FamilyNote.prompt(note))
+        Log.i("PLS-PROBE", "on-device note source=${reply.source} latencyMs=${reply.latencyMs} parsed=${FamilyNote.parse(reply.text, note) != null}")
+        assertEquals(Source.ON_DEVICE, reply.source)
+        assertNotNull("the on-device reply did not pass the parser: ${reply.text}", FamilyNote.parse(reply.text, note))
     }
 }
