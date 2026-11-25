@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### fix(ios): the app re-checks the lock-screen card each minute while it is in front
+- What: iOS can end the card between the app's check that the card is still up and the update the app then sends,
+  and iOS ignores an update to an ended card. The app now re-checks the card each minute while it is in front (the
+  screen's existing one-minute tick), so a card ended that way comes back with the current segments within a minute,
+  without waiting for the next change or the next time the app comes to the front.
+- Source: review (second-model pass on the branch).
+- Verified: a test pins the controller's part (an ignored update is put right on the next check). The full app
+  suite passes (292 tests in 52 suites) on the PLS iPhone 17 Pro simulator. The one-minute wiring in RootView has
+  no unit test.
+
 ### fix(ios): a fresh lock-screen card keeps the time its content was set
 - What: when the app replaced a card iOS had ended, the fresh card took the time now even when it showed the same
   segments and report count. Opened offline, that put a time on the card for a check the app had not made. A fresh

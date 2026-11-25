@@ -86,6 +86,18 @@ final class FakeActivityClient: LiveActivityClient {
         #expect(fake.calls == ["start T1 GS 0 night=false", "end", "start T1 GS 0 night=false"])
     }
 
+    /// iOS can end the card between the check and an update it then ignores. The app re-checks each minute
+    /// while it is in front, and that check puts the new segments on a fresh card.
+    @Test func anUpdateIOSIgnoredIsPutRightOnTheNextCheck() {
+        let fake = FakeActivityClient()
+        let c = TaskActivityController(client: fake)
+        c.sync(teamId: "T1", status: gs, night: false)
+        c.sync(teamId: "T1", status: hq, night: false)                    // sent, but the card had just ended
+        fake.running = false
+        c.refresh()
+        #expect(fake.calls == ["start T1 GS 0 night=false", "update HQ 0 night=false", "end", "start T1 HQ 0 night=false"])
+    }
+
     /// The card says when it was set, so a searcher can tell a card the app keeps current from one
     /// left from earlier (the app cannot change the card while it is closed).
     @Test func theCardSaysWhenItWasSet() {
