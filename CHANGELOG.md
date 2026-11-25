@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- `docs/LIMITS.md`, new section "Lock-screen card (iPhone)": the Live Activity card changes only while the app is
+  open (build 11 has no ActivityKit push token), so after a plan approved with the app closed it shows the earlier
+  segment until the app opens; iOS ends a card after 8 hours and keeps it up to 4 more, and build 11 restarts an ended
+  card only on a fresh app start. Source: review of build 11 on 2026-11-25 (the card read GS while the team was on
+  HF). Verified: the cited lines in `TaskActivityController.swift` and `notify.ts` at origin/main 50f43b78, and the
+  8 and 4 hour limits against Apple's ActivityKit page.
 - `docs/LIMITS.md`, Report reads (iPhone): a "Cleared" sent from the iPhone pick list never moves the map. It carries
   minutes and searchers but no coverage and no detection range, and no app records a measured range, so it is logged
   `needs_command` ("Report logged. Map unchanged. Ask the team."). Only a typed or spoken clear that states its
