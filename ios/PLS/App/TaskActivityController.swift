@@ -65,8 +65,9 @@ final class TaskActivityController {
         // ended or one an earlier run left (the app may be offline then, so now would claim a check it did not make).
         let previous = lastTeam == teamId ? last : leftover[teamId]
         let sameContent = previous?.status == status
+        // A card a build without the time left has an unknown time: the same content then shows no time.
         let state = TaskActivityAttributes.ContentState(status: status, night: night,
-                                                       setAt: sameContent ? (previous?.setAt ?? now()) : now())
+                                                       setAt: sameContent ? previous?.setAt : now())
         // Another team, or a card iOS ended: ask iOS to remove the old card (an ended one stays on the lock
         // screen for up to 4 hours) and start a fresh one. In the background iOS refuses the start, and the
         // next sync tries again.

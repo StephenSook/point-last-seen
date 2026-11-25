@@ -5,6 +5,18 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### fix(ios): a fresh card shows no time when the earlier card's time is unknown
+- What: a card a build without the time left (version 1.0.0) has no time. A fresh card with the same content took
+  the time now, which can claim a check the app did not make (opened offline from the cache). It now shows no time
+  line in that case; new content still takes the time now.
+- Source: review (second-model pass, third and last round). Accepted, not changed, from that round: at a launch
+  the card is removed for the moment before the cached search loads and then put back (the app has no background
+  launches, so this happens only with the app in front, and it never shows a wrong segment); a card can keep the
+  older time of another incident's card when the team id and the segments are the same (identical content, older
+  time). Not verified on a device: whether iOS removes a card it ended itself at 8 hours when asked again.
+- Verified: failing test first (aFreshRunShowsNoTimeForTheSameContentWithAnUnknownTime); the full app suite
+  passes (297 tests in 52 suites) on the PLS iPhone 17 Pro simulator.
+
 ### fix(ios): a new run of the app handles the lock-screen card an earlier run left
 - What: a card can outlive the app. A new run (for example after iOS closed the app, opened again offline from the
   cache) started its card with the time now even when the earlier run's card showed the same content, and a new

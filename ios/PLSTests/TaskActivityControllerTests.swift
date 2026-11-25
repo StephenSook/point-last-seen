@@ -137,16 +137,25 @@ final class FakeActivityClient: LiveActivityClient {
         #expect(fake.states.map { $0.setAt?.timeIntervalSince1970 } == [1_000])
     }
 
-    /// A card left with other content, or by a build without the time, does not lend its time.
+    /// A card left with other content does not lend its time: the new content takes the time now.
     @Test func aFreshRunTakesTheTimeNowForOtherContent() {
-        for left in [TaskActivityAttributes.ContentState(status: gs, night: false, setAt: Date(timeIntervalSince1970: 1_000)),
-                     TaskActivityAttributes.ContentState(status: hq, night: false)] {
-            let fake = FakeActivityClient()
-            fake.leftover = ["T1": left]
-            let c = TaskActivityController(client: fake, now: { Date(timeIntervalSince1970: 9_000) })
-            c.sync(teamId: "T1", status: hq, night: false)
-            #expect(fake.states.map { $0.setAt?.timeIntervalSince1970 } == [9_000])
-        }
+        let fake = FakeActivityClient()
+        fake.leftover = ["T1": TaskActivityAttributes.ContentState(status: gs, night: false,
+                                                                    setAt: Date(timeIntervalSince1970: 1_000))]
+        let c = TaskActivityController(client: fake, now: { Date(timeIntervalSince1970: 9_000) })
+        c.sync(teamId: "T1", status: hq, night: false)
+        #expect(fake.states.map { $0.setAt?.timeIntervalSince1970 } == [9_000])
+    }
+
+    /// The same content on a card left by a build without the time: its time is unknown, so the fresh card
+    /// shows no time rather than a time now for a check the app may not have made.
+    @Test func aFreshRunShowsNoTimeForTheSameContentWithAnUnknownTime() {
+        let fake = FakeActivityClient()
+        fake.leftover = ["T1": TaskActivityAttributes.ContentState(status: hq, night: false)]
+        let c = TaskActivityController(client: fake, now: { Date(timeIntervalSince1970: 9_000) })
+        c.sync(teamId: "T1", status: hq, night: false)
+        #expect(fake.states.count == 1)
+        #expect(fake.states.first?.setAt == nil)
     }
 
     /// A run with no search loaded takes down a card an earlier run left (the searcher may have been taken
