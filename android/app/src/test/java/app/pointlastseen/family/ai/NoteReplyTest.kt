@@ -22,7 +22,7 @@ class NoteReplyTest {
     }
 
     @Test fun aDecodedReplyPassesTheParser() {
-        val reply = NoteReply(NoteKind.entries.first { it.name == "place" }, "The old mill", "They like the mill.", "old mill")
+        val reply = NoteReply("place", "The old mill", "They like the mill.", "old mill")
         val read = FamilyNote.parse(Json.encodeToString(NoteReply.serializer(), reply), "she talks about the old mill")
         assertNotNull(read)
         assertEquals("place", read!!.kind)
