@@ -1,0 +1,88 @@
+{
+  "what": "Server-side record of the iPhone's cloud voice for a second assignment change, read after the fact: the AI Logic speech call through the pls-voice-v1 template for plan v3 during the build 11 iPhone session on drill-kennesaw-1. It shows that a speech call from the iOS app reached the model and succeeded, and when the phone's sound started; it does not show which voice the phone played.",
+  "date": "2026-11-25",
+  "readAt": "2026-11-25T17:58:00Z",
+  "firstReadAt": "2026-11-25T16:47:17Z",
+  "readBy": "Read-only queries with project credentials; nothing was written",
+  "window": {"from": "2026-11-25T16:30:00Z", "to": "2026-11-25T16:50:00Z"},
+  "context": "Reported by the iPhone session, not checked by these reads: command approved plan v3 in drill-kennesaw-1 (team T1, segment GS to HQ) with the app open on the phone (Ad Hoc build 11, 1.0.0 (11), App Attest production, iPhone 17 Pro, iOS 27.2.1, Silent Mode off). The phone's screen and sound were recorded over USB, and a speech-to-text check (whisper.cpp, three runs) read \"New assignment, segment HQ. Search segment HQ.\"",
+  "plan": {
+    "source": "Firestore, incidents/drill-kennesaw-1/plans/0003, field approvedAt (server timestamp)",
+    "version": 3,
+    "approvedAt": "2026-11-25T16:37:50.504Z"
+  },
+  "trigger": {
+    "source": "Cloud Logging, Cloud Run service cloudguard (the before-generate trigger)",
+    "httpRequestAt": "2026-11-25T16:37:52.24Z",
+    "httpStatus": 200,
+    "latencySeconds": 2.70,
+    "coldStart": "A new instance started for this request (autoscaling)",
+    "logLineAt": "2026-11-25T16:37:55.18Z",
+    "model": "gemini-3.8-flash-lite-tts",
+    "path": "direct",
+    "template": null,
+    "configKeys": ["responseModalities"],
+    "rewritten": true,
+    "note": "Every template call logs path direct and template null, because AI Logic expands a template before the trigger sees it (docs/SECURITY.md row 12)."
+  },
+  "aiLogic": {
+    "source": "Cloud Monitoring, firebasevertexai.googleapis.com/model/gen_ai_client_operation_duration and gen_ai_client_token_usage",
+    "calls": 1,
+    "platform": "ios (the app id label)",
+    "appVersion": "1.0.0",
+    "framework": "swift_sdk",
+    "operation": "generate_content",
+    "requestModel": "gemini-3.8-flash-lite-tts",
+    "responseModel": "gemini-3.8-flash-lite-tts",
+    "status": "success",
+    "durationMsMean": 2030,
+    "bucketEnd": "2026-11-25T16:39:04Z",
+    "inputTokens": 12,
+    "outputTokens": 122
+  },
+  "templateRender": {
+    "source": "Cloud Monitoring, firebasevertexai.googleapis.com/PromptTemplate/render_count",
+    "renders": 1,
+    "platform": "ios (the app id label)",
+    "appVersion": "1.0.0",
+    "status": "success",
+    "template": "pls-voice-v1 (the metric's template_id label)",
+    "bucketEnd": "2026-11-25T16:38:25Z"
+  },
+  "appCheck": {
+    "source": "Cloud Monitoring, firebaseappcheck.googleapis.com/services/verification_count on firebaseml.googleapis.com",
+    "verifications": 1,
+    "platform": "ios (the app id label)",
+    "security": "VALID",
+    "result": "ALLOW",
+    "bucketEnd": "2026-11-25T16:38:35Z"
+  },
+  "otherCalls": "None: this is the only speech call in the trigger log and the only AI Logic call in the metrics for the window",
+  "remoteConfig": {
+    "source": "Remote Config REST template, read at readAt",
+    "templateVersion": 4,
+    "templateUpdated": "2026-11-19T05:46:52Z",
+    "voice_template_id": "pls-voice-v1",
+    "kill_cloud": "false",
+    "conditionalValues": "none on either key"
+  },
+  "phoneRecording": {
+    "source": "The iPhone session's screen-and-sound recording; its file metadata read here, its content reported by the iPhone session",
+    "takeStart": "2026-11-25T16:37:39Z (the movie's creation_time; with its 118.77 s duration it ends at 16:39:38Z, as reported)",
+    "speechFrom": "2026-11-25T16:37:58.1Z (19.1 s into the take)",
+    "speechTo": "2026-11-25T16:38:02.7Z (23.7 s into the take)",
+    "speechSeconds": 4.6
+  },
+  "timeline": [
+    "16:37:50.5Z plan v3 approved (Firestore)",
+    "16:37:52.24Z trigger request received (1.7 s after approval)",
+    "about 16:37:54.9Z trigger answered (2.70 s, cold start)",
+    "about 16:37:58.1Z the phone's sound starts (about 1 s either way)"
+  ],
+  "caveats": [
+    "Which voice played is not shown. The app waits for the cloud answer and plays it; if the phone cannot play it, the phone's own voice says the same words (ios/PLS/AI/AssignmentSpeaker.swift:59-67). Either way the sound starts after the cloud answer, so the timing cannot tell them apart.",
+    "Firebase AI Logic's generateContent returns a WAV file (audio/wav, 24 kHz) that AVAudioPlayer can play (https://firebase.google.com/docs/ai-logic/generate-speech), so a raw-audio format failure on the phone is not expected; that does not prove playback.",
+    "The Firebase Performance trace assignment_speech records the path and outcome of each attempt and decides it. At 2026-11-25T16:55Z the console's sampled sessions held no build 11 sample yet.",
+    "The metrics name the platform and the app version (1.0.0), not the build number or the device."
+  ]
+}
