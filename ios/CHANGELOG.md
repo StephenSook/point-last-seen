@@ -5,6 +5,34 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### test(ios): the links test fails on a partial snapshot and needs the line's first row in the band
+- What: the scrolled-line test now fails when the window's snapshot is incomplete (`drawHierarchy` returns
+  false), since missing pixels would count as no text. It also requires the line's top at the links' top and
+  its first row across the band, not any sliver of overlap.
+- Source: review (second-model pass on the fix; it found no product defect).
+- Verified: the layout suite passes (6 tests, 8 cases); with `.clipped()` removed, the scrolled test fails on its
+  pixel count at both type sizes, not on a requirement.
+
+### fix(ios): a scrolled task screen goes out of view at the bar, not under the Map and Ready check links
+- What: the task screen's links float over the screen in a glass capsule with no backing. When the screen
+  scrolled (the keyboard coming up for the report box, a new receipt brought into view, or the searcher's own
+  scroll), "Your assignment changes only when command approves." passed under the capsule and stayed readable
+  beside and behind it, as on the build 11 and 12 recordings. The scroll view is now clipped to its own frame,
+  so a scrolled line goes out of view at the bar's lower edge and the capsule sits over plain background.
+- Source: review (frames review of the iPhone recordings, Nov 23 to 25).
+- Verified: two new layout tests show the task screen with its real links (`TaskLinks`) at the default type size
+  and the largest one in Settings (Accessibility XXXL). Opened, the line starts below the links. Scrolled so the
+  line sits across the links' band, no light pixel is drawn beside the links; with the line just under the bar,
+  the same count finds it (positive control). Before the fix the scrolled test failed at both sizes; after it,
+  the full app suite passes on the simulator (299 tests). Rendered screens at both sizes were checked by eye.
+
+### refactor(ios): the task screen's Map and Ready check links are one modifier
+- What: the two links RootView puts in the task screen's navigation bar (Map while a mission is loaded, Ready
+  check always) move into `TaskLinks`, a view modifier in RootView.swift. RootView applies it as before; a layout
+  test can now show the task screen with the same links. No change to what the app shows.
+- Source: review (needed by the next change's layout test).
+- Verified: the app builds, and the full app suite (299 tests) passes on the simulator with this change and the next.
+
 ### docs(evidence): the build 11 README cites the tracked record of the second speech call
 - What: the build 11 iPhone README said the plan v3 speech call at 16:37:52 came from "local evidence, not in the
   repository". That call now has a tracked record, `docs/evidence/ios/2026-11-25-voice-cloud-server-side-retry.json`
