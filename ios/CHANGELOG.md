@@ -5,6 +5,16 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### docs(evidence): the speech call went through the pls-voice-v1 template; plan v3 was approved at 16:37:50
+- What: the entry below changed "through the `pls-voice-v1` template" to "through the template Remote Config
+  names" on the word that the server metrics carry no template label. They do: a re-read with every label shows
+  the render metric's `template_id` "pls-voice-v1" for both speech calls. The original wording is back in the
+  TEST-MATRIX row and the build 11 README. The README also gives plan v3's approval time from the plan document,
+  16:37:50, instead of "about 16:37:45". The AI Logic time (1,899 ms) from the entry below stands.
+- Source: review (docs review of the evidence PR, corrected by the reviewer).
+- Verified: `scripts/test_test_matrix.py` passes; the README's other plan time (v4, about 16:45:58) matches the
+  plan document (16:45:58.9).
+
 ### docs(evidence): the speech call's time is AI Logic's, and the template is the one Remote Config names
 - What: the TEST-MATRIX row for the cloud spoken assignment gave 1.96 s, which is the before-generate trigger's
   HTTP time; it now gives AI Logic's own time for the call, 1,899 ms. The row and the build 11 README now say the
