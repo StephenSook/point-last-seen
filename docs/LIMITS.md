@@ -229,8 +229,9 @@ each line says what the limit is and why.
   phone number whose last digits read as a short date ("Call 404 5550-1/23") keeps those digits ("1/23"), since a
   date beside a whole number of seven or more digits stays.
 - The separator rule (any mark between digit groups joins them except ":", "%" and "°") is on the web and Android.
-  iPhone build 9, the one used in the drill, predates it and keeps numbers split by a middle dot, bullet, underscore,
-  star, bar, semicolon, "!", "?" or brackets; build 10 carries the rule.
+  iPhone build 9 predates it and keeps numbers split by a middle dot, bullet, underscore, star, bar, semicolon, "!",
+  "?" or brackets; builds 10 and 11 carry the rule (build 11 is the one the at-home film take used; no field drill
+  ran).
 - A count of a million or more written with commas ("walked 1,234,567 steps") is removed on every platform, because a
   phone number can be written the same way ("Call 4,045,550,142"); a count under seven digits ("12,345") stays.
 - A pair of decimals that starts with "+" is removed on every platform, since a phone number can be written that
@@ -457,8 +458,8 @@ each line says what the limit is and why.
   Its person then signs in again and rejoins with a code; nothing they wrote is lost.
 - Kept until 2027-01-01 whatever their close, and purged on that date whether or not anyone closed them (the job
   closes one still open at that date, never over a real close, then deletes it the same way): `drill-dev-1` (the
-  development drill), `drill-judge-1` (the judge sandboxes' seed), `drill-kennesaw-1` (the drill on film and on the
-  judge page) and `drill-test-1` (the drill every live check and the daily probe use). A live search and a judge
+  development drill), `drill-judge-1` (the judge sandboxes' seed), `drill-kennesaw-1` (the Kennesaw Mountain drill
+  map; the at-home film take on 2026-11-24 used it, and the outdoor drill there was cancelled) and `drill-test-1` (the drill every live check and the daily probe use). A live search and a judge
   sandbox are never deleted by this job; a sandbox goes a day after it ends (`deleteEndedSandboxesJob`).
 - The iPhone's practice drill journals its reports on that phone only: it needs no sign-in and writes neither its
   reports nor their timings to Firestore (`ios/PLS/App/AppModel.swift`), so nothing of it is in Firestore to delete.

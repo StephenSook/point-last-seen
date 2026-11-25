@@ -1,5 +1,9 @@
 # Drill day: Kennesaw Mountain
 
+Status: not run. The outdoor drill was cancelled on 2026-11-23, and no field drill with outside people ran. The
+at-home film take on 2026-11-24 used `drill-kennesaw-1` and its map; nobody searched the park. This page stays as
+the plan for a drill.
+
 The drill incident is `drill-kennesaw-1`: teams T1, T2 and T3 on the `kennesaw-mountain-drill` grid, south of Dallas
 Highway. It holds made-up drill data. Nobody is missing. This page covers the searchers' iPhones, the paper each team
 carries, and how the finished run reaches the judge page.

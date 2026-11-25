@@ -5,6 +5,17 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- Drill wording corrected: no field drill with outside people ran, since the outdoor drill at Kennesaw Mountain was
+  cancelled on 2026-11-23. README no longer says the extras' drill use is "filled in after the drill's debrief";
+  `docs/LIMITS.md` no longer calls iPhone build 9 "the one used in the drill" (builds 10 and 11 carry the separator
+  rule; build 11 is the one the at-home film take used) and no longer says `drill-kennesaw-1` is on the judge page;
+  `docs/PRODUCTION-CHECKLIST.md` drops the "Nov 22 drill" readings line; `docs/drill-day.md` and
+  `docs/evidence/drill/kennesaw-seed.md` say the drill did not run. Source: review. Verified, read-only, 2026-11-25:
+  `drill-kennesaw-1` holds 7 events, all from 2026-11-24 (4 cleared, 3 clue), and no clip readings; the readings
+  on file are `drill-dev-1` (17, from 2026-11-18, earliest expiry 2026-12-18), `drill-test-1` (64, 2026-11-19 to
+  22, from 2026-12-21) and `drill-closed-test-1` (2); the live judge page's published run is `drill-dev-1-2026-11-19`;
+  the iOS separator rule commit (eb4d8eb2) is an ancestor of build 11's commit (49785952); a grep of README and docs
+  for "debrief", "used in the drill", "after the drill" and similar finds no other line saying the drill ran.
 - Security checklist row 11 corrected: the spend cap covers one service, the Gemini API ($25 a month, pauses that
   API at 100% with a lag of a few minutes, resets on the 1st), not 23 services; the separate $25 budget on all
   services only sends email. The row now names the faster brake (Remote Config `kill_cloud`, which stops our apps'
