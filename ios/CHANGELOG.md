@@ -3,6 +3,84 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-25
+
+### fix(ios): a fresh card shows no time when the earlier card's time is unknown
+- What: a card a build without the time left (version 1.0.0) has no time. A fresh card with the same content took
+  the time now, which can claim a check the app did not make (opened offline from the cache). It now shows no time
+  line in that case; new content still takes the time now.
+- Source: review (second-model pass, third and last round). Accepted, not changed, from that round: at a launch
+  the card is removed for the moment before the cached search loads and then put back (the app has no background
+  launches, so this happens only with the app in front, and it never shows a wrong segment); a card can keep the
+  older time of another incident's card when the team id and the segments are the same (identical content, older
+  time). Not verified on a device: whether iOS removes a card it ended itself at 8 hours when asked again.
+- Verified: failing test first (aFreshRunShowsNoTimeForTheSameContentWithAnUnknownTime); the full app suite
+  passes (297 tests in 52 suites) on the PLS iPhone 17 Pro simulator.
+
+### fix(ios): a new run of the app handles the lock-screen card an earlier run left
+- What: a card can outlive the app. A new run (for example after iOS closed the app, opened again offline from the
+  cache) started its card with the time now even when the earlier run's card showed the same content, and a new
+  run with no search loaded (the searcher may have been taken off the team meanwhile) never took down the earlier
+  run's card. The controller now reads, when it is made, what the cards an earlier run left show; a fresh card
+  with the same content keeps that card's time. With no search loaded, the app asks iOS to remove any card of
+  this app still listed. Also corrected the entry below: the card comes back at the next one-minute check while
+  the app is in front, when iOS allows a new card, rather than "within a minute".
+- Source: review (second-model pass on the branch, second round).
+- Verified: failing tests first (a fresh run keeps the time of the card it finds; no search loaded takes down a
+  card an earlier run left) failed on their assertions; a guard test (other content takes the time now) and a
+  real ActivityKit test on the simulator (a second client sees the first client's card with what it shows and
+  removes it) pass. The full app suite passes (295 tests before the real test was added; the 14 Live Activity
+  tests after) on the PLS iPhone 17 Pro simulator.
+
+### fix(ios): the app re-checks the lock-screen card each minute while it is in front
+- What: iOS can end the card between the app's check that the card is still up and the update the app then sends,
+  and iOS ignores an update to an ended card. The app now re-checks the card each minute while it is in front (the
+  screen's existing one-minute tick), so a card ended that way comes back with the current segments at the next check
+  (when iOS allows a new card), without waiting for the next change or the next time the app comes to the front.
+- Source: review (second-model pass on the branch).
+- Verified: a test pins the controller's part (an ignored update is put right on the next check). The full app
+  suite passes (292 tests in 52 suites) on the PLS iPhone 17 Pro simulator. The one-minute wiring in RootView has
+  no unit test.
+
+### fix(ios): a fresh lock-screen card keeps the time its content was set
+- What: when the app replaced a card iOS had ended, the fresh card took the time now even when it showed the same
+  segments and report count. Opened offline, that put a time on the card for a check the app had not made. A fresh
+  card for the same team and the same content now keeps the time that content was set; new segments, a new report
+  count or another team take the time now. Also corrected the two entries below: the time follows the card's
+  segments and report count (a new task text on the same segments does not change it), and the app asks iOS to
+  remove an ended card (whether iOS removes a card it ended itself at 8 hours is not verified).
+- Source: review (second-model pass on the branch).
+- Verified: failing test first (theCardSaysWhenItWasSet, extended with a same-content restart, a restart with new
+  segments and another team, failed on its assertion); all 9 Live Activity tests pass after the change.
+
+### feat(ios): the lock-screen card says when the app set it
+- What: the app can change the lock-screen card only while it is open; a plan approved while it is closed reaches
+  the card when the searcher next opens the app. The card now ends with a line "Set by the app at 12:12 PM." (the
+  time it was set), so a card left from earlier can be told apart from a fresh one. New segments or a new report
+  count take the time of the change; a change of colours at dusk keeps the time it had. The time is optional in the card's data, so a card put up by an earlier build still draws after the
+  update, without the line. A longer line ("... Updates when the app is open.") was cut off at the card's edge on
+  the simulator lock screen, and the card has no room for a fifth line, so the line is the short one.
+- Source: review: a lock-screen card showed a segment the team had left, with nothing on it to say how old it was.
+- Verified: failing test first (TaskActivityControllerTests.theCardSaysWhenItWasSet failed on its assertion before
+  the change); a guard test decodes a card without the time. All 9 tests in TaskActivityControllerTests and
+  ActivityKitClientTests pass. On the PLS iPhone 17 Pro simulator, the practice drill's card on the lock screen
+  shows four whole lines ending "Set by the app at 12:12 PM."
+
+### fix(ios): the lock-screen card comes back after iOS ends it, so it never keeps an old segment
+- What: iOS ends a Live Activity after 8 hours and keeps its last card on the lock screen for up to 4 more. The app
+  kept updating the ended activity, which changes nothing, and never started a new one, so the card could show a
+  segment the team had left while the app showed the new one. The client now reports whether its card is still
+  active (read from the system's list by id). When it is not, the controller asks iOS to remove the old card and
+  starts a fresh one with the current task. The app also re-checks when it comes to the front, so an ended card comes back
+  even when the task did not change. In the background iOS refuses a new card; the app still asks iOS to remove the
+  old one, and the next sync tries again.
+- Source: review: on an iPhone running build 11, the lock-screen card read "Your segments: GS" after two approved
+  plans had moved the team to HQ and then HF; the card had been started almost 12 hours earlier.
+- Verified: failing tests first (TaskActivityControllerTests: an ended card is started again with the new task, a
+  refused restart still asks iOS to remove the old card, coming to the front puts back an ended card; ActivityKitClientTests:
+  a card ended outside the client reads as not running). All four failed on their assertions before the change, and
+  all 7 tests in the two suites pass after it on the PLS iPhone 17 Pro simulator.
+
 ## 2026-11-24
 
 ### docs(readme): the iPhone app row says it is in App Store review, with no public link yet

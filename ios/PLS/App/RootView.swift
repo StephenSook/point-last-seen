@@ -46,6 +46,9 @@ struct RootView: View {
                       initial: true) { _, input in
                 activities.sync(teamId: input.teamId, status: input.status, night: input.night)
             }
+            // Each minute in front: put back a lock-screen card iOS ended meanwhile, for example between the
+            // check and an update it then ignored.
+            .onChange(of: context.date) { _, _ in activities.refresh() }
         }
         .task {
             model.start()
@@ -56,7 +59,10 @@ struct RootView: View {
         // A tapped push shows the task, unless the account changed since the request was made.
         .onChange(of: model.openTaskRequests) { _, _ in if model.openTaskStillCurrent { path = NavigationPath() } }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { model.becameActive() }
+            guard phase == .active else { return }
+            model.becameActive()
+            // Puts back a lock-screen card iOS ended while the app was away (its 8-hour limit).
+            activities.refresh()
         }
     }
 }
