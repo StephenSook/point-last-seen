@@ -1,7 +1,7 @@
 # Kennesaw Mountain drill: the seed, run on 2026-11-19
 
 Status: SEEDED. The drill incident `drill-kennesaw-1` exists in the live project with made-up drill data. Nobody is
-missing.
+missing. The outdoor drill it was seeded for was cancelled on 2026-11-23; no field drill ran there.
 
 Kennesaw Mountain National Battlefield Park staff confirmed by email on 2026-11-19 that this training exercise does
 not require a Special Use Permit, and suggested the trails south of Dallas Highway.

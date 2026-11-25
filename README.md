@@ -28,8 +28,9 @@ profile, notes, photos and camera clips from their own app, and decides which of
 
 Which model paths ran on which hardware, and which have not run yet: [docs/TEST-MATRIX.md](docs/TEST-MATRIX.md).
 
-Also available on the command post (from its extras menu). Whether the drill used each one is filled in after the
-drill's debrief; the limits are in [docs/LIMITS.md](docs/LIMITS.md#command-post-extras).
+Also available on the command post (from its extras menu). No field drill with outside people ran: the outdoor
+drill at Kennesaw Mountain was cancelled on 2026-11-23, so none of these was used in one. The limits are in
+[docs/LIMITS.md](docs/LIMITS.md#command-post-extras).
 
 - ICS 204-shaped assignment sheet (layout follows FEMA ICS Form 204 v3.1; not an official form)
 - GeoJSON export of segments and assignments (RFC 7946)
