@@ -24,6 +24,9 @@ struct TaskView: View {
             ScrollView {
                 content
             }
+            // A scrolled line goes out of view at the bar's lower edge: none of it is drawn beside or
+            // behind the Map and Ready check links, which float over the screen with no backing.
+            .clipped()
             .onScrollGeometryChange(for: CGFloat.self) { $0.contentInsets.bottom } action: { _, inset in bottomInset = inset }
             .onChange(of: model.lastSentEventId) { _, sent in
                 guard let sent else { return }

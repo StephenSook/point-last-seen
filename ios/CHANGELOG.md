@@ -5,6 +5,19 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### fix(ios): a scrolled task screen goes out of view at the bar, not under the Map and Ready check links
+- What: the task screen's links float over the screen in a glass capsule with no backing. When the screen
+  scrolled (the keyboard coming up for the report box, a new receipt brought into view, or the searcher's own
+  scroll), "Your assignment changes only when command approves." passed under the capsule and stayed readable
+  beside and behind it, as on the build 11 and 12 recordings. The scroll view is now clipped to its own frame,
+  so a scrolled line goes out of view at the bar's lower edge and the capsule sits over plain background.
+- Source: review (frames review of the iPhone recordings, Nov 23 to 25).
+- Verified: two new layout tests show the task screen with its real links (`TaskLinks`) at the default type size
+  and the largest one in Settings (Accessibility XXXL). Opened, the line starts below the links. Scrolled so the
+  line sits across the links' band, no light pixel is drawn beside the links; with the line just under the bar,
+  the same count finds it (positive control). Before the fix the scrolled test failed at both sizes; after it,
+  the full app suite passes on the simulator (299 tests). Rendered screens at both sizes were checked by eye.
+
 ### refactor(ios): the task screen's Map and Ready check links are one modifier
 - What: the two links RootView puts in the task screen's navigation bar (Map while a mission is loaded, Ready
   check always) move into `TaskLinks`, a view modifier in RootView.swift. RootView applies it as before; a layout

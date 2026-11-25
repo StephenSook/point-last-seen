@@ -170,6 +170,131 @@ import UIKit
         try expectOnScreen(["Training drill. Nobody is missing.", "Report"], in: window, root: root)
     }
 
+    static let assignmentLine = "Your assignment changes only when command approves."
+    /// The type sizes checked: the default and the largest Settings offers.
+    nonisolated static let sizes: [UIContentSizeCategory] = [.large, .accessibilityExtraExtraExtraLarge]
+
+    /// A phone joined to a real (not practice) drill, so the screen shows the assignment line and both links.
+    func joinedModel() async throws -> AppModel {
+        let join = AppJoinTests()
+        let m = join.model(FakeJoinBackend(), FakeMissionReader(docs: try join.drillDocs()))
+        let dir = try tempDir()
+        let store = try EventStore(server: FakeEventServer(), outboxURL: dir.appendingPathComponent("outbox.json"))
+        m.attach(store: store, identity: try DeviceIdentity(directory: dir), screen: try BundledConstants.evidenceScreen())
+        await m.trySignIn()
+        try #require(m.mission?.isPractice == false)
+        return m
+    }
+
+    /// The task screen as the app shows it, with its Map and Ready check links in the navigation bar,
+    /// at the given type size.
+    func showWithLinks(_ model: AppModel, size: UIContentSizeCategory) throws -> (UIWindow, UIView) {
+        Self.automation(true)
+        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: Self.screen)
+        let host = UIHostingController(rootView: NavigationStack {
+            TaskView(model: model).modifier(TaskLinks(hasMission: model.mission != nil))
+        })
+        host.traitOverrides.preferredContentSizeCategory = size
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        return (window, host.view)
+    }
+
+    /// The frame of the one element with this label.
+    func frame(of label: String, under root: UIView, sourceLocation: SourceLocation = #_sourceLocation) throws -> CGRect {
+        let all = elements(under: root)
+        return try #require(all.first { $0.label == label }?.frame,
+                            "no element labelled \(label); labels: \(all.map(\.label))", sourceLocation: sourceLocation)
+    }
+
+    /// The links' capsule: both links, with room for the glass around them.
+    func linksPill(under root: UIView) throws -> CGRect {
+        try frame(of: "Map", under: root).union(frame(of: "Ready check", under: root)).insetBy(dx: -8, dy: -8)
+    }
+
+    /// The scroll view under `root`.
+    func scrollView(under root: UIView) -> UIScrollView? {
+        if let scroll = root as? UIScrollView { return scroll }
+        for child in root.subviews { if let found = scrollView(under: child) { return found } }
+        return nil
+    }
+
+    /// How many pixels in `rect` are light enough to be text on the dark screen, as the window draws it.
+    func lightPixels(in rect: CGRect, of window: UIWindow) throws -> Int {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+            _ = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        let cg = try #require(image.cgImage)
+        let width = cg.width, height = cg.height
+        var bytes = [UInt8](repeating: 0, count: width * height * 4)
+        let drawn = bytes.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                                          bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        try #require(drawn)
+        let area = rect.integral.intersection(CGRect(x: 0, y: 0, width: width, height: height))
+        // A band off the screen has nothing drawn in it to count.
+        try #require(!area.isNull && !area.isEmpty, "\(rect) is off the \(width) by \(height) screen")
+        var count = 0
+        for y in Int(area.minY)..<Int(area.maxY) {
+            for x in Int(area.minX)..<Int(area.maxX) {
+                let i = (y * width + x) * 4
+                let light = (0.299 * Double(bytes[i]) + 0.587 * Double(bytes[i + 1]) + 0.114 * Double(bytes[i + 2])) / 255
+                if light > 0.35 { count += 1 }
+            }
+        }
+        return count
+    }
+
+    /// Opened, the screen puts the assignment line under the Map and Ready check links, at the default
+    /// and the largest type size.
+    @Test(arguments: sizes) func theAssignmentLineStartsBelowTheLinks(size: UIContentSizeCategory) async throws {
+        let m = try await joinedModel()
+        let (window, root) = try showWithLinks(m, size: size)
+        defer { close(window) }
+        try await settle(window)
+        let line = try frame(of: Self.assignmentLine, under: root)
+        let pill = try linksPill(under: root)
+        #expect(line.minY >= pill.maxY, "line \(line), links \(pill)")
+    }
+
+    /// Scrolled (by the searcher, by the keyboard coming up for the report box, or to a new receipt),
+    /// the assignment line goes out of view at the bar: none of it is drawn beside or behind the links.
+    @Test(arguments: sizes) func aScrolledAssignmentLineIsNotDrawnUnderTheLinks(size: UIContentSizeCategory) async throws {
+        let m = try await joinedModel()
+        let (window, root) = try showWithLinks(m, size: size)
+        defer { close(window) }
+        try await settle(window)
+        let pill = try linksPill(under: root)
+        let scroll = try #require(scrollView(under: root))
+        /// Scrolls so the line's top is at `top` on screen, and gives the line's frame there.
+        func moveLine(to top: CGFloat) async throws -> CGRect {
+            scroll.contentOffset.y += try frame(of: Self.assignmentLine, under: root).minY - top
+            try await settle(window)
+            return try frame(of: Self.assignmentLine, under: root)
+        }
+        /// The part of a band at `y` that is left of the links, across the line's width.
+        func beside(_ line: CGRect, y: CGFloat) -> CGRect {
+            CGRect(x: line.minX, y: y, width: pill.minX - 4 - line.minX, height: min(line.height, pill.height))
+        }
+        // Just under the bar, the counter sees the line, so a zero below is about the bar, not the counter.
+        let below = try await moveLine(to: pill.maxY + 16)
+        try #require(beside(below, y: below.minY).width >= 40, "band beside the links \(beside(below, y: below.minY))")
+        #expect(try lightPixels(in: beside(below, y: below.minY), of: window) > 50, "line \(below), links \(pill)")
+        // Across the links' band, none of it is drawn.
+        let line = try await moveLine(to: pill.minY)
+        try #require(line.minY < pill.maxY && line.maxY > pill.minY, "line \(line), links \(pill)")
+        let band = beside(line, y: pill.minY)
+        #expect(try lightPixels(in: band, of: window) == 0, "line \(line), links \(pill), band \(band)")
+    }
+
     /// An ended search's reports still draw on the scrolling screen, under the line that says it ended.
     @Test func anEndedSearchStillShowsItsReports() async throws {
         let join = AppJoinTests()
