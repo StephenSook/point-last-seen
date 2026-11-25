@@ -5,6 +5,15 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### chore(ios): version 1.0.1
+- What: the app's version goes from 1.0.0 to 1.0.1 (`MARKETING_VERSION` in `ios/project.yml`), for the build that
+  carries the lock-screen card fixes above. The build number is still set when the release is archived
+  (`ios/scripts/archive_release.sh <build>`), and this release is build 12. Version 1.0.0 (build 11) stays as
+  it is in App Store review.
+- Source: release plan for the lock-screen card fixes.
+- Verified: `xcodegen generate` then a simulator build reads `CFBundleShortVersionString` 1.0.1 from the built
+  app's Info.plist.
+
 ### fix(ios): a fresh card shows no time when the earlier card's time is unknown
 - What: a card a build without the time left (version 1.0.0) has no time. A fresh card with the same content took
   the time now, which can claim a check the app did not make (opened offline from the cache). It now shows no time
