@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- Security checklist row 11 corrected: the spend cap covers one service, the Gemini API ($25 a month, pauses that
+  API at 100% with a lag of a few minutes, resets on the 1st), not 23 services; the separate $25 budget on all
+  services only sends email. The row now names the faster brake (Remote Config `kill_cloud`, which stops our apps'
+  cloud calls but not a direct caller) and an estimated abuse ceiling (about $700 a day per user on the speech
+  model at 20 calls a minute, so the spend cap is the real limit). Source: review of the live billing setup.
+  Verified: `gcloud billing budgets list` read 2026-11-25 (the cap budget filters on service AEFD-7695-64FA, which
+  the Cloud Billing catalog names "Gemini API", and carries `spendCap` CONFIGURED); cap behaviour from the Firebase
+  spend-caps page; `kill_cloud` read by the web, iOS and Android clients (grep); the ceiling from the speech
+  template's 4,096-token output cap, $6 per million output tokens and row 9's 20 a minute; measured use from
+  `scripts/ai_spend.py --since 2026-11-17` ($0.2059, exit 0).
 - Test matrix: the Android on-device row, "Not run" until now, records the first runs on a phone with an on-device
   model: a Google Pixel 10 (Android 17, AICore 26.10.15.11, `nano-v4-full`) with the published `android-judge-8`
   file. Two notes read in the app on the phone's own model, "Read on this phone in 3.4 s.", one with airplane mode
