@@ -60,9 +60,9 @@ final class FakeActivityClient: LiveActivityClient {
         #expect(fake.calls == ["start T1 GS 0 night=false", "end", "start T1 HQ 0 night=false"])
     }
 
-    /// In the background iOS refuses a new card. The ended card is still taken down (no old segment left
-    /// on the lock screen), and the next change tries again.
-    @Test func aRefusedRestartStillTakesTheOldCardDown() {
+    /// In the background iOS refuses a new card. The app still asks iOS to remove the ended card, and the
+    /// next change tries again. (Whether iOS removes a card it ended itself is not shown by any test.)
+    @Test func aRefusedRestartStillAsksToRemoveTheOldCard() {
         let fake = FakeActivityClient()
         let c = TaskActivityController(client: fake)
         c.sync(teamId: "T1", status: gs, night: false)
@@ -96,11 +96,16 @@ final class FakeActivityClient: LiveActivityClient {
         clock = Date(timeIntervalSince1970: 2_000)
         c.sync(teamId: "T1", status: gs, night: true)                     // dusk only: the same time
         clock = Date(timeIntervalSince1970: 3_000)
-        c.sync(teamId: "T1", status: hq, night: true)                     // a new task: a new time
+        c.sync(teamId: "T1", status: hq, night: true)                     // new segments: a new time
         clock = Date(timeIntervalSince1970: 4_000)
         fake.running = false
-        c.refresh()                                                        // a fresh card is set now
-        #expect(fake.states.map { $0.setAt?.timeIntervalSince1970 } == [1_000, 1_000, 3_000, 4_000])
+        c.refresh()                       // a fresh card, the same content: the time it was set, not now
+        clock = Date(timeIntervalSince1970: 5_000)
+        fake.running = false
+        c.sync(teamId: "T1", status: gs, night: true)                     // a fresh card with new segments: now
+        clock = Date(timeIntervalSince1970: 6_000)
+        c.sync(teamId: "T2", status: gs, night: true)                     // another team: now
+        #expect(fake.states.map { $0.setAt?.timeIntervalSince1970 } == [1_000, 1_000, 3_000, 3_000, 5_000, 6_000])
     }
 
     /// A card a build without the time put up still draws after the update (with no time line).

@@ -25,6 +25,8 @@ final class TaskActivityController {
     private let client: LiveActivityClient
     private var runningTeam: String?
     private var last: TaskActivityAttributes.ContentState?
+    /// The team `last` was shown for.
+    private var lastTeam: String?
     private var input: (teamId: String?, status: TaskStatus?, night: Bool)?
     private let now: () -> Date
 
@@ -45,14 +47,18 @@ final class TaskActivityController {
             if runningTeam != nil { client.end() }
             runningTeam = nil
             last = nil
+            lastTeam = nil
             return
         }
-        // The card shows when it was set: a fresh card, or a new task or report count, takes the time now; a
-        // change of colours at dusk keeps the time it had.
-        let state = TaskActivityAttributes.ContentState(status: status, night: night, setAt: now())
-        // Another team, or a card iOS ended: take the old card down (an ended one stays on the lock screen
-        // for up to 4 hours) and start a fresh one. In the background iOS refuses the start; no card then
-        // beats a wrong one, and the next sync tries again.
+        // The card shows when its content was set. New segments or a new report count take the time now. The
+        // same content keeps its time: a change of colours at dusk, and a fresh card that only replaces one iOS
+        // ended (the app may be offline then, so now would claim a check it did not make).
+        let sameContent = lastTeam == teamId && last?.status == status
+        let state = TaskActivityAttributes.ContentState(status: status, night: night,
+                                                       setAt: sameContent ? (last?.setAt ?? now()) : now())
+        // Another team, or a card iOS ended: ask iOS to remove the old card (an ended one stays on the lock
+        // screen for up to 4 hours) and start a fresh one. In the background iOS refuses the start, and the
+        // next sync tries again.
         if let running = runningTeam, running != teamId || !client.isRunning {
             client.end()
             runningTeam = nil
@@ -61,12 +67,11 @@ final class TaskActivityController {
             if client.start(teamId: teamId, state: state) {
                 runningTeam = teamId
                 last = state
+                lastTeam = teamId
             }
         } else if let last, last.status != status || last.night != night {
-            let shown = TaskActivityAttributes.ContentState(status: status, night: night,
-                                                           setAt: last.status == status ? last.setAt : state.setAt)
-            client.update(shown)
-            self.last = shown
+            client.update(state)
+            self.last = state
         }
     }
 }

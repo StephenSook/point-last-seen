@@ -5,12 +5,22 @@ finding) and how it was verified. Newest first.
 
 ## 2026-11-25
 
+### fix(ios): a fresh lock-screen card keeps the time its content was set
+- What: when the app replaced a card iOS had ended, the fresh card took the time now even when it showed the same
+  segments and report count. Opened offline, that put a time on the card for a check the app had not made. A fresh
+  card for the same team and the same content now keeps the time that content was set; new segments, a new report
+  count or another team take the time now. Also corrected the two entries below: the time follows the card's
+  segments and report count (a new task text on the same segments does not change it), and the app asks iOS to
+  remove an ended card (whether iOS removes a card it ended itself at 8 hours is not verified).
+- Source: review (second-model pass on the branch).
+- Verified: failing test first (theCardSaysWhenItWasSet, extended with a same-content restart, a restart with new
+  segments and another team, failed on its assertion); all 9 Live Activity tests pass after the change.
+
 ### feat(ios): the lock-screen card says when the app set it
 - What: the app can change the lock-screen card only while it is open; a plan approved while it is closed reaches
   the card when the searcher next opens the app. The card now ends with a line "Set by the app at 12:12 PM." (the
-  time it was set), so a card left from earlier can be told apart from a fresh one. A new task or report count
-  takes the time of the change; a change of colours at dusk keeps the time it had; a fresh card takes the time it
-  starts. The time is optional in the card's data, so a card put up by an earlier build still draws after the
+  time it was set), so a card left from earlier can be told apart from a fresh one. New segments or a new report
+  count take the time of the change; a change of colours at dusk keeps the time it had. The time is optional in the card's data, so a card put up by an earlier build still draws after the
   update, without the line. A longer line ("... Updates when the app is open.") was cut off at the card's edge on
   the simulator lock screen, and the card has no room for a fifth line, so the line is the short one.
 - Source: review: a lock-screen card showed a segment the team had left, with nothing on it to say how old it was.
@@ -23,14 +33,14 @@ finding) and how it was verified. Newest first.
 - What: iOS ends a Live Activity after 8 hours and keeps its last card on the lock screen for up to 4 more. The app
   kept updating the ended activity, which changes nothing, and never started a new one, so the card could show a
   segment the team had left while the app showed the new one. The client now reports whether its card is still
-  active (read from the system's list by id). When it is not, the controller takes the old card down and starts a
-  fresh one with the current task. The app also re-checks when it comes to the front, so an ended card comes back
-  even when the task did not change. In the background iOS refuses a new card: the old one is still taken down (no
-  card beats a wrong one) and the next sync tries again.
+  active (read from the system's list by id). When it is not, the controller asks iOS to remove the old card and
+  starts a fresh one with the current task. The app also re-checks when it comes to the front, so an ended card comes back
+  even when the task did not change. In the background iOS refuses a new card; the app still asks iOS to remove the
+  old one, and the next sync tries again.
 - Source: review: on an iPhone running build 11, the lock-screen card read "Your segments: GS" after two approved
   plans had moved the team to HQ and then HF; the card had been started almost 12 hours earlier.
 - Verified: failing tests first (TaskActivityControllerTests: an ended card is started again with the new task, a
-  refused restart still takes the old card down, coming to the front puts back an ended card; ActivityKitClientTests:
+  refused restart still asks iOS to remove the old card, coming to the front puts back an ended card; ActivityKitClientTests:
   a card ended outside the client reads as not running). All four failed on their assertions before the change, and
   all 7 tests in the two suites pass after it on the PLS iPhone 17 Pro simulator.
 
