@@ -2,8 +2,9 @@
 
 Use this page to prove the family app's on-device read on a phone that has Gemini Nano, in one visit. The phone
 belongs to someone else, so give it back as it came. The phone must be on ML Kit's Gemini Nano list for the Prompt
-API (for example a Pixel 10 or 11). Our own test phone has no AICore, the Android service that runs on-device
-models, so this read has never run on it.
+API (for example a Pixel 10 or 11). Our A16 test phone has no AICore, the Android service that runs on-device
+models, so this read cannot run on it. It first ran on a Pixel 10 on 2026-11-25
+(`docs/evidence/android-nano/pixel-10-2026-11-25/README.md`).
 
 ## 1. The owner does these steps (their phone, their keystrokes)
 
