@@ -5,6 +5,12 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- README and `docs/PRODUCTION-CHECKLIST.md` name `android-judge-8` (`point-last-seen-family-5914e20f.apk`, built from
+  5914e20f) as the latest Android judge release, in place of android-judge-6. Judge-8 is the build whose note is read
+  on a phone's own model (two fixes, both in `android/CHANGELOG.md`). Source: android-judge-8 was published as the
+  latest release on 2026-11-25. Verified: a signed-out fetch of `/releases/latest` lands on
+  `/releases/tag/android-judge-8` (status 200) and the page names that APK.
+
 - README and `docs/PRODUCTION-CHECKLIST.md`: the Android family app row and the update-screen note name the latest
   judge release, `android-judge-6` (`point-last-seen-family-cc53d89d.apk`, built from cc53d89d), in place of
   android-judge-5. Its only app change is the clip's cloud consent wording. Source: android-judge-6 was published as
