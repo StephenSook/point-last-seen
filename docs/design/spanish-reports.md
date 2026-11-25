@@ -23,7 +23,8 @@ Two facts about today's code matter here:
 
 - The language screen guards the cloud route only. Android already sends a note that does not look English to the
   phone's own model when the phone has one (`FamilyNote.read`: a local model plus a non-English note routes
-  `ONLY_ON_DEVICE`). That path has never run, because our test phone has no AICore.
+  `ONLY_ON_DEVICE`). That path has never run with a non-English note: the only on-device run, on a Pixel 10 on
+  2026-11-25, read English notes.
 - The iPhone checks the phone's language setting (`supportsLocale`), not the note's language, so a Spanish note on
   an English-language iPhone can go to Apple's model today. The language screen runs only at the moment of a cloud
   read; a note it refuses is read by the English rules parser (`ReadOrchestrator.swift:191-195`).

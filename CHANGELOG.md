@@ -5,6 +5,16 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-25
 
+- README, `docs/LIMITS.md`, `docs/android/borrowed-nano-phone.md` and `docs/design/spanish-reports.md` no longer say
+  Android's on-device read never ran. The README says a Pixel 10 read a family note on its own model with
+  `android-judge-8`, twice (on Wi-Fi and in airplane mode, not joined, no cloud consent). LIMITS replaces "no phone
+  with Gemini Nano" and its NOT VERIFIED list with what that phone found and what was fixed (the enum field ML Kit
+  could not read, #399; the reply that comes only as a typed object, #400) and what is still not tested (the safety
+  filters refusing a note, the token cap, non-English notes, other phones and models). The Spanish design note keeps
+  "never run" only for a non-English note. Source: review of the claims after the Pixel 10 session. Verified: each
+  sentence against `docs/evidence/android-nano/pixel-10-2026-11-25/README.md` and the merged PRs; no other tracked text
+  outside the evidence says the Android on-device read never ran (`git grep`).
+
 - Test matrix: the Android on-device row, "Not run" until now, records the first runs on a phone with an on-device
   model: a Google Pixel 10 (Android 17, AICore 26.10.15.11, `nano-v4-full`) with the published `android-judge-8`
   file. Two notes read in the app on the phone's own model, "Read on this phone in 3.4 s.", one with airplane mode

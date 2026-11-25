@@ -45,8 +45,10 @@ drill's debrief; the limits are in [docs/LIMITS.md](docs/LIMITS.md#command-post-
 - Cloud reads use Gemini through Firebase AI Logic, with App Check and a signed-in user on every call. Four calls
   use server prompt templates; `docs/SECURITY.md` lists every call.
 - On-device reads on the web and on Android use Firebase AI Logic's hybrid inference (the browser's or the phone's
-  own model, with the cloud as the fallback where a call allows it). On Android this is the code path only: it has not
-  been run on a phone with Gemini Nano (`docs/TEST-MATRIX.md`).
+  own model, with the cloud as the fallback where a call allows it). On Android, a Pixel 10 read a family note on its
+  own model (Gemini Nano through AICore) with the published `android-judge-8` file, twice: on Wi-Fi and in airplane
+  mode, not joined to a search and with no cloud consent
+  (`docs/evidence/android-nano/pixel-10-2026-11-25/README.md`).
 - On iPhone, on-device reads use Apple Foundation Models (`SystemLanguageModel`), the on-device option for iOS, and
   cloud reads use Gemini through Firebase AI Logic in the same session.
   The iPhone's cloud route needs iOS 27; on iOS 26 it reads on the device, then by rules.
@@ -69,7 +71,7 @@ is missing.
   laptop's built-in model in Chrome for the note, photo and clip-frame reads; on-device first, then Gemini in the
   cloud, for plan wording); on iPhone, Apple's Foundation Models on the device, called directly as Firebase iOS SDK 13
   directs, and Gemini in the cloud through Firebase AI Logic; on Android, Firebase AI Logic's on-device
-  path (code path only, not run on a phone with Gemini Nano) and cloud model. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that allows only
+  path (Gemini Nano on a Pixel 10: two notes read on the phone, `docs/TEST-MATRIX.md`) and cloud model. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that allows only
   the listed models and bounds each reply.
 - Firebase: App Check (reCAPTCHA Enterprise on the web, App Attest on iPhone, Play Integrity on Android), enforced on
   AI Logic, Firestore and Storage; anonymous Auth with custom claims; Firestore and Cloud Storage behind security
