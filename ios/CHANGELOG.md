@@ -3,6 +3,15 @@
 This changelog covers `ios/`. Each commit adds one entry here: what changed, its source (plan task or
 finding) and how it was verified. Newest first.
 
+## 2026-11-24
+
+### docs(readme): the iPhone app row says it is in App Store review, with no public link yet
+- What: the README's "How a judge tries it" row for the iPhone app said "TestFlight once Apple clears review". It now
+  says the app is in App Store review (version 1.0.0), with no public install link yet. The recorded runs link stays.
+  The judge page's TestFlight link stays empty until there is one.
+- Source: review: the app's path is App Store review, and there is no public TestFlight link.
+- Verified: App Store Connect read back version 1.0.0 as WAITING_FOR_REVIEW with build 11 attached, on 2026-11-24.
+
 ## 2026-11-23
 
 ### perf(ios): a keystroke in the report box redraws only the box
