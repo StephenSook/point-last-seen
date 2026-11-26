@@ -390,3 +390,29 @@ test("a sighting read before says only the sighting was not sent again, and the 
   await expect(card).toContainText("6 frames of the clip left this laptop for the cloud. 6 of them were sent again for the outlines.");
   await expect(card).not.toContainText("Read before, not sent again.");
 });
+
+test("when the 3D view cannot load, the result buttons still move the clip and its box", async ({ page }) => {
+  await page.route(/\/extras\/timemachine\/TimeMachine\.tsx/, (route) => route.abort());
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await card.getByRole("button", { name: "Open the time machine" }).click();
+  const tm = card.getByTestId("clip-time-machine");
+  await expect(tm.getByRole("status")).toHaveText("The 3D view could not load. The clip and the person's box are still shown here.", { timeout: 30_000 });
+  await tm.getByRole("button", { name: "Clearest frame 0:04" }).click();
+  await expect.poll(() => tm.locator("video").evaluate((v: HTMLVideoElement) => Math.round(v.currentTime * 10) / 10), { timeout: 10_000 }).toBe(4);
+  await expect(tm.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 50%; height: 20%; width: 20%/);
+});
+
+test("a seek with the clip's own controls while paused moves the box with it", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await card.getByRole("button", { name: "Open the time machine" }).click();
+  const video = card.getByTestId("clip-time-machine").locator("video");
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState), { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.pause();
+    v.currentTime = 2;
+  });
+  // At 2 s the fixed track's box spans x 300 to 500 and y 400 to 600 of 1000.
+  await expect(card.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 30%; height: 20%; width: 20%/, { timeout: 10_000 });
+});
