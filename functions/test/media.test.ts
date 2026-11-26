@@ -3,7 +3,7 @@
 import { getStorage } from "firebase-admin/storage";
 import { Timestamp } from "firebase-admin/firestore";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { deleteClipForReading, deleteEndedSandboxMedia, lifecycleOk, recordStorageHealth, runMediaSweep } from "../src/media";
+import { deleteClipForReading, deleteEndedSandboxMedia, deleteTrackForReading, lifecycleOk, recordStorageHealth, runMediaSweep } from "../src/media";
 import { admin, adminApp, clearFirestore, closeClients } from "./helpers";
 
 const bucket = getStorage(adminApp).bucket();
@@ -190,5 +190,29 @@ describe("a deleted clip reading takes its clip with it (consent is the clip's l
     expect(ep.eventType).toBe("google.cloud.firestore.document.v1.deleted");
     expect(ep.eventFilterPathPatterns.document).toBe("incidents/{incidentId}/clipReadings/{sha256}");
     expect(ep.retry).toBe(true);
+  });
+});
+
+describe("a clip's track goes with its media and its reading", () => {
+  const sha = "e".repeat(64);
+  it("the sweep deletes an ended sandbox's tracks and leaves a live sandbox's and a drill's", async () => {
+    for (const inc of ["J1", "J2", "D2"]) await admin.db.doc(`incidents/${inc}/clipTracks/${sha}`).set({ sha256: sha });
+    await deleteEndedSandboxMedia(admin.db, bucket, NOW);
+    expect((await admin.db.doc(`incidents/J1/clipTracks/${sha}`).get()).exists).toBe(false);
+    expect((await admin.db.doc(`incidents/J2/clipTracks/${sha}`).get()).exists).toBe(true);
+    expect((await admin.db.doc(`incidents/D2/clipTracks/${sha}`).get()).exists).toBe(true);
+  });
+  it("a deleted reading deletes the track of the same clip and nothing else", async () => {
+    await admin.db.doc(`incidents/J1/clipTracks/${sha}`).set({ sha256: sha });
+    await admin.db.doc(`incidents/J1/clipTracks/${"f".repeat(64)}`).set({ sha256: "f".repeat(64) });
+    await expect(deleteTrackForReading(admin.db, "J1", sha)).resolves.toBe(true);
+    expect((await admin.db.doc(`incidents/J1/clipTracks/${sha}`).get()).exists).toBe(false);
+    expect((await admin.db.doc(`incidents/J1/clipTracks/${"f".repeat(64)}`).get()).exists).toBe(true);
+    await expect(deleteTrackForReading(admin.db, "J1", sha)).resolves.toBe(false);
+  });
+  it("an id that is not a clip hash, or a bad incident id, touches nothing", async () => {
+    await admin.db.doc(`incidents/J1/clipTracks/${sha}`).set({ sha256: sha });
+    for (const [inc, bad] of [["J1", "E".repeat(64)], ["J1", "e".repeat(63)], ["../J1", sha]] as const) await expect(deleteTrackForReading(admin.db, inc, bad)).resolves.toBe(false);
+    expect((await admin.db.doc(`incidents/J1/clipTracks/${sha}`).get()).exists).toBe(true);
   });
 });

@@ -30,6 +30,7 @@ beforeEach(async () => {
     await put(`clips/${inc}/${CLIP}.mp4`);
     await put(`photos/${inc}/${PHOTO}.jpg`);
     await admin.db.doc(`incidents/${inc}/clipReadings/${CLIP}`).set({ sha256: CLIP });
+    await admin.db.doc(`incidents/${inc}/clipTracks/${CLIP}`).set({ sha256: CLIP });
     await admin.db.doc(`incidents/${inc}/photoReadings/${PHOTO}`).set({ sha256: PHOTO });
     await admin.db.doc(`incidents/${inc}/photoConsents/${PHOTO}`).set({ storagePath: `photos/${inc}/${PHOTO}.jpg` });
   }
@@ -38,7 +39,9 @@ afterAll(closeClients);
 
 describe("deleteIncidentMediaNow", () => {
   it("command removes its incident's clips, photos and their readings, and nothing of another incident", async () => {
-    expect(await handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).toEqual({ deleted: 5 });
+    expect(await handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).toEqual({ deleted: 6 });
+    expect((await admin.db.doc(`incidents/I1/clipTracks/${CLIP}`).get()).exists).toBe(false);
+    expect((await admin.db.doc(`incidents/I2/clipTracks/${CLIP}`).get()).exists).toBe(true);
     expect((await admin.db.doc(`incidents/I1/photoConsents/${PHOTO}`).get()).exists).toBe(false);
     expect((await admin.db.doc(`incidents/I2/photoConsents/${PHOTO}`).get()).exists).toBe(true);
     expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(false);
@@ -107,8 +110,8 @@ describe("deleteIncidentMediaNow", () => {
     expect(await exists(`clips/I1/${CLIP}.mp4`)).toBe(true);
     await admin.db.doc("incidents/I1").set({ name: "Live sandbox", mode: "judge", status: "open", expiresAt: new Date(Date.now() + 3_600_000),
       setupReady: true });
-    // Two files, two readings and the photo's consent record.
-    expect((await handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).deleted).toBe(5);
+    // Two files, two readings, the photo's consent record and the clip's track.
+    expect((await handleDeleteMedia(admin.db, admin.auth, bucket, command(), { incidentId: "I1" })).deleted).toBe(6);
   });
   it("a malformed incident id is refused before anything is listed", async () => {
     for (const data of [{ incidentId: "../I1" }, { incidentId: "" }, {}, null]) {

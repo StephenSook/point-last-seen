@@ -36,6 +36,12 @@ export async function deleteEndedSandboxMedia(db: Firestore, bucket: Pick<Bucket
         if (bad) throw (bad as PromiseRejectedResult).reason;
         return found.length;
       }));
+      // A clip's track (where the person moved in it) goes with the media; a failed delete leaves the sandbox to the
+      // next run, like a held file.
+      const tracks = await db.collection(`incidents/${inc.id}/clipTracks`).listDocuments();
+      const trackDeletes = await Promise.allSettled(tracks.map(d => d.delete()));
+      const badTrack = trackDeletes.find(d => d.status === "rejected");
+      if (badTrack) results.push({ status: "rejected", reason: (badTrack as PromiseRejectedResult).reason });
       const deleted = results.reduce((n, r) => n + (r.status === "fulfilled" ? r.value : 0), 0);
       if (deleted > 0) incidents.push(inc.id);
       files += deleted;
@@ -88,6 +94,18 @@ export async function deleteClipForReading(bucket: Pick<Bucket, "file">, inciden
 }
 
 /**
+ * Deletes a clip's track when its reading is deleted (TTL, command or sweep): the track came from the consented
+ * clip, so it ends with the consent. The same id checks as the clip; returns whether a track was deleted.
+ */
+export async function deleteTrackForReading(db: Firestore, incidentId: string, sha256: string): Promise<boolean> {
+  if (!/^[0-9a-f]{64}$/.test(sha256) || !/^[A-Za-z0-9_-]{1,128}$/.test(incidentId)) return false;
+  const ref = db.doc(`incidents/${incidentId}/clipTracks/${sha256}`);
+  if (!(await ref.get()).exists) return false;
+  await ref.delete();
+  return true;
+}
+
+/**
  * deleteIncidentMediaNow (callable, command only): removes an incident's clips and photos and their reading
  * documents at once, for example when a family withdraws consent or a search closes, instead of waiting for the
  * 30-day lifecycle. The caller's claims must name this incident and the command role. Returns the number of
@@ -125,7 +143,7 @@ export async function handleDeleteMedia(db: Firestore, users: Pick<Auth, "getUse
     await Promise.all(found.map(f => f.delete({ ignoreNotFound: true })));
     deleted += found.length;
   }
-  for (const collection of ["clipReadings", "photoReadings", "photoConsents"]) {
+  for (const collection of ["clipReadings", "clipTracks", "photoReadings", "photoConsents"]) {
     const docs = await db.collection(`incidents/${incidentId}/${collection}`).listDocuments();
     await Promise.all(docs.map(d => d.delete()));
     deleted += docs.length;

@@ -13,7 +13,7 @@ import { handleRotateJoinCode } from "./codes.js";
 import { guardLogLine, guardRequest } from "./cloudGuard.js";
 import { handleJoin, type JoinRequest } from "./join.js";
 import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_SESSION_TIMEOUT_S } from "./judgeSession.js";
-import { deleteClipForReading, deletePhotoConsentForObject, handleDeleteMedia, runMediaSweep } from "./media.js";
+import { deleteClipForReading, deletePhotoConsentForObject, deleteTrackForReading, handleDeleteMedia, runMediaSweep } from "./media.js";
 import { handleRemoveMember } from "./members.js";
 import { handleFamilyQuestion, handlePlanCreated, handleSearchState } from "./notify.js";
 import { deleteEndedDrills, recordDrillClosed } from "./retention.js";
@@ -42,15 +42,16 @@ export const deleteIncidentMedia = onSchedule(
 
 /**
  * deleteClipOnConsentEnd: when a clip reading (the consent record) is deleted, by its TTL, by command or
- * otherwise, its clip goes with it. Retry is on, so a transient Storage error is retried; a missing clip is
- * not an error. No model call.
+ * otherwise, its clip and its track go with it. Retry is on, so a transient Storage or Firestore error is retried;
+ * a missing clip or track is not an error. No model call.
  */
 export const deleteClipOnConsentEnd = onDocumentDeleted(
   { document: "incidents/{incidentId}/clipReadings/{sha256}", region: "us-central1", retry: true, maxInstances: 5 },
   async event => {
     const { incidentId, sha256 } = event.params;
     const deleted = await deleteClipForReading(getStorage().bucket(), incidentId, sha256);
-    console.log(JSON.stringify({ event: "deleteClipOnConsentEnd", incidentId, deleted }));
+    const track = await deleteTrackForReading(getFirestore(), incidentId, sha256);
+    console.log(JSON.stringify({ event: "deleteClipOnConsentEnd", incidentId, deleted, track }));
   },
 );
 
