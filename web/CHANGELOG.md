@@ -3355,3 +3355,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `vite.config.ts` adds `globIgnores` (Workbox's own `**/node_modules/**/*` plus `assets/TimeMachine-*`), so the three.js chunk (about 0.9 MB) and its CSS load only when a person opens the time machine. The view needs the clip from the network anyway; offline, the card says the 3D view could not load and keeps the clip.
 - Source: the clip time machine plan (the three.js chunk stays out of the PWA precache).
 - Verified: new no-backend case in `e2e/newBuild.spec.ts` (the built sw.js lists assets/main-*.js and no TimeMachine-*.js or .css) failed first on a build that precached both, then passed; the chunk is still built (5 newBuild cases pass).
+
+### feat(web): list a search's read clips and load a stored clip checked by its hash
+- What: `src/data/storedClips.ts`: `listStoredClips` reads `incidents/{id}/clipReadings` from the server (never the cache) and keeps the records whose reading parses as a sighting, newest clip first; a record whose id is not its SHA-256 is left out. `loadStoredClip` downloads `clips/{incident}/{sha256}.mp4` (up to the 14 MB upload cap) and rejects bytes whose SHA-256 is not the name. Built from the records, not from events, so a judge sandbox with a copied record and clip lists it too.
+- Source: the clip time machine plan (stored readings open the time machine).
+- Verified: `src/data/storedClips.test.ts` (4: the server read and its filter and order; the download path and cap; a hash mismatch; a bad name downloads nothing) failed first (module missing), then passed; typecheck clean.
