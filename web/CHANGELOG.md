@@ -3246,3 +3246,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `extras/timemachine/types.ts` adds `Mask` (a closed polygon of [y, x] points on the 0 to 1000 box scale) and an optional `TrackEntry.mask`. An entry without a mask still stands on its box, so a mask read that fails for some frames leaves those boxes as they are.
 - Source: the clip time machine spike (the cloud model's outline landed on the person in 9 of 9 frames of the team clip).
 - Verified: the new case in `types.test.ts` failed the typecheck first (`mask` not on `TrackEntry`), then passed; the time machine tests and the extras import guard pass (25); scripts/ci-local.sh --gates --web exit 0 (extras checks on PLS_EXTRAS_PORT=5196).
+
+### docs(evidence): spike 2, the clip as one frame per second
+- What: `docs/evidence/web/2026-11-26-clip-track-frames-spike.json` and the team clip's two sheets (boxes, outlines); the evidence README describes them. With one JPEG per second in one request (text first, "t=<second>" before each 960 px frame, box_2d with a label, thinking MINIMAL, a 2048 cap), gemini-3.5-flash-lite boxed the person on every second in view: team clip 9 of 9 in two runs, stock 19 of 19 and 12 of 12. A 16-point outline landed on the person in 9 of 9 team-clip frames. gemini-3.8-flash answered HTTP 500 on 4 of 4 calls.
+- Source: the clip time machine plan (second spike after the video path failed).
+- Verified: 10 calls (36 of a 42-call budget in all), no 429; every box and outline checked on the frame at its second; the sheets' SHA-256 in the JSON and README match the committed files; JSON parses; scripts/ci-local.sh --gates exit 0; web unit tests pass; hygiene guard --public ok.
