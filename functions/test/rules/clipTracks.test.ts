@@ -1,6 +1,6 @@
 // A clip's track: incidents/{id}/clipTracks/{sha256}, written once by command or family of an open search, only for a
 // clip whose reading is already stored, read by every member, never changed, deleted by command (web/src/data/clipTrack.ts).
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { afterAll, beforeEach, describe, it } from "vitest";
 import { admin, assertFails, assertSucceeds, clearFirestore, closeClients, commandClaims, dbAs, familyClaims, searcherClaims } from "../helpers";
 
@@ -48,6 +48,17 @@ describe("clip tracks", () => {
       await assertFails(setDoc(doc(db, path()), track(C, over)));
     }
     await assertFails(setDoc(doc(db, path("NOT-A-HASH")), track(C, { sha256: "NOT-A-HASH" })));
+  });
+
+  it("is readable only while its clip's reading is stored, and never as a list", async () => {
+    await admin.db.doc(path()).set(track(C, { createdAt: new Date() }));
+    const db = dbAs(S, searcherClaims);
+    await assertSucceeds(getDoc(doc(db, path())));
+    await assertFails(getDocs(collection(db, "incidents/I1/clipTracks")));
+    await admin.db.doc(`incidents/I1/clipReadings/${SHA}`).set({ sha256: SHA, reading: null, route: null });
+    await assertFails(getDoc(doc(db, path())));
+    await admin.db.doc(`incidents/I1/clipReadings/${SHA}`).delete();
+    await assertFails(getDoc(doc(db, path())));
   });
 
   it("refuses a closed search", async () => {

@@ -253,8 +253,10 @@ service cloud.firestore {
       // A clip's track (web/src/data/clipTrack.ts): a box per second, from the same consented clip. Written once by
       // command or family of an open search, only after the clip's reading is stored, so a track never comes before
       // its sighting; read by every member; never changed. Command deletes it, and it goes with its reading.
+      // Read one at a time, and only while the clip's reading is stored: a deleted reading hides its track at
+      // once, before the delete trigger removes it.
       match /clipTracks/{sha256} {
-        allow read: if isMember(incidentId);
+        allow get: if isMember(incidentId) && hasClipReading(incidentId, sha256);
         allow create: if isCommandOrFamily(incidentId) && isOpen(incidentId) && validClipTrack(incidentId, sha256, request.resource.data);
         allow delete: if isCommand(incidentId);
       }
@@ -550,7 +552,6 @@ service cloud.firestore {
     // A track's entries are checked by count here (at most 121, two minutes at one a second); each entry's box and
     // outline are checked by the client before it writes and again when it reads (web/src/data/clipTrack.ts).
     function validClipTrack(incidentId, sha256, d) {
-      let reading = /databases/$(database)/documents/incidents/$(incidentId)/clipReadings/$(sha256);
       return sha256.matches('^[0-9a-f]{64}$')
         && exactKeys(d, ['version', 'sha256', 'window', 'entries', 'model', 'route', 'framesSent', 'createdByUid', 'createdAt'])
         && d.version == 'track-v1' && d.sha256 == sha256
@@ -561,7 +562,11 @@ service cloud.firestore {
         && schema_RouteRecord(d.route) && d.route.platform == 'web'
         && d.framesSent is int && d.framesSent >= 1 && d.framesSent <= 121
         && d.createdByUid == request.auth.uid && d.createdAt == request.time
-        && exists(reading) && get(reading).data.reading != null;
+        && hasClipReading(incidentId, sha256);
+    }
+    function hasClipReading(incidentId, sha256) {
+      let reading = /databases/$(database)/documents/incidents/$(incidentId)/clipReadings/$(sha256);
+      return exists(reading) && get(reading).data.reading != null;
     }
     function optionalLength(v) {
       return v == null || (v is number && v >= 0);

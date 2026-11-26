@@ -36,6 +36,11 @@ describe("clipTrackFromDoc", () => {
     ["an outline with an odd count", { entries: [{ t: 0, box: [1, 2, 3, 4], source: "cloud", mask: [1, 2, 3, 4, 5, 6, 7] }] }],
     ["times out of order", { entries: [{ t: 2, box: [1, 2, 3, 4], source: "cloud" }, { t: 1, box: [1, 2, 3, 4], source: "cloud" }] }],
     ["an unknown source", { entries: [{ t: 0, box: [1, 2, 3, 4], source: "guess" }] }],
+    ["a box number past 1000", { entries: [{ t: 0, box: [1, 2, 1003, 4], source: "cloud" }] }],
+    ["a box with its corners swapped", { entries: [{ t: 0, box: [900, 2, 100, 4], source: "cloud" }] }],
+    ["an outline point past 1000", { entries: [{ t: 0, box: [1, 2, 3, 4], source: "cloud", mask: [1, 2, 3, 4, 5, 1200] }] }],
+    ["an entry after the window's end", { entries: [{ t: 10, box: [1, 2, 3, 4], source: "cloud" }] }],
+    ["an entry before the window's start", { window: { startS: 2, endS: 9 }, entries: [{ t: 1, box: [1, 2, 3, 4], source: "cloud" }] }],
   ])("gives null for %s", (_why, over) => {
     const d = clipTrackDoc({ sha256: SHA, track: TRACK, model: "m", route: ROUTE, framesSent: 2, uid: "u" });
     expect(clipTrackFromDoc({ ...d, ...over, createdAt: { toMillis: () => 1 } })).toBeNull();

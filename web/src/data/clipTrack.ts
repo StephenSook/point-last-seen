@@ -4,7 +4,7 @@
 // Firestore holds no list inside a list, so each outline is stored as a flat [y, x, y, x, ...] list.
 
 import type { RouteRecord } from "@pls/engine";
-import { doc, getDoc, serverTimestamp, setDoc, type FieldValue, type Firestore } from "firebase/firestore";
+import { doc, getDocFromServer, serverTimestamp, setDoc, type FieldValue, type Firestore } from "firebase/firestore";
 import type { Box2d, BoxSource, Mask, Track, TrackEntry } from "../extras/timemachine/types";
 
 type StoredEntry = { t: number; box: number[]; source: BoxSource; mask?: number[] };
@@ -39,14 +39,18 @@ export function clipTrackDoc(a: { sha256: string; track: Track; model: string; r
 }
 
 const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+// The rules check a track's entries by count only, so each box and outline is checked here as it is read.
+const scaled = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 1000;
 
 function entryFrom(v: unknown): TrackEntry | null {
   const e = v as Partial<StoredEntry> | null;
-  if (!e || !num(e.t) || !Array.isArray(e.box) || e.box.length !== 4 || !e.box.every(num)) return null;
+  if (!e || !num(e.t) || !Array.isArray(e.box) || e.box.length !== 4 || !e.box.every(scaled)) return null;
+  const [y0, x0, y1, x1] = e.box as number[];
+  if (!(y0! < y1! && x0! < x1!)) return null;
   if (e.source !== "cloud" && e.source !== "on_device") return null;
   const box = e.box as unknown as Box2d;
   if (e.mask === undefined) return { t: e.t, box, source: e.source };
-  if (!Array.isArray(e.mask) || e.mask.length < 6 || e.mask.length % 2 !== 0 || !e.mask.every(num)) return null;
+  if (!Array.isArray(e.mask) || e.mask.length < 6 || e.mask.length % 2 !== 0 || !e.mask.every(scaled)) return null;
   const mask: [number, number][] = [];
   for (let i = 0; i < e.mask.length; i += 2) mask.push([e.mask[i]!, e.mask[i + 1]!]);
   return { t: e.t, box, source: e.source, mask: mask as Mask };
@@ -56,11 +60,11 @@ function entryFrom(v: unknown): TrackEntry | null {
 export function clipTrackFromDoc(d: Record<string, unknown>): StoredClipTrack | null {
   if (d["version"] !== "track-v1" || typeof d["sha256"] !== "string" || typeof d["model"] !== "string" || !num(d["framesSent"])) return null;
   const w = d["window"] as { startS?: unknown; endS?: unknown } | null;
-  if (!w || !num(w.startS) || !num(w.endS) || !Array.isArray(d["entries"])) return null;
+  if (!w || !num(w.startS) || !num(w.endS) || w.startS < 0 || !(w.endS > w.startS) || !Array.isArray(d["entries"])) return null;
   const entries: TrackEntry[] = [];
   for (const raw of d["entries"] as unknown[]) {
     const e = entryFrom(raw);
-    if (!e || (entries.length > 0 && e.t <= entries[entries.length - 1]!.t)) return null;
+    if (!e || e.t < w.startS || e.t > w.endS || (entries.length > 0 && e.t <= entries[entries.length - 1]!.t)) return null;
     entries.push(e);
   }
   const created = d["createdAt"] as { toMillis?: () => number } | null;
@@ -81,7 +85,8 @@ export async function writeClipTrack(db: Firestore, incidentId: string, d: ClipT
   await setDoc(trackRef(db, incidentId, d.sha256), d);
 }
 
+/** The track as the server holds it now, never a cached copy (a deleted track must not come back from this device). */
 export async function findClipTrack(db: Firestore, incidentId: string, sha256: string): Promise<StoredClipTrack | null> {
-  const snap = await getDoc(trackRef(db, incidentId, sha256));
+  const snap = await getDocFromServer(trackRef(db, incidentId, sha256));
   return snap.exists() ? clipTrackFromDoc(snap.data()) : null;
 }
