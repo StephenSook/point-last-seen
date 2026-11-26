@@ -3485,3 +3485,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `readClipTrack` refuses a window of more than 121 frames (`TRACK_MAX_FRAMES`, two minutes at one a second: the rules' cap on a stored track) before it decodes or sends anything, with the reason `too_long`; the card says "This clip is too long to track (more than two minutes). The time machine shows the clearest frame." Before, a long clip could send every frame and then have its track refused by the rules.
 - Source: review of the track read (no frame cap before sending).
 - Verified: new cases in `src/ai/clipTrack.test.ts` (130 s refuses with no frame taken and no call; exactly 121 frames reads) failed first, then passed (48); typecheck clean.
+
+### fix(web): no track read until Remote Config has answered
+- What: `trackPaused` also holds the track read while Remote Config has never answered a fetch (`fetchedAtMs` null), so a fresh tab whose config is slow or unreachable cannot read a track under the in-app defaults (kill_cloud off, time machine on). A config fetched earlier in this browser counts. The check runs before the stored-track lookup and before every model call.
+- Source: review of the time machine mount (a fresh tab could track under defaults).
+- Verified: new `trackPaused` unit case (null and missing fetch time pause the read) failed first, then passed (timeMachine 8); typecheck clean.
