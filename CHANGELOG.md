@@ -3,6 +3,10 @@
 This file covers shared/, tools/, functions/, the root rules and config, scripts/, .github/ and docs/.
 Newest first. Each entry gives what changed, its source and how it was verified.
 
+## 2026-11-26
+
+- `docs/TEST-MATRIX.md` has a Google Pixel 10 cloud row: one clip read through the server template `pls-clip-read-v1` with the published `android-judge-9` file (`point-last-seen-family-8f7bc689.apk`), `inferenceSource` IN_CLOUD in 9,080 ms, App Check by Play Integrity. Evidence: `docs/evidence/android/pixel-10-judge-9-cloud-clip-read-2026-11-26.md`. Source: review (the Pixel had on-device rows only). Verified: the PLS-PROBE log line and `OK (1 test)` from the run, the installed `base.apk` hash on the phone; `scripts/ci-local.sh --gates` (with `scripts/test_test_matrix.py`) and `hygiene_guard.py --public` pass.
+
 ## 2026-11-25
 
 - README's Android install row and the production checklist name `android-judge-9` (`point-last-seen-family-8f7bc689.apk`) as the latest judge release. Source: judge-9 published with the note-screen fix (#416). Verified: a signed-out fetch of `/releases/latest` lands on android-judge-9; `scripts/ci-local.sh --gates` and `hygiene_guard.py --public` pass.
