@@ -828,8 +828,9 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       if (o.kind === "failed") return { status: "failed", message: TRACK_FAILED, durationS };
       traced(o.route);
       if (sink) recordInference(o.route, sink, "clip_track");
-      // The track is shown even when it could not be stored; the next seat then reads its own.
-      await writeClipTrack(pls.db, incidentId, clipTrackDoc({ sha256: read.sha256, track: o.track, model: rc.cloudModelWeb, route: o.route, framesSent: o.framesSent, uid })).catch(() => undefined);
+      // The track is shown at once, not after the server acknowledges the write (offline, that waits for the link
+      // to come back); it is shown even when it could not be stored, and the next seat then reads its own.
+      void writeClipTrack(pls.db, incidentId, clipTrackDoc({ sha256: read.sha256, track: o.track, model: rc.cloudModelWeb, route: o.route, framesSent: o.framesSent, uid })).catch(() => undefined);
       return { status: "ready", track: o.track, durationS, framesSent: o.framesSent };
     } catch {
       return { status: "failed", message: TRACK_FAILED, durationS };

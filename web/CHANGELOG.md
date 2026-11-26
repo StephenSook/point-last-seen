@@ -3365,3 +3365,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: The flag is read as it is now, not as it was when the read was pressed. `CameraClipPanel` checks `time_machine_enabled` again when the sighting read comes back and starts no track read when it is off. `trackCameraClip` (CommandPost) stops before the stored-track lookup when clip reading is paused or the time machine is off, and hands `readClipTrack` the same live check (`trackPaused`: `kill_cloud` on, or `time_machine_enabled` off) for every model call.
 - Source: review of the time machine mount (the flag was captured when the read was pressed; only kill_cloud was checked live).
 - Verified: new harness case (turning the time machine off while the sighting is read starts no track read) and new `trackPaused` unit case failed first, then passed (clip harness 31, timeMachine 5); typecheck clean.
+
+### fix(web): a read track is shown before its write is acknowledged
+- What: `trackCameraClip` hands the read track to the card at once and stores it without waiting: Firestore's write waits for the server's acknowledgement, so a link lost after Gemini answered left the card on "Tracking the person in the clip." until the link came back. A write that fails is still dropped quietly; the next seat reads its own track.
+- Source: review of the time machine mount (a lost link after the reply stranded the card).
+- Verified: the write is no longer awaited (`void writeClipTrack(...).catch(...)`, CommandPost.tsx); typecheck clean. CommandPost has no unit harness, so this one is checked by reading, not by a new test.
