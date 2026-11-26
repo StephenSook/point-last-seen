@@ -24,6 +24,12 @@ describe("telemetry", () => {
     ]);
   });
 
+  it("records under another name when asked, with the same route-only attributes", () => {
+    const names: string[] = [];
+    recordInference(route, { record: (name) => names.push(name) }, "clip_track");
+    expect(names).toEqual(["clip_track"]);
+  });
+
   it("never throws into the caller when telemetry fails", () => {
     expect(() => recordInference(route, { record: () => { throw new Error("perf off"); } })).not.toThrow();
   });

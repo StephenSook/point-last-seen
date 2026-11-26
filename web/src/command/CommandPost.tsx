@@ -3,21 +3,24 @@
 
 import { DEFAULT_PARAMS, nearestWalkerStation, placeToCheck, projectWalkerPoint, type Assignment, type EventDoc, type FamilyProfile, type Place, type PriorLayers, type RouteRecord, type Terrain } from "@pls/engine";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type FormEvent } from "react";
-import { aiClient, clipCloudGenerator, debriefSheetGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
+import { aiClient, clipCloudGenerator, clipTrackGenerator, debriefSheetGenerator, deviceModelInitializer, frameCheckGenerator, photoTemplateGenerator, photoGenerator, sightingTemplateGenerator, sightingTextGenerator, wordingGenerator } from "../ai/client";
 import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState } from "../ai/deviceModel";
 import { PHOTO_READ_TIMEOUT_MS, readPhotoOnDevice } from "../ai/photoCues";
 import { readDebriefSheetOnDevice, SHEET_READ_TIMEOUT_MS } from "../ai/debriefSheetRead";
 import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, subscribePhotoReadingIds, uploadPhoto } from "../data/photos";
-import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
-import { firestoreClipIo } from "../data/clips";
+import { clipReadDeps, PAUSED, readClip, type ClipReadOutcome } from "../ai/clipRead";
+import { readClipTrack, TRACK_FRAME_MAX_SIDE } from "../ai/clipTrack";
+import { confirmClipReading, firestoreClipIo } from "../data/clips";
+import { clipTrackDoc, findClipTrack, writeClipTrack } from "../data/clipTrack";
 import { countMedia, deleteMediaNow } from "../data/media";
 import { travelBearingFromInputs } from "../data/cameraSighting";
 import { cameraConfirmWrites, familyCameraConfirmWrites } from "../prior/cameraPrior";
 import { sightingConfirmWrites, sightingNewLkp } from "../prior/sightingPrior";
-import { CameraClipPanel, type ClipRead } from "../camera/CameraClipPanel";
+import { CameraClipPanel, TRACK_FAILED, type ClipRead, type TrackView } from "../camera/CameraClipPanel";
 import type { ClipIntakeInput, ReadHow } from "../camera/ClipIntake";
 import { FRAME_OPTS } from "../ai/frameCheck";
-import { jpegAt, sampleFrames } from "../camera/frames";
+import { clipDurationS, jpegAt, sampleFrames } from "../camera/frames";
+import { trackPaused } from "../camera/timeMachine";
 import { triageClip, triageRoute, type TriageResult } from "../camera/triage";
 import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
@@ -797,6 +800,42 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (o.kind === "read" && !o.cached && o.route) traced(o.route);
     return o;
   };
+  // The clip's track for the time machine (after a read): the stored one when there is one, else one read in the
+  // cloud on the same consented window, from frames taken here, then stored. A failed track leaves the sighting.
+  const trackCameraClip = async (read: ClipRead, input: ClipIntakeInput, how: ReadHow): Promise<TrackView> => {
+    const uid = pls.auth.currentUser?.uid;
+    const clip = new Blob([input.bytes as BlobPart], { type: input.mimeType });
+    let durationS: number | null = null;
+    try {
+      durationS = await clipDurationS(clip);
+      // Remote Config as it is now: a pause or the time machine turned off since the read began stops the job here,
+      // and readClipTrack asks again before every model call.
+      if (trackPaused(rcNow.current)) return { status: "failed", message: PAUSED, durationS };
+      const stored = await findClipTrack(pls.db, incidentId, read.sha256).catch(() => null);
+      if (stored) return { status: "ready", track: stored.track, durationS };
+      if (!uid) return { status: "failed", message: TRACK_FAILED, durationS };
+      const o = await readClipTrack(
+        { sha256: read.sha256, model: rc.cloudModelWeb, durationS, window: how.window ?? { startS: 0, endS: durationS }, frameS: 1 / 30, killCloud: () => trackPaused(rcNow.current), stillCurrent: how.stillCurrent, withMasks: true },
+        {
+          confirmReading: (sha) => confirmClipReading(pls.db, incidentId, sha),
+          frameJpeg: (atS) => jpegAt(clip, atS, TRACK_FRAME_MAX_SIDE),
+          boxes: clipTrackGenerator(ai(), rc.cloudModelWeb, false),
+          masks: clipTrackGenerator(ai(), rc.cloudModelWeb, true),
+          nowMs: () => Date.now(),
+        },
+      );
+      if (o.kind === "refused") return { status: "failed", message: o.message, durationS, ...(o.sent ? { sent: o.sent } : {}) };
+      if (o.kind === "failed") return { status: "failed", message: TRACK_FAILED, durationS, ...(o.sent ? { sent: o.sent } : {}) };
+      traced(o.route);
+      if (sink) recordInference(o.route, sink, "clip_track");
+      // The track is shown at once, not after the server acknowledges the write (offline, that waits for the link
+      // to come back); it is shown even when it could not be stored, and the next seat then reads its own.
+      void writeClipTrack(pls.db, incidentId, clipTrackDoc({ sha256: read.sha256, track: o.track, model: rc.cloudModelWeb, route: o.route, framesSent: o.framesSent, uid })).catch(() => undefined);
+      return { status: "ready", track: o.track, durationS, sent: { frames: o.framesSent, outlineFrames: o.maskFramesSent } };
+    } catch {
+      return { status: "failed", message: TRACK_FAILED, durationS };
+    }
+  };
   // On-device triage (P-39): only with this laptop's model (the gate), frames decoded here; a
   // result that sends nothing is traced (never stored). Unmeasured on a real built-in model.
   const triageCameraClip = async (clip: Blob): Promise<TriageResult> => {
@@ -1006,6 +1045,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               onPlaceCamera={setPin}
               onRead={readCameraClip}
               onTriage={triageCameraClip}
+              onTrack={trackCameraClip}
+              timeMachine={rc.timeMachineEnabled}
               onConfirm={confirmCameraClip}
               onClose={() => {
                 setClipping(false);

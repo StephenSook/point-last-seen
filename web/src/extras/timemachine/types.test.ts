@@ -3,7 +3,7 @@ import { TRACK_RULES, type ClockTick, type TimeMachineResult, type Track, type T
 
 describe("the time machine contract", () => {
   it("keeps the plan's track numbers", () => {
-    expect(TRACK_RULES).toEqual({ linkMinIoU: 0.3, bridgeMaxGapS: 2, agreeWithinS: 1, holdS: 0.5 });
+    expect(TRACK_RULES).toEqual({ maxCenterJumpPerS: 450, bridgeMaxGapS: 2, agreeWithinS: 1, holdS: 0.5 });
   });
 
   it("describes a stored track, a tick and a result row", () => {

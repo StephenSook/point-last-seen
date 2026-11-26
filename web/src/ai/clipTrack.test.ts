@@ -190,13 +190,13 @@ describe("readClipTrack", () => {
 
   it("fails the whole track when a box reply stops at its token cap, and asks for no outlines", async () => {
     const { deps, req, calls } = setup({ boxes: () => ({ text: '{"track": [{"t": 0', finishReason: "MAX_TOKENS" }) });
-    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "max_tokens" });
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "max_tokens", sent: { frames: 10, outlineFrames: 0 } });
     expect(calls.map((c) => c.kind)).toEqual(["boxes"]);
   });
 
   it("fails the whole track on a box reply that breaks a rule", async () => {
     const { deps, req } = setup({ boxes: (ts) => ({ text: JSON.stringify({ track: ts.map((t) => ({ t, label: "person", box_2d: [100, 100, 1200, 200] })) }), finishReason: "STOP" }) });
-    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "invalid" });
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "invalid", sent: { frames: 10, outlineFrames: 0 } });
   });
 
   it("keeps the boxes when one outline call fails, with no outline for its frames only", async () => {
@@ -234,7 +234,7 @@ describe("readClipTrack", () => {
     deps.boxes = async () => {
       throw Object.assign(new Error("quota text"), { customErrorData: { status: 429 } });
     };
-    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "error", status: 429 });
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "error", status: 429, sent: { frames: 10, outlineFrames: 0 } });
   });
 });
 
@@ -312,6 +312,7 @@ describe("readClipTrack checks again before every call", () => {
     expect(await readClipTrack({ ...req, stillCurrent: () => current }, deps)).toEqual({
       kind: "refused",
       message: "This search's clips and photos were deleted. The read stopped. 10 frames of the clip had already been sent to the cloud.",
+      sent: { frames: 10, outlineFrames: 6 },
     });
   });
 
@@ -352,6 +353,7 @@ describe("a read that stops after frames left says how many", () => {
     expect(await readClipTrack(req, deps)).toEqual({
       kind: "refused",
       message: "The consent record for this clip was deleted. The read stopped. 40 frames of the clip had already been sent to the cloud.",
+      sent: { frames: 40, outlineFrames: 0 },
     });
   });
 
@@ -362,6 +364,7 @@ describe("a read that stops after frames left says how many", () => {
     expect(await readClipTrack(req, deps)).toEqual({
       kind: "refused",
       message: "This clip has no reading yet. The read stopped. 10 frames of the clip had already been sent to the cloud.",
+      sent: { frames: 10, outlineFrames: 0 },
     });
     expect([calls.length, reads]).toEqual([1, 3]);
   });
@@ -374,6 +377,7 @@ describe("a read that stops after frames left says how many", () => {
     expect(await readClipTrack({ ...req, killCloud: () => checks >= 3 }, deps)).toEqual({
       kind: "refused",
       message: "Clip reading is paused right now. The read stopped. 10 frames of the clip had already been sent to the cloud.",
+      sent: { frames: 10, outlineFrames: 0 },
     });
   });
 });

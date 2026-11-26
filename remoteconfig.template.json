@@ -90,6 +90,13 @@
       },
       "valueType": "NUMBER",
       "description": "Android version codes below this show the update screen. Raise only after the repo is public and the release APK is a GitHub Release asset (docs/PRODUCTION-CHECKLIST.md)."
+    },
+    "time_machine_enabled": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "valueType": "BOOLEAN",
+      "description": "false hides the web command post's clip time machine; the sighting card and the person-in-view band stay."
     }
   }
 }

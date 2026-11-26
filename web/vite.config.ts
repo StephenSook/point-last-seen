@@ -49,6 +49,9 @@ export default defineConfig(({ command, mode }) => {
           // pmtiles: the site basemap, fetched whole, so it is cached like any file and drawn offline.
           // The extras lane's data files are json under extras/; version.json stays network-only.
           globPatterns: ["**/*.{js,mjs,css,html,svg,woff2,pmtiles}", "extras/**/*.json", "tiles/*.graph.json"],
+          // The clip time machine's 3D view (three.js, about 0.9 MB) loads only when a person opens it; it needs the
+          // clip from the network anyway, so it is left out of the offline download. Workbox's own default stays.
+          globIgnores: ["**/node_modules/**/*", "assets/TimeMachine-*"],
           // The main bundle (Firebase plus MapLibre) is about 2.1 MB, above Workbox's 2 MiB default.
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
           navigateFallback: "/index.html",

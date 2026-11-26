@@ -78,6 +78,17 @@ export async function sampleFrames(clip: Blob, everyS: number = MOTION.sampleEve
   }
 }
 
+/** The clip's exact length in seconds, decoded here. */
+export async function clipDurationS(clip: Blob): Promise<number> {
+  const { v, done } = await load(clip);
+  try {
+    if (!Number.isFinite(v.duration) || v.duration <= 0) throw new Error("This clip could not be decoded here.");
+    return v.duration;
+  } finally {
+    done();
+  }
+}
+
 /** One frame as a JPEG (base64, longest side at most `maxSide`), for the laptop's model. */
 export async function jpegAt(clip: Blob, t: number, maxSide = 768): Promise<string> {
   const { v, done } = await load(clip);

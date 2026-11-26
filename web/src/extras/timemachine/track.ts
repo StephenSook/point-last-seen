@@ -30,16 +30,21 @@ export const linkTrack: LinkTrack = (entries) => {
     // A stable sort lets the first input entry win at each second.
     if (previous?.t === entry.t) continue;
 
-    if (
-      segment && previous &&
-      entry.t - previous.t - 1 <= TRACK_RULES.bridgeMaxGapS &&
-      iou(previous.box, entry.box) >= TRACK_RULES.linkMinIoU
-    ) {
-      segment.entries.push(entry);
-      segment.endS = entry.t;
-    } else {
-      segments.push({ startS: entry.t, endS: entry.t, entries: [entry] });
+    if (segment && previous) {
+      const gapS = entry.t - previous.t;
+      const from = previous.box;
+      const to = entry.box;
+      const dx = (to[1] + to[3] - from[1] - from[3]) / 2;
+      const dy = (to[0] + to[2] - from[0] - from[2]) / 2;
+
+      // bridgeMaxGapS counts missing seconds: entries at 4 and 7 s are 2 missing seconds apart.
+      if (gapS - 1 <= TRACK_RULES.bridgeMaxGapS && Math.hypot(dx, dy) <= TRACK_RULES.maxCenterJumpPerS * gapS) {
+        segment.entries.push(entry);
+        segment.endS = entry.t;
+        continue;
+      }
     }
+    segments.push({ startS: entry.t, endS: entry.t, entries: [entry] });
   }
   return segments;
 };
