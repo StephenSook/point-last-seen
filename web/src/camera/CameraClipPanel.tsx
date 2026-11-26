@@ -27,6 +27,7 @@ export type TrackView =
 export const TRACK_FAILED = "The person's track could not be read. The time machine shows the clearest frame.";
 export const MEDIA_DELETED_NOTICE = "This search's clips and photos were deleted. Give the consents again to read a clip.";
 export const TRACK_NOT_SAVED = "The track was not saved, so another seat will read its own.";
+export const TRACK_TOO_LONG = "This clip is too long to track (more than two minutes). The time machine shows the clearest frame.";
 
 type Props = {
   camera: LatLon | null;

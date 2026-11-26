@@ -18,7 +18,7 @@ import { countMedia, deleteMediaNow } from "../data/media";
 import { travelBearingFromInputs } from "../data/cameraSighting";
 import { cameraConfirmWrites, familyCameraConfirmWrites } from "../prior/cameraPrior";
 import { sightingConfirmWrites, sightingNewLkp } from "../prior/sightingPrior";
-import { CameraClipPanel, TRACK_FAILED, type ClipRead, type TrackView } from "../camera/CameraClipPanel";
+import { CameraClipPanel, TRACK_FAILED, TRACK_TOO_LONG, type ClipRead, type TrackView } from "../camera/CameraClipPanel";
 import type { ClipIntakeInput, ReadHow } from "../camera/ClipIntake";
 import { FRAME_OPTS } from "../ai/frameCheck";
 import { clipDurationS, jpegAt, sampleFrames } from "../camera/frames";
@@ -823,7 +823,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       },
     );
     if (o.kind === "refused") return { status: "failed", message: o.message, durationS, ...(o.sent ? { sent: o.sent } : {}) };
-    if (o.kind === "failed") return { status: "failed", message: TRACK_FAILED, durationS, ...(o.sent ? { sent: o.sent } : {}) };
+    if (o.kind === "failed") return { status: "failed", message: o.reason === "too_long" ? TRACK_TOO_LONG : TRACK_FAILED, durationS, ...(o.sent ? { sent: o.sent } : {}) };
     traced(o.route);
     if (sink) recordInference(o.route, sink, "clip_track");
     // The track is shown at once, not after the server acknowledges the write (offline, that waits for the link

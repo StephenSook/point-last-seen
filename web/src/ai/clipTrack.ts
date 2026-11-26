@@ -18,6 +18,8 @@ export const TRACK_FRAME_MAX_SIDE = 960;
 export const TRACK_BOX_FRAMES_PER_CALL = 40;
 /** About 260 to 330 reply tokens an outlined frame, so 6 fit one reply. */
 export const TRACK_MASK_FRAMES_PER_CALL = 6;
+/** The most frames one track holds (two minutes at one a second): the rules refuse a longer track. */
+export const TRACK_MAX_FRAMES = 121;
 export const TRACK_MAX_OUTPUT_TOKENS = 2048;
 
 const BOX = { type: ["array", "null"], items: { type: "integer" }, description: "[ymin, xmin, ymax, xmax] normalized to 0-1000, or null when no person is in the frame" };
@@ -195,8 +197,11 @@ export type TrackSent = { frames: number; outlineFrames: number };
 export type TrackReadOutcome =
   /** sent: present once any frame has left, so the receipt can say what was sent before the stop. */
   | { kind: "refused"; message: string; sent?: TrackSent }
-  /** max_tokens: a box reply stopped at its token cap; invalid: a box reply broke a rule; error: the call failed (`status` when the SDK gave one). */
-  | { kind: "failed"; reason: "max_tokens" | "invalid" | "error"; status?: number; sent?: TrackSent }
+  /**
+   * max_tokens: a box reply stopped at its token cap; invalid: a box reply broke a rule; error: the call failed
+   * (`status` when the SDK gave one); too_long: the window holds more than TRACK_MAX_FRAMES frames (nothing taken or sent).
+   */
+  | { kind: "failed"; reason: "max_tokens" | "invalid" | "error" | "too_long"; status?: number; sent?: TrackSent }
   /** framesSent: the frames that left this laptop for the box read (the outline read sends some of them again). */
   | { kind: "read"; track: Track; framesSent: number; maskFramesSent: number; route: RouteRecord };
 
@@ -264,6 +269,8 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
   try {
     const times = trackFrameTimes(window, r.durationS, r.frameS);
     if (times.length === 0) return { kind: "failed", reason: "invalid" };
+    // A track the rules would refuse is never read: nothing is decoded or sent.
+    if (times.length > TRACK_MAX_FRAMES) return { kind: "failed", reason: "too_long" };
     const frames: { t: number; jpeg: string }[] = [];
     for (const f of times) frames.push({ t: f.t, jpeg: await deps.frameJpeg(f.atS) });
 

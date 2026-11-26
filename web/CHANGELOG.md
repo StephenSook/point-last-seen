@@ -3480,3 +3480,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: "Track the person" is gone from "Clips read for this search": a clip read before opens with its stored track, or, with none, on its clearest frame with the line "No track was read for this clip. The time machine shows its clearest frame." A track is now read only right after a clip read, on the window that read was consented for and sent. Before, the list could send frames from the whole clip (its record keeps no window), and from a copy in memory after the clip was deleted from storage. `docs/SECURITY.md` and `docs/LIMITS.md` say the same.
 - Source: review of the stored clips list (findings: the window, the deleted clip, and the list's frame count).
 - Verified: the stored-clips harness case for a clip with no track (no Track the person, the line, the key frame box at 0:04) failed first, then passed (stored-clips 4); typecheck clean.
+
+### fix(web): a clip too long to track is refused before any frame is taken
+- What: `readClipTrack` refuses a window of more than 121 frames (`TRACK_MAX_FRAMES`, two minutes at one a second: the rules' cap on a stored track) before it decodes or sends anything, with the reason `too_long`; the card says "This clip is too long to track (more than two minutes). The time machine shows the clearest frame." Before, a long clip could send every frame and then have its track refused by the rules.
+- Source: review of the track read (no frame cap before sending).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (130 s refuses with no frame taken and no call; exactly 121 frames reads) failed first, then passed (48); typecheck clean.
