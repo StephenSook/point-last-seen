@@ -4,6 +4,7 @@ const WIDTH = 192;
 const HEIGHT = 108;
 const INTERVAL_S = 0.5;
 const MAX_FRAMES = 120;
+const BITMAP_OPTIONS: ImageBitmapOptions = { imageOrientation: "flipY", premultiplyAlpha: "none" };
 
 /** Captures playing frames locally. The caller owns each delivered bitmap and must close it. */
 export function captureFrames(video: HTMLVideoElement, onFrame: (frame: ThumbnailFrame) => void): () => void {
@@ -32,7 +33,7 @@ export function captureFrames(video: HTMLVideoElement, onFrame: (frame: Thumbnai
     if (!video.paused && !video.seeking && !captured.has(bucket)) {
       captured.add(bucket);
       context!.drawImage(video, 0, 0, WIDTH, HEIGHT);
-      void createImageBitmap(canvas).then(
+      void createImageBitmap(canvas, BITMAP_OPTIONS).then(
         (bitmap) => {
           if (stopped) bitmap.close();
           else onFrame({ timeS: mediaTime, bitmap });
@@ -105,7 +106,7 @@ export function captureFramesBySeek(src: string, durationS: number, onFrame: (fr
     let bitmap: ImageBitmap;
     try {
       context!.drawImage(reader, 0, 0, WIDTH, HEIGHT);
-      bitmap = await createImageBitmap(canvas);
+      bitmap = await createImageBitmap(canvas, BITMAP_OPTIONS);
     } catch {
       stop();
       return;

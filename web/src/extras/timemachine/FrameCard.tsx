@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore, type RefObject } from "react";
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import {
   type Group, type LineLoop, type MeshBasicMaterial, type Texture, Vector2, Vector3,
 } from "three";
-import type { Box2d, TimeClock } from "./types";
+import { boxAt } from "./track";
+import { TRACK_RULES, type Box2d, type Mask, type TimeClock, type TimeMachineProps, type TrackSegment } from "./types";
 
 export const FRAME_WIDTH = 3.2;
 export const FRAME_HEIGHT = 1.8;
@@ -23,6 +24,11 @@ export function timeDepth(timeS: number, durationS: number) {
 
 export function frameX(x: number) { return (x / 1000 - 0.5) * FRAME_WIDTH; }
 export function frameY(y: number) { return (0.5 - y / 1000) * FRAME_HEIGHT; }
+
+export function frameBoxAt(segments: readonly TrackSegment[] | null, keyFrame: TimeMachineProps["keyFrame"], timeS: number) {
+  if (segments !== null) return boxAt(segments, timeS);
+  return keyFrame && Math.abs(timeS - keyFrame.timeS) <= TRACK_RULES.holdS ? keyFrame.box : null;
+}
 
 export type SliceTexture = { readonly timeS: number; readonly texture: Texture };
 
@@ -58,6 +64,24 @@ export function BoxOutline({ color, readBox }: { color: string; readBox: () => B
   );
 }
 
+export function MaskOutline({ mask, color, opacity = 1, depthTest = true }: {
+  mask: Mask;
+  color: string;
+  opacity?: number;
+  depthTest?: boolean;
+}) {
+  const points = useMemo(() => new Float32Array(mask.flatMap(([y, x]) => [frameX(x), frameY(y), 0])), [mask]);
+
+  return (
+    <lineLoop frustumCulled={false} position-z={0.012} renderOrder={3}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[points, 3]} />
+      </bufferGeometry>
+      <lineBasicMaterial color={color} transparent opacity={opacity} depthTest={depthTest} depthWrite={false} toneMapped={false} />
+    </lineLoop>
+  );
+}
+
 type FrameCardProps = {
   video: HTMLVideoElement;
   videoTexture: Texture | null;
@@ -65,20 +89,24 @@ type FrameCardProps = {
   durationS: number;
   clock: TimeClock;
   readBox: () => Box2d | null;
+  readMask: (timeS: number) => Mask | null;
   intro: RefObject<number>;
   clockLabel: RefObject<HTMLTimeElement | null>;
   ink: string;
   glass: string;
+  renderOrder: number;
 };
 
 type Drag = { pointerId: number; x: number; y: number; axis: Vector2; timeS: number };
 
-export function FrameCard({ video, videoTexture, frames, durationS, clock, readBox, intro, clockLabel, ink, glass }: FrameCardProps) {
+export function FrameCard({ video, videoTexture, frames, durationS, clock, readBox, readMask, intro, clockLabel, ink, glass, renderOrder }: FrameCardProps) {
   const card = useRef<Group>(null);
   const plane = useRef<MeshBasicMaterial>(null);
   const projected = useRef(new Vector3());
   const drag = useRef<Drag | null>(null);
   const getScene = useThree((state) => state.get);
+  const currentMask = () => readMask(clock.now().timeS);
+  const mask = useSyncExternalStore(clock.subscribe, currentMask, currentMask);
 
   useEffect(() => {
     const label = clockLabel.current;
@@ -181,7 +209,7 @@ export function FrameCard({ video, videoTexture, frames, durationS, clock, readB
   }
 
   return (
-    <group ref={card}>
+    <group ref={card} renderOrder={renderOrder}>
       <mesh renderOrder={2} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}>
         <planeGeometry args={[FRAME_WIDTH, FRAME_HEIGHT]} />
         <meshBasicMaterial ref={plane} color={glass} transparent opacity={0.23} depthWrite={false} toneMapped={false} />
@@ -192,7 +220,7 @@ export function FrameCard({ video, videoTexture, frames, durationS, clock, readB
         </bufferGeometry>
         <lineBasicMaterial color={ink} transparent opacity={0.7} depthWrite={false} toneMapped={false} />
       </lineLoop>
-      <BoxOutline color={ink} readBox={readBox} />
+      {mask ? <MaskOutline mask={mask} color={ink} depthTest={false} /> : <BoxOutline color={ink} readBox={readBox} />}
     </group>
   );
 }

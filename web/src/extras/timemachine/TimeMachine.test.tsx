@@ -1,11 +1,16 @@
+import { Children, isValidElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createClock } from "./clock";
 import TimeMachine from "./TimeMachine";
 import type { TimeMachineProps, Track } from "./types";
 
-const { block } = vi.hoisted(() => ({ block: vi.fn((_props: unknown) => null) }));
+const { block, canvas } = vi.hoisted(() => ({
+  block: vi.fn((_props: unknown) => null),
+  canvas: vi.fn(({ children }: { children: ReactNode; fallback?: ReactNode }) => <div>{children}</div>),
+}));
 vi.mock("./Block", () => ({ Block: block }));
-vi.mock("@react-three/fiber", () => ({ Canvas: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
+vi.mock("@react-three/fiber", () => ({ Canvas: canvas }));
 
 const props: TimeMachineProps = {
   video: {} as HTMLVideoElement,
@@ -28,6 +33,7 @@ const track: Track = {
 afterEach(() => {
   vi.unstubAllGlobals();
   block.mockClear();
+  canvas.mockClear();
 });
 
 describe("TimeMachine", () => {
@@ -64,5 +70,52 @@ describe("TimeMachine", () => {
     renderToStaticMarkup(<TimeMachine {...props} track={track} />);
 
     expect(block.mock.lastCall?.[0]).toMatchObject({ animateIntro: true, segments: [{ startS: 4, endS: 4 }] });
+  });
+
+  it("labels the canvas, prevents touch scrolling, and describes the path in the fallback", () => {
+    const tracked: Track = { ...track, entries: [
+      { t: 4, box: [100, 100, 400, 300], source: "cloud" },
+      { t: 12, box: [100, 700, 400, 900], source: "cloud" },
+    ] };
+    renderToStaticMarkup(<TimeMachine {...props} track={tracked} />);
+
+    const canvasProps = canvas.mock.lastCall?.[0];
+    expect(canvasProps).toMatchObject({ role: "img", "aria-label": expect.stringContaining("3D"), style: { touchAction: "none" } });
+    expect(renderToStaticMarkup(<>{canvasProps?.fallback}</>)).toContain("Person first seen at left at 0:04 and last seen at right at 0:12.");
+  });
+
+  it("renders a frame-stepped slider with the clock time and box position", () => {
+    const clock = createClock({ durationS: 20 });
+    const tracked: Track = { ...track, entries: [
+      { t: 4, box: [100, 100, 400, 300], source: "cloud" },
+      ...track.entries.map((entry) => ({ ...entry, t: 5 })),
+      { t: 6, box: [100, 700, 400, 900], source: "cloud" },
+    ] };
+    clock.set(4, "video");
+    const markup = renderToStaticMarkup(<TimeMachine {...props} track={tracked} clock={clock} />);
+    for (const attribute of ['type="range"', 'min="0"', 'max="20"', `step="${clock.frameS()}"`, 'value="4"', 'aria-valuetext="0:04, person at left"']) {
+      expect(markup).toContain(attribute);
+    }
+    for (const [timeS, text] of [[5, "0:05, person at centre"], [6, "0:06, person at right"], [8, "0:08"]] as const) {
+      clock.set(timeS, "scene");
+      expect(renderToStaticMarkup(<TimeMachine {...props} track={tracked} clock={clock} />))
+        .toContain(`aria-valuetext="${text}"`);
+    }
+  });
+
+  it("sends slider changes to the shared clock as scene ticks", () => {
+    const clock = createClock({ durationS: 20 });
+    function Inspect() {
+      const view = TimeMachine({ ...props, clock });
+      const section = Children.toArray(view.props.children as ReactNode).filter(isValidElement<Record<string, unknown>>);
+      const stage = Children.toArray(section[0]?.props.children as ReactNode).filter(isValidElement<Record<string, unknown>>);
+      const slider = stage.find((node) => typeof node.type === "function");
+      expect(slider).toBeDefined();
+      const input = (slider!.type as (props: unknown) => { props: { onChange: (event: unknown) => void } })(slider!.props);
+      input.props.onChange({ currentTarget: { valueAsNumber: 7 } });
+      return null;
+    }
+    renderToStaticMarkup(<Inspect />);
+    expect(clock.now()).toEqual({ timeS: 7, source: "scene" });
   });
 });

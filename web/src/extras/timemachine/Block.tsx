@@ -1,13 +1,16 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
-  BoxGeometry, CanvasTexture, CurvePath, LineCurve3, OrthographicCamera, SRGBColorSpace, Texture, TubeGeometry,
-  Vector3, VideoTexture,
+  AdditiveBlending, BoxGeometry, CanvasTexture, CurvePath, DoubleSide, LineCurve3, OrthographicCamera, SRGBColorSpace,
+  Texture, TubeGeometry, Vector3, VideoTexture, type Group,
 } from "three";
 import { captureFramesBySeek } from "./frames";
-import { BLOCK_DEPTH, BoxOutline, FRAME_HEIGHT, FRAME_WIDTH, FrameCard, INTRO_S, frameX, frameY, timeDepth, type SliceTexture } from "./FrameCard";
+import {
+  BLOCK_DEPTH, BoxOutline, FRAME_HEIGHT, FRAME_WIDTH, FrameCard, INTRO_S, MaskOutline, frameBoxAt, frameX, frameY,
+  timeDepth, type SliceTexture,
+} from "./FrameCard";
 import { boxAt, footPoint } from "./track";
-import { TRACK_RULES, type TimeMachineProps, type TrackSegment } from "./types";
+import { TRACK_RULES, type Mask, type TimeMachineProps, type TrackSegment } from "./types";
 
 const BLOCK_SHAPE = new BoxGeometry(FRAME_WIDTH, FRAME_HEIGHT, BLOCK_DEPTH);
 const RADIAL_SEGMENTS = 8;
@@ -19,9 +22,8 @@ function useThumbnails(src: string, durationS: number) {
     const owned: SliceTexture[] = [];
     const stop = captureFramesBySeek(src, durationS, ({ timeS, bitmap }) => {
       const texture = new Texture(bitmap);
-      // ImageBitmap ignores the texture's upload flip. Flip the UVs instead.
-      texture.repeat.y = -1;
-      texture.offset.y = 1;
+      // The bitmap already has the upload orientation.
+      texture.flipY = false;
       texture.colorSpace = SRGBColorSpace;
       texture.needsUpdate = true;
       owned.push({ timeS, texture });
@@ -107,26 +109,44 @@ function KeySlice({ video, keyFrame, durationS, glass, ink }: {
 
   return (
     <group position-z={timeDepth(timeS, durationS)}>
-      <Slice texture={texture} opacity={texture ? 0.9 : 0.26} glass={glass} />
+      <SlicePlane texture={texture} opacity={texture ? 0.9 : 0.26} glass={glass} />
       <BoxOutline color={ink} readBox={() => box} />
     </group>
   );
 }
 
-function Slice({ texture, opacity, glass, z = 0 }: { texture: Texture | null; opacity: number; glass: string; z?: number }) {
+function SlicePlane({ texture, opacity, glass }: { texture: Texture | null; opacity: number; glass: string }) {
   return (
-    <mesh position-z={z}>
+    <mesh>
       <planeGeometry args={[FRAME_WIDTH, FRAME_HEIGHT]} />
-      <meshBasicMaterial map={texture} color={texture ? "white" : glass} transparent opacity={opacity} depthWrite={false} toneMapped={false} />
+      <meshBasicMaterial map={texture} color={texture ? "white" : glass} side={DoubleSide} forceSinglePass
+        transparent opacity={opacity} depthWrite={false} toneMapped={false} />
     </mesh>
   );
 }
 
-function PathTube({ segment, durationS, color, intro }: {
+function Slice({ texture, opacity, glass, z, mask, accent }: {
+  texture: Texture | null;
+  opacity: number;
+  glass: string;
+  z: number;
+  mask?: Mask;
+  accent: string;
+}) {
+  return (
+    <group position-z={z}>
+      {texture && <SlicePlane texture={texture} opacity={opacity} glass={glass} />}
+      {mask && <MaskOutline mask={mask} color={accent} opacity={0.22} />}
+    </group>
+  );
+}
+
+function PathTube({ segment, durationS, color, intro, renderOrder }: {
   segment: TrackSegment;
   durationS: number;
   color: string;
   intro: RefObject<number>;
+  renderOrder: number;
 }) {
   const tube = useMemo(() => {
     const start = Math.max(0, segment.startS - TRACK_RULES.holdS);
@@ -172,14 +192,14 @@ function PathTube({ segment, durationS, color, intro }: {
 
   if (!tube) return null;
   return (
-    <group>
+    <group renderOrder={renderOrder}>
       <mesh>
         <primitive object={tube.core} attach="geometry" />
-        <meshBasicMaterial color={color} toneMapped={false} />
+        <meshBasicMaterial color={color} transparent={false} depthWrite toneMapped={false} />
       </mesh>
       <mesh>
         <primitive object={tube.halo} attach="geometry" />
-        <meshBasicMaterial color={color} transparent opacity={0.24} depthWrite={false} toneMapped={false} />
+        <meshBasicMaterial color={color} blending={AdditiveBlending} transparent opacity={0.24} depthWrite={false} toneMapped={false} />
       </mesh>
     </group>
   );
@@ -196,6 +216,8 @@ export function Block({ video, durationS, clock, segments, keyFrame, animateIntr
   const frames = useThumbnails(video.currentSrc || video.src, durationS);
   const videoTexture = useVideoTexture(video);
   const intro = useRef(animateIntro ? 0 : 1);
+  const sliceStack = useRef<Group>(null);
+  const orderVectors = useMemo(() => ({ axis: new Vector3(), centre: new Vector3(), camera: new Vector3() }), []);
   const sample = useRef({ elapsed: 0, frames: 0 });
   const [fewerSlices, setFewerSlices] = useState(false);
   const { camera, size } = useThree();
@@ -223,7 +245,19 @@ export function Block({ video, durationS, clock, segments, keyFrame, animateIntr
     return () => document.removeEventListener("visibilitychange", resetSample);
   }, [video]);
 
-  useFrame((_state, delta) => {
+  useFrame(({ camera }, delta) => {
+    const stack = sliceStack.current;
+    if (stack) {
+      const { axis, centre, camera: cameraPosition } = orderVectors;
+      stack.getWorldPosition(centre);
+      axis.set(0, 0, -1).transformDirection(stack.matrixWorld);
+      const reverse = camera.getWorldPosition(cameraPosition).sub(centre).dot(axis) < 0;
+      const slices = stack.children;
+      for (let i = 0; i < slices.length; i += 1) {
+        slices[i]!.renderOrder = reverse ? slices.length - i : i;
+      }
+    }
+
     intro.current = animateIntro ? Math.min(1, intro.current + delta / INTRO_S) : 1;
     if (fewerSlices || video.ownerDocument.hidden) return;
 
@@ -238,12 +272,41 @@ export function Block({ video, durationS, clock, segments, keyFrame, animateIntr
 
   const visible = fewerSlices ? frames.filter((_, index) => index % 2 === 0) : frames;
   const opacity = Math.min(0.055, 1.6 / Math.max(visible.length, 1));
+  const entriesBySecond = useMemo(
+    () => new Map(segments?.flatMap(({ entries }) => entries.map((entry) => [entry.t, entry] as const))),
+    [segments],
+  );
 
   function readBox() {
-    const { timeS } = clock.now();
-    if (segments !== null) return boxAt(segments, timeS);
-    return keyFrame && Math.abs(timeS - keyFrame.timeS) <= 0.5 ? keyFrame.box : null;
+    return frameBoxAt(segments, keyFrame, clock.now().timeS);
   }
+
+  function readMask(timeS: number) {
+    const second = Math.round(timeS);
+    const nearest = entriesBySecond.get(second);
+    if (nearest) return nearest.mask ?? null;
+    if (second - timeS === 0.5) return entriesBySecond.get(second - 1)?.mask ?? null;
+    return null;
+  }
+
+  const textures = new Map<number, Texture | null>(visible.map(({ timeS, texture }) => [timeS, texture]));
+  for (const { t, mask } of entriesBySecond.values()) {
+    if (mask && !textures.has(t)) textures.set(t, null);
+  }
+  const slices = Array.from(textures, ([timeS, texture]) => ({
+    timeS,
+    element: (
+      <Slice key={timeS} texture={texture} z={timeDepth(timeS, durationS)} opacity={opacity} glass={palette.glass}
+        mask={entriesBySecond.get(timeS)?.mask} accent={palette.accent} />
+    ),
+  }));
+  if (segments === null && keyFrame) {
+    slices.push({
+      timeS: keyFrame.timeS,
+      element: <KeySlice key="key-frame" video={video} keyFrame={keyFrame} durationS={durationS} glass={palette.glass} ink={palette.ink} />,
+    });
+  }
+  slices.sort((a, b) => a.timeS - b.timeS);
 
   return (
     <group rotation={[0.14, -40 * Math.PI / 180, 0]}>
@@ -251,16 +314,13 @@ export function Block({ video, durationS, clock, segments, keyFrame, animateIntr
         <edgesGeometry args={[BLOCK_SHAPE]} />
         <lineBasicMaterial color={palette.line} toneMapped={false} />
       </lineSegments>
-      {visible.map(({ timeS, texture }) => (
-        <Slice key={timeS} texture={texture} z={timeDepth(timeS, durationS)} opacity={opacity} glass={palette.glass} />
-      ))}
-      {segments === null && keyFrame && (
-        <KeySlice video={video} keyFrame={keyFrame} durationS={durationS} glass={palette.glass} ink={palette.ink} />
-      )}
+      <group ref={sliceStack}>{slices.map(({ element }) => element)}</group>
       {segments?.map((segment) => (
-        <PathTube key={segment.startS} segment={segment} durationS={durationS} color={palette.accent} intro={intro} />
+        <PathTube key={segment.startS} segment={segment} durationS={durationS} color={palette.accent} intro={intro} renderOrder={slices.length + 1} />
       ))}
-      <FrameCard video={video} videoTexture={videoTexture} frames={frames} durationS={durationS} clock={clock} readBox={readBox} intro={intro} clockLabel={clockLabel} ink={palette.ink} glass={palette.glass} />
+      <FrameCard video={video} videoTexture={videoTexture} frames={frames} durationS={durationS} clock={clock}
+        readBox={readBox} readMask={readMask} intro={intro} clockLabel={clockLabel} ink={palette.ink} glass={palette.glass}
+        renderOrder={slices.length + 2} />
     </group>
   );
 }

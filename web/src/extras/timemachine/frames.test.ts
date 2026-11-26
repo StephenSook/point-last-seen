@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { captureFrames, captureFramesBySeek, type ThumbnailFrame } from "./frames";
 
+const bitmapOptions = { imageOrientation: "flipY", premultiplyAlpha: "none" };
+
 function fakeCapture() {
   const drawImage = vi.fn();
   const canvas = { width: 0, height: 0, getContext: () => ({ drawImage }) };
@@ -40,7 +42,7 @@ function fakeCapture() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("time machine thumbnails", () => {
-  it("draws a 192x108 bitmap per half-second bucket during playback", async () => {
+  it("draws a flipped 192x108 bitmap per half-second bucket during playback", async () => {
     const { video, canvas, drawImage, createImageBitmap, frames, stop, present } = fakeCapture();
     await present(0.04);
     await present(0.49);
@@ -57,7 +59,7 @@ describe("time machine thumbnails", () => {
     expect(frames.map(({ timeS }) => timeS)).toEqual([0.04, 0.55, 1]);
     expect([canvas.width, canvas.height]).toEqual([192, 108]);
     expect(drawImage.mock.calls).toEqual(Array.from({ length: 3 }, () => [video, 0, 0, 192, 108]));
-    expect(createImageBitmap.mock.calls).toEqual([[canvas], [canvas], [canvas]]);
+    expect(createImageBitmap.mock.calls).toEqual(Array.from({ length: 3 }, () => [canvas, bitmapOptions]));
     expect(frames[0]?.bitmap).toBe(await createImageBitmap.mock.results[0]?.value);
     stop();
   });
@@ -139,7 +141,7 @@ function fakeSeekCapture(durationS: number) {
 }
 
 describe("time machine thumbnails by seek", () => {
-  it("captures zero and seeks through the duration in half-second order", async () => {
+  it("captures flipped bitmaps from zero through the duration in half-second order", async () => {
     const { reader, seeks, canvas, drawImage, createImageBitmap, frames, stop, loaded, finishSeek } = fakeSeekCapture(1.5);
 
     expect(reader).toMatchObject({ src: "blob:clip", muted: true, playsInline: true });
@@ -155,7 +157,7 @@ describe("time machine thumbnails by seek", () => {
     expect(seeks).toEqual([0.5, 1, 1.5]);
     expect(frames.map(({ timeS }) => timeS)).toEqual([0, 0.5, 1, 1.5]);
     expect(drawImage.mock.calls).toEqual(Array.from({ length: 4 }, () => [reader, 0, 0, 192, 108]));
-    expect(createImageBitmap.mock.calls).toEqual([[canvas], [canvas], [canvas], [canvas]]);
+    expect(createImageBitmap.mock.calls).toEqual(Array.from({ length: 4 }, () => [canvas, bitmapOptions]));
     expect(frames[0]?.bitmap).toBe(await createImageBitmap.mock.results[0]?.value);
     stop();
   });
