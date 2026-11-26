@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const failed = "This panel could not load. Reconnect, then reload the page.";
+const failed = "This panel could not load or cannot run in this browser. Reconnect and reload the page, or open it in a browser with WebGL2.";
 
 test("a print panel that fails to load shows its own message and the command post stays", async ({ page }) => {
   await page.route("**/src/extras/print/PrintSession.tsx*", (route) => route.abort());

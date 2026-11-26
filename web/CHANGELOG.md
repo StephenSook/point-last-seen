@@ -3395,3 +3395,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `src/data/storedClips.ts`: `listStoredClips` reads `incidents/{id}/clipReadings` from the server (never the cache) and keeps the records whose reading parses as a sighting, newest clip first; a record whose id is not its SHA-256 is left out. `loadStoredClip` downloads `clips/{incident}/{sha256}.mp4` (up to the 14 MB upload cap) and rejects bytes whose SHA-256 is not the name. Built from the records, not from events, so a judge sandbox with a copied record and clip lists it too.
 - Source: the clip time machine plan (stored readings open the time machine).
 - Verified: `src/data/storedClips.test.ts` (4: the server read and its filter and order; the download path and cap; a hash mismatch; a bad name downloads nothing) failed first (module missing), then passed; typecheck clean.
+
+### fix(web): an extras panel that fails says it may be the browser, not only the link
+- What: `ExtrasBoundary`'s message is now "This panel could not load or cannot run in this browser. Reconnect and reload the page, or open it in a browser with WebGL2." Before, it blamed the link even when the cause was a browser without WebGL2.
+- Source: audit of the web lane (the boundary message named only the network).
+- Verified: `e2e/extras/boundary.spec.ts` (2) updated to the new text failed first, then passed.
