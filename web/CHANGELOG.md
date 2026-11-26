@@ -3296,3 +3296,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `findClipTrack` uses `getDocFromServer`, so a track deleted on the server (or hidden because its reading was deleted) cannot come back from the offline cache. Offline, the read fails, and the card then shows the clearest frame.
 - Source: review of the track reader (the offline cache could bring back a deleted track).
 - Verified: new `src/data/clipTrackServer.test.ts` (the read goes to the server only) failed first (it read through `getDoc`), then passed; `src/data/clipTrack.test.ts` unchanged and green (8 across both files).
+
+### fix(web): a stored track's boxes, outlines and times are checked on read
+- What: `clipTrackFromDoc` refuses a stored track with a box number outside 0 to 1000 or not a whole number, a box with its corners out of order, an outline point outside 0 to 1000, a window that starts below 0 or does not end after it starts, or an entry outside its window. The rules check entries by count only, so this check stands in for them on read.
+- Source: review of the track reader (boxes and times were not checked when a track was read back).
+- Verified: five new cases in `src/data/clipTrack.test.ts` failed first, then passed (13 across both files).
