@@ -416,3 +416,18 @@ test("a seek with the clip's own controls while paused moves the box with it", a
   // At 2 s the fixed track's box spans x 300 to 500 and y 400 to 600 of 1000.
   await expect(card.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 30%; height: 20%; width: 20%/, { timeout: 10_000 });
 });
+
+test("a 3D view that breaks while running says so, keeps the clip, and reports the error", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.route(/\/extras\/timemachine\/TimeMachine\.tsx/, (route) =>
+    route.fulfill({ contentType: "application/javascript", body: 'export default function TimeMachine() { throw new Error("the view broke"); }' }),
+  );
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await card.getByRole("button", { name: "Open the time machine" }).click();
+  const tm = card.getByTestId("clip-time-machine");
+  await expect(tm.getByRole("status")).toHaveText("The 3D view stopped working. The clip and the person's box are still shown here.", { timeout: 30_000 });
+  await expect(tm.locator("video")).toHaveCount(1);
+  await expect.poll(() => errors.some((m) => m.includes("the view broke"))).toBe(true);
+});

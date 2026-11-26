@@ -3385,3 +3385,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `ClipTimeMachine`: when the 3D view's code cannot load (it is not in the offline download), the fallback keeps the result buttons (first seen, clearest frame, last seen), which move the clip and the box on the shared clock. A seek made with the clip's own controls while it is paused now moves the clock (and the box) too: the shared clock follows only played frames, so a paused seek used to leave the box where it was.
 - Source: review of the time machine mount (the fallback lost the result buttons; a paused native seek left a stale box).
 - Verified: new harness cases (with the view blocked, Clearest frame 0:04 seeks the clip to 4 s and the box to x 500 to 700; a paused seek to 2 s moves the box to x 300 to 500) failed first, then passed (35).
+
+### fix(web): a 3D view that breaks is said as such and reported
+- What: `ClipTimeMachine` tells a failed import of the 3D view (offline or a dropped link: "The 3D view could not load. ...") from a fault while it runs ("The 3D view stopped working. ..."). Both keep the clip, its box and the result buttons. A fault is handed to `reportError`, so the page's error reporting (which keeps only name, message and stack) sends it as if it had not been caught; a failed import is not reported.
+- Source: review of the time machine mount (a runtime fault looked like a download failure and skipped error reporting).
+- Verified: new harness case (a view module that throws on render: the message says it stopped working, the clip stays, the error reaches the page's error handler) failed first, then passed (36).

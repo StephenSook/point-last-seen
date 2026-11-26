@@ -1,7 +1,7 @@
 // The clip time machine at the command post: the clip played from a local object URL with the person's box drawn
 // on it, and the 3D view (loaded only when opened, so three.js stays out of the main bundle and the offline download)
-// on the same clock. With no track, the box shows only at the key frame. If the 3D view cannot load, the clip, its
-// box and the result buttons stay.
+// on the same clock. With no track, the box shows only at the key frame. If the 3D view cannot load or stops
+// working, the clip, its box and the result buttons stay.
 
 import { Component, lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore, type PropsWithChildren } from "react";
 import { bindVideo, createClock } from "../extras/timemachine/clock";
@@ -9,9 +9,17 @@ import { boxAt, linkTrack } from "../extras/timemachine/track";
 import type { Box2d, TimeClock, TimeMachineResult, Track } from "../extras/timemachine/types";
 import { keyFrameOf, timeMachineResults } from "./timeMachine";
 
-const TimeMachine = lazy(() => import("../extras/timemachine/TimeMachine"));
+/** The 3D view's code did not arrive (offline, or a link that dropped): not a fault in the view. */
+class ViewLoadError extends Error {}
+
+const TimeMachine = lazy(() =>
+  import("../extras/timemachine/TimeMachine").catch((e: unknown) => {
+    throw new ViewLoadError(e instanceof Error ? e.message : "The 3D view could not load.");
+  }),
+);
 
 export const VIEW_UNAVAILABLE = "The 3D view could not load. The clip and the person's box are still shown here.";
+export const VIEW_BROKE = "The 3D view stopped working. The clip and the person's box are still shown here.";
 
 /** The result rows as plain buttons on the shared clock, for when the 3D view (which also draws them) is not there. */
 function ResultButtons({ results, clock }: { results: readonly TimeMachineResult[]; clock: TimeClock }) {
@@ -30,20 +38,29 @@ function ResultButtons({ results, clock }: { results: readonly TimeMachineResult
 
 type BoundaryProps = PropsWithChildren<{ results: readonly TimeMachineResult[]; clock: TimeClock }>;
 
-// The 3D view's code is not in the offline download, so its import can fail; the clip, its box and the result
-// buttons stay.
-class ViewBoundary extends Component<BoundaryProps, { failed: boolean }> {
-  state = { failed: false };
+// A failed import gets the offline message; any other error is a fault in the view, said as such and handed to the
+// page's error reporting (which keeps only name, message and stack) as if it had not been caught.
+class ViewBoundary extends Component<BoundaryProps, { failed: "load" | "broke" | null }> {
+  state: { failed: "load" | "broke" | null } = { failed: null };
 
-  static getDerivedStateFromError() {
-    return { failed: true };
+  static getDerivedStateFromError(error: unknown) {
+    return { failed: error instanceof ViewLoadError ? "load" : "broke" };
+  }
+
+  componentDidCatch(error: unknown) {
+    if (error instanceof ViewLoadError) return;
+    try {
+      globalThis.reportError?.(error);
+    } catch {
+      // reporting must not raise another error
+    }
   }
 
   render() {
     if (!this.state.failed) return this.props.children;
     return (
       <>
-        <p className="muted small" role="status">{VIEW_UNAVAILABLE}</p>
+        <p className="muted small" role="status">{this.state.failed === "load" ? VIEW_UNAVAILABLE : VIEW_BROKE}</p>
         <ResultButtons results={this.props.results} clock={this.props.clock} />
       </>
     );
