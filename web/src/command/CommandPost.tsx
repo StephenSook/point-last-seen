@@ -8,10 +8,12 @@ import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState }
 import { PHOTO_READ_TIMEOUT_MS, readPhotoOnDevice } from "../ai/photoCues";
 import { readDebriefSheetOnDevice, SHEET_READ_TIMEOUT_MS } from "../ai/debriefSheetRead";
 import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, subscribePhotoReadingIds, uploadPhoto } from "../data/photos";
-import { clipReadDeps, PAUSED, readClip, type ClipReadOutcome } from "../ai/clipRead";
+import { clipReadDeps, PAUSED, readClip, type ClipReadOutcome, type ClipWindow } from "../ai/clipRead";
 import { readClipTrack, TRACK_FRAME_MAX_SIDE } from "../ai/clipTrack";
 import { confirmClipReading, firestoreClipIo } from "../data/clips";
 import { clipTrackDoc, findClipTrack, writeClipTrack } from "../data/clipTrack";
+import { listStoredClips, loadStoredClip, type StoredClip } from "../data/storedClips";
+import type { Track as ClipTrack } from "../extras/timemachine/types";
 import { countMedia, deleteMediaNow } from "../data/media";
 import { travelBearingFromInputs } from "../data/cameraSighting";
 import { cameraConfirmWrites, familyCameraConfirmWrites } from "../prior/cameraPrior";
@@ -21,6 +23,7 @@ import type { ClipIntakeInput, ReadHow } from "../camera/ClipIntake";
 import { FRAME_OPTS } from "../ai/frameCheck";
 import { clipDurationS, jpegAt, sampleFrames } from "../camera/frames";
 import { trackPaused } from "../camera/timeMachine";
+import { StoredClipsPanel } from "../camera/StoredClipsPanel";
 import { triageClip, triageRoute, type TriageResult } from "../camera/triage";
 import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
@@ -800,38 +803,59 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (o.kind === "read" && !o.cached && o.route) traced(o.route);
     return o;
   };
-  // The clip's track for the time machine (after a read): the stored one when there is one, else one read in the
-  // cloud on the same consented window, from frames taken here, then stored. A failed track leaves the sighting.
-  const trackCameraClip = async (read: ClipRead, input: ClipIntakeInput, how: ReadHow): Promise<TrackView> => {
+  // One track read in the cloud, from frames of this clip taken here at 960 px, on its stored consent (readClipTrack
+  // checks it with the server before every call), then stored. Remote Config is read as it is now: a pause or the
+  // time machine turned off stops it.
+  const readAndStoreTrack = async (sha256: string, clip: Blob, durationS: number, window: ClipWindow, stillCurrent?: () => boolean): Promise<TrackView> => {
     const uid = pls.auth.currentUser?.uid;
+    if (trackPaused(rcNow.current)) return { status: "failed", message: PAUSED, durationS };
+    if (!uid) return { status: "failed", message: TRACK_FAILED, durationS };
+    const o = await readClipTrack(
+      { sha256, model: rc.cloudModelWeb, durationS, window, frameS: 1 / 30, killCloud: () => trackPaused(rcNow.current), ...(stillCurrent ? { stillCurrent } : {}), withMasks: true },
+      {
+        confirmReading: (sha) => confirmClipReading(pls.db, incidentId, sha),
+        frameJpeg: (atS) => jpegAt(clip, atS, TRACK_FRAME_MAX_SIDE),
+        boxes: clipTrackGenerator(ai(), rc.cloudModelWeb, false),
+        masks: clipTrackGenerator(ai(), rc.cloudModelWeb, true),
+        nowMs: () => Date.now(),
+      },
+    );
+    if (o.kind === "refused") return { status: "failed", message: o.message, durationS, ...(o.sent ? { sent: o.sent } : {}) };
+    if (o.kind === "failed") return { status: "failed", message: TRACK_FAILED, durationS, ...(o.sent ? { sent: o.sent } : {}) };
+    traced(o.route);
+    if (sink) recordInference(o.route, sink, "clip_track");
+    // The track is shown at once, not after the server acknowledges the write (offline, that waits for the link
+    // to come back); it is shown even when it could not be stored, and the next seat then reads its own.
+    void writeClipTrack(pls.db, incidentId, clipTrackDoc({ sha256, track: o.track, model: rc.cloudModelWeb, route: o.route, framesSent: o.framesSent, uid })).catch(() => undefined);
+    return { status: "ready", track: o.track, durationS, sent: { frames: o.framesSent, outlineFrames: o.maskFramesSent } };
+  };
+  // The clip's track for the time machine (after a read): the stored one when there is one, else one read on the
+  // same consented window. A failed track leaves the sighting.
+  const trackCameraClip = async (read: ClipRead, input: ClipIntakeInput, how: ReadHow): Promise<TrackView> => {
     const clip = new Blob([input.bytes as BlobPart], { type: input.mimeType });
     let durationS: number | null = null;
     try {
       durationS = await clipDurationS(clip);
-      // Remote Config as it is now: a pause or the time machine turned off since the read began stops the job here,
-      // and readClipTrack asks again before every model call.
       if (trackPaused(rcNow.current)) return { status: "failed", message: PAUSED, durationS };
       const stored = await findClipTrack(pls.db, incidentId, read.sha256).catch(() => null);
       if (stored) return { status: "ready", track: stored.track, durationS };
-      if (!uid) return { status: "failed", message: TRACK_FAILED, durationS };
-      const o = await readClipTrack(
-        { sha256: read.sha256, model: rc.cloudModelWeb, durationS, window: how.window ?? { startS: 0, endS: durationS }, frameS: 1 / 30, killCloud: () => trackPaused(rcNow.current), stillCurrent: how.stillCurrent, withMasks: true },
-        {
-          confirmReading: (sha) => confirmClipReading(pls.db, incidentId, sha),
-          frameJpeg: (atS) => jpegAt(clip, atS, TRACK_FRAME_MAX_SIDE),
-          boxes: clipTrackGenerator(ai(), rc.cloudModelWeb, false),
-          masks: clipTrackGenerator(ai(), rc.cloudModelWeb, true),
-          nowMs: () => Date.now(),
-        },
-      );
-      if (o.kind === "refused") return { status: "failed", message: o.message, durationS, ...(o.sent ? { sent: o.sent } : {}) };
-      if (o.kind === "failed") return { status: "failed", message: TRACK_FAILED, durationS, ...(o.sent ? { sent: o.sent } : {}) };
-      traced(o.route);
-      if (sink) recordInference(o.route, sink, "clip_track");
-      // The track is shown at once, not after the server acknowledges the write (offline, that waits for the link
-      // to come back); it is shown even when it could not be stored, and the next seat then reads its own.
-      void writeClipTrack(pls.db, incidentId, clipTrackDoc({ sha256: read.sha256, track: o.track, model: rc.cloudModelWeb, route: o.route, framesSent: o.framesSent, uid })).catch(() => undefined);
-      return { status: "ready", track: o.track, durationS, sent: { frames: o.framesSent, outlineFrames: o.maskFramesSent } };
+      return await readAndStoreTrack(read.sha256, clip, durationS, how.window ?? { startS: 0, endS: durationS }, how.stillCurrent);
+    } catch {
+      return { status: "failed", message: TRACK_FAILED, durationS };
+    }
+  };
+  // A clip this search read before: its bytes from storage (checked by their hash) and its stored track, if any.
+  const openStoredClip = async (c: StoredClip): Promise<{ clip: Blob; durationS: number; track: ClipTrack | null }> => {
+    const bytes = await loadStoredClip(pls.storage, incidentId, c.record.sha256);
+    const clip = new Blob([bytes as BlobPart], { type: "video/mp4" });
+    const durationS = await clipDurationS(clip);
+    const stored = await findClipTrack(pls.db, incidentId, c.record.sha256).catch(() => null);
+    return { clip, durationS, track: stored?.track ?? null };
+  };
+  // "Track the person" on a stored clip: the whole clip (its record keeps no window), on its stored consent.
+  const trackStoredClip = async (c: StoredClip, clip: Blob, durationS: number, stillCurrent: () => boolean): Promise<TrackView> => {
+    try {
+      return await readAndStoreTrack(c.record.sha256, clip, durationS, { startS: 0, endS: durationS }, stillCurrent);
     } catch {
       return { status: "failed", message: TRACK_FAILED, durationS };
     }
@@ -1054,9 +1078,19 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               }}
             />
           ) : (
-            <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding || closedHere}>
-              Add camera clip
-            </button>
+            <>
+              <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding || closedHere}>
+                Add camera clip
+              </button>
+              <StoredClipsPanel
+                revocation={tray.epoch}
+                timeMachine={rc.timeMachineEnabled}
+                canTrack={!!incident && !closedHere}
+                load={() => listStoredClips(pls.db, incidentId)}
+                openClip={openStoredClip}
+                onTrack={trackStoredClip}
+              />
+            </>
           )}
           <SightingsPanel
             cards={cards.map((c) => (c.camera && placedCameras[c.sighting.eventId] ? { ...c, needsPlace: false } : c))}
