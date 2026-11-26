@@ -86,3 +86,13 @@ changed.
   read once first.
 - The box call's prompt was 11,135 tokens for 10 frames, about 1,100 per frame, as spike 2 measured.
 - Afterwards each search's reading, its track (10 entries) and its clip in Storage were read back from the server.
+
+## A planted error reaches Crashlytics: 2026-11-26
+
+`2026-11-26-crashlytics-planted.json` records one uncaught TypeError planted on the deployed command post (commit
+52b60551): a script on a blob: URL threw it from a function named `crashlyticsLiveTestError`.
+
+- The crash report was sent 1,581 ms later (`POST clienttelemetry.googleapis.com/v1/logs`, HTTP 200).
+- Cloud Logging holds it in `firebasetelemetry.googleapis.com/events` (insertId `lok76keh21hx`, ERROR, TypeError, one
+  error group). Its message reads "message removed": the page sends the error's name and stack, never its text.
+- Not measured in this run: whether the Crashlytics code downloads only after the first error.
