@@ -124,11 +124,17 @@ describe("parseMaskReply", () => {
 function stored(over: Partial<StoredClipReading> = {}): StoredClipReading {
   return {
     sha256: SHA, storagePath: `clips/drill-test-1/${SHA}.mp4`, durationS: 9, clipStartMs: 0, clockConfirmed: true, cameraFacingDeg: null,
-    reading: {}, route: null, consent: { personInClip: MARK, footageOwner: MARK, cloudProcessing: MARK, publicUse: null },
+    reading: { status: "no_sighting", reasons: [] }, route: null, consent: { personInClip: MARK, footageOwner: MARK, cloudProcessing: MARK, publicUse: null },
     expiresAtMs: 10_000_000, createdAtMs: 0, createdByUid: "u", ...over,
   } as StoredClipReading;
 }
 const MARK = { byUid: "u", atMs: 0 };
+const SIGHTING = {
+  personVisible: true, firstSeen: "00:01", lastSeen: "00:05", entryEdge: "right", exitEdge: "left",
+  topColor: "blue", bottomColor: "black", topType: "rain jacket", footwear: "boots", headwear: "none",
+  carriedItems: [], keyFrame: { time: "00:04", box2d: [100, 200, 900, 400] },
+  lighting: "day", legibility: "clear", evidence: "An adult in a blue jacket walks from right to left.",
+};
 
 type Call = { kind: "boxes" | "masks"; ts: number[] };
 
@@ -173,7 +179,7 @@ describe("readClipTrack", () => {
 
   it("splits more than 40 frames into calls of at most 40 and joins them", async () => {
     // 45.2 s: whole seconds 0 to 45 (46 frames); the last frame (45.17 s) is within half a second of 45.
-    const { deps, req, calls } = setup({ durationS: 45.2, withMasks: false });
+    const { deps, req, calls } = setup({ durationS: 45.2, withMasks: false, record: stored({ durationS: 45 }) });
     const o = await readClipTrack(req, deps);
     expect(calls.map((c) => c.ts.length)).toEqual([TRACK_BOX_FRAMES_PER_CALL, 46 - TRACK_BOX_FRAMES_PER_CALL]);
     expect(o.kind === "read" && o.track.entries.length).toBe(46);
@@ -245,5 +251,76 @@ describe("clipTrackParams", () => {
 
   it("uses the outline schema on a mask read", () => {
     expect(clipTrackParams("gemini-3.5-flash-lite", true).inCloudParams?.generationConfig?.responseJsonSchema).toBe(MASK_JSON);
+  });
+});
+
+describe("readClipTrack checks again before every call", () => {
+  it("reads the consent record from the server before each batch, and stops when a consent is withdrawn", async () => {
+    const records = [stored({ durationS: 45 }), stored({ durationS: 45 }), stored({ durationS: 45, consent: { personInClip: MARK, footageOwner: MARK, cloudProcessing: null, publicUse: null } })];
+    const { deps, req, calls } = setup({ durationS: 45.2, withMasks: false, record: stored({ durationS: 45 }) });
+    let reads = 0;
+    deps.confirmReading = async () => records[Math.min(reads++, records.length - 1)]!;
+    expect((await readClipTrack(req, deps)).kind).toBe("refused");
+    expect(calls.map((c) => c.kind)).toEqual(["boxes"]);
+    expect(reads).toBe(3);
+  });
+
+  it("checks the consent before each outline call too", async () => {
+    const { deps, req, calls } = setup();
+    let reads = 0;
+    deps.confirmReading = async () => (++reads <= 2 ? stored() : null);
+    expect((await readClipTrack(req, deps)).kind).toBe("refused");
+    expect(calls.map((c) => c.kind)).toEqual(["boxes"]);
+  });
+
+  it("reads a clip whose stored reading is a sighting", async () => {
+    const { deps, req } = setup({ record: stored({ reading: SIGHTING }), withMasks: false });
+    expect((await readClipTrack(req, deps)).kind).toBe("read");
+  });
+
+  it("sends nothing for a stored reading that is neither a sighting nor a no-sighting", async () => {
+    const { deps, req, calls } = setup({ record: stored({ reading: { personVisible: "maybe" } }) });
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "refused", message: "This clip has no reading yet. Nothing was sent." });
+    expect(calls).toEqual([]);
+  });
+
+  it("sends nothing for a clip whose reading is not stored yet", async () => {
+    const { deps, req, calls } = setup({ record: stored({ reading: null }) });
+    let frames = 0;
+    deps.frameJpeg = async () => (frames++, "x");
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "refused", message: "This clip has no reading yet. Nothing was sent." });
+    expect([calls, frames]).toEqual([[], 0]);
+  });
+
+  it("never reads past the stored clip's length, whatever window it is handed", async () => {
+    const { deps, req, calls } = setup({ record: stored({ durationS: 3 }), withMasks: false });
+    await readClipTrack(req, deps);
+    expect(Math.max(...calls[0]!.ts)).toBeLessThanOrEqual(4);
+  });
+
+  it("returns no track when the search's media is deleted during the outline calls", async () => {
+    const { deps, req } = setup();
+    let current = true;
+    const masks = deps.masks;
+    deps.masks = async (p) => {
+      current = false;
+      return masks(p);
+    };
+    expect(await readClipTrack({ ...req, stillCurrent: () => current }, deps)).toEqual({ kind: "refused", message: "This search's clips and photos were deleted. Nothing was sent." });
+  });
+
+  it("fails, and does not throw, when a frame cannot be taken", async () => {
+    const { deps, req, calls } = setup();
+    deps.frameJpeg = async () => {
+      throw new Error("decode");
+    };
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "error" });
+    expect(calls).toEqual([]);
+  });
+
+  it("fails a window that holds no frame", async () => {
+    const { deps, req, calls } = setup();
+    expect(await readClipTrack({ ...req, durationS: 9.6, window: { startS: 9.5, endS: 9.6 } }, deps)).toEqual({ kind: "failed", reason: "invalid" });
+    expect(calls).toEqual([]);
   });
 });

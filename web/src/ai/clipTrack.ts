@@ -9,7 +9,7 @@ import { InferenceMode, type HybridParams, type Part } from "firebase/ai";
 import type { StoredClipReading } from "../data/clips";
 import type { Box2d, ClipTrackVersion, Mask, Track, TrackEntry } from "../extras/timemachine/types";
 import type { ClipWindow } from "./clipRead";
-import { CONSENT_GONE, CONSENT_UNCONFIRMED, MEDIA_DELETED, PAUSED } from "./clipRead";
+import { CONSENT_GONE, CONSENT_UNCONFIRMED, MEDIA_DELETED, PAUSED, parseCameraSighting } from "./clipRead";
 
 export const CLIP_TRACK_VERSION: ClipTrackVersion = "track-v1";
 /** Frames are sent at this many pixels on their long side (about 1,100 input tokens each at 960 x 540). */
@@ -144,6 +144,15 @@ export function parseMaskReply(text: string, sent: readonly number[]): Map<numbe
   return out;
 }
 
+export const NO_READING = "This clip has no reading yet. Nothing was sent.";
+
+/** A finished reading: a sighting the parser accepts, or a no-sighting. */
+function completedReading(r: StoredClipReading["reading"]): boolean {
+  if (r == null) return false;
+  if ((r as { status?: unknown }).status === "no_sighting") return true;
+  return parseCameraSighting(JSON.stringify(r)) !== null;
+}
+
 export type TrackReply = { text: string; finishReason?: string | null; inferenceSource?: string };
 
 export type TrackReadRequest = {
@@ -193,26 +202,40 @@ function chunks<T>(xs: readonly T[], n: number): T[][] {
 export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): Promise<TrackReadOutcome> {
   const halted = (): TrackReadOutcome | null =>
     r.stillCurrent && !r.stillCurrent() ? { kind: "refused", message: MEDIA_DELETED } : r.killCloud() ? { kind: "refused", message: PAUSED } : null;
+  // The clip's record from the server, read again before every call: it must still hold the three consents,
+  // not have expired, and already carry the clip's reading (a track never comes before its sighting).
+  const gate = async (): Promise<{ record: StoredClipReading } | { stop: TrackReadOutcome }> => {
+    let record: StoredClipReading | null;
+    try {
+      record = await deps.confirmReading(r.sha256);
+    } catch {
+      return { stop: { kind: "refused", message: CONSENT_UNCONFIRMED } };
+    }
+    const c = record?.consent;
+    if (!record || !(record.expiresAtMs > deps.nowMs()) || !c?.personInClip || !c.footageOwner || !c.cloudProcessing) return { stop: { kind: "refused", message: CONSENT_GONE } };
+    if (!completedReading(record.reading)) return { stop: { kind: "refused", message: NO_READING } };
+    return { record };
+  };
   if (halted()) return halted()!;
-  let record: StoredClipReading | null;
-  try {
-    record = await deps.confirmReading(r.sha256);
-  } catch {
-    return { kind: "refused", message: CONSENT_UNCONFIRMED };
-  }
-  const c = record?.consent;
-  if (!record || !(record.expiresAtMs > deps.nowMs()) || !c?.personInClip || !c.footageOwner || !c.cloudProcessing) return { kind: "refused", message: CONSENT_GONE };
-
-  const times = trackFrameTimes(r.window, r.durationS, r.frameS);
-  const frames: { t: number; jpeg: string }[] = [];
-  for (const f of times) frames.push({ t: f.t, jpeg: await deps.frameJpeg(f.atS) });
+  const first = await gate();
+  if ("stop" in first) return first.stop;
+  // The record keeps no window, so the caller's window is held to the stored clip's length (whole seconds, plus one).
+  const window = { startS: r.window.startS, endS: Math.min(r.window.endS, r.durationS, first.record.durationS + 1) };
 
   try {
+    const times = trackFrameTimes(window, r.durationS, r.frameS);
+    if (times.length === 0) return { kind: "failed", reason: "invalid" };
+    const frames: { t: number; jpeg: string }[] = [];
+    for (const f of times) frames.push({ t: f.t, jpeg: await deps.frameJpeg(f.atS) });
+
     const t0 = deps.nowMs();
     const boxed: TrackEntry[] = [];
     let reported = true;
     let onDevice = false;
     for (const part of chunks(frames, TRACK_BOX_FRAMES_PER_CALL)) {
+      if (halted()) return halted()!;
+      const ok = await gate();
+      if ("stop" in ok) return ok.stop;
       if (halted()) return halted()!;
       const reply = await deps.boxes(trackParts(part, false));
       if (r.stillCurrent && !r.stillCurrent()) return { kind: "refused", message: MEDIA_DELETED };
@@ -225,12 +248,17 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
     }
     const t1 = deps.nowMs();
 
-    // Outlines: only frames that got a box, a few at a time; a failed call drops only its own outlines.
+    // Outlines: only frames that got a box, a few at a time; a failed call drops only its own outlines. A withdrawn
+    // consent or a delete stops the whole read; the pause stops asking for outlines.
     const masks = new Map<number, Mask>();
     let maskFramesSent = 0;
     if (r.withMasks) {
       const has = new Set(boxed.map((e) => e.t));
       for (const part of chunks(frames.filter((f) => has.has(f.t)), TRACK_MASK_FRAMES_PER_CALL)) {
+        if (r.stillCurrent && !r.stillCurrent()) return { kind: "refused", message: MEDIA_DELETED };
+        if (r.killCloud()) break;
+        const ok = await gate();
+        if ("stop" in ok) return ok.stop;
         if (halted()) break;
         try {
           maskFramesSent += part.length;
@@ -243,9 +271,11 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
         }
       }
     }
+    // Once more before anything is handed back.
+    if (halted()) return halted()!;
     const track: Track = {
       version: CLIP_TRACK_VERSION,
-      window: { startS: r.window.startS, endS: Math.min(r.window.endS, r.durationS) },
+      window: { startS: window.startS, endS: Math.min(window.endS, r.durationS) },
       entries: boxed.map((e) => (masks.has(e.t) ? { ...e, mask: masks.get(e.t)! } : e)),
     };
     const route: RouteRecord = {
