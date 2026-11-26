@@ -3228,6 +3228,10 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: the clip time machine plan (a shared contract written before the parts that use it).
 - Verified: `src/extras/timemachine/types.test.ts` (the plan's numbers and a sample track, tick and result row) failed first (module missing), then passed; the extras import guard passes; scripts/ci-local.sh --gates --web exit 0.
 
+### feat(extras): time machine track math with tests
+- What: `extras/timemachine/track.ts` implements the frozen signatures: `iou` (zero for disjoint, touching or degenerate boxes), `linkTrack` (sorted copy, the first entry wins a repeated second, a new segment on a gap over 2 s or an IoU under 0.3), `boxAt` (exact at whole seconds, linear on the four corners between them, held 0.5 s past each segment end, null outside), `footPoint` (bottom centre), `trackSpan` and `spanAgrees` (within 1 s of the read's first and last seen).
+- Source: the clip time machine plan, part B (built by the Codex lane from the frozen types).
+- Verified: the 19 tests in `track.test.ts` failed first (module missing), then passed; `npx vitest run src/extras` exit 0 (289 tests); `npx tsc --noEmit` exit 0.
 ### chore(web): add three and @react-three/fiber for the clip time machine
 - What: `three` 0.187.0 and `@react-three/fiber` 9.8.2 as dependencies and `@types/three` 0.187.0 as a dev dependency, all exact pins; 15 packages added to the lockfile. Nothing imports them yet: the time machine view will load them by dynamic import and keep their chunk out of the offline precache.
 - Source: the clip time machine plan (three plus react-three-fiber 9 on React 19.3.1, no drei).
