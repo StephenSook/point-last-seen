@@ -519,6 +519,17 @@ each line says what the limit is and why.
 - Terrain ships only where stream links mostly run downhill. The development site has no terrain, so neither does the
   judge practice search. The 3 m "about level" band is ours, and the vertical accuracy of the 3DEP data is unverified.
 - Reloading the extras panels offline is not verified on the deployed app.
+- The clip time machine boxes the person once a second, from one frame per second; between those seconds the box
+  moves in a straight line. Up to two missing seconds are bridged; a longer gap, or a jump too far for one person,
+  starts a new run with no box between. The box is flat on the picture (no depth), and an outline is at most 16
+  points and can be missing for a frame.
+- A clip's track is read on the window that was consented; a clip opened from "Clips read for this search" is
+  tracked over its whole length, since its record keeps no window. The 3D view's code is not in the offline
+  download, so offline the time machine shows the clip, its box and the result buttons only.
+- A judge practice search copies one clip only: the blurred copy of the team's porch clip, with its stored reading
+  and track (measured once on three drill searches, `docs/evidence/web/2026-11-26-clip-track-seeds.json`).
+- A clip deleted from Storage alone leaves its track until the clip's reading expires; the time machine needs the
+  clip, so it does not open in the meantime.
 
 ## Push notifications
 
