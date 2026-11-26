@@ -828,8 +828,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     if (sink) recordInference(o.route, sink, "clip_track");
     // The track is shown at once, not after the server acknowledges the write (offline, that waits for the link
     // to come back); it is shown even when it could not be stored, and the next seat then reads its own.
-    void writeClipTrack(pls.db, incidentId, clipTrackDoc({ sha256, track: o.track, model: rc.cloudModelWeb, route: o.route, framesSent: o.framesSent, uid })).catch(() => undefined);
-    return { status: "ready", track: o.track, durationS, sent: { frames: o.framesSent, outlineFrames: o.maskFramesSent } };
+    const saved = writeClipTrack(pls.db, incidentId, clipTrackDoc({ sha256, track: o.track, model: rc.cloudModelWeb, route: o.route, framesSent: o.framesSent, uid })).then(() => true, () => false);
+    return { status: "ready", track: o.track, durationS, sent: { frames: o.framesSent, outlineFrames: o.maskFramesSent }, saved };
   };
   // The clip's track for the time machine (after a read): the stored one when there is one, else one read on the
   // same consented window. A failed track leaves the sighting.

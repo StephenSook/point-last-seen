@@ -55,7 +55,8 @@ const TRACK: TrackView = {
 const slowTriage = params.get("slowtriage") === "1";
 let finishTriage: (() => void) | null = null;
 // ?track=slow: the track read answers only on "Track finishes", and the page records whether the job was still
-// current then. ?track=slowsent: the same, and it answers as a read that stopped after 6 frames left. ?slowread=1: the sighting read answers only on "Read finishes".
+// current then. ?track=slowsent: the same, and it answers as a read that stopped after 6 frames left.
+// ?track=savefail: the track is read but its write is refused. ?slowread=1: the sighting read answers only on "Read finishes".
 const slowRead = params.get("slowread") === "1";
 let finishTrack: (() => void) | null = null;
 // ?ack=slowfail: Confirm's write is refused only on "Ack fails", so a delete can land before the refusal.
@@ -114,6 +115,7 @@ function Harness() {
             setTrackCurrent(String(h.stillCurrent?.() ?? "unset"));
           }
           if (trackMode === "slowsent") return { status: "failed", message: TRACK_FAILED, durationS: 6, sent: { frames: 6, outlineFrames: 0 } };
+          if (trackMode === "savefail") return { ...TRACK, saved: Promise.resolve(false) };
           if (trackMode === "failsent") return { status: "failed", message: TRACK_FAILED, durationS: 6, sent: { frames: 6, outlineFrames: 0 } };
           return trackMode === "fail" ? { status: "failed", message: TRACK_FAILED, durationS: 6 } : TRACK;
         } : undefined}

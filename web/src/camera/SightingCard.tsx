@@ -89,9 +89,11 @@ type Props = {
   track?: TrackView | null;
   /** Remote Config time_machine_enabled. */
   timeMachine?: boolean;
+  /** A quiet line about the track, such as that it could not be saved. */
+  trackNote?: string | null;
 };
 
-export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed, cached, clip, durationS = null, route = null, sentBytes, track = null, timeMachine = false }: Props) {
+export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed, cached, clip, durationS = null, route = null, sentBytes, track = null, timeMachine = false, trackNote = null }: Props) {
   // The second the clip is shown at; null while it is hidden.
   const [frameS, setFrameS] = useState<number | null>(null);
   const [machineOpen, setMachineOpen] = useState(false);
@@ -120,6 +122,7 @@ export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed
       )}
       {track?.status === "reading" && <p className="muted small" role="status">Tracking the person in the clip.</p>}
       {track?.status === "failed" && <p className="muted small" role="status">{track.message}</p>}
+      {trackNote && <p className="muted small">{trackNote}</p>}
       {clip && (
         <button type="button" className="btn ghost" aria-pressed={frameS === keyS} onClick={() => setFrameS((v) => (v === keyS ? null : keyS))}>
           See the frame

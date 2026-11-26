@@ -523,3 +523,8 @@ test("a track read stopped by Discard still says what had left, after the panel 
   await page.getByRole("button", { name: "Track finishes" }).click();
   await expect(page.getByTestId("stopped")).toHaveText("The clip's track read stopped. 6 frames of the clip left this laptop for the cloud.");
 });
+
+test("a track that could not be saved says so on the card", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=savefail");
+  await expect(page.getByRole("region", { name: "Camera sighting" }).getByText("The track was not saved, so another seat will read its own.")).toBeVisible();
+});

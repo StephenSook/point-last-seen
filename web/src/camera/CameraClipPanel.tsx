@@ -20,11 +20,13 @@ export type ClipRead = Extract<ClipReadOutcome, { kind: "read" }>;
  */
 export type TrackView =
   | { status: "reading" }
-  | { status: "ready"; track: Track; durationS: number; sent?: TrackSent }
+  /** saved: whether this seat's new track was stored (absent for a stored track). */
+  | { status: "ready"; track: Track; durationS: number; sent?: TrackSent; saved?: Promise<boolean> }
   | { status: "failed"; message: string; durationS: number | null; sent?: TrackSent };
 
 export const TRACK_FAILED = "The person's track could not be read. The time machine shows the clearest frame.";
 export const MEDIA_DELETED_NOTICE = "This search's clips and photos were deleted. Give the consents again to read a clip.";
+export const TRACK_NOT_SAVED = "The track was not saved, so another seat will read its own.";
 
 type Props = {
   camera: LatLon | null;
@@ -49,6 +51,7 @@ type Props = {
 export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onTriage, onConfirm, onClose, revocation, onTrack, timeMachine = false, onTrackStopped }: Props) {
   const [read, setRead] = useState<{ o: ClipRead; input: ClipIntakeInput } | null>(null);
   const [track, setTrack] = useState<TrackView | null>(null);
+  const [trackUnsaved, setTrackUnsaved] = useState(false);
   // What a track read stopped by a delete had already sent, said under the delete notice.
   const [stoppedSent, setStoppedSent] = useState<TrackSent | null>(null);
   const mounted = useRef(true);
@@ -112,6 +115,7 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
           if (o.kind !== "read" || at !== epoch.current) return o;
           setDeleted(false);
           setStoppedSent(null);
+          setTrackUnsaved(false);
           setRead({ o, input });
           if (onTrack && machineOn.current) {
             const current = () => at === epoch.current && (how?.stillCurrent?.() ?? true);
@@ -120,6 +124,7 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
               (v) => {
                 if (current()) {
                   setTrack(v);
+                  if (v.status === "ready") v.saved?.then((ok) => !ok && current() && setTrackUnsaved(true));
                   return;
                 }
                 // The card is gone; a read that had sent frames before it stopped still says so.
@@ -173,6 +178,7 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
         route={read.o.route}
         sentBytes={read.o.sentBytes}
         track={track}
+        trackNote={trackUnsaved ? TRACK_NOT_SAVED : null}
         timeMachine={timeMachine}
       />
       {sent === null ? (

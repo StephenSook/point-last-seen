@@ -3455,3 +3455,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: When a clip's card goes (a delete of the search's media, or Discard) while its track read runs, the read stops at its next check, and what it had already sent is no longer dropped: after a delete the notice adds "The clip's track read stopped. N frames of the clip left this laptop for the cloud." (with the outline frames when any), and after Discard the command post shows the same line under "Add camera clip" (`onTrackStopped`) until the next clip is added.
 - Source: review of the time machine mount (a stopped read's sends were lost with its card).
 - Verified: new harness cases (a delete during a read that had sent 6 frames; Discard during the same read, after the panel closed) and a `trackStoppedLine` unit case failed first (the line and the callback did not exist), then passed (clip harness 43).
+
+### fix(web): a new track that could not be saved says so
+- What: The track read hands back whether its write was stored (`saved`). When the write is refused, the sighting card (and the stored clip's time machine) adds a quiet line: "The track was not saved, so another seat will read its own." A write waiting for the link does not show it; only a refused one does.
+- Source: review of the time machine mount (a failed track write was silent).
+- Verified: new harness case (a track whose write is refused shows the line on the card) failed first (no such line), then passed (clip harness 44, stored-clips 5).

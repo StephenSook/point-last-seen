@@ -6,7 +6,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { StoredClip } from "../data/storedClips";
 import type { Track } from "../extras/timemachine/types";
-import { TRACK_FAILED, type TrackView } from "./CameraClipPanel";
+import { TRACK_FAILED, TRACK_NOT_SAVED, type TrackView } from "./CameraClipPanel";
 import { ClipTimeMachine } from "./ClipTimeMachine";
 import { cardFacts } from "./SightingCard";
 import { trackSentLine } from "./timeMachine";
@@ -33,6 +33,8 @@ type Props = {
 export function StoredClipsPanel({ revocation, timeMachine, canTrack, load, openClip, onTrack }: Props) {
   const [clips, setClips] = useState<StoredClip[]>([]);
   const [opened, setOpened] = useState<Opened | null>(null);
+  // The clip whose new track could not be stored.
+  const [unsaved, setUnsaved] = useState<string | null>(null);
   // A delete, or leaving the page, moves the epoch: an open clip closes and every result still on its way is dropped.
   const epoch = useRef(0);
   const lastRevocation = useRef(revocation);
@@ -79,7 +81,11 @@ export function StoredClipsPanel({ revocation, timeMachine, canTrack, load, open
     const current = () => at === epoch.current;
     setOpened({ ...o, track: { status: "reading" } });
     onTrack(c, o.clip, o.durationS, current).then(
-      (v) => current() && setOpened({ ...o, track: v }),
+      (v) => {
+        if (!current()) return;
+        setOpened({ ...o, track: v });
+        if (v.status === "ready") v.saved?.then((ok) => !ok && current() && setUnsaved(c.record.sha256));
+      },
       () => current() && setOpened({ ...o, track: { status: "failed", message: TRACK_FAILED, durationS: o.durationS } }),
     );
   }
@@ -130,7 +136,10 @@ export function StoredClipsPanel({ revocation, timeMachine, canTrack, load, open
                         {tv.sent && <p className="small">{trackSentLine(tv.sent.frames, tv.sent.outlineFrames)}</p>}
                       </>
                     ) : tv?.sent ? (
-                      <p className="small">{trackSentLine(tv.sent.frames, tv.sent.outlineFrames)}</p>
+                      <>
+                        <p className="small">{trackSentLine(tv.sent.frames, tv.sent.outlineFrames)}</p>
+                        {unsaved === c.record.sha256 && <p className="muted small">{TRACK_NOT_SAVED}</p>}
+                      </>
                     ) : !tv && canTrack && onTrack ? (
                       <button type="button" className="btn" onClick={() => track(c, here)}>
                         Track the person
