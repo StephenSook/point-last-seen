@@ -61,6 +61,6 @@ def test_only_a_batch_get_that_names_this_doc_missing_is_an_empty_day():
     assert jq.from_batch_get({"error": {"code": 404}}, NAME)[1] == ["the counter read gave an unexpected reply"]
 
 
-def test_it_retires_after_judging():
-    assert jq.retired(datetime(2026, 12, 17, 0, 0, tzinfo=timezone.utc)) is False
-    assert jq.retired(datetime(2026, 12, 18, 0, 0, tzinfo=timezone.utc)) is True
+def test_it_retires_after_winners_are_announced():
+    assert jq.retired(datetime(2026, 12, 22, 23, 59, tzinfo=timezone.utc)) is False
+    assert jq.retired(datetime(2026, 12, 23, 0, 0, tzinfo=timezone.utc)) is True

@@ -8,6 +8,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 JUDGING_ENDS = date(2026, 12, 16)
+PROBES_RETIRE_AFTER = date(2026, 12, 22)  # winners are announced 2026-12-21; the probes run through the next day
 PROJECT_CREATED = date(2026, 11, 17)  # the earliest any media or clip reading can exist
 
 
@@ -25,11 +26,14 @@ def test_clip_readings_ttl_is_declared_and_the_rules_allow_at_least_30_days():
     assert days >= 30
 
 
-def test_the_daily_probes_retire_only_after_judging():
+def test_the_daily_probes_retire_only_after_winners_are_announced():
     for script in ("scripts/appcheck_control.py", "scripts/media_probe.py", "scripts/models_probe.py", "scripts/served_version_check.py",
                    "scripts/judge_quota_probe.py"):
         m = re.search(r"RETIRE_AFTER = date\((\d+), (\d+), (\d+)\)", (REPO / script).read_text())
-        assert date(*map(int, m.groups())) > JUDGING_ENDS, script
+        assert m, script
+        retire = date(*map(int, m.groups()))
+        assert retire > JUDGING_ENDS, script
+        assert retire == PROBES_RETIRE_AFTER, script
 
 
 def test_the_daily_probe_runs_every_probe_script():

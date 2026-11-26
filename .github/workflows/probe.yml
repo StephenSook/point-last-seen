@@ -5,7 +5,7 @@ name: Live probe
 # sweep within 20 minutes; and the AI Logic models page must still list every model we name, with no
 # shutdown before judging ends; and it fails when fewer than 10 of the day's 50 judge practice searches are
 # left (the guaranteed run of that check; the hourly judge-quota.yml is best-effort, since GitHub starts it
-# late or not at all). The scripts retire themselves after 2026-12-17. A failed run emails the repo owner.
+# late or not at all). The scripts retire themselves after 2026-12-22. A failed run emails the repo owner.
 # Actions minutes are budgeted: one short job a day. Check this workflow's state and its newest run's age,
 # not only green runs (a disabled or throttled cron reports nothing).
 on:

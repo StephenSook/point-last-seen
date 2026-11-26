@@ -49,7 +49,9 @@ drill at Kennesaw Mountain was cancelled on 2026-11-23, so none of these was use
   own model, with the cloud as the fallback where a call allows it). On Android, a Pixel 10 read a family note on its
   own model (Gemini Nano through AICore) with the published `android-judge-8` file, twice: on Wi-Fi and in airplane
   mode, not joined to a search and with no cloud consent
-  (`docs/evidence/android-nano/pixel-10-2026-11-25/README.md`). With the network off, the same phone read 55 of 60
+  (`docs/evidence/android-nano/pixel-10-2026-11-25/README.md`). The current `android-judge-9` file also read a note on
+  that phone's own model, joined to a test search and with no cloud consent ("Read on this phone in 3.5 s.",
+  `docs/evidence/android/a16-judge-9-release-check-2026-11-25.md`). With the network off, the same phone read 55 of 60
   made-up family notes right in a frozen-key eval (`docs/evidence/eval-android/README.md`).
 - On iPhone, on-device reads use Apple Foundation Models (`SystemLanguageModel`), the on-device option for iOS, and
   cloud reads use Gemini through Firebase AI Logic in the same session.
@@ -57,8 +59,8 @@ drill at Kennesaw Mountain was cancelled on 2026-11-23, so none of these was use
   This follows Firebase iOS SDK 13.0.0, which removed the SDK's own `SystemLanguageModel` and `HybridModel` and says to
   use `ai.geminiLanguageModel(name:)` directly with Apple's Foundation Models framework (`FirebaseAI/CHANGELOG.md`,
   lines 69 to 74 at tag 13.2.0, the version this app pins); `ios/PLS/AI/ModelSessionFactory.swift` does exactly that.
-- When no model reads a note or report, nothing is sent. The web receipt says "No model was asked: fixed wording
-  from code." and "Sent: nothing.", the iPhone reads the report with fixed rules and marks it "Read by the phone's
+- When no model reads a note or report, no text or image is sent to a model. The web receipt says "No model was
+  asked: fixed wording from code." and "Sent: no text or image.", the iPhone reads the report with fixed rules and marks it "Read by the phone's
   rules. No model.", and the web and Android forms ask for the fields by hand.
 - Speech: the iPhone app speaks an assignment change in a cloud voice from Firebase AI Logic and falls back to the
   phone's own system voice. No app calls a speech recognizer, and the repository's rules gate refuses one on every
@@ -73,12 +75,15 @@ is missing.
   laptop's built-in model in Chrome for the note, photo and clip-frame reads; on-device first, then Gemini in the
   cloud, for plan wording); on iPhone, Apple's Foundation Models on the device, called directly as Firebase iOS SDK 13
   directs, and Gemini in the cloud through Firebase AI Logic; on Android, Firebase AI Logic's on-device
-  path (Gemini Nano on a Pixel 10: two notes read on the phone, `docs/TEST-MATRIX.md`) and cloud model. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that allows only
-  the listed models and bounds each reply.
+  path (Gemini Nano on a Pixel 10: two notes read on the phone, `docs/TEST-MATRIX.md`) and cloud model. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that checks every
+  `generateContent` call: it allows only the listed models and bounds each reply. Streaming calls skip it by
+  Google's design, and the iPhone's cloud report read streams, so that read is bounded by App Check, the limit of 20
+  calls a minute per user and the $25 Gemini spend cap instead (`docs/SECURITY.md`, rows 9, 11 and 12).
 - Firebase: App Check (reCAPTCHA Enterprise on the web, App Attest on iPhone, Play Integrity on Android), enforced on
   AI Logic, Firestore and Storage; anonymous Auth with custom claims; Firestore and Cloud Storage behind security
   rules; Cloud Functions (joining, judge sandboxes, media deletion, drill retention, push notices); Remote Config;
-  Cloud Messaging; Hosting; Crashlytics and Performance on iPhone and Android, and Analytics on Android.
+  Cloud Messaging; Hosting; Crashlytics and Performance on the web, iPhone and Android (on the web, Crashlytics loads
+  on the first uncaught error and Performance times each model read on the command post), and Analytics on Android.
 - Apps: the web command post in React and Vite, offline with vite-plugin-pwa, with MapLibre GL maps on PMTiles
   basemaps from OpenStreetMap data; the iPhone app in SwiftUI with MapLibre Native, Live Activities (ActivityKit),
   App Intents and swift-crypto; the Android family app in Kotlin with Jetpack Compose (Material 3).
