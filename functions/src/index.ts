@@ -12,7 +12,7 @@ import { handleDeleteMyAccount } from "./account.js";
 import { handleRotateJoinCode } from "./codes.js";
 import { guardLogLine, guardRequest } from "./cloudGuard.js";
 import { handleJoin, type JoinRequest } from "./join.js";
-import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_SESSION_TIMEOUT_S } from "./judgeSession.js";
+import { bucketCopier, deleteEndedSandboxes, handleStartJudgeSession, JUDGE_SEED_INCIDENT, JUDGE_SESSION_TIMEOUT_S, JUDGE_SESSIONS_PER_DAY } from "./judgeSession.js";
 import { deleteClipForReading, deletePhotoConsentForObject, deleteTrackForReading, handleDeleteMedia, runMediaSweep } from "./media.js";
 import { handleRemoveMember } from "./members.js";
 import { handleFamilyQuestion, handlePlanCreated, handleSearchState } from "./notify.js";
@@ -95,7 +95,10 @@ export const rotateJoinCode = onCall<{ incidentId?: unknown; role?: unknown }>(
  */
 export const startJudgeSession = onCall(
   { enforceAppCheck: true, region: "us-central1", maxInstances: 5, timeoutSeconds: JUDGE_SESSION_TIMEOUT_S },
-  request => handleStartJudgeSession(getFirestore(), getAuth(), request.auth?.uid ?? null, Date.now()),
+  request => handleStartJudgeSession(getFirestore(), getAuth(), request.auth?.uid ?? null, Date.now(), {
+    seedIncidentId: JUDGE_SEED_INCIDENT, perDay: JUDGE_SESSIONS_PER_DAY,
+    copyClip: bucketCopier(getStorage().bucket()),
+  }),
 );
 
 /** deleteEndedSandboxes (hourly): removes each judge sandbox, with everything under it, a day after it ends. */

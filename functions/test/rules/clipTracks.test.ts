@@ -61,6 +61,16 @@ describe("clip tracks", () => {
     await assertFails(getDoc(doc(db, path())));
   });
 
+  it("a judge's practice search reads the practice clip's copied track", async () => {
+    const J = "judge-u1-0123456789ab";
+    await admin.db.doc(`incidents/${J}`).set({ name: "Practice", mode: "judge", status: "open", setupReady: true, expiresAt: new Date(Date.now() + 86_400_000) });
+    await admin.db.doc(`incidents/${J}/clipReadings/${SHA}`).set({ sha256: SHA, reading: { personVisible: true }, route: ROUTE });
+    await admin.db.doc(`incidents/${J}/clipTracks/${SHA}`).set(track("seed-uid", { createdAt: new Date() }));
+    const judge = dbAs("u1", { inc: J, role: "command", team: null });
+    await assertSucceeds(getDoc(doc(judge, `incidents/${J}/clipTracks/${SHA}`)));
+    await assertFails(getDoc(doc(judge, path())));
+  });
+
   it("refuses a closed search", async () => {
     await admin.db.doc("incidents/I1").update({ status: "closed" });
     await assertFails(setDoc(doc(dbAs(C, commandClaims), path()), track(C)));

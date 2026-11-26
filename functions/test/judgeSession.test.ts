@@ -4,10 +4,11 @@
 // touches a path another attempt uses.
 import { readFileSync } from "node:fs";
 import { Timestamp } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_LABEL, JUDGE_SESSION_TIMEOUT_S, SETUP_STALE_MS } from "../src/judgeSession";
+import { bucketCopier, deleteEndedSandboxes, handleStartJudgeSession, JUDGE_CLIP_SHA256S, JUDGE_LABEL, JUDGE_SESSION_TIMEOUT_S, SETUP_STALE_MS } from "../src/judgeSession";
 import { callRaw, emulatorIdToken } from "./callable";
-import { admin, clearFirestore, closeClients } from "./helpers";
+import { admin, adminApp, clearFirestore, closeClients } from "./helpers";
 
 const NOW = Date.UTC(2026, 11, 12, 15, 0);
 const HOUR = 3_600_000, DAY = 24 * HOUR;
@@ -399,5 +400,73 @@ describe("deleteEndedSandboxes", () => {
     expect((await inc(current).get()).get("setupReady")).toBe(true);
     expect(await size(current, "segments")).toBe(3);
     expect(await pointer(uid)).toBe(current);
+  });
+});
+
+describe("startJudgeSession and the practice clip", () => {
+  // The blurred copy of the team's porch clip (plates and house numbers pixelated); the original is never copied.
+  const CLIP = "28fffd2082fd48ea50709b94c8d37b823d2613dc5997adffda1117136483ddfb";
+  const OTHER = "a".repeat(64);
+  const MARK = { byUid: "seed-uid", atMs: 1 };
+  async function seedClip(sha: string, reading: unknown = { personVisible: true, lastSeen: "00:07" }) {
+    await admin.db.doc(`incidents/SEED/clipReadings/${sha}`).set({
+      sha256: sha, storagePath: `clips/SEED/${sha}.mp4`, durationS: 9, clipStartMs: 1, clockConfirmed: true, cameraFacingDeg: null, reading, route: null,
+      consent: { personInClip: MARK, footageOwner: MARK, cloudProcessing: MARK, publicUse: null },
+      expiresAt: Timestamp.fromMillis(NOW + 20 * DAY), createdAt: Timestamp.fromMillis(NOW - DAY), createdByUid: "seed-uid",
+    });
+    await admin.db.doc(`incidents/SEED/clipTracks/${sha}`).set({ version: "track-v1", sha256: sha, window: { startS: 0, endS: 9 }, entries: [{ t: 1, box: [1, 2, 3, 4], source: "cloud" }] });
+  }
+
+  it("lists only the blurred practice clip", () => {
+    expect(JUDGE_CLIP_SHA256S).toEqual([CLIP]);
+  });
+
+  it("copies the practice clip's file first, then its reading and its track, and no other clip", async () => {
+    await seedClip(CLIP);
+    await seedClip(OTHER);
+    const copies: string[][] = [];
+    const uid = await freshUid();
+    const { incidentId } = await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, { ...cfg, copyClip: async (from, to) => void copies.push([from, to]) });
+    expect(copies).toEqual([[`clips/SEED/${CLIP}.mp4`, `clips/${incidentId}/${CLIP}.mp4`]]);
+    const reading = await inc(incidentId).collection("clipReadings").doc(CLIP).get();
+    expect(reading.get("storagePath")).toBe(`clips/${incidentId}/${CLIP}.mp4`);
+    expect(reading.get("reading")).toEqual({ personVisible: true, lastSeen: "00:07" });
+    expect(reading.get("consent")).toEqual({ personInClip: MARK, footageOwner: MARK, cloudProcessing: MARK, publicUse: null });
+    expect((await inc(incidentId).collection("clipTracks").doc(CLIP).get()).get("entries")).toEqual([{ t: 1, box: [1, 2, 3, 4], source: "cloud" }]);
+    expect([await size(incidentId, "clipReadings"), await size(incidentId, "clipTracks")]).toEqual([1, 1]);
+  });
+
+  it("copies the clip's object in the bucket with the production copier, byte for byte", async () => {
+    await seedClip(CLIP);
+    const bucket = getStorage(adminApp).bucket();
+    const bytes = Buffer.from("practice clip bytes");
+    await bucket.file(`clips/SEED/${CLIP}.mp4`).save(bytes, { contentType: "video/mp4" });
+    const { incidentId } = await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, { ...cfg, copyClip: bucketCopier(bucket) });
+    const [copied] = await bucket.file(`clips/${incidentId}/${CLIP}.mp4`).download();
+    expect(copied.equals(bytes)).toBe(true);
+    const [meta] = await bucket.file(`clips/${incidentId}/${CLIP}.mp4`).getMetadata();
+    expect(meta.contentType).toBe("video/mp4");
+    await bucket.deleteFiles({ prefix: "clips/" });
+  });
+
+  it("leaves the clip out, and still starts the practice search, when its file cannot be copied", async () => {
+    await seedClip(CLIP);
+    const uid = await freshUid();
+    const { incidentId } = await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, { ...cfg, copyClip: async () => {
+      throw new Error("No such object");
+    } });
+    expect((await inc(incidentId).get()).get("setupReady")).toBe(true);
+    expect([await size(incidentId, "clipReadings"), await size(incidentId, "clipTracks")]).toEqual([0, 0]);
+  });
+
+  it("copies no clip whose reading is not stored, and none without a file copier", async () => {
+    await seedClip(CLIP, null);
+    const copies: string[][] = [];
+    const a = await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, { ...cfg, copyClip: async (from, to) => void copies.push([from, to]) });
+    expect(copies).toEqual([]);
+    expect(await size(a.incidentId, "clipReadings")).toBe(0);
+    await seedClip(CLIP);
+    const b = await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, cfg);
+    expect(await size(b.incidentId, "clipReadings")).toBe(0);
   });
 });
