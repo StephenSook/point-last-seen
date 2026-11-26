@@ -3500,3 +3500,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `docs/LIMITS.md` (Command post extras): a judge practice search copies the blurred practice clip only with its bytes checked and only while the seed's reading carries the "Public use, film or judge page" consent, field by field and with no seed account named.
 - Source: review of the judge practice search copy.
 - Verified: the line matches `functions/src/practiceClip.ts` (practiceReading, bucketClipStore).
+
+### docs: the test matrix cites the clip track's mode at its new line
+- What: `docs/TEST-MATRIX.md`'s clip track row cites `web/src/ai/clipTrack.ts` at the line that now holds `InferenceMode.ONLY_IN_CLOUD` (the frame cap's constant moved it).
+- Source: the test-matrix check (every row cites a live code line).
+- Verified: `scripts/test_test_matrix.py` failed on the old line, then passed.
