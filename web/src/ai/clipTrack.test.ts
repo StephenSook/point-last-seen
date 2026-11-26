@@ -69,12 +69,12 @@ describe("parseTrackReply", () => {
   const reply = (track: unknown[]) => JSON.stringify({ track });
 
   it("keeps a box for each second with a person and skips a null box", () => {
-    const e = parseTrackReply(reply([{ t: 0, label: "person", box_2d: null }, { t: 1, label: "person", box_2d: [100, 200, 900, 400] }]), sent);
+    const e = parseTrackReply(reply([{ t: 0, label: "person", box_2d: null }, { t: 1, label: "person", box_2d: [100, 200, 900, 400] }]), [0, 1]);
     expect(e).toEqual([{ t: 1, box: [100, 200, 900, 400], source: "cloud" }]);
   });
 
   it("drops a box that is not labelled a person, and keeps the rest", () => {
-    const e = parseTrackReply(reply([{ t: 1, label: "car", box_2d: [100, 200, 900, 400] }, { t: 2, label: "Person", box_2d: [100, 210, 900, 410] }]), sent);
+    const e = parseTrackReply(reply([{ t: 1, label: "car", box_2d: [100, 200, 900, 400] }, { t: 2, label: "Person", box_2d: [100, 210, 900, 410] }]), [1, 2]);
     expect(e?.map((x) => x.t)).toEqual([2]);
   });
 
@@ -88,6 +88,11 @@ describe("parseTrackReply", () => {
     ["a fractional time", [{ t: 1.5, label: "person", box_2d: [1, 1, 2, 2] }]],
   ])("refuses the whole track for %s", (_why, track) => {
     expect(parseTrackReply(reply(track as unknown[]), sent)).toBeNull();
+  });
+
+  it("refuses a reply with fewer entries than frames, an empty one included", () => {
+    expect(parseTrackReply(reply([]), [0, 1])).toBeNull();
+    expect(parseTrackReply(reply([{ t: 0, label: "person", box_2d: null }]), [0, 1])).toBeNull();
   });
 
   it("refuses more entries than frames, and a reply that is not JSON", () => {

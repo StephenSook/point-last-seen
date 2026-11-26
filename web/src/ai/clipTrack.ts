@@ -100,7 +100,8 @@ function entries(text: string, sent: readonly number[]): Record<string, unknown>
     return null;
   }
   const track = (v as { track?: unknown } | null)?.track;
-  if (!Array.isArray(track) || track.length > sent.length) return null;
+  // Exactly one entry per frame sent (a null box says nobody is in that frame), in the order they were sent.
+  if (!Array.isArray(track) || track.length !== sent.length) return null;
   const allowed = new Set(sent);
   let last = Number.NEGATIVE_INFINITY;
   for (const e of track as Record<string, unknown>[]) {

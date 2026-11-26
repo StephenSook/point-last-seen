@@ -3276,3 +3276,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `trackFrameTimes` adds the clip's last frame only when its rounded second is at or before the window's end, so no frame is sent labelled past the window (an 11.56 s window no longer gets a frame labelled 12). A 9.0 s clip still gets t=9.
 - Source: review of the track read (frame labels past the window).
 - Verified: new cases in `src/ai/clipTrack.test.ts` (11.56 s ends at 11; a window holding no frame gives none) failed first, then passed (28).
+
+### fix(web): a track reply needs one entry per frame sent
+- What: `parseTrackReply` refuses a reply whose `track` has fewer entries than the frames sent, an empty one included (a null box still says nobody is in that frame). Before, a finished reply with a short or empty track passed as a track with no boxes.
+- Source: review of the track read (a short reply read as an empty track).
+- Verified: new case in `src/ai/clipTrack.test.ts` (an empty and a one-entry reply for two frames) failed first, then passed; two existing cases now send exactly the frames they answer (29).
