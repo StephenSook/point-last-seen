@@ -35,9 +35,9 @@ export type Track = {
 
 /** The plan's fixed numbers for the track math. */
 export const TRACK_RULES = {
-  /** Two neighbouring entries are the same person's track when their boxes overlap by at least this IoU. */
-  linkMinIoU: 0.3,
-  /** A run of missing seconds this long or shorter is bridged inside one segment. */
+  /** Maximum straight-line move of the box centre per second on the 0 to 1000 frame scale. */
+  maxCenterJumpPerS: 450,
+  /** Maximum missing whole seconds bridged inside one segment (entries at 4 and 7 s miss 2). */
   bridgeMaxGapS: 2,
   /** The track's first and last second agree with the reading's when each is within this many seconds. */
   agreeWithinS: 1,
@@ -52,8 +52,8 @@ export type TrackSegment = { readonly startS: number; readonly endS: number; rea
 export type Iou = (a: Box2d, b: Box2d) => number;
 
 /**
- * Splits a track into segments. A new segment starts where the IoU with the previous entry is below
- * `linkMinIoU` or where more than `bridgeMaxGapS` seconds are missing.
+ * Splits a single person's track into segments. A new segment starts when the time gap exceeds
+ * `bridgeMaxGapS` or the box centre moves more than `maxCenterJumpPerS` times the gap.
  */
 export type LinkTrack = (entries: readonly TrackEntry[]) => TrackSegment[];
 
