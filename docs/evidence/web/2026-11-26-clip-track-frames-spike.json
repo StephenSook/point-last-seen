@@ -1,0 +1,221 @@
+{
+ "label": "Measurement only. Two clips are Pexels stock footage with actors (not a real case; never shown as a missing person in the film or on a judged page). One is the team's own night porch clip, filmed for the training drill.",
+ "what": "Spike 2, after the video-path spike (2026-11-26-clip-track-spike.json) failed: the same clips sent as one JPEG per second, all in one request, to see whether image input gives a box that follows the person.",
+ "date": "2026-11-26",
+ "runAtUtc": "05:05Z to 05:25Z",
+ "route": "Firebase AI Logic web SDK, ONLY_IN_CLOUD, App Check debug token and a signed-in user, from the same local measurement page as spike 1 (not committed)",
+ "privacy": "The frames are taken on this laptop (canvas) from the window the app's own triage flagged, the same consented window the sighting read already sends to the cloud as video, so the consent is unchanged. Only the team clip and stock clips were used.",
+ "request": [
+  "One text part first: the instruction (detect the walking person in each frame; box_2d is [ymin, xmin, ymax, xmax] normalized to 0-1000; one entry per frame with its t and the label \"person\"; null when no person; do not describe the face or guess who it is).",
+  "Then, for each whole second of the window: a text part \"t=<second>\" and the frame as a JPEG (960 px on the long side, quality 0.85).",
+  "Response schema: {track: [{t: integer, label: string, box_2d: integer array or null}]}, no bounds; generationConfig.thinkingConfig.thinkingLevel MINIMAL; maxOutputTokens 2048."
+ ],
+ "judging": "As in spike 1: each box drawn on the frame at its second and checked by eye; a second counts when the box holds most of the person's visible body. Every box in these runs was on the person; the one null (stock-29055706 at 0 s, the black first frame of its fade-in) is right.",
+ "runs": [
+  {
+   "call": "call27",
+   "clip": "doorbell",
+   "model": "gemini-3.5-flash-lite",
+   "format": "first format: box2d, t text before each image, prompt after the images, 768 px frames, no thinking setting",
+   "frames": 9,
+   "ms": 6544,
+   "finishReason": "STOP",
+   "inputTokens": 10028,
+   "outputTokens": 450,
+   "grades": {
+    "0": "HIT",
+    "1": "HIT",
+    "2": "HIT",
+    "3": "HIT",
+    "4": "HIT",
+    "5": "HIT",
+    "6": "HIT",
+    "7": "HIT",
+    "8": "HIT"
+   },
+   "hit": 9,
+   "visibleSeconds": 9,
+   "hitShare": 1.0,
+   "firstBoxS": 0,
+   "lastBoxS": 8,
+   "firstErrorS": 0,
+   "lastErrorS": 0,
+   "distinctBoxes": 9
+  },
+  {
+   "call": "call28",
+   "clip": "doorbell",
+   "model": "gemini-3.5-flash-lite",
+   "format": "documented format: text first, t=<n> before each 960 px frame, box_2d with a label, thinking MINIMAL",
+   "frames": 9,
+   "ms": 3983,
+   "finishReason": "STOP",
+   "inputTokens": 10032,
+   "outputTokens": 462,
+   "grades": {
+    "0": "HIT",
+    "1": "HIT",
+    "2": "HIT",
+    "3": "HIT",
+    "4": "HIT",
+    "5": "HIT",
+    "6": "HIT",
+    "7": "HIT",
+    "8": "HIT"
+   },
+   "hit": 9,
+   "visibleSeconds": 9,
+   "hitShare": 1.0,
+   "firstBoxS": 0,
+   "lastBoxS": 8,
+   "firstErrorS": 0,
+   "lastErrorS": 0,
+   "distinctBoxes": 9
+  },
+  {
+   "call": "call30",
+   "clip": "stock-29055706",
+   "model": "gemini-3.5-flash-lite",
+   "format": "documented format",
+   "frames": 20,
+   "ms": 7781,
+   "finishReason": "STOP",
+   "inputTokens": 22175,
+   "outputTokens": 1014,
+   "grades": {
+    "0": "NULL (right: nobody in view)",
+    "1": "HIT",
+    "2": "HIT",
+    "3": "HIT",
+    "4": "HIT",
+    "5": "HIT",
+    "6": "HIT",
+    "7": "HIT",
+    "8": "HIT",
+    "9": "HIT",
+    "10": "HIT",
+    "11": "HIT",
+    "12": "HIT",
+    "13": "HIT",
+    "14": "HIT",
+    "15": "HIT",
+    "16": "HIT",
+    "17": "HIT",
+    "18": "HIT",
+    "19": "HIT"
+   },
+   "hit": 19,
+   "visibleSeconds": 19,
+   "hitShare": 1.0,
+   "firstBoxS": 1,
+   "lastBoxS": 19,
+   "firstErrorS": 1,
+   "lastErrorS": 0,
+   "distinctBoxes": 19
+  },
+  {
+   "call": "call32",
+   "clip": "stock-4121893",
+   "model": "gemini-3.5-flash-lite",
+   "format": "documented format",
+   "frames": 12,
+   "ms": 3928,
+   "finishReason": "STOP",
+   "inputTokens": 13343,
+   "outputTokens": 609,
+   "grades": {
+    "0": "HIT",
+    "1": "HIT",
+    "2": "HIT",
+    "3": "HIT",
+    "4": "HIT",
+    "5": "HIT",
+    "6": "HIT",
+    "7": "HIT",
+    "8": "HIT",
+    "9": "HIT",
+    "10": "HIT",
+    "11": "HIT"
+   },
+   "hit": 12,
+   "visibleSeconds": 12,
+   "hitShare": 1.0,
+   "firstBoxS": 0,
+   "lastBoxS": 11,
+   "firstErrorS": 0,
+   "lastErrorS": 0,
+   "distinctBoxes": 12
+  }
+ ],
+ "masks": {
+  "clip": "doorbell",
+  "model": "gemini-3.5-flash-lite",
+  "what": "the same request with a mask per entry: a polygon of up to 16 [y, x] points on 0 to 1000",
+  "calls": [
+   {
+    "call": "call34",
+    "seconds": "0 to 8",
+    "ms": 6827,
+    "finishReason": "MAX_TOKENS",
+    "outputTokens": 2032,
+    "note": "stopped at MAX_TOKENS after 6 complete entries (0 to 5 s)"
+   },
+   {
+    "call": "call35",
+    "seconds": "6 to 8",
+    "ms": 3133,
+    "finishReason": "STOP",
+    "outputTokens": 787
+   }
+  ],
+  "result": "9 of 9 masks on the person: coarse outlines (head and shoulders taper, sides of the body). About 260 to 330 output tokens per masked frame, against about 51 for a box, so a 2048 cap fits about 6 masked frames per call."
+ },
+ "otherModel": {
+  "model": "Gemini 3.8 Flash (its model id is in docs/evidence/web/README.md; the repository's rules gate keeps that id out of code and data files, since the model is too slow for any live path)",
+  "calls": [
+   "call29",
+   "call31",
+   "call33",
+   "call36"
+  ],
+  "result": "HTTP 500 \"Internal error encountered\" on 4 of 4 calls (3 with thinking MINIMAL, 1 without), each within 1 to 3 s; not diagnosed further"
+ },
+ "cost": {
+  "callsPerWindow": "1 per window of up to about 40 frames (about 51 output tokens per boxed frame at a 2048 cap)",
+  "latencyMs": {
+   "9 frames": 3983,
+   "20 frames": 7781,
+   "12 frames": 3928
+  },
+  "inputTokensPerFrame": "about 1,100 at 960 x 540",
+  "notMeasured": "the time to take the frames on the laptop (one seek per second) was not timed separately"
+ },
+ "calls": {
+  "budget": 42,
+  "usedBySpike1": 26,
+  "usedBySpike2": 10,
+  "total": 36,
+  "http429": 0
+ },
+ "passLine": "Same as spike 1: the box contains the person on at least 70% of seconds on N-1 of N clips.",
+ "result": "PASS on gemini-3.5-flash-lite: team clip 9 of 9 (both formats), stock-29055706 19 of 19, stock-4121893 12 of 12. The two team-clip runs agree at IoU 0.85 to 0.98 each second.",
+ "sheets": {
+  "boxes": {
+   "file": "docs/evidence/web/2026-11-26-clip-track-frames-doorbell.jpg",
+   "sha256": "400c33942c3d10b0ddac1f5eaa9aa16a063baa87eb64f06999b4a62bcfd77c34",
+   "shows": "The team clip, one tile per second (0 to 9 s): cyan = the first-format run (768 px frames), magenta = the documented-format run (960 px frames)."
+  },
+  "masks": {
+   "file": "docs/evidence/web/2026-11-26-clip-track-frames-doorbell-masks.jpg",
+   "sha256": "f1fab9e8e1d28e019e0ee365b7f17ad888db3f2e88e904d4558412302420362a",
+   "shows": "The team clip, 0 to 8 s: the outline (green) and box (magenta) from the two mask calls."
+  }
+ },
+ "notMeasured": [
+  "The other three stock clips",
+  "Clips longer than 20 s",
+  "Repeat runs on the stock clips"
+ ],
+ "n": "3 clips; 1 or 2 runs each; single observations",
+ "receipt": "When the track read ships, its receipt says how many frames left the laptop (for this clip: 9 or 10 frames of the clip)."
+}
