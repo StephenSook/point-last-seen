@@ -25,6 +25,14 @@ describe("clipTrackDoc", () => {
 });
 
 describe("clipTrackFromDoc", () => {
+  it("keeps an entry whose outline has more than 16 points, without the outline", () => {
+    const d = clipTrackDoc({ sha256: SHA, track: TRACK, model: "gemini-3.5-flash-lite", route: ROUTE, framesSent: 10, uid: "u1" });
+    const long = Array.from({ length: 34 }, (_, i) => 100 + i);
+    const sixteen = long.slice(0, 32);
+    const t = clipTrackFromDoc({ ...d, entries: [{ t: 0, box: [1, 2, 3, 4], source: "cloud", mask: long }, { t: 1, box: [1, 2, 3, 4], source: "cloud", mask: sixteen }], createdAt: { toMillis: () => 5 } });
+    expect(t?.track.entries.map((e) => e.mask?.length ?? 0)).toEqual([0, 16]);
+  });
+
   it("reads back the same track", () => {
     const d = clipTrackDoc({ sha256: SHA, track: TRACK, model: "gemini-3.5-flash-lite", route: ROUTE, framesSent: 10, uid: "u1" });
     expect(clipTrackFromDoc({ ...d, createdAt: { toMillis: () => 5 } })).toEqual({ track: TRACK, sha256: SHA, model: "gemini-3.5-flash-lite", route: ROUTE, framesSent: 10, createdAtMs: 5 });

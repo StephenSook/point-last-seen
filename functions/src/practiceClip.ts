@@ -99,14 +99,17 @@ export function practiceReading(d: DocumentData, sha256: string, storagePath: st
     cameraFacingDeg: facing, reading, route, consent, expiresAt: ends, createdAt: d["createdAt"], createdByUid: PRACTICE_SEED_UID };
 }
 
-/** One track entry rebuilt from its own fields (t, box, source, an optional flat outline), or null. */
+/**
+ * One track entry rebuilt from its own fields (t, box, source, an optional flat outline), or null. An outline over 16
+ * points (32 numbers) is dropped and the entry kept, as the writer and the reader do.
+ */
 function practiceEntry(v: unknown): Record<string, unknown> | null {
   const e = v as Record<string, unknown> | null;
   if (!e || typeof e !== "object" || !Number.isInteger(e["t"]) || (e["t"] as number) < 0 || !ordered(e["box"])) return null;
   if (e["source"] !== "cloud" && e["source"] !== "on_device") return null;
   const mask = e["mask"];
-  if (mask === undefined) return { t: e["t"], box: [...(e["box"] as number[])], source: e["source"] };
-  if (!Array.isArray(mask) || mask.length < 6 || mask.length > 32 || mask.length % 2 !== 0 || !mask.every(scaled)) return null;
+  if (mask === undefined || (Array.isArray(mask) && mask.length > 32)) return { t: e["t"], box: [...(e["box"] as number[])], source: e["source"] };
+  if (!Array.isArray(mask) || mask.length < 6 || mask.length % 2 !== 0 || !mask.every(scaled)) return null;
   return { t: e["t"], box: [...(e["box"] as number[])], source: e["source"], mask: [...mask] };
 }
 

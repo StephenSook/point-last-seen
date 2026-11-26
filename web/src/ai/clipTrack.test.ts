@@ -106,6 +106,19 @@ describe("parseTrackReply", () => {
 });
 
 describe("parseMaskReply", () => {
+  it("drops an outline of more than 16 points and keeps one of 16", () => {
+    const pts = (n: number) => Array.from({ length: n }, (_, i) => [100 + i, 200 + i]);
+    const text = JSON.stringify({
+      track: [
+        { t: 0, label: "person", box_2d: [1, 1, 9, 9], mask: pts(16) },
+        { t: 1, label: "person", box_2d: [1, 1, 9, 9], mask: pts(17) },
+      ],
+    });
+    const m = parseMaskReply(text, [0, 1]);
+    expect([...(m?.keys() ?? [])]).toEqual([0]);
+    expect(m?.get(0)).toHaveLength(16);
+  });
+
   it("keeps an outline of at least 3 points inside 0 to 1000, and drops a bad one", () => {
     const text = JSON.stringify({
       track: [

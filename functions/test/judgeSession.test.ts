@@ -480,6 +480,14 @@ describe("startJudgeSession and the practice clip", () => {
     }
   });
 
+  it("keeps a track entry whose outline has more than 16 points, without the outline", async () => {
+    const long = Array.from({ length: 34 }, (_, i) => 100 + i);
+    await seedClip(CLIP, {}, { entries: [{ t: 1, box: [100, 200, 900, 400], source: "cloud", mask: long }, ENTRY] });
+    const { store } = fakeStore();
+    const { incidentId } = await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, clipCfg(store));
+    expect((await inc(incidentId).collection("clipTracks").doc(CLIP).get()).get("entries")).toEqual([{ t: 1, box: [100, 200, 900, 400], source: "cloud" }, ENTRY]);
+  });
+
   it("copies the reading without a track whose entries break the track's schema", async () => {
     await seedClip(CLIP, {}, { entries: [{ t: 1, box: [900, 200, 100, 400], source: "cloud" }] });
     const { store } = fakeStore();

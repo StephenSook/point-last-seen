@@ -18,6 +18,8 @@ export const TRACK_FRAME_MAX_SIDE = 960;
 export const TRACK_BOX_FRAMES_PER_CALL = 40;
 /** About 260 to 330 reply tokens an outlined frame, so 6 fit one reply. */
 export const TRACK_MASK_FRAMES_PER_CALL = 6;
+/** The most points one outline keeps (the prompt asks for up to 16); a longer outline is dropped, its box kept. */
+export const TRACK_MASK_MAX_POINTS = 16;
 /** The most frames one track holds (two minutes at one a second): the rules refuse a longer track. */
 export const TRACK_MAX_FRAMES = 121;
 export const TRACK_MAX_OUTPUT_TOKENS = 2048;
@@ -140,7 +142,7 @@ export function parseMaskReply(text: string, sent: readonly number[]): Map<numbe
   const out = new Map<number, Mask>();
   for (const e of list) {
     const m = e["mask"];
-    if (!Array.isArray(m) || m.length < 3 || !isPerson(e["label"])) continue;
+    if (!Array.isArray(m) || m.length < 3 || m.length > TRACK_MASK_MAX_POINTS || !isPerson(e["label"])) continue;
     if (!m.every((p) => Array.isArray(p) && p.length === 2 && scaled(p[0]) && scaled(p[1]))) continue;
     out.set(e["t"] as number, (m as [number, number][]).map(([y, x]) => [y, x] as const));
   }

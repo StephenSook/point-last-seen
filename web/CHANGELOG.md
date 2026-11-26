@@ -3515,3 +3515,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `docs/LIMITS.md`: ending a practice search early leaves its copied practice clip readable to its own judge until the practice search expires; it is the same reviewed clip every practice search gets, and ended practice searches are swept a day after they expire.
 - Source: review of the judge practice search copy (accepted as a known limit).
 - Verified: the line matches `deleteEndedSandboxMedia` and `liveFor` in the rules.
+
+### fix(web): an outline over 16 points is dropped, its box kept, by the writer, the reader and the copy
+- What: The prompt asks for outlines of up to 16 points; now the code agrees everywhere. `parseMaskReply` drops a longer outline (`TRACK_MASK_MAX_POINTS`), `clipTrackFromDoc` keeps an entry whose stored outline is longer than 32 numbers without that outline, and the practice clip copy (`practiceEntry`) does the same instead of leaving out the whole track.
+- Source: review of the practice clip copy (the copy refused a whole track for one long outline while the writer and reader had no cap).
+- Verified: new cases: `parseMaskReply` keeps 16 points and drops 17; `clipTrackFromDoc` keeps the entry without a 17-point outline; the judge session copy keeps the entry without its 17-point outline (it failed on the previous copy). clipTrack and data/clipTrack 62, judgeSession 36; typecheck clean.
