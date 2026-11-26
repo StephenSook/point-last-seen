@@ -52,3 +52,9 @@ test("the built worker loads the takeover script that moves pages of older build
   expect(script.status()).toBe(200);
   expect(await script.text()).toContain("pls-build-ping");
 });
+
+test("the offline worker precaches the app but not the 3D view's three.js chunk, which loads only when opened", { tag: "@no-backend" }, async ({ request }) => {
+  const sw = await (await request.get("/sw.js")).text();
+  expect(sw).toMatch(/assets\/main-[\w-]+\.js/);
+  expect(sw).not.toMatch(/TimeMachine-[\w-]+\.(js|css)/);
+});
