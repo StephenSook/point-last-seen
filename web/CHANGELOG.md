@@ -3555,3 +3555,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/e2e/timeMachine.spec.ts` also asserts the time machine panel does not say "No track was read for this clip.": with "Track the person" gone from the stored list, the check for no such button no longer proved a stored track, and the clearest frame's box shows without one too.
 - Source: the deployed run of 2026-11-26 15:50 UTC (its stored track was proved by a server read instead).
 - Verified: added after that run, so it runs on the next live run; typecheck clean and the practice-quota guard passes. The run itself passed (12.5 s) and the server read of that practice search showed the track (10 entries).
+
+### docs(web): the practice clip re-read with the judge-page consent on the seed and judges' drills
+- What: `docs/evidence/web/2026-11-26-clip-track-seeds.json` gains a `reseed` section and its README a note: on drill-dev-1 and drill-judge-1 only the practice clip's reading was deleted (file and track through the delete trigger) and the clip read again with all four consents. Before and after counts show drill-dev-1's other media unchanged; both drills hold the reading with all four consents, a 10-entry track and the clip; one practice search from /judge then copied them and opened the time machine with no AI request.
+- Source: the practice clip copy's judge-page consent rule (review of the judge practice search copy).
+- Verified: every count and field read from the server with read-only REST before the delete, after the delete (all 404) and after each re-read; the practice search's log line and records read back the same way; the file holds no key or token.

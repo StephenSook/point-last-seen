@@ -125,5 +125,59 @@
     }
   },
   "checkedAfter": "Each search's clipReadings and clipTracks records and its Storage object were read back from the server (Firestore and Storage REST, read-only): reading present, track with 10 entries and framesSent 10, object 8,113,572 bytes, video/mp4.",
-  "perFrame": "Box call: 11,135 prompt tokens for 10 frames at 960 px plus the instruction, about 1,100 per frame, as the spike measured."
+  "perFrame": "Box call: 11,135 prompt tokens for 10 frames at 960 px plus the instruction, about 1,100 per frame, as the spike measured.",
+  "reseed": {
+    "why": "A judge practice search copies the practice clip only when the seed's reading carries the Public use, film or judge page consent, which the first seed did not tick. A read record cannot take a new consent, so on drill-dev-1 (the practice search seed) and drill-judge-1 only the practice clip's reading was deleted and the clip read again with all four consents.",
+    "when": "2026-11-26, about 15:30 to 15:48 UTC",
+    "delete": "Each drill's clipReadings record for the practice clip was read by id (its sha256 matched), then deleted with an admin call; the deleteClipOnConsentEnd trigger removed its file and track, and all three were read back as gone (HTTP 404). Nothing else was deleted.",
+    "reRead": "Through the deployed command post (commit 52b60551): Add camera clip, the practice clip, start 2026-11-25 18:45, clock confirmed, facing south, all four consent boxes ticked, Read clip; the track read ran on its own; Discard. Stephen typed each drill's join code himself, and the consent boxes were ticked on his instruction; this file records what the server then held.",
+    "before": {
+      "drill-dev-1": {
+        "clipReadings": 18,
+        "clipTracks": 1,
+        "photoConsents": 2,
+        "storage_clips": 18,
+        "storage_photos": 14
+      },
+      "drill-judge-1": {
+        "clipReadings": 1,
+        "clipTracks": 1,
+        "photoConsents": 0,
+        "storage_clips": 1,
+        "storage_photos": 0
+      },
+      "publicUseBefore": {
+        "drill-dev-1": false,
+        "drill-judge-1": false
+      }
+    },
+    "after": {
+      "drill-dev-1": {
+        "clipReadings": 18,
+        "clipTracks": 1,
+        "photoConsents": 2,
+        "storage_clips": 18,
+        "storage_photos": 14,
+        "consents": {
+          "personInClip": true,
+          "footageOwner": true,
+          "cloudProcessing": true,
+          "publicUse": true
+        },
+        "trackEntries": 10,
+        "fileBytes": 8113572
+      },
+      "drill-judge-1": {
+        "consents": {
+          "personInClip": true,
+          "footageOwner": true,
+          "cloudProcessing": true,
+          "publicUse": true
+        },
+        "trackEntries": 10,
+        "fileBytes": 8113572
+      }
+    },
+    "practiceSearchCheck": "One practice search started from the deployed /judge page (web/e2e/timeMachine.spec.ts, 2026-11-26 15:50 UTC, passed): the only clip fetched was the practice clip from the practice search's own copy, its time machine opened with the box on the clock, and no request went to an AI host. startJudgeSession logged the session with a hashed id and no skip reason, and the practice search held the copied reading (publicUse set, account practice-seed) and the track (10 entries) on the server."
+  }
 }
