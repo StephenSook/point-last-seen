@@ -3525,3 +3525,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `practiceReading` and `practiceTrack` return the reason a copy is not made, and the judge session logs it (`practice_clip_skipped`: no_reading, record_sha256, reading_schema, route_schema, consent_required, consent_public_use, consent_expired or record_schema; `practice_track_skipped`: no_track or the field that broke the track's schema). The log line holds the reason and the practice search's id only.
 - Source: review of the practice clip copy (a sandbox with no clip was silent).
 - Verified: new judgeSession case (no reading, no judge-page consent, and a broken track each log their reason) failed on the previous copy, then passed (37); functions typecheck clean.
+
+### docs: the test matrix cites the clip track's mode at its line again
+- What: `docs/TEST-MATRIX.md`'s clip track row cites `web/src/ai/clipTrack.ts` at the line that now holds `InferenceMode.ONLY_IN_CLOUD` (the outline cap's constant moved it).
+- Source: the test-matrix check (every row cites a live code line).
+- Verified: `scripts/test_test_matrix.py` failed on the old line, then passed.
