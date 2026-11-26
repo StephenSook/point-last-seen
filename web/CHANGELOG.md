@@ -3450,3 +3450,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `ClipTimeMachine` makes its lazy 3D view once per open instead of once per page: React.lazy keeps a failed load for good, so after one offline open the view stayed unavailable until a reload. A view that has loaded comes from the browser's module cache at once.
 - Source: review of the time machine mount (a failed import was kept until reload).
 - Verified: new harness case (the first import is blocked: the panel says it could not load; Close and open again: the 3D view appears) failed first, then passed (41 clip, 5 stored-clips).
+
+### fix(web): a track read stopped by a delete or Discard still says what had left
+- What: When a clip's card goes (a delete of the search's media, or Discard) while its track read runs, the read stops at its next check, and what it had already sent is no longer dropped: after a delete the notice adds "The clip's track read stopped. N frames of the clip left this laptop for the cloud." (with the outline frames when any), and after Discard the command post shows the same line under "Add camera clip" (`onTrackStopped`) until the next clip is added.
+- Source: review of the time machine mount (a stopped read's sends were lost with its card).
+- Verified: new harness cases (a delete during a read that had sent 6 frames; Discard during the same read, after the panel closed) and a `trackStoppedLine` unit case failed first (the line and the callback did not exist), then passed (clip harness 43).

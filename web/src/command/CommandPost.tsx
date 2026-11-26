@@ -22,7 +22,7 @@ import { CameraClipPanel, TRACK_FAILED, type ClipRead, type TrackView } from "..
 import type { ClipIntakeInput, ReadHow } from "../camera/ClipIntake";
 import { FRAME_OPTS } from "../ai/frameCheck";
 import { clipDurationS, jpegAt, sampleFrames } from "../camera/frames";
-import { trackPaused } from "../camera/timeMachine";
+import { trackPaused, trackStoppedLine } from "../camera/timeMachine";
 import { StoredClipsPanel } from "../camera/StoredClipsPanel";
 import { triageClip, triageRoute, type TriageResult } from "../camera/triage";
 import { toStandardJpeg } from "../photos/jpeg";
@@ -312,6 +312,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
   const railDetails = useRef<HTMLDetailsElement>(null);
   const openedForReport = useRef(false);
   const [clipping, setClipping] = useState(false);
+  // What a clip's track read had sent when it stopped after its panel closed.
+  const [clipStopped, setClipStopped] = useState<string | null>(null);
   // A view setting for this screen only: every plate of 0.1% or more on the map, not only the ones that fit.
   const [everyPercent, setEveryPercent] = useState(false);
   // Why this browser no longer acts as command here, when its sign-in moved to another search or role (any tab).
@@ -1071,6 +1073,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               onTriage={triageCameraClip}
               onTrack={trackCameraClip}
               timeMachine={rc.timeMachineEnabled}
+              onTrackStopped={(sent) => setClipStopped(trackStoppedLine(sent))}
               onConfirm={confirmCameraClip}
               onClose={() => {
                 setClipping(false);
@@ -1079,9 +1082,18 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
             />
           ) : (
             <>
-              <button type="button" className="btn ghost" onClick={() => setClipping(true)} disabled={!incident || adding || closedHere}>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => {
+                  setClipStopped(null);
+                  setClipping(true);
+                }}
+                disabled={!incident || adding || closedHere}
+              >
                 Add camera clip
               </button>
+              {clipStopped && <p className="muted small" role="status">{clipStopped}</p>}
               <StoredClipsPanel
                 revocation={tray.epoch}
                 timeMachine={rc.timeMachineEnabled}

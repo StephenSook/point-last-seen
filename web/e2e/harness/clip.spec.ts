@@ -508,3 +508,18 @@ test("a 3D view that could not load is tried again on the next open", async ({ p
   await open.click();
   await expect(page.getByRole("dialog", { name: "Time machine" }).getByRole("region", { name: "Clip time machine" })).toBeVisible({ timeout: 30_000 });
 });
+
+test("a track read stopped by a delete still says what had left", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=slowsent");
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  await page.getByRole("button", { name: "Track finishes" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "were deleted" })).toContainText("The clip's track read stopped. 6 frames of the clip left this laptop for the cloud.");
+});
+
+test("a track read stopped by Discard still says what had left, after the panel closed", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=slowsent");
+  await page.getByRole("button", { name: "Discard" }).click();
+  await expect(page.getByRole("region", { name: "Camera sighting" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Track finishes" }).click();
+  await expect(page.getByTestId("stopped")).toHaveText("The clip's track read stopped. 6 frames of the clip left this laptop for the cloud.");
+});

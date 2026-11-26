@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyFrameOf, timeMachineResults, trackSentLine, trackPaused } from "./timeMachine";
+import { keyFrameOf, timeMachineResults, trackSentLine, trackPaused, trackStoppedLine } from "./timeMachine";
 
 const reading = { firstSeen: "00:04", lastSeen: "01:12", keyFrame: { time: "00:07", box2d: [100, 200, 900, 400] } };
 
@@ -43,5 +43,11 @@ describe("trackSentLine with outlines", () => {
     expect(trackSentLine(10, 10)).toBe("10 frames of the clip left this laptop for the cloud. 10 of them were sent again for the outlines.");
     expect(trackSentLine(10, 1)).toBe("10 frames of the clip left this laptop for the cloud. 1 of them was sent again for the outlines.");
     expect(trackSentLine(1, 0)).toBe("1 frame of the clip left this laptop for the cloud.");
+  });
+});
+
+describe("trackStoppedLine", () => {
+  it("says a stopped read's sends", () => {
+    expect(trackStoppedLine({ frames: 6, outlineFrames: 0 })).toBe("The clip's track read stopped. 6 frames of the clip left this laptop for the cloud.");
   });
 });
