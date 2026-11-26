@@ -1,11 +1,9 @@
 // Dev-server-only harness (web/harness/stored-clips.html): the command post's list of clips this search has read,
 // with the synthetic 6 s test clip. No Firebase: the list, the clip and the track come from fixed values here.
-// ?track=stored: the clip has a stored track; ?track=none: it has none, and "Track the person" answers with one.
-// ?off=1: the time machine flag is off. ?closed=1: the search is closed (no new track read).
+// ?track=stored: the clip has a stored track; ?track=none: it has none. ?off=1: the time machine flag is off.
 
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { TrackView } from "../camera/CameraClipPanel";
 import { StoredClipsPanel } from "../camera/StoredClipsPanel";
 import type { StoredClip } from "../data/storedClips";
 import type { Track } from "../extras/timemachine/types";
@@ -33,30 +31,23 @@ const TRACK: Track = { version: "track-v1", window: { startS: 0, endS: 6 }, entr
 function Harness() {
   const [revocation, setRevocation] = useState(0);
   const [loads, setLoads] = useState(0);
-  const [tracks, setTracks] = useState(0);
   return (
     <main style={{ width: 1100, padding: 16 }}>
       <p className="drill">Synthetic test clip, not drill data.</p>
       <StoredClipsPanel
         revocation={revocation}
         timeMachine={params.get("off") !== "1"}
-        canTrack={params.get("closed") !== "1"}
         load={async () => (params.get("empty") === "1" ? [] : [CLIP])}
         openClip={async () => {
           setLoads((n) => n + 1);
           const bytes = await (await fetch("/e2e/assets/moving-box.mp4")).arrayBuffer();
           return { clip: new Blob([bytes], { type: "video/mp4" }), durationS: 6, track: params.get("track") === "stored" ? TRACK : null };
         }}
-        onTrack={async (): Promise<TrackView> => {
-          setTracks((n) => n + 1);
-          return { status: "ready", track: TRACK, durationS: 6, sent: { frames: 6, outlineFrames: 6 } };
-        }}
       />
       <button type="button" onClick={() => setRevocation((n) => n + 1)}>
         Media deleted
       </button>
       <pre data-testid="loads">{loads}</pre>
-      <pre data-testid="tracks">{tracks}</pre>
     </main>
   );
 }

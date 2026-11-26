@@ -854,14 +854,6 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     const stored = await findClipTrack(pls.db, incidentId, c.record.sha256).catch(() => null);
     return { clip, durationS, track: stored?.track ?? null };
   };
-  // "Track the person" on a stored clip: the whole clip (its record keeps no window), on its stored consent.
-  const trackStoredClip = async (c: StoredClip, clip: Blob, durationS: number, stillCurrent: () => boolean): Promise<TrackView> => {
-    try {
-      return await readAndStoreTrack(c.record.sha256, clip, durationS, { startS: 0, endS: durationS }, stillCurrent);
-    } catch {
-      return { status: "failed", message: TRACK_FAILED, durationS };
-    }
-  };
   // On-device triage (P-39): only with this laptop's model (the gate), frames decoded here; a
   // result that sends nothing is traced (never stored). Unmeasured on a real built-in model.
   const triageCameraClip = async (clip: Blob): Promise<TriageResult> => {
@@ -1097,10 +1089,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               <StoredClipsPanel
                 revocation={tray.epoch}
                 timeMachine={rc.timeMachineEnabled}
-                canTrack={!!incident && !closedHere}
                 load={() => listStoredClips(pls.db, incidentId)}
                 openClip={openStoredClip}
-                onTrack={trackStoredClip}
               />
             </>
           )}

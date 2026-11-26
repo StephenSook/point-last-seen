@@ -1,41 +1,35 @@
 // The clips this search has already read, at the command post: each sighting's last-seen time and clothing, and
-// "Open the time machine", which loads the clip from storage (checked by its hash) and its stored track. Opening a
-// clip with a stored track asks no model anything. With no track, "Track the person" reads one on the clip's stored
-// consent (the read checks that consent with the server before every call) while the search is open.
+// "Open the time machine", which loads the clip from storage (checked by its hash) and its stored track. Nothing here
+// asks a model anything: a clip with no stored track opens on its clearest frame. A track is read only right after a
+// clip read, on the window that read was consented for (CameraClipPanel), never from this list.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { StoredClip } from "../data/storedClips";
 import type { Track } from "../extras/timemachine/types";
-import { TRACK_FAILED, TRACK_NOT_SAVED, type TrackView } from "./CameraClipPanel";
 import { ClipTimeMachine } from "./ClipTimeMachine";
 import { cardFacts } from "./SightingCard";
-import { trackSentLine } from "./timeMachine";
 
 export const CLIP_NOT_LOADED = "This clip could not be loaded. It may have been deleted, or the link dropped.";
+export const NO_TRACK = "No track was read for this clip. The time machine shows its clearest frame.";
 
 type Opened =
   | { sha256: string; status: "loading" }
   | { sha256: string; status: "failed" }
-  | { sha256: string; status: "ready"; clip: Blob; durationS: number; track: TrackView | null };
+  | { sha256: string; status: "ready"; clip: Blob; durationS: number; track: Track | null };
 
 type Props = {
   /** Changes whenever this search's media is deleted: the open clip closes and the list is read again. */
   revocation: number;
   /** Remote Config time_machine_enabled. */
   timeMachine: boolean;
-  /** The search is open and this seat may write a track. */
-  canTrack: boolean;
   load: () => Promise<StoredClip[]>;
   openClip: (c: StoredClip) => Promise<{ clip: Blob; durationS: number; track: Track | null }>;
-  onTrack?: (c: StoredClip, clip: Blob, durationS: number, stillCurrent: () => boolean) => Promise<TrackView>;
 };
 
-export function StoredClipsPanel({ revocation, timeMachine, canTrack, load, openClip, onTrack }: Props) {
+export function StoredClipsPanel({ revocation, timeMachine, load, openClip }: Props) {
   const [clips, setClips] = useState<StoredClip[]>([]);
   const [opened, setOpened] = useState<Opened | null>(null);
-  // The clip whose new track could not be stored.
-  const [unsaved, setUnsaved] = useState<string | null>(null);
-  // A delete, or leaving the page, moves the epoch: an open clip closes and every result still on its way is dropped.
+  // A delete, or leaving the page, moves the epoch: an open clip closes and a clip still loading is dropped.
   const epoch = useRef(0);
   const lastRevocation = useRef(revocation);
   useLayoutEffect(() => {
@@ -69,25 +63,10 @@ export function StoredClipsPanel({ revocation, timeMachine, canTrack, load, open
     try {
       const o = await openClip(c);
       if (at !== epoch.current) return;
-      setOpened({ sha256, status: "ready", clip: o.clip, durationS: o.durationS, track: o.track ? { status: "ready", track: o.track, durationS: o.durationS } : null });
+      setOpened({ sha256, status: "ready", clip: o.clip, durationS: o.durationS, track: o.track });
     } catch {
       if (at === epoch.current) setOpened({ sha256, status: "failed" });
     }
-  }
-
-  function track(c: StoredClip, o: Extract<Opened, { status: "ready" }>) {
-    if (!onTrack) return;
-    const at = epoch.current;
-    const current = () => at === epoch.current;
-    setOpened({ ...o, track: { status: "reading" } });
-    onTrack(c, o.clip, o.durationS, current).then(
-      (v) => {
-        if (!current()) return;
-        setOpened({ ...o, track: v });
-        if (v.status === "ready") v.saved?.then((ok) => !ok && current() && setUnsaved(c.record.sha256));
-      },
-      () => current() && setOpened({ ...o, track: { status: "failed", message: TRACK_FAILED, durationS: o.durationS } }),
-    );
   }
 
   return (
@@ -97,7 +76,6 @@ export function StoredClipsPanel({ revocation, timeMachine, canTrack, load, open
         {clips.map((c) => {
           const f = cardFacts(c.sighting, c.record.clipStartMs, null, false);
           const here = opened?.sha256 === c.record.sha256 ? opened : null;
-          const tv = here?.status === "ready" ? here.track : null;
           return (
             <li key={c.record.sha256} className="sighting">
               <p className="num">{f.time}</p>
@@ -122,30 +100,12 @@ export function StoredClipsPanel({ revocation, timeMachine, canTrack, load, open
                   clip={here.clip}
                   durationS={here.durationS}
                   reading={c.sighting}
-                  track={tv?.status === "ready" ? tv.track : null}
+                  track={here.track}
                   onClose={() => {
                     epoch.current++;
                     setOpened(null);
                   }}
-                  status={
-                    tv?.status === "reading" ? (
-                      <p className="muted small" role="status">Tracking the person in the clip.</p>
-                    ) : tv?.status === "failed" ? (
-                      <>
-                        <p className="muted small" role="status">{tv.message}</p>
-                        {tv.sent && <p className="small">{trackSentLine(tv.sent.frames, tv.sent.outlineFrames)}</p>}
-                      </>
-                    ) : tv?.sent ? (
-                      <>
-                        <p className="small">{trackSentLine(tv.sent.frames, tv.sent.outlineFrames)}</p>
-                        {unsaved === c.record.sha256 && <p className="muted small">{TRACK_NOT_SAVED}</p>}
-                      </>
-                    ) : !tv && canTrack && onTrack ? (
-                      <button type="button" className="btn" onClick={() => track(c, here)}>
-                        Track the person
-                      </button>
-                    ) : null
-                  }
+                  status={here.track ? null : <p className="muted small">{NO_TRACK}</p>}
                 />
               )}
             </li>
