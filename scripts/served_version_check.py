@@ -7,7 +7,7 @@ the shared engine and data it imports, hosting config and the package files, wit
 pages or markdown) with origin/main's. Content is compared, not ancestry, so a squash merge with the same code
 passes, a build from a branch ahead of main with other code fails, and a main commit that only touches tests does
 not ask for a deploy. A failure names both commits and the files that differ: deploy hosting from main.
-Retires itself after 2026-12-17 (judging ends Dec 16).
+Retires itself after 2026-12-22 (judging ends Dec 16; winners Dec 21).
 
 Run from a full clone (the probe checks out with fetch-depth 0). Usage: python3 -I scripts/served_version_check.py
 """
@@ -20,7 +20,7 @@ import urllib.request
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-RETIRE_AFTER = date(2026, 12, 17)
+RETIRE_AFTER = date(2026, 12, 22)
 SITE = "https://buildhybridai-2026-yg3m.web.app"
 MAIN = "origin/main"
 # What the hosted build reads, as git pathspecs: web/vite.config.ts builds web/index.html from web/src, reads

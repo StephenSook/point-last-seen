@@ -2,8 +2,9 @@
 // Confirm hands the reading to the post (events, start point, prior) once and is not awaited;
 // the status follows the prior version, like the other prior rebuilds.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ClipReadOutcome } from "../ai/clipRead";
+import type { TrackSent } from "../ai/clipTrack";
 import type { Track } from "../extras/timemachine/types";
 import type { LatLon } from "../map/geo";
 import { ClipIntake, type ClipIntakeInput, type ReadHow } from "./ClipIntake";
@@ -12,13 +13,17 @@ import { SightingCard } from "./SightingCard";
 
 export type ClipRead = Extract<ClipReadOutcome, { kind: "read" }>;
 
-/** The clip's track for the time machine: being read, read or stored (framesSent only for a fresh read), or not read. */
+/**
+ * The clip's track for the time machine: being read, read or stored, or not read. `sent` is what this seat's track
+ * read sent to the cloud (absent for a stored track, or when nothing left before it stopped).
+ */
 export type TrackView =
   | { status: "reading" }
-  | { status: "ready"; track: Track; durationS: number; framesSent?: number }
-  | { status: "failed"; message: string; durationS: number | null };
+  | { status: "ready"; track: Track; durationS: number; sent?: TrackSent }
+  | { status: "failed"; message: string; durationS: number | null; sent?: TrackSent };
 
 export const TRACK_FAILED = "The person's track could not be read. The time machine shows the clearest frame.";
+export const MEDIA_DELETED_NOTICE = "This search's clips and photos were deleted. Give the consents again to read a clip.";
 
 type Props = {
   camera: LatLon | null;
@@ -48,10 +53,33 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
   const latest = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [deleted, setDeleted] = useState(false);
   const clip = useMemo(() => (read ? new Blob([read.input.bytes as BlobPart], { type: read.input.mimeType }) : null), [read]);
+  // The flag as it is now, not as it was when a read was pressed.
+  const machineOn = useRef(timeMachine);
+  machineOn.current = timeMachine;
+  // This panel owns the read and the track job after the form is gone: a delete of the search's media (or closing
+  // the panel) moves the epoch, which clears the card and the time machine and drops any result still on its way.
+  const epoch = useRef(0);
+  const lastRevocation = useRef(revocation);
+  useLayoutEffect(() => {
+    if (revocation === lastRevocation.current) return;
+    lastRevocation.current = revocation;
+    epoch.current++;
+    if (read) setDeleted(true);
+    setRead(null);
+    setTrack(null);
+    setSent(null);
+    setAcked(null);
+    setError(null);
+    setNote(null);
+  }, [revocation, read]);
+  useEffect(() => () => void epoch.current++, []);
 
   if (!read) {
     return (
+      <>
+      {deleted && <p className="muted small" role="status">{MEDIA_DELETED_NOTICE}</p>}
       <ClipIntake
         revocation={revocation}
         camera={camera}
@@ -60,18 +88,24 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
         onPlaceCamera={onPlaceCamera}
         onTriage={onTriage}
         onRead={async (input, how) => {
+          const at = epoch.current;
           const o = await onRead(input, how);
-          if (o.kind === "read") {
-            setRead({ o, input });
-            if (onTrack && timeMachine) {
-              setTrack({ status: "reading" });
-              onTrack(o, input, how ?? {}).then(setTrack, () => setTrack({ status: "failed", message: TRACK_FAILED, durationS: null }));
-            }
+          if (o.kind !== "read" || at !== epoch.current) return o;
+          setDeleted(false);
+          setRead({ o, input });
+          if (onTrack && machineOn.current) {
+            const current = () => at === epoch.current && (how?.stillCurrent?.() ?? true);
+            setTrack({ status: "reading" });
+            onTrack(o, input, { ...how, stillCurrent: current }).then(
+              (v) => current() && setTrack(v),
+              () => current() && setTrack({ status: "failed", message: TRACK_FAILED, durationS: null }),
+            );
           }
           return o;
         }}
         onClose={onClose}
       />
+      </>
     );
   }
 

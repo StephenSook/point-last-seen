@@ -302,7 +302,7 @@ test("after a read, the receipt counts the track's frames and the time machine o
   await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
   const card = page.getByRole("region", { name: "Camera sighting" });
   await card.getByText("What ran", { exact: true }).click();
-  await expect(card).toContainText("6 frames of the clip left this laptop for the cloud.");
+  await expect(card).toContainText("6 frames of the clip left this laptop for the cloud. 6 of them were sent again for the outlines.");
   await card.getByRole("button", { name: "Open the time machine" }).click();
   const tm = card.getByTestId("clip-time-machine");
   await expect(tm.getByRole("region", { name: "Clip time machine" })).toBeVisible({ timeout: 30_000 });
@@ -340,4 +340,94 @@ test("when the 3D view cannot load, the time machine says so and keeps the clip 
   await expect(tm.locator("video")).toHaveCount(1);
   // The panel around the card is still there, not torn down by the failed import.
   await expect(page.getByRole("button", { name: "Confirm sighting" })).toBeVisible();
+});
+
+test("a delete while the track is read clears the card, and the late track neither brings it back nor counts as current", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=slow");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await expect(card.getByText("Tracking the person in the clip.")).toBeVisible();
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  await expect(card).toHaveCount(0);
+  await expect(page.getByText("This search's clips and photos were deleted. Give the consents again to read a clip.")).toBeVisible();
+  await page.getByRole("button", { name: "Track finishes" }).click();
+  await expect(page.getByTestId("track-current")).toHaveText("false");
+  await expect(card).toHaveCount(0);
+});
+
+test("a delete while the time machine is open closes it and the clip with it", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await card.getByRole("button", { name: "Open the time machine" }).click();
+  await expect(page.getByTestId("clip-time-machine").locator("video")).toHaveCount(1);
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  await expect(page.getByTestId("clip-time-machine")).toHaveCount(0);
+  await expect(page.locator("video")).toHaveCount(0);
+});
+
+test("turning the time machine off while the sighting is read starts no track read", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1&slowread=1");
+  await page.getByRole("button", { name: "Turn the time machine off" }).click();
+  await page.getByRole("button", { name: "Read finishes" }).click();
+  await expect(page.getByRole("region", { name: "Camera sighting" })).toBeVisible();
+  await expect(page.getByTestId("track-calls")).toHaveText("0");
+  await expect(page.getByRole("button", { name: "Open the time machine" })).toHaveCount(0);
+});
+
+test("a track read that fails after frames left still says what was sent", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=failsent");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await expect(card.getByRole("status")).toHaveText("The person's track could not be read. The time machine shows the clearest frame.");
+  await card.getByText("What ran", { exact: true }).click();
+  await expect(card).toContainText("6 frames of the clip left this laptop for the cloud.");
+});
+
+test("a sighting read before says only the sighting was not sent again, and the track read's frames are still counted", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=cached&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await expect(card).toContainText("The sighting was read before; the clip was not sent again for it.");
+  await card.getByText("What ran", { exact: true }).click();
+  await expect(card).toContainText("Sent for the sighting: nothing now; it came from an earlier read of the same clip.");
+  await expect(card).toContainText("6 frames of the clip left this laptop for the cloud. 6 of them were sent again for the outlines.");
+  await expect(card).not.toContainText("Read before, not sent again.");
+});
+
+test("when the 3D view cannot load, the result buttons still move the clip and its box", async ({ page }) => {
+  await page.route(/\/extras\/timemachine\/TimeMachine\.tsx/, (route) => route.abort());
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await card.getByRole("button", { name: "Open the time machine" }).click();
+  const tm = card.getByTestId("clip-time-machine");
+  await expect(tm.getByRole("status")).toHaveText("The 3D view could not load. The clip and the person's box are still shown here.", { timeout: 30_000 });
+  await tm.getByRole("button", { name: "Clearest frame 0:04" }).click();
+  await expect.poll(() => tm.locator("video").evaluate((v: HTMLVideoElement) => Math.round(v.currentTime * 10) / 10), { timeout: 10_000 }).toBe(4);
+  await expect(tm.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 50%; height: 20%; width: 20%/);
+});
+
+test("a seek with the clip's own controls while paused moves the box with it", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await card.getByRole("button", { name: "Open the time machine" }).click();
+  const video = card.getByTestId("clip-time-machine").locator("video");
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState), { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.pause();
+    v.currentTime = 2;
+  });
+  // At 2 s the fixed track's box spans x 300 to 500 and y 400 to 600 of 1000.
+  await expect(card.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 30%; height: 20%; width: 20%/, { timeout: 10_000 });
+});
+
+test("a 3D view that breaks while running says so, keeps the clip, and reports the error", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.route(/\/extras\/timemachine\/TimeMachine\.tsx/, (route) =>
+    route.fulfill({ contentType: "application/javascript", body: 'export default function TimeMachine() { throw new Error("the view broke"); }' }),
+  );
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await card.getByRole("button", { name: "Open the time machine" }).click();
+  const tm = card.getByTestId("clip-time-machine");
+  await expect(tm.getByRole("status")).toHaveText("The 3D view stopped working. The clip and the person's box are still shown here.", { timeout: 30_000 });
+  await expect(tm.locator("video")).toHaveCount(1);
+  await expect.poll(() => errors.some((m) => m.includes("the view broke"))).toBe(true);
 });

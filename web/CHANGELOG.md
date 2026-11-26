@@ -3356,6 +3356,41 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: the clip time machine plan (the three.js chunk stays out of the PWA precache).
 - Verified: new no-backend case in `e2e/newBuild.spec.ts` (the built sw.js lists assets/main-*.js and no TimeMachine-*.js or .css) failed first on a build that precached both, then passed; the chunk is still built (5 newBuild cases pass).
 
+### fix(web): the clip panel owns its read and track after the form is gone
+- What: `CameraClipPanel` keeps its own delete epoch. A delete of the search's media (or closing the panel) clears the sighting card and the time machine (its object URL, scene and video binding go with it), drops any read or track result still on its way, and says "This search's clips and photos were deleted. Give the consents again to read a clip." The track job's `stillCurrent` now follows the panel, so it turns false on a delete after the form unmounted; before, it was the form's check, which stopped updating once the card appeared. The track read itself rereads the clip's record from the server before every model call.
+- Source: review of the time machine mount (a delete after the card appeared left the job current and the time machine playable).
+- Verified: new harness cases in `e2e/harness/clip.spec.ts` (a delete while the track is read clears the card, the late track does not bring it back and reports not current; a delete with the time machine open removes it and every video) failed first, then passed (30).
+
+### fix(web): turning the time machine off stops its track read
+- What: The flag is read as it is now, not as it was when the read was pressed. `CameraClipPanel` checks `time_machine_enabled` again when the sighting read comes back and starts no track read when it is off. `trackCameraClip` (CommandPost) stops before the stored-track lookup when clip reading is paused or the time machine is off, and hands `readClipTrack` the same live check (`trackPaused`: `kill_cloud` on, or `time_machine_enabled` off) for every model call.
+- Source: review of the time machine mount (the flag was captured when the read was pressed; only kill_cloud was checked live).
+- Verified: new harness case (turning the time machine off while the sighting is read starts no track read) and new `trackPaused` unit case failed first, then passed (clip harness 31, timeMachine 5); typecheck clean.
+
+### fix(web): a read track is shown before its write is acknowledged
+- What: `trackCameraClip` hands the read track to the card at once and stores it without waiting: Firestore's write waits for the server's acknowledgement, so a link lost after Gemini answered left the card on "Tracking the person in the clip." until the link came back. A write that fails is still dropped quietly; the next seat reads its own track.
+- Source: review of the time machine mount (a lost link after the reply stranded the card).
+- Verified: the write is no longer awaited (`void writeClipTrack(...).catch(...)`, CommandPost.tsx); typecheck clean. CommandPost has no unit harness, so this one is checked by reading, not by a new test.
+
+### fix(web): a track read that stops says what it had already sent
+- What: `readClipTrack`'s refused and failed outcomes carry `sent: { frames, outlineFrames }` once any frame has left (distinct frames for the boxes, and how many were sent again for outlines), so a receipt can state what left before the stop. Nothing is added when the read stops before its first call.
+- Source: review of the time machine mount (sends before a later failure were not reported).
+- Verified: updated and new expectations in `src/ai/clipTrack.test.ts` (a token-cap stop, a broken reply and a refused call after 10 frames; a delete during the outline calls after 10 plus 6; three stops after 10 or 40) failed first, then passed (43).
+
+### fix(web): the receipt counts the outline frames, and a cached sighting no longer speaks for the track
+- What: The receipt line counts the frames sent again for the outlines ("10 frames of the clip left this laptop for the cloud. 10 of them were sent again for the outlines.") and appears for every track read that sent frames, a failed or stopped one included. A sighting read before now says "The sighting was read before; the clip was not sent again for it." and "Sent for the sighting: nothing now; ...", so it no longer reads as if the track read sent nothing.
+- Source: review of the time machine mount (the receipt left out the outline sends; the cached line covered the track read too).
+- Verified: new harness cases (a failed read after 6 frames still lists them; a cached sighting with a track read) failed first on the old card, then passed; the receipt case now expects the outline count; `trackSentLine` outline cases failed first, then passed (clip harness 33, timeMachine 6).
+
+### fix(web): the time machine keeps its result buttons without the 3D view, and follows a paused seek
+- What: `ClipTimeMachine`: when the 3D view's code cannot load (it is not in the offline download), the fallback keeps the result buttons (first seen, clearest frame, last seen), which move the clip and the box on the shared clock. A seek made with the clip's own controls while it is paused now moves the clock (and the box) too: the shared clock follows only played frames, so a paused seek used to leave the box where it was.
+- Source: review of the time machine mount (the fallback lost the result buttons; a paused native seek left a stale box).
+- Verified: new harness cases (with the view blocked, Clearest frame 0:04 seeks the clip to 4 s and the box to x 500 to 700; a paused seek to 2 s moves the box to x 300 to 500) failed first, then passed (35).
+
+### fix(web): a 3D view that breaks is said as such and reported
+- What: `ClipTimeMachine` tells a failed import of the 3D view (offline or a dropped link: "The 3D view could not load. ...") from a fault while it runs ("The 3D view stopped working. ..."). Both keep the clip, its box and the result buttons. A fault is handed to `reportError`, so the page's error reporting (which keeps only name, message and stack) sends it as if it had not been caught; a failed import is not reported.
+- Source: review of the time machine mount (a runtime fault looked like a download failure and skipped error reporting).
+- Verified: new harness case (a view module that throws on render: the message says it stopped working, the clip stays, the error reaches the page's error handler) failed first, then passed (36).
+
 ### feat(web): list a search's read clips and load a stored clip checked by its hash
 - What: `src/data/storedClips.ts`: `listStoredClips` reads `incidents/{id}/clipReadings` from the server (never the cache) and keeps the records whose reading parses as a sighting, newest clip first; a record whose id is not its SHA-256 is left out. `loadStoredClip` downloads `clips/{incident}/{sha256}.mp4` (up to the 14 MB upload cap) and rejects bytes whose SHA-256 is not the name. Built from the records, not from events, so a judge sandbox with a copied record and clip lists it too.
 - Source: the clip time machine plan (stored readings open the time machine).

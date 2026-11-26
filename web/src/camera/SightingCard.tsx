@@ -105,17 +105,17 @@ export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed
       <p>{f.direction}</p>
       <p>{f.clothing}</p>
       <ClipBand durationS={durationS} reading={reading} onSeek={clip ? setFrameS : undefined} />
-      {cached && <p className="muted small">Read before, not sent again.</p>}
+      {cached && <p className="muted small">The sighting was read before; the clip was not sent again for it.</p>}
       {route && sentBytes !== undefined && (
         <details className="receipt">
           <summary>What ran</summary>
           {receiptLines({ asked: "the cloud, with the clip's three consents", route, sentBytes, what: "the clip, as base64" })
-            .map((l) => (cached && l.startsWith("Sent:") ? "Sent: nothing now; this reading came from an earlier read of the same clip." : l))
+            .map((l) => (cached && l.startsWith("Sent:") ? "Sent for the sighting: nothing now; it came from an earlier read of the same clip." : l))
             .map((l) => (
               <p key={l} className="small">{l}</p>
             ))}
           <p className="small">{CLIP_STORED_LINE}</p>
-          {track?.status === "ready" && track.framesSent !== undefined && <p className="small">{trackSentLine(track.framesSent)}</p>}
+          {track && track.status !== "reading" && track.sent && <p className="small">{trackSentLine(track.sent.frames, track.sent.outlineFrames)}</p>}
         </details>
       )}
       {track?.status === "reading" && <p className="muted small" role="status">Tracking the person in the clip.</p>}

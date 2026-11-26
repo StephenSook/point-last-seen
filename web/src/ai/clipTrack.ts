@@ -189,10 +189,14 @@ export type TrackReadDeps = {
   nowMs: () => number;
 };
 
+/** What had left this laptop when a read stopped: distinct frames for the boxes, and how many were sent again for outlines. */
+export type TrackSent = { frames: number; outlineFrames: number };
+
 export type TrackReadOutcome =
-  | { kind: "refused"; message: string }
+  /** sent: present once any frame has left, so the receipt can say what was sent before the stop. */
+  | { kind: "refused"; message: string; sent?: TrackSent }
   /** max_tokens: a box reply stopped at its token cap; invalid: a box reply broke a rule; error: the call failed (`status` when the SDK gave one). */
-  | { kind: "failed"; reason: "max_tokens" | "invalid" | "error"; status?: number }
+  | { kind: "failed"; reason: "max_tokens" | "invalid" | "error"; status?: number; sent?: TrackSent }
   /** framesSent: the frames that left this laptop for the box read (the outline read sends some of them again). */
   | { kind: "read"; track: Track; framesSent: number; maskFramesSent: number; route: RouteRecord };
 
@@ -209,7 +213,10 @@ function chunks<T>(xs: readonly T[], n: number): T[][] {
 export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): Promise<TrackReadOutcome> {
   // Distinct frames that have left in a box call; every refusal after the first call says how many.
   let sent = 0;
-  const stop = (message: string): TrackReadOutcome => ({ kind: "refused", message: sent === 0 ? message : stoppedMessage(message, sent) });
+  let maskFramesSent = 0;
+  const spent = (): { sent?: TrackSent } => (sent > 0 ? { sent: { frames: sent, outlineFrames: maskFramesSent } } : {});
+  const stop = (message: string): TrackReadOutcome => ({ kind: "refused", message: sent === 0 ? message : stoppedMessage(message, sent), ...spent() });
+  const fail = (reason: "max_tokens" | "invalid"): TrackReadOutcome => ({ kind: "failed", reason, ...spent() });
   const deleted = () => !!r.stillCurrent && !r.stillCurrent();
   const halt = (): string | null => (deleted() ? MEDIA_DELETED : r.killCloud() ? PAUSED : null);
   // The clip's record from the server, read again before every call and after the last reply: it must still hold
@@ -258,16 +265,15 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
       if (deleted()) return stop(MEDIA_DELETED);
       reported &&= reply.inferenceSource !== undefined;
       onDevice ||= reply.inferenceSource === "on_device";
-      if (reply.finishReason === "MAX_TOKENS") return { kind: "failed", reason: "max_tokens" };
+      if (reply.finishReason === "MAX_TOKENS") return fail("max_tokens");
       const got = parseTrackReply(reply.text, part.map((f) => f.t));
-      if (!got) return { kind: "failed", reason: "invalid" };
+      if (!got) return fail("invalid");
       boxed.push(...got);
     }
     const t1 = deps.nowMs();
 
     // Outlines: only frames that got a box, a few at a time; a failed call drops only its own outlines.
     const masks = new Map<number, Mask>();
-    let maskFramesSent = 0;
     if (r.withMasks) {
       const has = new Set(boxed.map((e) => e.t));
       for (const part of chunks(frames.filter((f) => has.has(f.t)), TRACK_MASK_FRAMES_PER_CALL)) {
@@ -300,6 +306,6 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
   } catch (e) {
     // Only the status number leaves this function: no raw error text reaches the page.
     const status = (e as { customErrorData?: { status?: unknown } } | null)?.customErrorData?.status;
-    return typeof status === "number" ? { kind: "failed", reason: "error", status } : { kind: "failed", reason: "error" };
+    return typeof status === "number" ? { kind: "failed", reason: "error", status, ...spent() } : { kind: "failed", reason: "error", ...spent() };
   }
 }

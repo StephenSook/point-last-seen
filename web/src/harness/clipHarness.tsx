@@ -28,6 +28,7 @@ const params = new URLSearchParams(location.search);
 // ?outcome=failed-early: the read fails before any consent record exists; failed-late: after one was written.
 const outcomes: Record<string, ClipReadOutcome> = {
   read: FIXED,
+  cached: { ...FIXED, cached: true, sentBytes: 0 },
   "failed-early": { kind: "failed", recorded: false },
   "failed-late": { kind: "failed", recorded: true },
 };
@@ -46,12 +47,17 @@ const trackMode = params.get("track");
 const TRACK: TrackView = {
   status: "ready",
   durationS: 6,
-  framesSent: 6,
+  sent: { frames: 6, outlineFrames: 6 },
   track: { version: "track-v1", window: { startS: 0, endS: 6 }, entries: [0, 1, 2, 3, 4, 5].map((t) => ({ t, box: [400, 100 + 100 * t, 600, 300 + 100 * t] as const, source: "cloud" as const })) },
 };
 // ?slowtriage=1: triage answers only on "Triage finishes", so a delete can land while it runs.
 const slowTriage = params.get("slowtriage") === "1";
 let finishTriage: (() => void) | null = null;
+// ?track=slow: the track read answers only on "Track finishes", and the page records whether the job was still
+// current then. ?slowread=1: the sighting read answers only on "Read finishes".
+const slowRead = params.get("slowread") === "1";
+let finishTrack: (() => void) | null = null;
+let finishRead: (() => void) | null = null;
 
 function Harness() {
   const [camera, setCamera] = useState<LatLon | null>(null);
@@ -62,6 +68,10 @@ function Harness() {
   const [calls, setCalls] = useState(0);
   // "Media deleted" stands for a delete of this search's media, from this seat or announced by another.
   const [revocation, setRevocation] = useState(0);
+  // "Turn the time machine off" stands for Remote Config turning time_machine_enabled off while the post is open.
+  const [machineOn, setMachineOn] = useState(true);
+  const [trackCalls, setTrackCalls] = useState(0);
+  const [trackCurrent, setTrackCurrent] = useState("");
   return (
     <main style={{ width: trackMode ? 1100 : 340, padding: 16 }}>
       <p className="drill">Synthetic test grid and clip, not drill data.</p>
@@ -78,6 +88,7 @@ function Harness() {
           setAsked(input);
           setHow(JSON.stringify(h));
           setCalls((n) => n + 1);
+          if (slowRead) await new Promise<void>((resolve) => (finishRead = resolve));
           return answer;
         }}
         onConfirm={(o, input) => {
@@ -86,8 +97,16 @@ function Harness() {
         }}
         onClose={() => {}}
         revocation={revocation}
-        timeMachine={trackMode !== null}
-        onTrack={trackMode ? async () => (trackMode === "fail" ? { status: "failed", message: TRACK_FAILED, durationS: 6 } : TRACK) : undefined}
+        timeMachine={trackMode !== null && machineOn}
+        onTrack={trackMode ? async (_o, _input, h) => {
+          setTrackCalls((n) => n + 1);
+          if (trackMode === "slow") {
+            await new Promise<void>((resolve) => (finishTrack = resolve));
+            setTrackCurrent(String(h.stillCurrent?.() ?? "unset"));
+          }
+          if (trackMode === "failsent") return { status: "failed", message: TRACK_FAILED, durationS: 6, sent: { frames: 6, outlineFrames: 0 } };
+          return trackMode === "fail" ? { status: "failed", message: TRACK_FAILED, durationS: 6 } : TRACK;
+        } : undefined}
       />
       <button type="button" onClick={() => setRevocation((n) => n + 1)}>
         Media deleted
@@ -95,6 +114,17 @@ function Harness() {
       <button type="button" onClick={() => finishTriage?.()}>
         Triage finishes
       </button>
+      <button type="button" onClick={() => finishTrack?.()}>
+        Track finishes
+      </button>
+      <button type="button" onClick={() => finishRead?.()}>
+        Read finishes
+      </button>
+      <button type="button" onClick={() => setMachineOn(false)}>
+        Turn the time machine off
+      </button>
+      <pre data-testid="track-calls">{trackCalls}</pre>
+      <pre data-testid="track-current">{trackCurrent}</pre>
       <pre data-testid="confirmed">{confirmed}</pre>
       <pre data-testid="how">{how}</pre>
       <pre data-testid="calls">{calls}</pre>
