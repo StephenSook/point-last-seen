@@ -3228,6 +3228,10 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - Source: the clip time machine plan (a shared contract written before the parts that use it).
 - Verified: `src/extras/timemachine/types.test.ts` (the plan's numbers and a sample track, tick and result row) failed first (module missing), then passed; the extras import guard passes; scripts/ci-local.sh --gates --web exit 0.
 
+### feat(extras): time machine track math with tests
+- What: `extras/timemachine/track.ts` implements the frozen signatures: `iou` (zero for disjoint, touching or degenerate boxes), `linkTrack` (sorted copy, the first entry wins a repeated second, a new segment on a gap over 2 s or an IoU under 0.3), `boxAt` (exact at whole seconds, linear on the four corners between them, held 0.5 s past each segment end, null outside), `footPoint` (bottom centre), `trackSpan` and `spanAgrees` (within 1 s of the read's first and last seen).
+- Source: the clip time machine plan, part B (built by the Codex lane from the frozen types).
+- Verified: the 19 tests in `track.test.ts` failed first (module missing), then passed; `npx vitest run src/extras` exit 0 (289 tests); `npx tsc --noEmit` exit 0.
 ### feat(extras): time machine shared clock and local frame capture
 - What: `extras/timemachine/clock.ts` implements `createClock` and `bindVideo`: one clock time with a source tag ('video', 'scene', 'tween') so a video tick never echoes back as a seek; seeks set `currentTime` (Chrome has no `fastSeek`) and a seek asked for during a seek is queued, with only the latest kept; the frame length is learned from `requestVideoFrameCallback` metadata; left and right step one frame, shift steps one second, space plays or pauses; `jumpTo` tweens over 400 ms and ends with exactly one 'scene' tick. `frames.ts` draws 192x108 thumbnails from the playing clip on a canvas, one per half second, at most 120; nothing is uploaded.
 - Source: the clip time machine plan, part C (built by the Codex lane from the frozen types).
