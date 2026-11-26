@@ -1,12 +1,13 @@
 import { lazy, Suspense, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { bindVideo, createClock } from "../src/extras/timemachine/clock";
+import { linkTrack } from "../src/extras/timemachine/track";
 import type { TimeClock, TimeMachineResult, Track, TrackEntry } from "../src/extras/timemachine/types";
 import fixture from "./fixtures/moving-box-track.json";
 
 declare global {
   interface Window {
-    __tm: { clock: TimeClock; video: HTMLVideoElement; thumbnailCount: number };
+    __tm: { clock: TimeClock; video: HTMLVideoElement; thumbnailCount: number; segmentCount: number };
   }
 }
 
@@ -51,7 +52,7 @@ const root = document.getElementById("root");
 const video = document.querySelector<HTMLVideoElement>("#clip");
 if (!root || !video) throw new Error("Missing harness root or video");
 
-const probe = { clock, video, thumbnailCount: 0 };
+const probe = { clock, video, thumbnailCount: 0, segmentCount: withoutTrack ? 0 : linkTrack(track.entries).length };
 window.__tm = probe;
 // This page uses createImageBitmap to capture the block's thumbnails.
 const nativeCreateImageBitmap = window.createImageBitmap;

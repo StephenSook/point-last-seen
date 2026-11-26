@@ -38,6 +38,7 @@ test("the block fills, the slider seeks, and the last result moves the clock", a
   const view = page.getByRole("region", { name: "Clip time machine" });
   const canvas = view.locator("canvas");
   await expect(canvas).toBeVisible();
+  expect(await page.evaluate(() => window.__tm.segmentCount)).toBe(1);
   await expectThumbnails(page);
   await expect(view.getByRole("button", { name: "First seen 0:00", exact: true })).toBeVisible();
   await expect(view.getByRole("button", { name: "Clearest frame 0:04", exact: true })).toBeVisible();

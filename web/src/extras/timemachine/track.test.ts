@@ -5,6 +5,11 @@ import type { Box2d, TrackEntry } from "./types";
 const box: Box2d = [100, 200, 500, 400];
 const movedBox: Box2d = [120, 240, 560, 480];
 const distantBox: Box2d = [600, 700, 900, 800];
+const porchBoxes: Box2d[] = [
+  [100, 200, 500, 260],
+  [100, 280, 500, 340],
+  [100, 360, 500, 420],
+];
 
 function entry(t: number, bounds: Box2d = box): TrackEntry {
   return { t, box: bounds, source: "cloud" };
@@ -38,6 +43,30 @@ describe("linkTrack", () => {
     expect(linkTrack(entries)).toEqual([{ startS: 4, endS: 6, entries }]);
   });
 
+  it("links a person moving 60% of a box width per second", () => {
+    const entries = [entry(4), entry(5, [100, 320, 500, 520]), entry(6, [100, 440, 500, 640])];
+    expect(linkTrack(entries)).toEqual([{ startS: 4, endS: 6, entries }]);
+  });
+
+  it("links disjoint porch boxes with centres 80 units apart each second", () => {
+    const entries = porchBoxes.map((bounds, index) => entry(6 + index, bounds));
+    expect(linkTrack(entries)).toEqual([{ startS: 6, endS: 8, entries }]);
+  });
+
+  it("links a 900-unit centre move across a two-second gap", () => {
+    const entries = [entry(4, [100, 20, 500, 80]), entry(6, [100, 920, 500, 980])];
+    expect(linkTrack(entries)).toEqual([{ startS: 4, endS: 6, entries }]);
+  });
+
+  it("splits a 600-unit diagonal centre jump in one second", () => {
+    const first = entry(4);
+    const last = entry(5, [460, 680, 860, 880]);
+    expect(linkTrack([first, last])).toEqual([
+      { startS: 4, endS: 4, entries: [first] },
+      { startS: 5, endS: 5, entries: [last] },
+    ]);
+  });
+
   it("bridges two missing seconds", () => {
     const entries = [entry(4), entry(7, movedBox)];
     expect(linkTrack(entries)).toEqual([{ startS: 4, endS: 7, entries }]);
@@ -49,16 +78,6 @@ describe("linkTrack", () => {
     expect(linkTrack([first, last])).toEqual([
       { startS: 4, endS: 4, entries: [first] },
       { startS: 8, endS: 8, entries: [last] },
-    ]);
-  });
-
-  it("links at 0.3 IoU and splits a jump below it", () => {
-    const first = entry(4, [100, 200, 500, 330]);
-    const second = entry(5, [100, 270, 500, 400]);
-    const third = entry(6, [100, 341, 500, 471]);
-    expect(linkTrack([first, second, third])).toEqual([
-      { startS: 4, endS: 5, entries: [first, second] },
-      { startS: 6, endS: 6, entries: [third] },
     ]);
   });
 
@@ -86,8 +105,13 @@ describe("boxAt", () => {
   });
 
   it("interpolates across bridged seconds", () => {
-    const segments = linkTrack([entry(4), entry(7, movedBox)]);
-    expect(boxAt(segments, 5.5)).toEqual([110, 220, 530, 440]);
+    const segments = linkTrack([entry(4), entry(6, movedBox)]);
+    expect(boxAt(segments, 5)).toEqual([110, 220, 530, 440]);
+  });
+
+  it("interpolates between consecutive porch boxes with no overlap", () => {
+    const segments = linkTrack(porchBoxes.map((bounds, index) => entry(6 + index, bounds)));
+    expect(boxAt(segments, 6.25)).toEqual([100, 220, 500, 280]);
   });
 
   it("holds endpoint boxes through half a second on either side", () => {
