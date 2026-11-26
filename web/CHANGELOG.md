@@ -3460,3 +3460,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: The track read hands back whether its write was stored (`saved`). When the write is refused, the sighting card (and the stored clip's time machine) adds a quiet line: "The track was not saved, so another seat will read its own." A write waiting for the link does not show it; only a refused one does.
 - Source: review of the time machine mount (a failed track write was silent).
 - Verified: new harness case (a track whose write is refused shows the line on the card) failed first (no such line), then passed (clip harness 44, stored-clips 5).
+
+### docs(web): the practice clip's track seeded on three drill searches
+- What: `docs/evidence/web/2026-11-26-clip-track-seeds.json` and its README section: the deployed command post read the practice clip's track once on drill-kennesaw-1 (its reading reused: 3 model calls, boxes for 10 frames then outlines for 6 and 4), drill-judge-1 and drill-dev-1 (one sighting read, then the same track read), through the product path, with nothing confirmed. The file records each call's kind, frames, HTTP status and token counts, the receipt lines, and the server read-back.
+- Source: the clip time machine plan (the seeds the judge sandbox copies).
+- Verified: each search's clipReadings and clipTracks records and its Storage object read back from the server after the run (read-only REST); the evidence file holds no code or token (grep).
