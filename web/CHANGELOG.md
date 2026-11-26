@@ -3271,3 +3271,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `functions/src/media.ts` adds `deleteTrackForReading` (the clip-hash and incident-id checks of `deleteClipForReading`), adds `clipTracks` to the documents `deleteIncidentMediaNow` removes, and makes the ended-sandbox sweep delete each ended sandbox's tracks with its files (a failed track delete leaves the sandbox to the next run, like a held file). `functions/src/index.ts`: `deleteClipOnConsentEnd` also deletes the clip's track, so a track never outlives the consent record it came from.
 - Source: the clip time machine plan (privacy: the media delete removes the track).
 - Verified: new cases in `functions/test/media.test.ts` (the sweep takes an ended sandbox's tracks and leaves a live sandbox's and a drill's; a deleted reading takes only its own clip's track; bad ids touch nothing) and `functions/test/deleteMedia.test.ts` (command's delete takes I1's track, not I2's) failed first (function missing, count 5), then passed; an existing count in deleteMedia.test.ts now includes the track (5 to 6); functions typecheck clean; scripts/ci-local.sh --rules exit 0 (401).
+
+### fix(web): the track's extra last frame stays inside its window
+- What: `trackFrameTimes` adds the clip's last frame only when its rounded second is at or before the window's end, so no frame is sent labelled past the window (an 11.56 s window no longer gets a frame labelled 12). A 9.0 s clip still gets t=9.
+- Source: review of the track read (frame labels past the window).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (11.56 s ends at 11; a window holding no frame gives none) failed first, then passed (28).

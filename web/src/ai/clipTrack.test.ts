@@ -27,8 +27,10 @@ describe("trackFrameTimes", () => {
     expect(nine.at(-1)!.atS).toBeCloseTo(9 - 1 / 30, 6);
     // 14.3 s: the last frame (14.27 s) is within half a second of 14, so nothing is added.
     expect(trackFrameTimes({ startS: 0, endS: 14.3 }, 14.3, 1 / 30).map((f) => f.t)).toEqual([...Array(15).keys()]);
-    // 11.56 s at 25 fps: the last frame (11.52 s) is past the half second, labelled 12.
-    expect(trackFrameTimes({ startS: 0, endS: 11.56 }, 11.56, 1 / 25).map((f) => f.t).slice(-2)).toEqual([11, 12]);
+    // 11.56 s at 25 fps: the last frame (11.52 s) would be labelled 12, past the window's end, so it is left out.
+    expect(trackFrameTimes({ startS: 0, endS: 11.56 }, 11.56, 1 / 25).map((f) => f.t).slice(-2)).toEqual([10, 11]);
+    // A window that holds no whole second and whose last frame rounds past it gives no frames.
+    expect(trackFrameTimes({ startS: 9.5, endS: 9.6 }, 9.6, 1 / 30)).toEqual([]);
   });
 
   it("starts at the window's first whole second and never passes the clip", () => {
