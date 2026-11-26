@@ -13,6 +13,12 @@ export const JUDGE_SEED_INCIDENT = "drill-dev-1";
  * (plates and house numbers pixelated), never the original.
  */
 export const JUDGE_CLIP_SHA256S: readonly string[] = ["28fffd2082fd48ea50709b94c8d37b823d2613dc5997adffda1117136483ddfb"];
+/** Who the practice clip's copied records name instead of the seed's own accounts. */
+const PRACTICE_SEED_UID = "practice-seed";
+const practiceMark = (m: unknown) =>
+  m && typeof m === "object" && typeof (m as { atMs?: unknown }).atMs === "number" ? { byUid: PRACTICE_SEED_UID, atMs: (m as { atMs: number }).atMs } : null;
+const pick = (d: DocumentData, keys: readonly string[]) => Object.fromEntries(keys.filter(k => k in d).map(k => [k, d[k]]));
+
 /** Copies one object inside the bucket (no bytes pass through the function): the production copyClip. */
 export function bucketCopier(bucket: ReturnType<ReturnType<typeof getStorage>["bucket"]>) {
   return async (fromPath: string, toPath: string): Promise<void> => {
@@ -81,7 +87,7 @@ async function giveCommand(db: Firestore, auth: Auth, uid: string, incidentId: s
  * is closed before any error leaves, so no write is still in flight once the setup is let go.
  */
 async function copyFrom(seed: DocumentReference, to: DocumentReference, makeWriter: () => Writer,
-  stillOwner: () => Promise<boolean>, copyClip?: (fromPath: string, toPath: string) => Promise<void>): Promise<void> {
+  stillOwner: () => Promise<boolean>, nowMs: number, copyClip?: (fromPath: string, toPath: string) => Promise<void>): Promise<void> {
   if (!(await stillOwner())) throw stillSettingUp();
   const writer = makeWriter();
   const writes: Promise<unknown>[] = [];
@@ -92,9 +98,11 @@ async function copyFrom(seed: DocumentReference, to: DocumentReference, makeWrit
     }
     const shared = await seed.collection("profile").doc("shared").get();
     if (shared.exists) set(to.collection("profile").doc("shared"), shared.data()!);
+    const attemptEnds = (await to.get()).get("expiresAt");
     for (const sha of copyClip ? JUDGE_CLIP_SHA256S : []) {
       const reading = await seed.collection("clipReadings").doc(sha).get();
-      if (!reading.exists || reading.get("reading") == null) continue;
+      const seedEnds = reading.get("expiresAt");
+      if (!reading.exists || reading.get("reading") == null || !(seedEnds instanceof Timestamp) || seedEnds.toMillis() <= Math.max(nowMs, Date.now())) continue;
       const path = `clips/${to.id}/${sha}.mp4`;
       try {
         await copyClip!(`clips/${seed.id}/${sha}.mp4`, path);
@@ -102,9 +110,24 @@ async function copyFrom(seed: DocumentReference, to: DocumentReference, makeWrit
         console.log(JSON.stringify({ event: "startJudgeSession", incidentId: to.id, clip: "not_copied" }));
         continue;
       }
-      set(to.collection("clipReadings").doc(sha), { ...reading.data()!, storagePath: path });
+      // Only the record's own fields. The consents keep when they were given but not whose account gave them, and
+      // the copy ends with the practice search (its TTL then deletes it, and the delete takes the clip and track).
+      const c = (reading.get("consent") ?? {}) as Record<string, unknown>;
+      const ends = attemptEnds instanceof Timestamp && attemptEnds.toMillis() < seedEnds.toMillis() ? attemptEnds : seedEnds;
+      set(to.collection("clipReadings").doc(sha), {
+        ...pick(reading.data()!, ["sha256", "durationS", "clipStartMs", "clockConfirmed", "cameraFacingDeg", "reading", "route", "createdAt"]),
+        storagePath: path,
+        consent: { personInClip: practiceMark(c["personInClip"]), footageOwner: practiceMark(c["footageOwner"]), cloudProcessing: practiceMark(c["cloudProcessing"]), publicUse: practiceMark(c["publicUse"]) },
+        expiresAt: ends,
+        createdByUid: PRACTICE_SEED_UID,
+      });
       const track = await seed.collection("clipTracks").doc(sha).get();
-      if (track.exists) set(to.collection("clipTracks").doc(sha), track.data()!);
+      if (track.exists) {
+        set(to.collection("clipTracks").doc(sha), {
+          ...pick(track.data()!, ["version", "sha256", "window", "entries", "model", "route", "framesSent", "createdAt"]),
+          createdByUid: PRACTICE_SEED_UID,
+        });
+      }
     }
   } finally {
     await writer.close();
@@ -226,7 +249,7 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
 
   const ref = db.doc(`incidents/${buildId}`);
   const stillOwner = async () => (await ref.get()).get("setupId") === setupId;
-  const copy = () => copyFrom(seedRef, ref, cfg.writer ?? (() => db.bulkWriter()), stillOwner, cfg.copyClip);
+  const copy = () => copyFrom(seedRef, ref, cfg.writer ?? (() => db.bulkWriter()), stillOwner, nowMs, cfg.copyClip);
   // Finishes or lets go of the setup, but only while this call still owns it (a later start may have replaced it).
   const settle = (fields: Record<string, unknown>) => db.runTransaction(async tx => {
     if ((await tx.get(ref)).get("setupId") === setupId) tx.update(ref, fields);

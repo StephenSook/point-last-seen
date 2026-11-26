@@ -408,14 +408,17 @@ describe("startJudgeSession and the practice clip", () => {
   const CLIP = "28fffd2082fd48ea50709b94c8d37b823d2613dc5997adffda1117136483ddfb";
   const OTHER = "a".repeat(64);
   const MARK = { byUid: "seed-uid", atMs: 1 };
-  async function seedClip(sha: string, reading: unknown = { personVisible: true, lastSeen: "00:07" }) {
+  const ROUTE = { platform: "web", path: "cloud", stage: "sdk", model: "m", reason: "sdk_only_in_cloud", latencyMs: 1, sdkReported: true, blocked: null, decidedAtMs: 1 };
+  async function seedClip(sha: string, reading: unknown = { personVisible: true, lastSeen: "00:07" }, expiresAtMs = NOW + 20 * DAY) {
     await admin.db.doc(`incidents/SEED/clipReadings/${sha}`).set({
-      sha256: sha, storagePath: `clips/SEED/${sha}.mp4`, durationS: 9, clipStartMs: 1, clockConfirmed: true, cameraFacingDeg: null, reading, route: null,
+      sha256: sha, storagePath: `clips/SEED/${sha}.mp4`, durationS: 9, clipStartMs: 1, clockConfirmed: true, cameraFacingDeg: null, reading, route: ROUTE,
       consent: { personInClip: MARK, footageOwner: MARK, cloudProcessing: MARK, publicUse: null },
-      expiresAt: Timestamp.fromMillis(NOW + 20 * DAY), createdAt: Timestamp.fromMillis(NOW - DAY), createdByUid: "seed-uid",
+      expiresAt: Timestamp.fromMillis(expiresAtMs), createdAt: Timestamp.fromMillis(NOW - DAY), createdByUid: "seed-uid", extra: "not copied",
     });
-    await admin.db.doc(`incidents/SEED/clipTracks/${sha}`).set({ version: "track-v1", sha256: sha, window: { startS: 0, endS: 9 }, entries: [{ t: 1, box: [1, 2, 3, 4], source: "cloud" }] });
+    await admin.db.doc(`incidents/SEED/clipTracks/${sha}`).set({ version: "track-v1", sha256: sha, window: { startS: 0, endS: 9 }, entries: [{ t: 1, box: [1, 2, 3, 4], source: "cloud" }],
+      model: "m", route: ROUTE, framesSent: 10, createdByUid: "seed-uid", createdAt: Timestamp.fromMillis(NOW - DAY), extra: "not copied" });
   }
+  const PRACTICE = { byUid: "practice-seed", atMs: 1 };
 
   it("lists only the blurred practice clip", () => {
     expect(JUDGE_CLIP_SHA256S).toEqual([CLIP]);
@@ -428,11 +431,19 @@ describe("startJudgeSession and the practice clip", () => {
     const uid = await freshUid();
     const { incidentId } = await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, { ...cfg, copyClip: async (from, to) => void copies.push([from, to]) });
     expect(copies).toEqual([[`clips/SEED/${CLIP}.mp4`, `clips/${incidentId}/${CLIP}.mp4`]]);
-    const reading = await inc(incidentId).collection("clipReadings").doc(CLIP).get();
-    expect(reading.get("storagePath")).toBe(`clips/${incidentId}/${CLIP}.mp4`);
-    expect(reading.get("reading")).toEqual({ personVisible: true, lastSeen: "00:07" });
-    expect(reading.get("consent")).toEqual({ personInClip: MARK, footageOwner: MARK, cloudProcessing: MARK, publicUse: null });
-    expect((await inc(incidentId).collection("clipTracks").doc(CLIP).get()).get("entries")).toEqual([{ t: 1, box: [1, 2, 3, 4], source: "cloud" }]);
+    const reading = (await inc(incidentId).collection("clipReadings").doc(CLIP).get()).data()!;
+    expect(Object.keys(reading).sort()).toEqual(["cameraFacingDeg", "clipStartMs", "clockConfirmed", "consent", "createdAt", "createdByUid", "durationS", "expiresAt", "reading", "route", "sha256", "storagePath"]);
+    expect(reading.storagePath).toBe(`clips/${incidentId}/${CLIP}.mp4`);
+    expect(reading.reading).toEqual({ personVisible: true, lastSeen: "00:07" });
+    // The consents keep when they were given; the seed's account id is not carried into the practice search.
+    expect(reading.consent).toEqual({ personInClip: PRACTICE, footageOwner: PRACTICE, cloudProcessing: PRACTICE, publicUse: null });
+    expect(reading.createdByUid).toBe("practice-seed");
+    // The copy ends with the practice search (the seed's ran 20 days longer).
+    expect((reading.expiresAt as Timestamp).toMillis()).toBe(NOW + DAY);
+    const track = (await inc(incidentId).collection("clipTracks").doc(CLIP).get()).data()!;
+    expect(Object.keys(track).sort()).toEqual(["createdAt", "createdByUid", "entries", "framesSent", "model", "route", "sha256", "version", "window"]);
+    expect(track.entries).toEqual([{ t: 1, box: [1, 2, 3, 4], source: "cloud" }]);
+    expect(track.createdByUid).toBe("practice-seed");
     expect([await size(incidentId, "clipReadings"), await size(incidentId, "clipTracks")]).toEqual([1, 1]);
   });
 
@@ -457,6 +468,14 @@ describe("startJudgeSession and the practice clip", () => {
     } });
     expect((await inc(incidentId).get()).get("setupReady")).toBe(true);
     expect([await size(incidentId, "clipReadings"), await size(incidentId, "clipTracks")]).toEqual([0, 0]);
+  });
+
+  it("copies no reading whose consent has expired", async () => {
+    await seedClip(CLIP, { personVisible: true }, NOW - 1);
+    const copies: string[][] = [];
+    const { incidentId } = await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, { ...cfg, copyClip: async (from, to) => void copies.push([from, to]) });
+    expect(copies).toEqual([]);
+    expect(await size(incidentId, "clipReadings")).toBe(0);
   });
 
   it("copies no clip whose reading is not stored, and none without a file copier", async () => {
