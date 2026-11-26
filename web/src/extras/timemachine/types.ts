@@ -11,8 +11,14 @@ export type Box2d = readonly [yMin: number, xMin: number, yMax: number, xMax: nu
 /** Where a box came from: the cloud track read, or this laptop's own model on one frame. */
 export type BoxSource = "cloud" | "on_device";
 
-/** One second of the track. `t` is a whole second from the clip's start; a track has at most one entry per `t`. */
-export type TrackEntry = { readonly t: number; readonly box: Box2d; readonly source: BoxSource };
+/** The person's outline in one frame: a closed polygon of [y, x] points on the same 0 to 1000 scale as a box. */
+export type Mask = ReadonlyArray<readonly [y: number, x: number]>;
+
+/**
+ * One second of the track. `t` is a whole second from the clip's start; a track has at most one entry per `t`.
+ * `mask` is the outline when the mask read returned one for that frame; a box without it still stands.
+ */
+export type TrackEntry = { readonly t: number; readonly box: Box2d; readonly source: BoxSource; readonly mask?: Mask };
 
 /** The track read's prompt version. A new prompt gets a new version, so stored tracks stay valid. */
 export type ClipTrackVersion = "track-v1";
