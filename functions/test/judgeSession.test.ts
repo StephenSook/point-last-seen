@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_CLIP_SHA256S, JUDGE_LABEL, JUDGE_SESSION_TIMEOUT_S, SETUP_STALE_MS } from "../src/judgeSession";
 import { bucketClipStore, SIGHTING_ENUMS } from "../src/practiceClip";
 import { callRaw, emulatorIdToken } from "./callable";
@@ -477,6 +477,34 @@ describe("startJudgeSession and the practice clip", () => {
       const { incidentId } = await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, clipCfg(store, { perDay: 20 }));
       expect(calls).toEqual([]);
       expect(await size(incidentId, "clipReadings")).toBe(0);
+    }
+  });
+
+  it("says in the log why the practice clip or its track was left out", async () => {
+    const logged: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((line: unknown) => void logged.push(String(line)));
+    try {
+      const { store } = fakeStore();
+      const reasons = async () => logged.flatMap((l) => {
+        try {
+          const j = JSON.parse(l) as Record<string, string>;
+          return j["practice_clip_skipped"] ? [`clip ${j["practice_clip_skipped"]}`] : j["practice_track_skipped"] ? [`track ${j["practice_track_skipped"]}`] : [];
+        } catch {
+          return [];
+        }
+      });
+      await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, clipCfg(store, { perDay: 20 }));
+      expect(await reasons()).toEqual(["clip no_reading"]);
+      logged.length = 0;
+      await seedClip(CLIP, { consent: { personInClip: MARK, footageOwner: MARK, cloudProcessing: MARK, publicUse: null } });
+      await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, clipCfg(store, { perDay: 20 }));
+      expect(await reasons()).toEqual(["clip consent_public_use"]);
+      logged.length = 0;
+      await seedClip(CLIP, {}, { entries: [{ t: 1, box: [900, 200, 100, 400], source: "cloud" }] });
+      await handleStartJudgeSession(admin.db, admin.auth, await freshUid(), NOW, clipCfg(store, { perDay: 20 }));
+      expect(await reasons()).toEqual(["track track_entries"]);
+    } finally {
+      spy.mockRestore();
     }
   });
 

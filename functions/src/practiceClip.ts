@@ -75,12 +75,15 @@ const practiceMark = (m: unknown) => {
 };
 const FACINGS = [0, 45, 90, 135, 180, 225, 270, 315];
 
+/** A copy, or the reason it is not made (logged by the caller, so an empty practice search says why). */
+export type Checked = { data: DocumentData } | { skip: string };
+
 /**
- * The practice search's copy of the seed's clip reading, or null when it must not be copied: the reading is not a
- * valid sighting, a required consent or the judge-page consent (publicUse) is missing, or the consent has expired.
- * The copy ends with the practice search when that comes first.
+ * The practice search's copy of the seed's clip reading, or why it must not be copied: the reading is not a valid
+ * sighting, a required consent or the judge-page consent (publicUse) is missing, or the consent has expired. The
+ * copy ends with the practice search when that comes first.
  */
-export function practiceReading(d: DocumentData, sha256: string, storagePath: string, attemptEnds: unknown, nowMs: number): DocumentData | null {
+export function practiceReading(d: DocumentData, sha256: string, storagePath: string, attemptEnds: unknown, nowMs: number): Checked {
   const c = (d["consent"] ?? {}) as Record<string, unknown>;
   const consent = { personInClip: practiceMark(c["personInClip"]), footageOwner: practiceMark(c["footageOwner"]),
     cloudProcessing: practiceMark(c["cloudProcessing"]), publicUse: practiceMark(c["publicUse"]) };
@@ -88,15 +91,18 @@ export function practiceReading(d: DocumentData, sha256: string, storagePath: st
   const reading = practiceSighting(d["reading"]);
   const route = d["route"] === null ? null : practiceRoute(d["route"]);
   const facing = d["cameraFacingDeg"];
-  const ok = d["sha256"] === sha256 && reading !== null && (d["route"] === null || route !== null)
-    && consent.personInClip && consent.footageOwner && consent.cloudProcessing && consent.publicUse
-    && seedEnds instanceof Timestamp && seedEnds.toMillis() > nowMs && d["createdAt"] instanceof Timestamp
-    && num(d["durationS"]) && d["durationS"] > 0 && d["durationS"] <= 600 && num(d["clipStartMs"]) && typeof d["clockConfirmed"] === "boolean"
-    && (facing === null || FACINGS.includes(facing as number));
-  if (!ok) return null;
+  if (d["sha256"] !== sha256) return { skip: "record_sha256" };
+  if (reading === null) return { skip: "reading_schema" };
+  if (d["route"] !== null && route === null) return { skip: "route_schema" };
+  if (!consent.personInClip || !consent.footageOwner || !consent.cloudProcessing) return { skip: "consent_required" };
+  if (!consent.publicUse) return { skip: "consent_public_use" };
+  if (!(seedEnds instanceof Timestamp) || seedEnds.toMillis() <= nowMs) return { skip: "consent_expired" };
+  const fieldsOk = d["createdAt"] instanceof Timestamp && num(d["durationS"]) && d["durationS"] > 0 && d["durationS"] <= 600
+    && num(d["clipStartMs"]) && typeof d["clockConfirmed"] === "boolean" && (facing === null || FACINGS.includes(facing as number));
+  if (!fieldsOk) return { skip: "record_schema" };
   const ends = attemptEnds instanceof Timestamp && attemptEnds.toMillis() < seedEnds.toMillis() ? attemptEnds : seedEnds;
-  return { sha256, storagePath, durationS: d["durationS"], clipStartMs: d["clipStartMs"], clockConfirmed: d["clockConfirmed"],
-    cameraFacingDeg: facing, reading, route, consent, expiresAt: ends, createdAt: d["createdAt"], createdByUid: PRACTICE_SEED_UID };
+  return { data: { sha256, storagePath, durationS: d["durationS"], clipStartMs: d["clipStartMs"], clockConfirmed: d["clockConfirmed"],
+    cameraFacingDeg: facing, reading, route, consent, expiresAt: ends, createdAt: d["createdAt"], createdByUid: PRACTICE_SEED_UID } };
 }
 
 /**
@@ -113,18 +119,19 @@ function practiceEntry(v: unknown): Record<string, unknown> | null {
   return { t: e["t"], box: [...(e["box"] as number[])], source: e["source"], mask: [...mask] };
 }
 
-/** The practice search's copy of the seed's track, or null when any field breaks the track's schema. */
-export function practiceTrack(d: DocumentData, sha256: string): DocumentData | null {
+/** The practice search's copy of the seed's track, or why it is left out (a field breaks the track's schema). */
+export function practiceTrack(d: DocumentData, sha256: string): Checked {
   const w = d["window"] as Record<string, unknown> | null;
   const raw = d["entries"];
   const entries = Array.isArray(raw) && raw.length <= TRACK_MAX ? raw.map(practiceEntry) : null;
   const route = practiceRoute(d["route"]);
-  const ok = d["version"] === "track-v1" && d["sha256"] === sha256 && !!w && num(w["startS"]) && num(w["endS"]) && w["startS"] >= 0 && w["endS"] > w["startS"]
-    && entries !== null && entries.every((e) => e !== null) && text(d["model"], 64) && (d["model"] as string).length > 0 && route !== null
-    && Number.isInteger(d["framesSent"]) && d["framesSent"] >= 1 && d["framesSent"] <= TRACK_MAX && d["createdAt"] instanceof Timestamp;
-  if (!ok) return null;
-  return { version: "track-v1", sha256, window: { startS: w!["startS"], endS: w!["endS"] }, entries, model: d["model"], route,
-    framesSent: d["framesSent"], createdAt: d["createdAt"], createdByUid: PRACTICE_SEED_UID };
+  if (d["version"] !== "track-v1" || d["sha256"] !== sha256) return { skip: "track_version" };
+  if (!w || !num(w["startS"]) || !num(w["endS"]) || w["startS"] < 0 || !(w["endS"] > w["startS"])) return { skip: "track_window" };
+  if (entries === null || !entries.every((e) => e !== null)) return { skip: "track_entries" };
+  if (!text(d["model"], 64) || (d["model"] as string).length === 0 || route === null) return { skip: "track_model" };
+  if (!Number.isInteger(d["framesSent"]) || d["framesSent"] < 1 || d["framesSent"] > TRACK_MAX || !(d["createdAt"] instanceof Timestamp)) return { skip: "track_schema" };
+  return { data: { version: "track-v1", sha256, window: { startS: w["startS"], endS: w["endS"] }, entries, model: d["model"], route,
+    framesSent: d["framesSent"], createdAt: d["createdAt"], createdByUid: PRACTICE_SEED_UID } };
 }
 
 /** Where a practice clip's file is copied, and removed again when its records could not be written. */

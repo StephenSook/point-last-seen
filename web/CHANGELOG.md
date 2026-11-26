@@ -3520,3 +3520,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: The prompt asks for outlines of up to 16 points; now the code agrees everywhere. `parseMaskReply` drops a longer outline (`TRACK_MASK_MAX_POINTS`), `clipTrackFromDoc` keeps an entry whose stored outline is longer than 32 numbers without that outline, and the practice clip copy (`practiceEntry`) does the same instead of leaving out the whole track.
 - Source: review of the practice clip copy (the copy refused a whole track for one long outline while the writer and reader had no cap).
 - Verified: new cases: `parseMaskReply` keeps 16 points and drops 17; `clipTrackFromDoc` keeps the entry without a 17-point outline; the judge session copy keeps the entry without its 17-point outline (it failed on the previous copy). clipTrack and data/clipTrack 62, judgeSession 36; typecheck clean.
+
+### fix(functions): a practice search with no practice clip says why in the log
+- What: `practiceReading` and `practiceTrack` return the reason a copy is not made, and the judge session logs it (`practice_clip_skipped`: no_reading, record_sha256, reading_schema, route_schema, consent_required, consent_public_use, consent_expired or record_schema; `practice_track_skipped`: no_track or the field that broke the track's schema). The log line holds the reason and the practice search's id only.
+- Source: review of the practice clip copy (a sandbox with no clip was silent).
+- Verified: new judgeSession case (no reading, no judge-page consent, and a broken track each log their reason) failed on the previous copy, then passed (37); functions typecheck clean.

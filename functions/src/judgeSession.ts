@@ -108,12 +108,18 @@ async function copyPracticeClips(seed: DocumentReference, to: DocumentReference,
     let copied = false;
     try {
       const [reading, track] = await Promise.all([seed.collection("clipReadings").doc(sha).get(), seed.collection("clipTracks").doc(sha).get()]);
-      const r = reading.exists ? practiceReading(reading.data()!, sha, path, attemptEnds, Math.max(nowMs, Date.now())) : null;
-      if (!r) continue;
-      const t = track.exists ? practiceTrack(track.data()!, sha) : null;
+      // Every skip says why in the log, so a practice search with no clip is never a silent one.
+      const log = (fields: Record<string, string>) => console.log(JSON.stringify({ event: "startJudgeSession", incidentId: to.id, ...fields }));
+      const r = reading.exists ? practiceReading(reading.data()!, sha, path, attemptEnds, Math.max(nowMs, Date.now())) : { skip: "no_reading" };
+      if ("skip" in r) {
+        log({ practice_clip_skipped: r.skip });
+        continue;
+      }
+      const t = track.exists ? practiceTrack(track.data()!, sha) : { skip: "no_track" };
+      if ("skip" in t) log({ practice_track_skipped: t.skip });
       await store.copy(`clips/${seed.id}/${sha}.mp4`, path, sha);
       copied = true;
-      await writeDocs([{ ref: to.collection("clipReadings").doc(sha), data: r }, ...(t ? [{ ref: to.collection("clipTracks").doc(sha), data: t }] : [])]);
+      await writeDocs([{ ref: to.collection("clipReadings").doc(sha), data: r.data }, ...("data" in t ? [{ ref: to.collection("clipTracks").doc(sha), data: t.data }] : [])]);
     } catch {
       console.log(JSON.stringify({ event: "startJudgeSession", incidentId: to.id, clip: "not_copied" }));
       if (copied) await store.remove(path).catch(() => undefined);
