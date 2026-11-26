@@ -1,0 +1,72 @@
+{
+ "what": "The command post's on-device read of a sighting note (Read the note, ONLY_ON_DEVICE) on the deployed site with Chrome DevTools set to Offline, with a window screenshot that shows the DevTools Offline setting, the failed requests and the receipt together. One made-up drill note, read four times in the same open form; the sighting was never saved.",
+ "date": "2026-11-26",
+ "browser": "Google Chrome 158.0.8127.38 on this Mac (macOS 27.0, Apple M5 Pro), in an isolated Chrome profile (its own user data folder, not an everyday profile) whose built-in model folder (OptGuideOnDeviceModel) is 2025.8.8.1141; the built-in model's availability check for English text reported \"available\"",
+ "page": "The deployed command post, https://buildhybridai-2026-yg3m.web.app/?incident=drill-test-1, build commit 5d59d16dbd53354c67b3589f47e03616f74f3f74 (bundle /assets/main-D6ge7l56.js), signed in to the test drill drill-test-1 as command with App Check as on the live site (no debug token)",
+ "offline": "Chrome DevTools was docked beside the page with its Network throttling set to Offline before the reads; the DevTools request log was cleared before each read. A same-origin fetch of /version.json failed with \"TypeError: Failed to fetch\" 1 to 2 ms before each click on Read the note. navigator.onLine read false at the first probe (03:17:37.961Z) and true at the later ones, so the failed requests are the proof, not onLine.",
+ "note": "Drill check, network off. A caller saw an older man in a red coat walking north on the trail by the creek, alone, about ten minutes ago. Training drill inject.",
+ "runs": [
+  {
+   "run": 1,
+   "probeAt": "03:17:52.555Z",
+   "clickToSettledMs": null,
+   "timing": "not timed here: the timing script's connection closed before the read settled; the receipt's own time is below",
+   "receiptTook": "10.4 s",
+   "receipt": ["Asked for: this device only.", "Ran: on this device (reported by the SDK).", "Took: 10.4 s.", "Model: chrome-built-in.", "Sent: no text or image left this device."],
+   "read": {"going": "North", "top": "red", "bottom": "Not known", "reportedBy": "Stranger", "footwear": "", "carrying": ""}
+  },
+  {
+   "run": 2,
+   "probeAt": "03:20:19.348Z",
+   "clickAt": "03:20:19.349Z",
+   "clickToSettledMs": 19237,
+   "receiptTook": "19.2 s",
+   "receipt": ["Asked for: this device only.", "Ran: on this device (reported by the SDK).", "Took: 19.2 s.", "Model: chrome-built-in.", "Sent: no text or image left this device."],
+   "read": {"going": "North", "top": "red", "bottom": "Not known", "reportedBy": "Stranger", "footwear": "", "carrying": ""}
+  },
+  {
+   "run": 3,
+   "probeAt": "03:23:08.147Z",
+   "clickAt": "03:23:08.149Z",
+   "clickToSettledMs": 14243,
+   "receiptTook": "14.2 s",
+   "receipt": ["Asked for: this device only.", "Ran: on this device (reported by the SDK).", "Took: 14.2 s.", "Model: chrome-built-in.", "Sent: no text or image left this device."],
+   "read": {"going": "North", "top": "red", "bottom": "Not known", "reportedBy": "Stranger", "footwear": "", "carrying": ""}
+  },
+  {
+   "run": 4,
+   "probeAt": "03:25:19.455Z",
+   "clickAt": "03:25:19.456Z",
+   "clickToSettledMs": 15013,
+   "receiptTook": "15.0 s",
+   "receipt": ["Asked for: this device only.", "Ran: on this device (reported by the SDK).", "Took: 15.0 s.", "Model: chrome-built-in.", "Sent: no text or image left this device."],
+   "read": {"going": "North", "top": "red", "bottom": "Not known", "reportedBy": "Stranger", "footwear": "", "carrying": ""}
+  }
+ ],
+ "timingNote": "Settled means the status line read \"Suggested from the note. Check every field.\" with no busy line. Reads 1 to 3 ran while the window sat behind other windows and Chrome had stopped painting it (a window capture taken during read 3 still showed read 2's receipt), which may have slowed them. Chrome was then restarted with background and hidden-window throttling turned off, and read 4 was the first read after that restart. None of these is a warm time; warm reads on a visible local page took 1.7 to 2.9 s (2026-11-22-note-read-chrome.json).",
+ "requests": {
+  "how": "The DevTools request log (every request the page made, with its result), saved after reads 1, 2 and 4; the log for read 3's window was not saved",
+  "window1": {"from": "03:17:36.960Z", "to": "03:19:13.074Z", "requests": 37, "failed": 37, "error": "net::ERR_INTERNET_DISCONNECTED", "hosts": {"firestore.googleapis.com": 16, "www.google.com": 15, "firebaselogging-pa.googleapis.com": 4, "buildhybridai-2026-yg3m.web.app": 2}},
+  "window2": {"from": "03:20:19.348Z", "to": "03:21:47.069Z", "requests": 15, "failed": 13, "error": "net::ERR_INTERNET_DISCONNECTED", "hosts": {"firebaselogging-pa.googleapis.com": 5, "securetoken.googleapis.com": 2, "firebaseremoteconfigrealtime.googleapis.com": 2, "firestore.googleapis.com": 2, "www.google.com": 2, "buildhybridai-2026-yg3m.web.app": 2},
+   "notFailed": [
+    {"at": "03:20:44.938Z", "request": "GET /tiles/piedmont-park-dev.pmtiles on the site", "result": "200 from the page's service worker cache, no network"},
+    {"at": "03:20:48.211Z", "request": "OPTIONS (CORS preflight) to firebaseremoteconfigrealtime.googleapis.com", "result": "200 with a remote address: the DevTools Offline setting did not stop this preflight, which reached Google 9.6 s after read 2 settled (03:20:38.6Z); a preflight carries no request body, and the POST it preceded failed offline"}
+   ]},
+  "window4": {"from": "03:25:19.455Z", "to": "03:26:26.542Z", "requests": 16, "failed": 16, "error": "net::ERR_INTERNET_DISCONNECTED", "hosts": {"firestore.googleapis.com": 5, "www.google.com": 5, "firebaselogging-pa.googleapis.com": 5, "buildhybridai-2026-yg3m.web.app": 1}, "beforeSettled": 6},
+  "toAnAiHost": 0,
+  "aiHostsChecked": ["firebasevertexai.googleapis.com", "generativelanguage.googleapis.com", "firebaseml.googleapis.com", "aiplatform.googleapis.com"],
+  "reading": "No request in a saved window went to an AI host (Firebase AI Logic or Gemini). Every request that went out to the network failed offline except one CORS preflight to Remote Config's realtime host after read 2. The firelog posts are Firebase's telemetry log."
+ },
+ "screenshot": {
+  "file": "docs/evidence/web/2026-11-26-note-read-offline-devtools.jpg",
+  "sha256": "0da0300fede3c42d8e499e448bca43df93561a945531155f4079d94a0f1a46bd",
+  "size": "2268 x 1290 JPEG, a macOS window capture of the isolated Chrome window (3024 x 1720) scaled to 75%",
+  "shows": "At the end of read 4: the address bar (buildhybridai-2026-yg3m.web.app/?incident=drill-test-1), the drill banner, the note, \"Suggested from the note. Check every field.\", the open What ran receipt (\"Ran: on this device (reported by the SDK).\", \"Took: 15.0 s.\", \"Sent: no text or image left this device.\"), and DevTools' Network panel with Offline selected and 6 requests, every one (failed). Those are the 6 requests of read 4's window up to 03:25:30.715Z; the next one (03:25:36.539Z) is not in the list, so the DevTools pane shows the log within about 2 s of the read settling."
+ },
+ "findings": [
+  "With DevTools set to Offline, the deployed command post read the note four times, each on this laptop as the SDK reported, and filled the same fields each time: going North, top red, bottom Not known, reported by Stranger.",
+  "No request in a saved window went to an AI host. Every request that went out failed offline, except one CORS preflight to Remote Config's realtime host 9.6 s after read 2, which the DevTools Offline setting does not stop.",
+  "This build's receipt says \"this device\" where the 2026-11-21 build said \"this laptop\", and its Sent line reads \"Sent: no text or image left this device.\""
+ ],
+ "n": 4
+}
