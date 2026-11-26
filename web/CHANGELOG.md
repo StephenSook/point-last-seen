@@ -3540,3 +3540,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `clipTrackFromDoc` and the practice clip copy (`practiceEntry`) now treat any outline the writer would not keep (fewer than 3 or more than 16 points, an odd count, NaN or a number not on 0 to 1000) the way the writer does: the outline is dropped and the entry stays with its box. Before, the rules let such an outline through and the reader and the copy then refused the whole track. A bad box, time or source still refuses the track.
 - Source: review of the track reader and the practice clip copy (one bad outline nulled the whole track).
 - Verified: new cases: `src/data/clipTrack.test.ts` (7 numbers, NaN and a point past 1000 each keep the entry without its outline; the two old reject cases for outlines moved into it) and judgeSession (7 numbers and NaN copied as entries without outlines) failed on the previous code, then passed; data tests 618, judgeSession 39; typecheck clean.
+
+### docs(web): a planted error on the deployed site reaches Crashlytics with its text removed
+- What: `docs/evidence/web/2026-11-26-crashlytics-planted.json` and its README section: one TypeError planted on the deployed command post (52b60551) was sent 1,581 ms later to clienttelemetry.googleapis.com/v1/logs (HTTP 200) and is in Cloud Logging's firebasetelemetry events log (insertId lok76keh21hx, ERROR, one error group) with its message removed. Not measured here: whether the Crashlytics code loads only after the first error.
+- Source: the web lane's deploy check (the write-up's Crashlytics claim needed a recorded run).
+- Verified: the run's own upload capture, and the Cloud Logging entry read back with gcloud logging read (read-only); the file holds no key or token (grep).
