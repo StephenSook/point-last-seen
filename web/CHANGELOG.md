@@ -3505,3 +3505,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `docs/TEST-MATRIX.md`'s clip track row cites `web/src/ai/clipTrack.ts` at the line that now holds `InferenceMode.ONLY_IN_CLOUD` (the frame cap's constant moved it).
 - Source: the test-matrix check (every row cites a live code line).
 - Verified: `scripts/test_test_matrix.py` failed on the old line, then passed.
+
+### test(web): the time machine's frame rate floor on GitHub's runners
+- What: `web/e2e/extras/timemachine.spec.ts` keeps 30 fps as the check on real hardware (this Mac and ci-local's run) and asserts a sanity floor of 20 fps only on GitHub Actions (`GITHUB_ACTIONS`), whose shared runners draw WebGL without a GPU: one run measured 26.5 fps with no change to the code it checks. 20 still fails a stalled or frozen loop.
+- Source: review of the CI run (a frame-rate floor on a shared runner flakes).
+- Verified: the check passes locally at the 30 fps floor (CI=1, Playwright's Chromium, as ci-local runs it); the Actions run is the next push.
