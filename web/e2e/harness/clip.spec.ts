@@ -528,3 +528,25 @@ test("a track that could not be saved says so on the card", async ({ page }) => 
   await fillAndRead(page, "/harness/clip.html?outcome=read&track=savefail");
   await expect(page.getByRole("region", { name: "Camera sighting" }).getByText("The track was not saved, so another seat will read its own.")).toBeVisible();
 });
+
+test("focus stays in the open time machine: the post behind it cannot be reached", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  await page.getByRole("region", { name: "Camera sighting" }).getByRole("button", { name: "Open the time machine" }).click();
+  const panel = page.getByRole("dialog", { name: "Time machine" });
+  await expect(panel.getByRole("button", { name: "Close" })).toBeFocused();
+  await expect(panel).toHaveAttribute("aria-modal", "true");
+  // Focus is in the panel, or has left the page for the browser's own controls (as with a native modal dialog);
+  // never on a control of the post behind the panel.
+  const inPanel = () => page.evaluate(() => { const el = document.activeElement; return !el || el === document.body || !!el.closest(".clip-tm-panel"); });
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press("Shift+Tab");
+    expect(await inPanel()).toBe(true);
+  }
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press("Tab");
+    expect(await inPanel()).toBe(true);
+  }
+  await expect(page.locator("#root")).toHaveAttribute("inert", "");
+  await panel.getByRole("button", { name: "Close" }).click();
+  await expect(page.locator("#root")).not.toHaveAttribute("inert", "");
+});

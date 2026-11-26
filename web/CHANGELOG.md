@@ -3490,3 +3490,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `trackPaused` also holds the track read while Remote Config has never answered a fetch (`fetchedAtMs` null), so a fresh tab whose config is slow or unreachable cannot read a track under the in-app defaults (kill_cloud off, time machine on). A config fetched earlier in this browser counts. The check runs before the stored-track lookup and before every model call.
 - Source: review of the time machine mount (a fresh tab could track under defaults).
 - Verified: new `trackPaused` unit case (null and missing fetch time pause the read) failed first, then passed (timeMachine 8); typecheck clean.
+
+### fix(web): the open time machine keeps focus, and the post behind it is out of reach
+- What: While the time machine panel is open, every other part of the page is made `inert` (only what the panel made inert is restored on Close), and the panel is `aria-modal`: Tab and Shift+Tab stay in the panel (or leave for the browser's own controls, as with a native modal dialog), and no hidden control of the command post can be focused or pressed. The video's own controls are in the panel.
+- Source: review of the time machine panel (focus could leave the full-window panel for hidden controls).
+- Verified: new harness case (Close focused, aria-modal set, 4 Shift+Tab and 12 Tab never reach the post, #root inert while open and not after Close) failed on the previous panel, then passed (clip harness 45, stored-clips 4); typecheck clean.
