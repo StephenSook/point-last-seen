@@ -13,11 +13,12 @@ import { keyFrameOf, timeMachineResults } from "./timeMachine";
 /** The 3D view's code did not arrive (offline, or a link that dropped): not a fault in the view. */
 class ViewLoadError extends Error {}
 
-const TimeMachine = lazy(() =>
+// React.lazy keeps a failed load for good, so each open makes its own: a view that could not load is tried again the
+// next time the time machine opens (a loaded one comes from the browser's module cache at once).
+const loadTimeMachine = () =>
   import("../extras/timemachine/TimeMachine").catch((e: unknown) => {
     throw new ViewLoadError(e instanceof Error ? e.message : "The 3D view could not load.");
-  }),
-);
+  });
 
 export const VIEW_UNAVAILABLE = "The 3D view could not load. The clip and the person's box are still shown here.";
 export const VIEW_BROKE = "The 3D view stopped working. The clip and the person's box are still shown here.";
@@ -106,6 +107,7 @@ export function ClipTimeMachine({ clip, durationS, reading, track, onClose, stat
     setUrl(u);
     return () => URL.revokeObjectURL(u);
   }, [clip]);
+  const TimeMachine = useMemo(() => lazy(loadTimeMachine), []);
   const clock = useMemo(() => createClock({ durationS }), [durationS]);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   // bindVideo also follows a seek made with the player's own controls while it is paused.

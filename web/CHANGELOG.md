@@ -3445,3 +3445,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: In the time machine the box is drawn on a full-size layer clipped above the player's controls band (`.clip-box-layer`, `clip-path: inset(0 0 44px 0)`, no pointer events), so a paused clip's box no longer covers the play, time and menu controls, and clicks reach them. The box keeps its place on the picture.
 - Source: film rehearsal on the deployed site (the box drew over the native controls while paused).
 - Verified: new harness case (the layer is clipped by 44 px at the bottom and takes no pointer events) failed first, then passed (clip harness 40).
+
+### fix(web): a 3D view that could not load is tried again on the next open
+- What: `ClipTimeMachine` makes its lazy 3D view once per open instead of once per page: React.lazy keeps a failed load for good, so after one offline open the view stayed unavailable until a reload. A view that has loaded comes from the browser's module cache at once.
+- Source: review of the time machine mount (a failed import was kept until reload).
+- Verified: new harness case (the first import is blocked: the panel says it could not load; Close and open again: the 3D view appears) failed first, then passed (41 clip, 5 stored-clips).

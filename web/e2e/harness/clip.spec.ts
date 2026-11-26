@@ -495,3 +495,16 @@ test.describe("the open time machine is a wide panel over the post", () => {
     expect(style.events).toBe("none");
   });
 });
+
+test("a 3D view that could not load is tried again on the next open", async ({ page }) => {
+  let blocked = 0;
+  await page.route(/\/extras\/timemachine\/TimeMachine\.tsx/, (route) => (blocked++ === 0 ? route.abort() : route.continue()));
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  const open = page.getByRole("region", { name: "Camera sighting" }).getByRole("button", { name: "Open the time machine" });
+  await open.click();
+  const panel = page.getByRole("dialog", { name: "Time machine" });
+  await expect(panel.getByRole("status")).toHaveText("The 3D view could not load. The clip and the person's box are still shown here.", { timeout: 30_000 });
+  await panel.getByRole("button", { name: "Close" }).click();
+  await open.click();
+  await expect(page.getByRole("dialog", { name: "Time machine" }).getByRole("region", { name: "Clip time machine" })).toBeVisible({ timeout: 30_000 });
+});
