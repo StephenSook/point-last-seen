@@ -38,6 +38,9 @@ drill at Kennesaw Mountain was cancelled on 2026-11-23, so none of these was use
 - The sheet and radio cards can print the names the person answers to and the approach notes (one box, off by
   default)
 - Replay of the event log over time, from the current prior onward
+- Clip time machine: for a camera clip the search has read, the person's box on the clip each second it is in view
+  and a 3D view of the clip over time, opened from the sighting card or from "Clips read for this search". The
+  person's track is read in the cloud from one frame per second, on the clip's consent
 - Terrain (USGS 3DEP), for the Kennesaw drill grid only: a display layer, and a Downhill and level ground prior layer,
   off by default (ISRID dementia shares, Lost Person Behavior p. 164; `docs/LIMITS.md`)
 

@@ -36,7 +36,15 @@ export function trackSentLine(frames: number, outlineFrames = 0): string {
   return `${base} ${outlineFrames} of them ${outlineFrames === 1 ? "was" : "were"} sent again for the outlines.`;
 }
 
-/** Read live before each track call: clip reading is paused, or the time machine was turned off since the read began. */
-export function trackPaused(rc: { killCloud: boolean; timeMachineEnabled: boolean }): boolean {
-  return rc.killCloud || !rc.timeMachineEnabled;
+/** A track read that stopped once its card had gone (a delete, or the panel closed): what had already left. */
+export function trackStoppedLine(sent: { frames: number; outlineFrames: number }): string {
+  return `The clip's track read stopped. ${trackSentLine(sent.frames, sent.outlineFrames)}`;
+}
+
+/**
+ * Read live before each track call: clip reading is paused, the time machine was turned off since the read began, or
+ * Remote Config has never answered (a fresh tab would otherwise read under the in-app defaults, kill_cloud off).
+ */
+export function trackPaused(rc: { killCloud: boolean; timeMachineEnabled: boolean; fetchedAtMs?: number | null }): boolean {
+  return rc.killCloud || !rc.timeMachineEnabled || rc.fetchedAtMs == null;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { keyFrameOf, timeMachineResults, trackSentLine, trackPaused } from "./timeMachine";
+import { keyFrameOf, timeMachineResults, trackSentLine, trackPaused, trackStoppedLine } from "./timeMachine";
 
 const reading = { firstSeen: "00:04", lastSeen: "01:12", keyFrame: { time: "00:07", box2d: [100, 200, 900, 400] } };
 
@@ -32,9 +32,14 @@ describe("trackSentLine", () => {
 
 describe("trackPaused", () => {
   it("stops the track read when clip reading is paused or the time machine is turned off", () => {
-    expect(trackPaused({ killCloud: false, timeMachineEnabled: true })).toBe(false);
-    expect(trackPaused({ killCloud: true, timeMachineEnabled: true })).toBe(true);
-    expect(trackPaused({ killCloud: false, timeMachineEnabled: false })).toBe(true);
+    expect(trackPaused({ killCloud: false, timeMachineEnabled: true, fetchedAtMs: 1 })).toBe(false);
+    expect(trackPaused({ killCloud: true, timeMachineEnabled: true, fetchedAtMs: 1 })).toBe(true);
+    expect(trackPaused({ killCloud: false, timeMachineEnabled: false, fetchedAtMs: 1 })).toBe(true);
+  });
+
+  it("stops it until Remote Config has answered once, so a fresh tab never reads under the in-app defaults", () => {
+    expect(trackPaused({ killCloud: false, timeMachineEnabled: true, fetchedAtMs: null })).toBe(true);
+    expect(trackPaused({ killCloud: false, timeMachineEnabled: true })).toBe(true);
   });
 });
 
@@ -43,5 +48,11 @@ describe("trackSentLine with outlines", () => {
     expect(trackSentLine(10, 10)).toBe("10 frames of the clip left this laptop for the cloud. 10 of them were sent again for the outlines.");
     expect(trackSentLine(10, 1)).toBe("10 frames of the clip left this laptop for the cloud. 1 of them was sent again for the outlines.");
     expect(trackSentLine(1, 0)).toBe("1 frame of the clip left this laptop for the cloud.");
+  });
+});
+
+describe("trackStoppedLine", () => {
+  it("says a stopped read's sends", () => {
+    expect(trackStoppedLine({ frames: 6, outlineFrames: 0 })).toBe("The clip's track read stopped. 6 frames of the clip left this laptop for the cloud.");
   });
 });

@@ -3390,3 +3390,153 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `ClipTimeMachine` tells a failed import of the 3D view (offline or a dropped link: "The 3D view could not load. ...") from a fault while it runs ("The 3D view stopped working. ..."). Both keep the clip, its box and the result buttons. A fault is handed to `reportError`, so the page's error reporting (which keeps only name, message and stack) sends it as if it had not been caught; a failed import is not reported.
 - Source: review of the time machine mount (a runtime fault looked like a download failure and skipped error reporting).
 - Verified: new harness case (a view module that throws on render: the message says it stopped working, the clip stays, the error reaches the page's error handler) failed first, then passed (36).
+
+### feat(web): list a search's read clips and load a stored clip checked by its hash
+- What: `src/data/storedClips.ts`: `listStoredClips` reads `incidents/{id}/clipReadings` from the server (never the cache) and keeps the records whose reading parses as a sighting, newest clip first; a record whose id is not its SHA-256 is left out. `loadStoredClip` downloads `clips/{incident}/{sha256}.mp4` (up to the 14 MB upload cap) and rejects bytes whose SHA-256 is not the name. Built from the records, not from events, so a judge sandbox with a copied record and clip lists it too.
+- Source: the clip time machine plan (stored readings open the time machine).
+- Verified: `src/data/storedClips.test.ts` (4: the server read and its filter and order; the download path and cap; a hash mismatch; a bad name downloads nothing) failed first (module missing), then passed; typecheck clean.
+
+### fix(web): an extras panel that fails says it may be the browser, not only the link
+- What: `ExtrasBoundary`'s message is now "This panel could not load or cannot run in this browser. Reconnect and reload the page, or open it in a browser with WebGL2." Before, it blamed the link even when the cause was a browser without WebGL2.
+- Source: audit of the web lane (the boundary message named only the network).
+- Verified: `e2e/extras/boundary.spec.ts` (2) updated to the new text failed first, then passed.
+
+### fix(web): the 3D view's clock follows a paused seek too
+- What: `bindVideo` (src/extras/timemachine/clock.ts) follows a seek made with the player's own controls while it is paused: it marks the seeks it starts itself, and any other "seeked" while paused (and not mid-jump) sets the clock to the player's time. Before, only played frames moved the clock, so the 3D view and the box stayed at the old time. `ClipTimeMachine` drops its own listener for this, so both views use the one rule.
+- Source: review of the time machine mount (a paused native seek left a stale box; the same gap was in bindVideo).
+- Verified: new case in `src/extras/timemachine/clock.test.ts` (a paused seek by the player moves the clock; the binding's own seek does not tick twice; a seek while playing waits for frames) failed first, then passed (time machine units 53); the clip harness paused-seek case still passes through bindVideo (36); extras time machine e2e 5.
+
+### feat(web): a list of the clips this search has read opens each one's time machine
+- What: `StoredClipsPanel` ("Clips read for this search"): each read clip's last-seen time and clothing, and "Open the time machine", which loads the clip and its stored track and opens the same time machine as a fresh read; a stored track asks no model anything. With no track, "Track the person" reads one on the clip's stored consent while the search is open, and the receipt says what it sent. A delete of the search's media closes the open clip and reads the list again; with the time machine off, or no clip read, the list is not shown. The list is read when the panel appears and after each delete.
+- Source: the clip time machine plan (stored readings open the time machine; the judge sandbox has no events, only copied records).
+- Verified: new `e2e/harness/storedClips.spec.ts` (5: a stored track opens with no new read and the box on the clock; no track opens on the clearest frame and Track the person reads one with its receipt; a closed search offers no read; flag off or nothing read shows no list; a delete closes the clip) failed first (module missing), then passed; noCloud and the unit suite pass.
+
+### feat(web): the command post lists its read clips under Add camera clip
+- What: `CommandPost` shows `StoredClipsPanel` below "Add camera clip": the list from `listStoredClips` (the server's clip records), each clip opened with `loadStoredClip` (bytes checked by their SHA-256) and its stored track, and "Track the person" through the same track read a fresh clip uses (`readAndStoreTrack`, now shared by both: the live pause and flag check, the server consent check before every call, the `clip_track` trace, and the store without waiting). A stored clip is tracked over its whole length, since its record keeps no window.
+- Source: the clip time machine plan (stored readings on the command post).
+- Verified: typecheck clean; the fresh-read clip harness (36) and the stored-clips harness (5) pass; web unit suite 1604. CommandPost itself has no unit harness; the deployed time machine e2e covers this path.
+
+### feat(functions): a judge's practice search gets the blurred practice clip with its reading and track
+- What: `functions/src/judgeSession.ts`: `copyFrom` also copies the practice clip when the seed has read it, and only the clips in `JUDGE_CLIP_SHA256S` (the blurred copy of the team's porch clip, SHA-256 28fffd20...ddfb; the original is never copied). Its Storage object is copied first (`bucketCopier`: a copy inside the bucket, no bytes through the function), then its `clipReadings` record (with `storagePath` pointing at the sandbox's own copy) and its `clipTracks` record. A clip whose file cannot be copied is left out and the practice search still starts. `functions/src/index.ts` passes the bucket copier. The sweep of ended sandboxes already deletes their clips and tracks.
+- Source: the clip time machine plan (the judge sandbox opens the time machine with no AI call).
+- Verified: new cases in `functions/test/judgeSession.test.ts` (only the blurred clip is listed; file first, then reading and track, no other clip; the real bucket copier copies the object byte for byte with its type in the Storage emulator; a file that cannot be copied leaves the clip out; no stored reading or no copier copies nothing) failed first where they could (the copier test and its code went in together), then passed (32); new case in `functions/test/rules/clipTracks.test.ts` (a judge sandbox member reads its copied track and not another search's) passed with the rules as they are (8); functions typecheck clean.
+
+### fix(functions): the practice clip's copy carries only its own fields and no seed account
+- What: The copy of the practice clip's records into a practice search takes only the record's own fields (no stray field), names `practice-seed` instead of the seed's accounts in the consent marks and `createdByUid` (the marks keep when each consent was given), and ends with the practice search: its `expiresAt` is the practice search's when that comes first, so the TTL deletes the copy and the delete trigger takes its clip and track. A seed reading whose consent has already expired is not copied.
+- Source: security review of the sandbox copy (the seed's account ids reached every judge; an expired reading could be copied).
+- Verified: updated and new cases in `functions/test/judgeSession.test.ts` (the copied reading and track have exactly their own keys, the placeholder account, the practice search's expiry; an expired reading copies nothing) failed first, then passed; judgeSession and clipTracks rules 41; functions typecheck clean.
+
+### fix(web): a track call counts as sent only once the service answered it
+- What: `readClipTrack` counts a box or outline call's frames as sent after the call returns, or when it fails with the service's own status (the request reached it). A call that failed before it left (offline, no token: no status) adds nothing, so a stopped read never claims frames that did not leave.
+- Source: review of the time machine mount (frames were counted before the request went out).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (a second box call that never left keeps the count at 40; a first one that never left reports nothing; an answered outline error counts and an unanswered one does not) failed first, then passed (46).
+
+### fix(web): a Confirm refused after a delete stays off the next card
+- What: A delete of the search's media also retires any Confirm still waiting on its write (`CameraClipPanel` moves its latest-Confirm counter), so a refusal that arrives after the delete no longer shows "The sighting was not saved. Try again." on the next clip's card.
+- Source: review of the time machine mount (a late refused write set the next card's error).
+- Verified: new harness case (Confirm, delete, the write is refused, a new clip is read: no alert on its card) failed first, then passed (clip harness 37).
+
+### feat(web): the open time machine is a wide panel over the post
+- What: `ClipTimeMachine` opens as a panel over the whole command post (a portal to the page, `.clip-tm-panel`) with a Close button; Escape closes it too, and focus goes back to the button that opened it. On a wide screen the clip and the 3D view sit side by side, with the 3D view across its whole column and the result buttons under it; under 900 px they stack with no sideways scroll. The stored-clips list shows its track lines and "Track the person" at the top of the panel. Before, the time machine was drawn inside the 315 px right rail.
+- Source: film rehearsal on the deployed site (the rail-sized player and 3D view were too small to read).
+- Verified: new harness cases at 1440x900 (the 3D stage is at least 560 px wide, the player at least 480 px and left of it, results visible, Close returns focus to Open the time machine) and at 390x844 (stacked, inside the width, no sideways scroll, Escape closes) failed first, then passed; existing time machine cases now find the panel on the page, and tests of a delete arriving from elsewhere dispatch it while the panel covers the post (44 across the clip and stored-clips specs).
+
+### fix(web): the person's box stays off the player's own controls
+- What: In the time machine the box is drawn on a full-size layer clipped above the player's controls band (`.clip-box-layer`, `clip-path: inset(0 0 44px 0)`, no pointer events), so a paused clip's box no longer covers the play, time and menu controls, and clicks reach them. The box keeps its place on the picture.
+- Source: film rehearsal on the deployed site (the box drew over the native controls while paused).
+- Verified: new harness case (the layer is clipped by 44 px at the bottom and takes no pointer events) failed first, then passed (clip harness 40).
+
+### fix(web): a 3D view that could not load is tried again on the next open
+- What: `ClipTimeMachine` makes its lazy 3D view once per open instead of once per page: React.lazy keeps a failed load for good, so after one offline open the view stayed unavailable until a reload. A view that has loaded comes from the browser's module cache at once.
+- Source: review of the time machine mount (a failed import was kept until reload).
+- Verified: new harness case (the first import is blocked: the panel says it could not load; Close and open again: the 3D view appears) failed first, then passed (41 clip, 5 stored-clips).
+
+### fix(web): a track read stopped by a delete or Discard still says what had left
+- What: When a clip's card goes (a delete of the search's media, or Discard) while its track read runs, the read stops at its next check, and what it had already sent is no longer dropped: after a delete the notice adds "The clip's track read stopped. N frames of the clip left this laptop for the cloud." (with the outline frames when any), and after Discard the command post shows the same line under "Add camera clip" (`onTrackStopped`) until the next clip is added.
+- Source: review of the time machine mount (a stopped read's sends were lost with its card).
+- Verified: new harness cases (a delete during a read that had sent 6 frames; Discard during the same read, after the panel closed) and a `trackStoppedLine` unit case failed first (the line and the callback did not exist), then passed (clip harness 43).
+
+### fix(web): a new track that could not be saved says so
+- What: The track read hands back whether its write was stored (`saved`). When the write is refused, the sighting card (and the stored clip's time machine) adds a quiet line: "The track was not saved, so another seat will read its own." A write waiting for the link does not show it; only a refused one does.
+- Source: review of the time machine mount (a failed track write was silent).
+- Verified: new harness case (a track whose write is refused shows the line on the card) failed first (no such line), then passed (clip harness 44, stored-clips 5).
+
+### docs(web): the practice clip's track seeded on three drill searches
+- What: `docs/evidence/web/2026-11-26-clip-track-seeds.json` and its README section: the deployed command post read the practice clip's track once on drill-kennesaw-1 (its reading reused: 3 model calls, boxes for 10 frames then outlines for 6 and 4), drill-judge-1 and drill-dev-1 (one sighting read, then the same track read), through the product path, with nothing confirmed. The file records each call's kind, frames, HTTP status and token counts, the receipt lines, and the server read-back.
+- Source: the clip time machine plan (the seeds the judge sandbox copies).
+- Verified: each search's clipReadings and clipTracks records and its Storage object read back from the server after the run (read-only REST); the evidence file holds no code or token (grep).
+
+### docs: the clip time machine in the README, LIMITS, SECURITY and the test matrix
+- What: README's extras list names the clip time machine. `docs/SECURITY.md` lists the clip track read as a cloud-only direct call with its checks (the consent record before every call and after the last reply; `kill_cloud` and `time_machine_enabled`). `docs/LIMITS.md` (Command post extras) gives its limits: one box a second joined in straight lines, more than two missing seconds not bridged, a flat box, outlines that can be missing, stored clips tracked whole, the 3D view not offline, only the blurred practice clip in a judge practice search, and the Storage-only delete. `docs/TEST-MATRIX.md` adds the recorded seed run.
+- Source: the web lane's doc follow-ups for the clip time machine.
+- Verified: hygiene `--public`, the rules gate and the test-matrix tests pass; no dash or curly-quote characters in the edited files; each LIMITS line checked against TRACK_RULES and ClipTimeMachine.
+
+### fix(functions): the practice clip is copied only when consented, checked and whole, and never blocks a practice search
+- What: The practice clip's copy moves to `functions/src/practiceClip.ts` and runs after the rest of the copy, as an optional step. (1) The file's bytes are read and hashed (at most 14 MB) and must match the listed SHA-256 and the object's size; those bytes are written to the practice search with fresh metadata, so no download token or custom metadata carries over (`bucketClipStore`). (2) The seed reading must carry the "Public use, film or judge page" consent as well as the three required ones; the reading is rebuilt field by field from the camera sighting schema (closed lists kept equal to shared/schemas by a test, text within its length), the route from its nine fields, and the track from its own fields, each entry from t, box, source and an optional outline; anything else is dropped, and a track that breaks its schema is left out. (3) The reading and track are written together in one batch after the file; if they cannot be written the copied file is removed, and the practice search starts without the clip either way.
+- Source: review of the judge practice search copy (findings: the bytes were not checked, the judge-page consent was not required, free fields were copied, and a failed clip write could block setup).
+- Verified: `functions/test/judgeSession.test.ts` rewritten for the clip (35 with the rest): the schema lists match shared/schemas; field-by-field copy with stray fields dropped; no copy without publicUse, with a bad colour, an over-long text, no reading or an expired consent; a broken track is left out; in the Storage emulator the bytes are checked, written with empty custom metadata, and other bytes under the name are refused; a failed write removes the file; a failed copy or no store still starts. clipTracks rules 8; functions typecheck clean.
+
+### fix(web): the list of clips read before never sends a frame
+- What: "Track the person" is gone from "Clips read for this search": a clip read before opens with its stored track, or, with none, on its clearest frame with the line "No track was read for this clip. The time machine shows its clearest frame." A track is now read only right after a clip read, on the window that read was consented for and sent. Before, the list could send frames from the whole clip (its record keeps no window), and from a copy in memory after the clip was deleted from storage. `docs/SECURITY.md` and `docs/LIMITS.md` say the same.
+- Source: review of the stored clips list (findings: the window, the deleted clip, and the list's frame count).
+- Verified: the stored-clips harness case for a clip with no track (no Track the person, the line, the key frame box at 0:04) failed first, then passed (stored-clips 4); typecheck clean.
+
+### fix(web): a clip too long to track is refused before any frame is taken
+- What: `readClipTrack` refuses a window of more than 121 frames (`TRACK_MAX_FRAMES`, two minutes at one a second: the rules' cap on a stored track) before it decodes or sends anything, with the reason `too_long`; the card says "This clip is too long to track (more than two minutes). The time machine shows the clearest frame." Before, a long clip could send every frame and then have its track refused by the rules.
+- Source: review of the track read (no frame cap before sending).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (130 s refuses with no frame taken and no call; exactly 121 frames reads) failed first, then passed (48); typecheck clean.
+
+### fix(web): no track read until Remote Config has answered
+- What: `trackPaused` also holds the track read while Remote Config has never answered a fetch (`fetchedAtMs` null), so a fresh tab whose config is slow or unreachable cannot read a track under the in-app defaults (kill_cloud off, time machine on). A config fetched earlier in this browser counts. The check runs before the stored-track lookup and before every model call.
+- Source: review of the time machine mount (a fresh tab could track under defaults).
+- Verified: new `trackPaused` unit case (null and missing fetch time pause the read) failed first, then passed (timeMachine 8); typecheck clean.
+
+### fix(web): the open time machine keeps focus, and the post behind it is out of reach
+- What: While the time machine panel is open, every other part of the page is made `inert` (only what the panel made inert is restored on Close), and the panel is `aria-modal`: Tab and Shift+Tab stay in the panel (or leave for the browser's own controls, as with a native modal dialog), and no hidden control of the command post can be focused or pressed. The video's own controls are in the panel.
+- Source: review of the time machine panel (focus could leave the full-window panel for hidden controls).
+- Verified: new harness case (Close focused, aria-modal set, 4 Shift+Tab and 12 Tab never reach the post, #root inert while open and not after Close) failed on the previous panel, then passed (clip harness 45, stored-clips 4); typecheck clean.
+
+### docs: the practice clip's copy needs the judge-page consent
+- What: `docs/LIMITS.md` (Command post extras): a judge practice search copies the blurred practice clip only with its bytes checked and only while the seed's reading carries the "Public use, film or judge page" consent, field by field and with no seed account named.
+- Source: review of the judge practice search copy.
+- Verified: the line matches `functions/src/practiceClip.ts` (practiceReading, bucketClipStore).
+
+### docs: the test matrix cites the clip track's mode at its new line
+- What: `docs/TEST-MATRIX.md`'s clip track row cites `web/src/ai/clipTrack.ts` at the line that now holds `InferenceMode.ONLY_IN_CLOUD` (the frame cap's constant moved it).
+- Source: the test-matrix check (every row cites a live code line).
+- Verified: `scripts/test_test_matrix.py` failed on the old line, then passed.
+
+### test(web): the time machine's frame rate floor on GitHub's runners
+- What: `web/e2e/extras/timemachine.spec.ts` keeps 30 fps as the check on real hardware (this Mac and ci-local's run) and asserts a sanity floor of 20 fps only on GitHub Actions (`GITHUB_ACTIONS`), whose shared runners draw WebGL without a GPU: one run measured 26.5 fps with no change to the code it checks. 20 still fails a stalled or frozen loop.
+- Source: review of the CI run (a frame-rate floor on a shared runner flakes).
+- Verified: the check passes locally at the 30 fps floor (CI=1, Playwright's Chromium, as ci-local runs it); the Actions run is the next push.
+
+### docs: a practice search ended early keeps its practice clip until it expires
+- What: `docs/LIMITS.md`: ending a practice search early leaves its copied practice clip readable to its own judge until the practice search expires; it is the same reviewed clip every practice search gets, and ended practice searches are swept a day after they expire.
+- Source: review of the judge practice search copy (accepted as a known limit).
+- Verified: the line matches `deleteEndedSandboxMedia` and `liveFor` in the rules.
+
+### fix(web): an outline over 16 points is dropped, its box kept, by the writer, the reader and the copy
+- What: The prompt asks for outlines of up to 16 points; now the code agrees everywhere. `parseMaskReply` drops a longer outline (`TRACK_MASK_MAX_POINTS`), `clipTrackFromDoc` keeps an entry whose stored outline is longer than 32 numbers without that outline, and the practice clip copy (`practiceEntry`) does the same instead of leaving out the whole track.
+- Source: review of the practice clip copy (the copy refused a whole track for one long outline while the writer and reader had no cap).
+- Verified: new cases: `parseMaskReply` keeps 16 points and drops 17; `clipTrackFromDoc` keeps the entry without a 17-point outline; the judge session copy keeps the entry without its 17-point outline (it failed on the previous copy). clipTrack and data/clipTrack 62, judgeSession 36; typecheck clean.
+
+### fix(functions): a practice search with no practice clip says why in the log
+- What: `practiceReading` and `practiceTrack` return the reason a copy is not made, and the judge session logs it (`practice_clip_skipped`: no_reading, record_sha256, reading_schema, route_schema, consent_required, consent_public_use, consent_expired or record_schema; `practice_track_skipped`: no_track or the field that broke the track's schema). The log line holds the reason and the practice search's id only.
+- Source: review of the practice clip copy (a sandbox with no clip was silent).
+- Verified: new judgeSession case (no reading, no judge-page consent, and a broken track each log their reason) failed on the previous copy, then passed (37); functions typecheck clean.
+
+### docs: the test matrix cites the clip track's mode at its line again
+- What: `docs/TEST-MATRIX.md`'s clip track row cites `web/src/ai/clipTrack.ts` at the line that now holds `InferenceMode.ONLY_IN_CLOUD` (the outline cap's constant moved it).
+- Source: the test-matrix check (every row cites a live code line).
+- Verified: `scripts/test_test_matrix.py` failed on the old line, then passed.
+
+### fix(functions): logs name a practice search by a short hash, never by its visitor's uid
+- What: A judge practice search's id is `judge-{visitor uid}-{random}`, so writing it to a log line put the visitor's Firebase uid in Cloud Logging. `functions/src/logId.ts` (`logIncidentId`) logs such an id as `judge#` plus the first 12 hex of its SHA-256 (the same for every line about that practice search); any other incident id is logged as it is. It is used in startJudgeSession's three log lines (the skip reasons, the clip not copied, and the session started), in deleteClipOnConsentEnd (which a practice search's copied clip now reaches at its end) and in deleteIncidentMediaNow.
+- Source: review of the judge practice search logs (the sandbox id carries the visitor's uid).
+- Verified: new `functions/test/logId.test.ts` (a judge id becomes a hash with no uid in it, the same each time; a drill id stays) and a judgeSession case (no log line of a session start holds the uid or the sandbox id; a judge# hash is there) failed on the previous code, then passed; functions typecheck clean.
+
+### fix(web): a bad outline is dropped and its box kept, by the reader and the copy
+- What: `clipTrackFromDoc` and the practice clip copy (`practiceEntry`) now treat any outline the writer would not keep (fewer than 3 or more than 16 points, an odd count, NaN or a number not on 0 to 1000) the way the writer does: the outline is dropped and the entry stays with its box. Before, the rules let such an outline through and the reader and the copy then refused the whole track. A bad box, time or source still refuses the track.
+- Source: review of the track reader and the practice clip copy (one bad outline nulled the whole track).
+- Verified: new cases: `src/data/clipTrack.test.ts` (7 numbers, NaN and a point past 1000 each keep the entry without its outline; the two old reject cases for outlines moved into it) and judgeSession (7 numbers and NaN copied as entries without outlines) failed on the previous code, then passed; data tests 618, judgeSession 39; typecheck clean.

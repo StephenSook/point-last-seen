@@ -18,6 +18,10 @@ export const TRACK_FRAME_MAX_SIDE = 960;
 export const TRACK_BOX_FRAMES_PER_CALL = 40;
 /** About 260 to 330 reply tokens an outlined frame, so 6 fit one reply. */
 export const TRACK_MASK_FRAMES_PER_CALL = 6;
+/** The most points one outline keeps (the prompt asks for up to 16); a longer outline is dropped, its box kept. */
+export const TRACK_MASK_MAX_POINTS = 16;
+/** The most frames one track holds (two minutes at one a second): the rules refuse a longer track. */
+export const TRACK_MAX_FRAMES = 121;
 export const TRACK_MAX_OUTPUT_TOKENS = 2048;
 
 const BOX = { type: ["array", "null"], items: { type: "integer" }, description: "[ymin, xmin, ymax, xmax] normalized to 0-1000, or null when no person is in the frame" };
@@ -138,7 +142,7 @@ export function parseMaskReply(text: string, sent: readonly number[]): Map<numbe
   const out = new Map<number, Mask>();
   for (const e of list) {
     const m = e["mask"];
-    if (!Array.isArray(m) || m.length < 3 || !isPerson(e["label"])) continue;
+    if (!Array.isArray(m) || m.length < 3 || m.length > TRACK_MASK_MAX_POINTS || !isPerson(e["label"])) continue;
     if (!m.every((p) => Array.isArray(p) && p.length === 2 && scaled(p[0]) && scaled(p[1]))) continue;
     out.set(e["t"] as number, (m as [number, number][]).map(([y, x]) => [y, x] as const));
   }
@@ -195,8 +199,11 @@ export type TrackSent = { frames: number; outlineFrames: number };
 export type TrackReadOutcome =
   /** sent: present once any frame has left, so the receipt can say what was sent before the stop. */
   | { kind: "refused"; message: string; sent?: TrackSent }
-  /** max_tokens: a box reply stopped at its token cap; invalid: a box reply broke a rule; error: the call failed (`status` when the SDK gave one). */
-  | { kind: "failed"; reason: "max_tokens" | "invalid" | "error"; status?: number; sent?: TrackSent }
+  /**
+   * max_tokens: a box reply stopped at its token cap; invalid: a box reply broke a rule; error: the call failed
+   * (`status` when the SDK gave one); too_long: the window holds more than TRACK_MAX_FRAMES frames (nothing taken or sent).
+   */
+  | { kind: "failed"; reason: "max_tokens" | "invalid" | "error" | "too_long"; status?: number; sent?: TrackSent }
   /** framesSent: the frames that left this laptop for the box read (the outline read sends some of them again). */
   | { kind: "read"; track: Track; framesSent: number; maskFramesSent: number; route: RouteRecord };
 
@@ -217,6 +224,20 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
   const spent = (): { sent?: TrackSent } => (sent > 0 ? { sent: { frames: sent, outlineFrames: maskFramesSent } } : {});
   const stop = (message: string): TrackReadOutcome => ({ kind: "refused", message: sent === 0 ? message : stoppedMessage(message, sent), ...spent() });
   const fail = (reason: "max_tokens" | "invalid"): TrackReadOutcome => ({ kind: "failed", reason, ...spent() });
+  // A call counts as sent once the service answered it: a reply, or an error that carries the service's status. One
+  // that failed before it left (offline, no token) sent nothing.
+  const answered = (e: unknown) => typeof (e as { customErrorData?: { status?: unknown } } | null)?.customErrorData?.status === "number";
+  const call = async (send: () => Promise<TrackReply>, count: () => void): Promise<TrackReply> => {
+    let reply: TrackReply;
+    try {
+      reply = await send();
+    } catch (e) {
+      if (answered(e)) count();
+      throw e;
+    }
+    count();
+    return reply;
+  };
   const deleted = () => !!r.stillCurrent && !r.stillCurrent();
   const halt = (): string | null => (deleted() ? MEDIA_DELETED : r.killCloud() ? PAUSED : null);
   // The clip's record from the server, read again before every call and after the last reply: it must still hold
@@ -250,6 +271,8 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
   try {
     const times = trackFrameTimes(window, r.durationS, r.frameS);
     if (times.length === 0) return { kind: "failed", reason: "invalid" };
+    // A track the rules would refuse is never read: nothing is decoded or sent.
+    if (times.length > TRACK_MAX_FRAMES) return { kind: "failed", reason: "too_long" };
     const frames: { t: number; jpeg: string }[] = [];
     for (const f of times) frames.push({ t: f.t, jpeg: await deps.frameJpeg(f.atS) });
 
@@ -260,8 +283,7 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
     for (const part of chunks(frames, TRACK_BOX_FRAMES_PER_CALL)) {
       const why = await checked();
       if (why) return stop(why);
-      sent += part.length;
-      const reply = await deps.boxes(trackParts(part, false));
+      const reply = await call(() => deps.boxes(trackParts(part, false)), () => (sent += part.length));
       if (deleted()) return stop(MEDIA_DELETED);
       reported &&= reply.inferenceSource !== undefined;
       onDevice ||= reply.inferenceSource === "on_device";
@@ -280,8 +302,7 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
         const why = await checked();
         if (why) return stop(why);
         try {
-          maskFramesSent += part.length;
-          const reply = await deps.masks(trackParts(part, true));
+          const reply = await call(() => deps.masks(trackParts(part, true)), () => (maskFramesSent += part.length));
           if (deleted()) return stop(MEDIA_DELETED);
           if (reply.finishReason === "MAX_TOKENS") continue;
           for (const [t, m] of parseMaskReply(reply.text, part.map((f) => f.t)) ?? []) masks.set(t, m);

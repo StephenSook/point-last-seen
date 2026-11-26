@@ -10,6 +10,7 @@ import type { LatLon } from "../map/geo";
 import { ClipIntake, type ClipIntakeInput, type ReadHow } from "./ClipIntake";
 import type { TriageResult } from "./triage";
 import { SightingCard } from "./SightingCard";
+import { trackStoppedLine } from "./timeMachine";
 
 export type ClipRead = Extract<ClipReadOutcome, { kind: "read" }>;
 
@@ -19,11 +20,14 @@ export type ClipRead = Extract<ClipReadOutcome, { kind: "read" }>;
  */
 export type TrackView =
   | { status: "reading" }
-  | { status: "ready"; track: Track; durationS: number; sent?: TrackSent }
+  /** saved: whether this seat's new track was stored (absent for a stored track). */
+  | { status: "ready"; track: Track; durationS: number; sent?: TrackSent; saved?: Promise<boolean> }
   | { status: "failed"; message: string; durationS: number | null; sent?: TrackSent };
 
 export const TRACK_FAILED = "The person's track could not be read. The time machine shows the clearest frame.";
 export const MEDIA_DELETED_NOTICE = "This search's clips and photos were deleted. Give the consents again to read a clip.";
+export const TRACK_NOT_SAVED = "The track was not saved, so another seat will read its own.";
+export const TRACK_TOO_LONG = "This clip is too long to track (more than two minutes). The time machine shows the clearest frame.";
 
 type Props = {
   camera: LatLon | null;
@@ -41,11 +45,17 @@ type Props = {
   onTrack?: (read: ClipRead, input: ClipIntakeInput, how: ReadHow) => Promise<TrackView>;
   /** Remote Config time_machine_enabled: whether the card offers the time machine. */
   timeMachine?: boolean;
+  /** A track read that stopped after this panel closed, with what had already left (the post says it). */
+  onTrackStopped?: (sent: TrackSent) => void;
 };
 
-export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onTriage, onConfirm, onClose, revocation, onTrack, timeMachine = false }: Props) {
+export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onTriage, onConfirm, onClose, revocation, onTrack, timeMachine = false, onTrackStopped }: Props) {
   const [read, setRead] = useState<{ o: ClipRead; input: ClipIntakeInput } | null>(null);
   const [track, setTrack] = useState<TrackView | null>(null);
+  const [trackUnsaved, setTrackUnsaved] = useState(false);
+  // What a track read stopped by a delete had already sent, said under the delete notice.
+  const [stoppedSent, setStoppedSent] = useState<TrackSent | null>(null);
+  const mounted = useRef(true);
   const [sent, setSent] = useState<number | null>(null);
   // The version the server acknowledged; a queued local write moves the local version at once.
   const [acked, setAcked] = useState<number | null>(null);
@@ -66,6 +76,8 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
     if (revocation === lastRevocation.current) return;
     lastRevocation.current = revocation;
     epoch.current++;
+    // A Confirm still waiting on its write no longer belongs to any card: its late result is dropped.
+    latest.current++;
     if (read) setDeleted(true);
     setRead(null);
     setTrack(null);
@@ -74,12 +86,23 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
     setError(null);
     setNote(null);
   }, [revocation, read]);
-  useEffect(() => () => void epoch.current++, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      epoch.current++;
+    };
+  }, []);
 
   if (!read) {
     return (
       <>
-      {deleted && <p className="muted small" role="status">{MEDIA_DELETED_NOTICE}</p>}
+      {deleted && (
+        <p className="muted small" role="status">
+          {MEDIA_DELETED_NOTICE}
+          {stoppedSent ? ` ${trackStoppedLine(stoppedSent)}` : ""}
+        </p>
+      )}
       <ClipIntake
         revocation={revocation}
         camera={camera}
@@ -92,12 +115,25 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
           const o = await onRead(input, how);
           if (o.kind !== "read" || at !== epoch.current) return o;
           setDeleted(false);
+          setStoppedSent(null);
+          setTrackUnsaved(false);
           setRead({ o, input });
           if (onTrack && machineOn.current) {
             const current = () => at === epoch.current && (how?.stillCurrent?.() ?? true);
             setTrack({ status: "reading" });
             onTrack(o, input, { ...how, stillCurrent: current }).then(
-              (v) => current() && setTrack(v),
+              (v) => {
+                if (current()) {
+                  setTrack(v);
+                  if (v.status === "ready") v.saved?.then((ok) => !ok && current() && setTrackUnsaved(true));
+                  return;
+                }
+                // The card is gone; a read that had sent frames before it stopped still says so.
+                const s = v.status !== "reading" ? v.sent : undefined;
+                if (!s) return;
+                if (mounted.current) setStoppedSent(s);
+                else onTrackStopped?.(s);
+              },
               () => current() && setTrack({ status: "failed", message: TRACK_FAILED, durationS: null }),
             );
           }
@@ -143,6 +179,7 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
         route={read.o.route}
         sentBytes={read.o.sentBytes}
         track={track}
+        trackNote={trackUnsaved ? TRACK_NOT_SAVED : null}
         timeMachine={timeMachine}
       />
       {sent === null ? (

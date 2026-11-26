@@ -1,0 +1,129 @@
+{
+  "what": "One-time seed of the practice clip's track on three drill searches, through the deployed command post (Add camera clip, the three consents, Read clip; the track read then runs on its own). Nothing was confirmed, so no event or prior changed.",
+  "site": "https://buildhybridai-2026-yg3m.web.app (commit 90fb074d)",
+  "clip": {
+    "sha256": "28fffd2082fd48ea50709b94c8d37b823d2613dc5997adffda1117136483ddfb",
+    "is": "the blurred copy of the team's porch clip (plates and house numbers pixelated); the script refused any other file by hash",
+    "durationS": 9,
+    "bytes": 8113572
+  },
+  "model": "gemini-3.5-flash-lite (sighting read through server template pls-clip-read-v1 when one ran)",
+  "runs": {
+    "drill-kennesaw-1": {
+      "readingReused": true,
+      "aiCalls": [
+        {
+          "kind": "boxes",
+          "framesSent": 10,
+          "status": 200,
+          "promptTokens": 11135,
+          "outputTokens": 582
+        },
+        {
+          "kind": "outlines",
+          "framesSent": 6,
+          "status": 200,
+          "promptTokens": 6757,
+          "outputTokens": 1089
+        },
+        {
+          "kind": "outlines",
+          "framesSent": 4,
+          "status": 200,
+          "promptTokens": 4551,
+          "outputTokens": 912
+        }
+      ],
+      "trackStoredOnServer": true,
+      "receipt": [
+        "The sighting was read before; the clip was not sent again for it.",
+        "Ran: in the cloud (reported by the SDK).",
+        "Sent for the sighting: nothing now; it came from an earlier read of the same clip.",
+        "10 frames of the clip left this laptop for the cloud. 10 of them were sent again for the outlines."
+      ],
+      "atUtc": "2026-11-26T07:28:15.960Z"
+    },
+    "drill-judge-1": {
+      "readingReused": false,
+      "aiCalls": [
+        {
+          "kind": "sighting",
+          "framesSent": 0,
+          "status": 200,
+          "promptTokens": 702,
+          "outputTokens": 210
+        },
+        {
+          "kind": "boxes",
+          "framesSent": 10,
+          "status": 200,
+          "promptTokens": 11135,
+          "outputTokens": 588
+        },
+        {
+          "kind": "outlines",
+          "framesSent": 6,
+          "status": 200,
+          "promptTokens": 6757,
+          "outputTokens": 1026
+        },
+        {
+          "kind": "outlines",
+          "framesSent": 4,
+          "status": 200,
+          "promptTokens": 4551,
+          "outputTokens": 888
+        }
+      ],
+      "trackStoredOnServer": true,
+      "receipt": [
+        "Ran: in the cloud (reported by the SDK).",
+        "Sent: 10,818,096 bytes of the clip, as base64.",
+        "10 frames of the clip left this laptop for the cloud. 10 of them were sent again for the outlines."
+      ],
+      "atUtc": "2026-11-26T07:29:10.680Z"
+    },
+    "drill-dev-1": {
+      "readingReused": false,
+      "aiCalls": [
+        {
+          "kind": "sighting",
+          "framesSent": 0,
+          "status": 200,
+          "promptTokens": 702,
+          "outputTokens": 215
+        },
+        {
+          "kind": "boxes",
+          "framesSent": 10,
+          "status": 200,
+          "promptTokens": 11135,
+          "outputTokens": 592
+        },
+        {
+          "kind": "outlines",
+          "framesSent": 6,
+          "status": 200,
+          "promptTokens": 6757,
+          "outputTokens": 918
+        },
+        {
+          "kind": "outlines",
+          "framesSent": 4,
+          "status": 200,
+          "promptTokens": 4551,
+          "outputTokens": 888
+        }
+      ],
+      "trackStoredOnServer": true,
+      "receipt": [
+        "Ran: in the cloud (reported by the SDK).",
+        "Sent: 10,818,096 bytes of the clip, as base64.",
+        "10 frames of the clip left this laptop for the cloud. 10 of them were sent again for the outlines."
+      ],
+      "atUtc": "2026-11-26T07:29:40.773Z"
+    }
+  },
+  "checkedAfter": "Each search's clipReadings and clipTracks records and its Storage object were read back from the server (Firestore and Storage REST, read-only): reading present, track with 10 entries and framesSent 10, object 8,113,572 bytes, video/mp4.",
+  "perFrame": "Box call: 11,135 prompt tokens for 10 frames at 960 px plus the instruction, about 1,100 per frame, as the spike measured."
+}

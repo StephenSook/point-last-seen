@@ -71,3 +71,18 @@ same consented window), all in one request with "t=<second>" before each frame, 
 `400c33942c3d10b0ddac1f5eaa9aa16a063baa87eb64f06999b4a62bcfd77c34`) and
 `2026-11-26-clip-track-frames-doorbell-masks.jpg` (outlines; SHA-256
 `f1fab9e8e1d28e019e0ee365b7f17ad888db3f2e88e904d4558412302420362a`) are the team clip's sheets.
+
+## The practice clip's track, seeded on three drill searches: 2026-11-26
+
+`2026-11-26-clip-track-seeds.json` records the one time the deployed command post (commit 90fb074d) read the
+practice clip's track on drill-kennesaw-1, drill-judge-1 and drill-dev-1, through the product: Add camera clip, the
+three consents, Read clip, and the track read that follows on its own. Nothing was confirmed, so no event or prior
+changed.
+
+- The clip is only the blurred copy of the team's porch clip (SHA-256 `28fffd20...ddfb`); the run refused any other
+  file by hash.
+- drill-kennesaw-1 already held the clip's reading, so only the track read called the model: 10 frames for the
+  boxes, then 6 and 4 of them again for the outlines. drill-judge-1 and drill-dev-1 had no reading, so the clip was
+  read once first.
+- The box call's prompt was 11,135 tokens for 10 frames, about 1,100 per frame, as spike 2 measured.
+- Afterwards each search's reading, its track (10 entries) and its clip in Storage were read back from the server.

@@ -74,6 +74,8 @@ export const createClock: CreateClock = ({ durationS }) => {
 /** The shortcuts are scoped to the focused video element. */
 export const bindVideo: BindVideo = (clock, video) => {
   let queuedSeek: number | undefined;
+  // True while a seek this binding started is in flight, so its "seeked" is not taken for the player's own.
+  let ownSeek = false;
   let previousFrame: VideoFrameCallbackMetadata | undefined;
   let frameId: number | undefined;
   const reportFrameS = frameTiming.get(clock);
@@ -90,12 +92,22 @@ export const bindVideo: BindVideo = (clock, video) => {
     queuedSeek = undefined;
     if (video.currentTime !== timeS) {
       resetFrameTiming();
+      ownSeek = true;
       video.currentTime = timeS;
     }
   }
 
   function onSeeked() {
-    if (queuedSeek !== undefined) seek(queuedSeek);
+    if (queuedSeek !== undefined) {
+      seek(queuedSeek);
+      return;
+    }
+    if (ownSeek) {
+      ownSeek = false;
+      return;
+    }
+    // A seek with the player's own controls while paused plays no frame, so the clock follows it here.
+    if (video.paused && clock.now().source !== "tween") clock.set(video.currentTime, "video");
   }
 
   const onFrame: VideoFrameRequestCallback = (_now, metadata) => {

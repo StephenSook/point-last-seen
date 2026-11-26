@@ -2,11 +2,18 @@ import { randomUUID } from "node:crypto";
 import type { Auth } from "firebase-admin/auth";
 import { Timestamp, type DocumentData, type DocumentReference, type Firestore } from "firebase-admin/firestore";
 import { HttpsError, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { logIncidentId } from "./logId.js";
+import { practiceReading, practiceTrack, type ClipStore } from "./practiceClip.js";
 
 /** The label every practice incident carries, shown wherever the drill label is shown. */
 export const JUDGE_LABEL = "Training drill. Practice search; nobody is missing.";
 /** The incident a practice search is copied from: the development drill on the Piedmont Park grid (OpenStreetMap). */
 export const JUDGE_SEED_INCIDENT = "drill-dev-1";
+/**
+ * The clips a practice search may copy from the seed, by SHA-256: only the blurred copy of the team's porch clip
+ * (plates and house numbers pixelated), never the original.
+ */
+export const JUDGE_CLIP_SHA256S: readonly string[] = ["28fffd2082fd48ea50709b94c8d37b823d2613dc5997adffda1117136483ddfb"];
 /** New practice searches allowed per UTC day across all visitors (cost bound). */
 export const JUDGE_SESSIONS_PER_DAY = 50;
 
@@ -35,9 +42,15 @@ const stillSettingUp = () => refuse("unavailable", "Your practice search is stil
 
 /** The part of a BulkWriter the copy uses: each set's own promise reports that write's failure. */
 type Writer = { set(ref: DocumentReference, data: DocumentData): Promise<unknown>; close(): Promise<void> };
-/** copy: tests wrap the real copy step to delay it or make it fail; writer: tests make single writes fail. */
+/** The practice clip's two records, written together or not at all. */
+type ClipDocs = { ref: DocumentReference; data: DocumentData }[];
+/**
+ * copy: tests wrap the real copy step to delay it or make it fail; writer: tests make single writes fail. clipStore:
+ * where the practice clip's file goes (bucketClipStore in production); without it no clip is copied. clipSha256s:
+ * tests list their own clip; writeClipDocs: tests make the clip's records fail to write.
+ */
 type Config = { seedIncidentId: string; perDay: number; copy?: (copy: () => Promise<void>) => Promise<void>; writer?: () => Writer;
-  beforeClaims?: () => Promise<void> };
+  beforeClaims?: () => Promise<void>; clipStore?: ClipStore; clipSha256s?: readonly string[]; writeClipDocs?: (docs: ClipDocs) => Promise<void> };
 
 /**
  * Gives the command role on a practice search, but only while it is still the visitor's attempt (judgeUsers/{uid}),
@@ -82,6 +95,40 @@ async function copyFrom(seed: DocumentReference, to: DocumentReference, makeWrit
 }
 
 /**
+ * The practice clip, after the rest of the copy: optional, so nothing here stops the practice search from starting.
+ * Its records are read and checked first (practiceClip.ts: the judge-page consent, the fixed schema), then its file
+ * is copied (its bytes checked against its SHA-256), then its reading and track are written together; when they
+ * cannot be written, the copied file is removed again.
+ */
+async function copyPracticeClips(seed: DocumentReference, to: DocumentReference, nowMs: number, store: ClipStore | undefined,
+  shas: readonly string[], writeDocs: (docs: ClipDocs) => Promise<void>): Promise<void> {
+  if (!store) return;
+  const attemptEnds = (await to.get().catch(() => null))?.get("expiresAt");
+  for (const sha of shas) {
+    const path = `clips/${to.id}/${sha}.mp4`;
+    let copied = false;
+    try {
+      const [reading, track] = await Promise.all([seed.collection("clipReadings").doc(sha).get(), seed.collection("clipTracks").doc(sha).get()]);
+      // Every skip says why in the log, so a practice search with no clip is never a silent one.
+      const log = (fields: Record<string, string>) => console.log(JSON.stringify({ event: "startJudgeSession", incidentId: logIncidentId(to.id), ...fields }));
+      const r = reading.exists ? practiceReading(reading.data()!, sha, path, attemptEnds, Math.max(nowMs, Date.now())) : { skip: "no_reading" };
+      if ("skip" in r) {
+        log({ practice_clip_skipped: r.skip });
+        continue;
+      }
+      const t = track.exists ? practiceTrack(track.data()!, sha) : { skip: "no_track" };
+      if ("skip" in t) log({ practice_track_skipped: t.skip });
+      await store.copy(`clips/${seed.id}/${sha}.mp4`, path, sha);
+      copied = true;
+      await writeDocs([{ ref: to.collection("clipReadings").doc(sha), data: r.data }, ...("data" in t ? [{ ref: to.collection("clipTracks").doc(sha), data: t.data }] : [])]);
+    } catch {
+      console.log(JSON.stringify({ event: "startJudgeSession", incidentId: logIncidentId(to.id), clip: "not_copied" }));
+      if (copied) await store.remove(path).catch(() => undefined);
+    }
+  }
+}
+
+/**
  * Whether a sandbox holds the seed's whole copy: every one of the seed's segment and team ids, and the shared profile
  * if the seed has one. With no seed there is nothing to check against, so nothing is promoted.
  */
@@ -97,7 +144,8 @@ async function copyIsComplete(seed: DocumentReference, to: DocumentReference): P
 
 /**
  * startJudgeSession (callable): a signed-in visitor gets their own practice incident, copied from the seed drill (its
- * grid, prior, teams and shared profile; never its events, command profile or consent records), labelled as a training
+ * grid, prior, teams and shared profile, and the blurred practice clip with its reading and track; never its events,
+ * command profile, or any other clip or consent record), labelled as a training
  * drill, ending 24 hours after it starts, with the command role on it. A visitor who returns while it is live gets the
  * same one. A new one is allowed once an hour per visitor and within a daily cap across all visitors.
  *
@@ -193,7 +241,15 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
 
   const ref = db.doc(`incidents/${buildId}`);
   const stillOwner = async () => (await ref.get()).get("setupId") === setupId;
-  const copy = () => copyFrom(seedRef, ref, cfg.writer ?? (() => db.bulkWriter()), stillOwner);
+  const writeClipDocs = cfg.writeClipDocs ?? (async (docs: ClipDocs) => {
+    const batch = db.batch();
+    for (const d of docs) batch.set(d.ref, d.data);
+    await batch.commit();
+  });
+  const copy = async () => {
+    await copyFrom(seedRef, ref, cfg.writer ?? (() => db.bulkWriter()), stillOwner);
+    await copyPracticeClips(seedRef, ref, nowMs, cfg.clipStore, cfg.clipSha256s ?? JUDGE_CLIP_SHA256S, writeClipDocs);
+  };
   // Finishes or lets go of the setup, but only while this call still owns it (a later start may have replaced it).
   const settle = (fields: Record<string, unknown>) => db.runTransaction(async tx => {
     if ((await tx.get(ref)).get("setupId") === setupId) tx.update(ref, fields);
@@ -205,7 +261,7 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     throw e;
   }
   await settle({ setupReady: true });
-  console.log(JSON.stringify({ event: "startJudgeSession", incidentId: buildId, seed: cfg.seedIncidentId }));
+  console.log(JSON.stringify({ event: "startJudgeSession", incidentId: logIncidentId(buildId), seed: cfg.seedIncidentId }));
   return giveCommand(db, auth, uid, buildId, nowMs, cfg.beforeClaims);
 }
 

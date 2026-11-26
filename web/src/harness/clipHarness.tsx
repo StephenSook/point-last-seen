@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import type { ClipReadOutcome } from "../ai/clipRead";
 import type { TriageResult } from "../camera/triage";
 import { CameraClipPanel, TRACK_FAILED, type TrackView } from "../camera/CameraClipPanel";
+import { trackStoppedLine } from "../camera/timeMachine";
 import type { ClipIntakeInput } from "../camera/ClipIntake";
 import { segmentChoices, segmentContaining, type LatLon } from "../map/geo";
 import "../theme/fonts.css";
@@ -54,9 +55,13 @@ const TRACK: TrackView = {
 const slowTriage = params.get("slowtriage") === "1";
 let finishTriage: (() => void) | null = null;
 // ?track=slow: the track read answers only on "Track finishes", and the page records whether the job was still
-// current then. ?slowread=1: the sighting read answers only on "Read finishes".
+// current then. ?track=slowsent: the same, and it answers as a read that stopped after 6 frames left.
+// ?track=savefail: the track is read but its write is refused. ?slowread=1: the sighting read answers only on "Read finishes".
 const slowRead = params.get("slowread") === "1";
 let finishTrack: (() => void) | null = null;
+// ?ack=slowfail: Confirm's write is refused only on "Ack fails", so a delete can land before the refusal.
+const slowAckFail = params.get("ack") === "slowfail";
+let failAck: (() => void) | null = null;
 let finishRead: (() => void) | null = null;
 
 function Harness() {
@@ -72,10 +77,13 @@ function Harness() {
   const [machineOn, setMachineOn] = useState(true);
   const [trackCalls, setTrackCalls] = useState(0);
   const [trackCurrent, setTrackCurrent] = useState("");
+  // Discard and Done close the panel, as the command post does; a track read that stopped later is reported here.
+  const [open, setOpen] = useState(true);
+  const [stopped, setStopped] = useState("");
   return (
     <main style={{ width: trackMode ? 1100 : 340, padding: 16 }}>
       <p className="drill">Synthetic test grid and clip, not drill data.</p>
-      <CameraClipPanel
+      {open && <CameraClipPanel
         camera={camera}
         cameraSegmentId={camera ? segmentContaining(camera, HARNESS_SEGMENTS) : null}
         choices={segmentChoices(HARNESS_SEGMENTS)}
@@ -93,21 +101,25 @@ function Harness() {
         }}
         onConfirm={(o, input) => {
           setConfirmed(JSON.stringify({ sha256: o.sha256, bearingDeg: o.bearingDeg, camera: input.camera }));
-          return { version: 8, ack: Promise.resolve(), ...(new URLSearchParams(location.search).has("note") ? { note: "Rebuilt without downhill and level ground: the new start is outside the mapped segments." } : {}) };
+          const ack = slowAckFail ? new Promise<void>((_resolve, reject) => (failAck = () => reject(new Error("refused")))) : Promise.resolve();
+          return { version: 8, ack, ...(new URLSearchParams(location.search).has("note") ? { note: "Rebuilt without downhill and level ground: the new start is outside the mapped segments." } : {}) };
         }}
-        onClose={() => {}}
+        onClose={() => setOpen(false)}
+        onTrackStopped={(sent) => setStopped(trackStoppedLine(sent))}
         revocation={revocation}
         timeMachine={trackMode !== null && machineOn}
         onTrack={trackMode ? async (_o, _input, h) => {
           setTrackCalls((n) => n + 1);
-          if (trackMode === "slow") {
+          if (trackMode === "slow" || trackMode === "slowsent") {
             await new Promise<void>((resolve) => (finishTrack = resolve));
             setTrackCurrent(String(h.stillCurrent?.() ?? "unset"));
           }
+          if (trackMode === "slowsent") return { status: "failed", message: TRACK_FAILED, durationS: 6, sent: { frames: 6, outlineFrames: 0 } };
+          if (trackMode === "savefail") return { ...TRACK, saved: Promise.resolve(false) };
           if (trackMode === "failsent") return { status: "failed", message: TRACK_FAILED, durationS: 6, sent: { frames: 6, outlineFrames: 0 } };
           return trackMode === "fail" ? { status: "failed", message: TRACK_FAILED, durationS: 6 } : TRACK;
         } : undefined}
-      />
+      />}
       <button type="button" onClick={() => setRevocation((n) => n + 1)}>
         Media deleted
       </button>
@@ -117,6 +129,9 @@ function Harness() {
       <button type="button" onClick={() => finishTrack?.()}>
         Track finishes
       </button>
+      <button type="button" onClick={() => failAck?.()}>
+        Ack fails
+      </button>
       <button type="button" onClick={() => finishRead?.()}>
         Read finishes
       </button>
@@ -125,6 +140,7 @@ function Harness() {
       </button>
       <pre data-testid="track-calls">{trackCalls}</pre>
       <pre data-testid="track-current">{trackCurrent}</pre>
+      <pre data-testid="stopped">{stopped}</pre>
       <pre data-testid="confirmed">{confirmed}</pre>
       <pre data-testid="how">{how}</pre>
       <pre data-testid="calls">{calls}</pre>

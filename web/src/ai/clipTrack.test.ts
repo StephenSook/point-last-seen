@@ -11,6 +11,7 @@ import {
   readClipTrack,
   TRACK_BOX_FRAMES_PER_CALL,
   TRACK_MASK_FRAMES_PER_CALL,
+  TRACK_MAX_FRAMES,
   trackFrameTimes,
   trackParts,
   stoppedMessage,
@@ -105,6 +106,19 @@ describe("parseTrackReply", () => {
 });
 
 describe("parseMaskReply", () => {
+  it("drops an outline of more than 16 points and keeps one of 16", () => {
+    const pts = (n: number) => Array.from({ length: n }, (_, i) => [100 + i, 200 + i]);
+    const text = JSON.stringify({
+      track: [
+        { t: 0, label: "person", box_2d: [1, 1, 9, 9], mask: pts(16) },
+        { t: 1, label: "person", box_2d: [1, 1, 9, 9], mask: pts(17) },
+      ],
+    });
+    const m = parseMaskReply(text, [0, 1]);
+    expect([...(m?.keys() ?? [])]).toEqual([0]);
+    expect(m?.get(0)).toHaveLength(16);
+  });
+
   it("keeps an outline of at least 3 points inside 0 to 1000, and drops a bad one", () => {
     const text = JSON.stringify({
       track: [
@@ -379,5 +393,60 @@ describe("a read that stops after frames left says how many", () => {
       message: "Clip reading is paused right now. The read stopped. 10 frames of the clip had already been sent to the cloud.",
       sent: { frames: 10, outlineFrames: 0 },
     });
+  });
+});
+
+describe("frames count as sent only once the service answered", () => {
+  it("does not count a box call that failed before it left, and counts the ones before it", async () => {
+    const { deps, req } = setup({ durationS: 45.2, withMasks: false, record: stored({ durationS: 45 }) });
+    let n = 0;
+    const boxes = deps.boxes;
+    deps.boxes = async (parts) => {
+      if (++n === 2) throw new Error("offline");
+      return boxes(parts);
+    };
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "error", sent: { frames: 40, outlineFrames: 0 } });
+  });
+
+  it("reports nothing sent when the first call never left", async () => {
+    const { deps, req } = setup();
+    deps.boxes = async () => {
+      throw new Error("offline");
+    };
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "error" });
+  });
+
+  it("counts an outline call the service answered with an error, and not one that never left", async () => {
+    const { deps, req } = setup({ durationS: 12, record: stored({ durationS: 12 }) });
+    let n = 0;
+    deps.masks = async () => {
+      n++;
+      if (n === 1) throw Object.assign(new Error("busy"), { customErrorData: { status: 503 } });
+      throw new Error("offline");
+    };
+    let paused = false;
+    const o = await readClipTrack({ ...req, killCloud: () => paused }, { ...deps, confirmReading: async (sha) => {
+      if (n >= 2) paused = true;
+      return deps.confirmReading(sha);
+    } });
+    // 12 s gives 13 frames (0 to 11, and the last frame labelled 12); the first outline call of 6 was answered.
+    expect(o.kind === "refused" && o.sent).toEqual({ frames: 13, outlineFrames: 6 });
+  });
+});
+
+describe("the track's frame cap", () => {
+  it("refuses a window of more than 121 frames before taking or sending any", async () => {
+    const { deps, req, calls } = setup({ durationS: 130, record: stored({ durationS: 130 }) });
+    let frames = 0;
+    deps.frameJpeg = async () => (frames++, "x");
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "too_long" });
+    expect([calls, frames]).toEqual([[], 0]);
+    expect(TRACK_MAX_FRAMES).toBe(121);
+  });
+
+  it("reads a window of exactly 121 frames", async () => {
+    const { deps, req } = setup({ durationS: 120, record: stored({ durationS: 120 }), withMasks: false });
+    const o = await readClipTrack(req, deps);
+    expect(o.kind === "read" && o.framesSent).toBe(121);
   });
 });

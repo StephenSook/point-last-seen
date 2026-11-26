@@ -225,6 +225,19 @@ button, input, select { font: inherit; color: inherit; }
 .clip-frame { position: relative; margin-top: 4px; line-height: 0; }
 .clip-frame video { width: 100%; height: auto; display: block; }
 .clip-box { position: absolute; border: 2px solid var(--fg-1); box-shadow: 0 0 0 1px var(--bg-0); pointer-events: none; }
+/* The open time machine: a panel over the whole post, the clip and the 3D view side by side, stacked on a phone. */
+.clip-tm-panel { position: fixed; inset: 0; z-index: 40; overflow: auto; padding: 16px; background: var(--bg-0); }
+.clip-tm-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.clip-tm-head h2 { margin: 0; }
+.clip-tm { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
+.clip-tm .clip-frame { margin-top: 0; }
+/* In the panel the 3D view takes its column's full width; its results sit under it as buttons. */
+.clip-tm .tm-results { flex: 1 1 100%; }
+.clip-tm-status { display: grid; gap: 6px; justify-items: start; margin-bottom: 12px; }
+/* Full size, so the box's percentages stay on the picture; clipped above the player's controls band. */
+.clip-box-layer { position: absolute; inset: 0; clip-path: inset(0 0 44px 0); pointer-events: none; }
+.tm-fallback-results { display: grid; gap: 4px; margin: 8px 0 0; padding-inline-start: 1.5rem; }
+@media (max-width: 900px) { .clip-tm { grid-template-columns: minmax(0, 1fr); } }
 fieldset.facing, fieldset.consents { border: 0; padding: 0; margin: 0; display: grid; gap: 2px; }
 fieldset.facing { grid-template-columns: repeat(3, auto); }
 .flags { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
