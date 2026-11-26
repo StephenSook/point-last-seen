@@ -49,11 +49,12 @@ function entryFrom(v: unknown): TrackEntry | null {
   if (!(y0! < y1! && x0! < x1!)) return null;
   if (e.source !== "cloud" && e.source !== "on_device") return null;
   const box = e.box as unknown as Box2d;
-  // An outline over 16 points (32 numbers) is not one the writer keeps: the entry stays, without it.
-  if (e.mask === undefined || (Array.isArray(e.mask) && e.mask.length > 32)) return { t: e.t, box, source: e.source };
-  if (!Array.isArray(e.mask) || e.mask.length < 6 || e.mask.length % 2 !== 0 || !e.mask.every(scaled)) return null;
+  // An outline the writer would not keep (fewer than 3 or more than 16 points, an odd count, a number not on 0 to
+  // 1000) is dropped and the entry stays, with its box.
+  const flat = e.mask;
+  if (!Array.isArray(flat) || flat.length < 6 || flat.length > 32 || flat.length % 2 !== 0 || !flat.every(scaled)) return { t: e.t, box, source: e.source };
   const mask: [number, number][] = [];
-  for (let i = 0; i < e.mask.length; i += 2) mask.push([e.mask[i]!, e.mask[i + 1]!]);
+  for (let i = 0; i < flat.length; i += 2) mask.push([flat[i]!, flat[i + 1]!]);
   return { t: e.t, box, source: e.source, mask: mask as Mask };
 }
 

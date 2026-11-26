@@ -106,16 +106,17 @@ export function practiceReading(d: DocumentData, sha256: string, storagePath: st
 }
 
 /**
- * One track entry rebuilt from its own fields (t, box, source, an optional flat outline), or null. An outline over 16
- * points (32 numbers) is dropped and the entry kept, as the writer and the reader do.
+ * One track entry rebuilt from its own fields (t, box, source, an optional flat outline), or null when its time, box
+ * or source is bad. An outline that breaks the outline rules (fewer than 3 or more than 16 points, an odd count, a
+ * number not on 0 to 1000) is dropped and the entry kept, as the writer and the reader do.
  */
 function practiceEntry(v: unknown): Record<string, unknown> | null {
   const e = v as Record<string, unknown> | null;
   if (!e || typeof e !== "object" || !Number.isInteger(e["t"]) || (e["t"] as number) < 0 || !ordered(e["box"])) return null;
   if (e["source"] !== "cloud" && e["source"] !== "on_device") return null;
   const mask = e["mask"];
-  if (mask === undefined || (Array.isArray(mask) && mask.length > 32)) return { t: e["t"], box: [...(e["box"] as number[])], source: e["source"] };
-  if (!Array.isArray(mask) || mask.length < 6 || mask.length % 2 !== 0 || !mask.every(scaled)) return null;
+  const outlineOk = Array.isArray(mask) && mask.length >= 6 && mask.length <= 32 && mask.length % 2 === 0 && mask.every(scaled);
+  if (!outlineOk) return { t: e["t"], box: [...(e["box"] as number[])], source: e["source"] };
   return { t: e["t"], box: [...(e["box"] as number[])], source: e["source"], mask: [...mask] };
 }
 

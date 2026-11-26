@@ -25,6 +25,16 @@ describe("clipTrackDoc", () => {
 });
 
 describe("clipTrackFromDoc", () => {
+  it("keeps an entry whose outline breaks the outline rules (an odd count, NaN, a point past 1000), without the outline", () => {
+    const d = clipTrackDoc({ sha256: SHA, track: TRACK, model: "gemini-3.5-flash-lite", route: ROUTE, framesSent: 10, uid: "u1" });
+    const t = clipTrackFromDoc({ ...d, entries: [
+      { t: 0, box: [1, 2, 3, 4], source: "cloud", mask: [1, 2, 3, 4, 5, 6, 7] },
+      { t: 1, box: [1, 2, 3, 4], source: "cloud", mask: [1, 2, Number.NaN, 4, 5, 6] },
+      { t: 2, box: [1, 2, 3, 4], source: "cloud", mask: [1, 2, 3, 4, 5, 1200] },
+    ], createdAt: { toMillis: () => 5 } });
+    expect(t?.track.entries).toEqual([0, 1, 2].map((n) => ({ t: n, box: [1, 2, 3, 4], source: "cloud" })));
+  });
+
   it("keeps an entry whose outline has more than 16 points, without the outline", () => {
     const d = clipTrackDoc({ sha256: SHA, track: TRACK, model: "gemini-3.5-flash-lite", route: ROUTE, framesSent: 10, uid: "u1" });
     const long = Array.from({ length: 34 }, (_, i) => 100 + i);
@@ -41,12 +51,10 @@ describe("clipTrackFromDoc", () => {
   it.each([
     ["another version", { version: "track-v2" }],
     ["a box with three numbers", { entries: [{ t: 0, box: [1, 2, 3], source: "cloud" }] }],
-    ["an outline with an odd count", { entries: [{ t: 0, box: [1, 2, 3, 4], source: "cloud", mask: [1, 2, 3, 4, 5, 6, 7] }] }],
     ["times out of order", { entries: [{ t: 2, box: [1, 2, 3, 4], source: "cloud" }, { t: 1, box: [1, 2, 3, 4], source: "cloud" }] }],
     ["an unknown source", { entries: [{ t: 0, box: [1, 2, 3, 4], source: "guess" }] }],
     ["a box number past 1000", { entries: [{ t: 0, box: [1, 2, 1003, 4], source: "cloud" }] }],
     ["a box with its corners swapped", { entries: [{ t: 0, box: [900, 2, 100, 4], source: "cloud" }] }],
-    ["an outline point past 1000", { entries: [{ t: 0, box: [1, 2, 3, 4], source: "cloud", mask: [1, 2, 3, 4, 5, 1200] }] }],
     ["an entry after the window's end", { entries: [{ t: 10, box: [1, 2, 3, 4], source: "cloud" }] }],
     ["an entry before the window's start", { window: { startS: 2, endS: 9 }, entries: [{ t: 1, box: [1, 2, 3, 4], source: "cloud" }] }],
   ])("gives null for %s", (_why, over) => {
