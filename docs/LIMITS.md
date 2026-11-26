@@ -528,7 +528,9 @@ each line says what the limit is and why.
   the offline download, so offline the time machine shows the clip, its box and the result buttons only.
 - A judge practice search copies one clip only: the blurred copy of the team's porch clip (its bytes checked against
   its SHA-256), and only while the seed's reading of it carries the "Public use, film or judge page" consent; its
-  reading and track are copied field by field, with no seed account named.
+  reading and track are copied field by field, with no seed account named. A practice search ended early keeps
+  that copy readable to its own judge until the practice search expires: it is the same reviewed clip every practice
+  search gets, and ended practice searches are swept a day after they expire.
 - A clip deleted from Storage alone leaves its track until the clip's reading expires; the time machine needs the
   clip, so it does not open in the meantime.
 

@@ -3510,3 +3510,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/e2e/extras/timemachine.spec.ts` keeps 30 fps as the check on real hardware (this Mac and ci-local's run) and asserts a sanity floor of 20 fps only on GitHub Actions (`GITHUB_ACTIONS`), whose shared runners draw WebGL without a GPU: one run measured 26.5 fps with no change to the code it checks. 20 still fails a stalled or frozen loop.
 - Source: review of the CI run (a frame-rate floor on a shared runner flakes).
 - Verified: the check passes locally at the 30 fps floor (CI=1, Playwright's Chromium, as ci-local runs it); the Actions run is the next push.
+
+### docs: a practice search ended early keeps its practice clip until it expires
+- What: `docs/LIMITS.md`: ending a practice search early leaves its copied practice clip readable to its own judge until the practice search expires; it is the same reviewed clip every practice search gets, and ended practice searches are swept a day after they expire.
+- Source: review of the judge practice search copy (accepted as a known limit).
+- Verified: the line matches `deleteEndedSandboxMedia` and `liveFor` in the rules.
