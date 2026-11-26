@@ -3495,3 +3495,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: While the time machine panel is open, every other part of the page is made `inert` (only what the panel made inert is restored on Close), and the panel is `aria-modal`: Tab and Shift+Tab stay in the panel (or leave for the browser's own controls, as with a native modal dialog), and no hidden control of the command post can be focused or pressed. The video's own controls are in the panel.
 - Source: review of the time machine panel (focus could leave the full-window panel for hidden controls).
 - Verified: new harness case (Close focused, aria-modal set, 4 Shift+Tab and 12 Tab never reach the post, #root inert while open and not after Close) failed on the previous panel, then passed (clip harness 45, stored-clips 4); typecheck clean.
+
+### docs: the practice clip's copy needs the judge-page consent
+- What: `docs/LIMITS.md` (Command post extras): a judge practice search copies the blurred practice clip only with its bytes checked and only while the seed's reading carries the "Public use, film or judge page" consent, field by field and with no seed account named.
+- Source: review of the judge practice search copy.
+- Verified: the line matches `functions/src/practiceClip.ts` (practiceReading, bucketClipStore).

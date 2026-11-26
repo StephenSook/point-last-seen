@@ -526,8 +526,9 @@ each line says what the limit is and why.
 - A clip's track is read only right after the clip is read, on the window that read sent. A clip read before that
   has no track opens from "Clips read for this search" on its clearest frame only. The 3D view's code is not in
   the offline download, so offline the time machine shows the clip, its box and the result buttons only.
-- A judge practice search copies one clip only: the blurred copy of the team's porch clip, with its stored reading
-  and track (measured once on three drill searches, `docs/evidence/web/2026-11-26-clip-track-seeds.json`).
+- A judge practice search copies one clip only: the blurred copy of the team's porch clip (its bytes checked against
+  its SHA-256), and only while the seed's reading of it carries the "Public use, film or judge page" consent; its
+  reading and track are copied field by field, with no seed account named.
 - A clip deleted from Storage alone leaves its track until the clip's reading expires; the time machine needs the
   clip, so it does not open in the meantime.
 
