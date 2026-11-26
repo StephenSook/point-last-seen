@@ -381,3 +381,41 @@ describe("a read that stops after frames left says how many", () => {
     });
   });
 });
+
+describe("frames count as sent only once the service answered", () => {
+  it("does not count a box call that failed before it left, and counts the ones before it", async () => {
+    const { deps, req } = setup({ durationS: 45.2, withMasks: false, record: stored({ durationS: 45 }) });
+    let n = 0;
+    const boxes = deps.boxes;
+    deps.boxes = async (parts) => {
+      if (++n === 2) throw new Error("offline");
+      return boxes(parts);
+    };
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "error", sent: { frames: 40, outlineFrames: 0 } });
+  });
+
+  it("reports nothing sent when the first call never left", async () => {
+    const { deps, req } = setup();
+    deps.boxes = async () => {
+      throw new Error("offline");
+    };
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "error" });
+  });
+
+  it("counts an outline call the service answered with an error, and not one that never left", async () => {
+    const { deps, req } = setup({ durationS: 12, record: stored({ durationS: 12 }) });
+    let n = 0;
+    deps.masks = async () => {
+      n++;
+      if (n === 1) throw Object.assign(new Error("busy"), { customErrorData: { status: 503 } });
+      throw new Error("offline");
+    };
+    let paused = false;
+    const o = await readClipTrack({ ...req, killCloud: () => paused }, { ...deps, confirmReading: async (sha) => {
+      if (n >= 2) paused = true;
+      return deps.confirmReading(sha);
+    } });
+    // 12 s gives 13 frames (0 to 11, and the last frame labelled 12); the first outline call of 6 was answered.
+    expect(o.kind === "refused" && o.sent).toEqual({ frames: 13, outlineFrames: 6 });
+  });
+});

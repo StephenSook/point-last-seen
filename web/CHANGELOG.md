@@ -3425,3 +3425,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: The copy of the practice clip's records into a practice search takes only the record's own fields (no stray field), names `practice-seed` instead of the seed's accounts in the consent marks and `createdByUid` (the marks keep when each consent was given), and ends with the practice search: its `expiresAt` is the practice search's when that comes first, so the TTL deletes the copy and the delete trigger takes its clip and track. A seed reading whose consent has already expired is not copied.
 - Source: security review of the sandbox copy (the seed's account ids reached every judge; an expired reading could be copied).
 - Verified: updated and new cases in `functions/test/judgeSession.test.ts` (the copied reading and track have exactly their own keys, the placeholder account, the practice search's expiry; an expired reading copies nothing) failed first, then passed; judgeSession and clipTracks rules 41; functions typecheck clean.
+
+### fix(web): a track call counts as sent only once the service answered it
+- What: `readClipTrack` counts a box or outline call's frames as sent after the call returns, or when it fails with the service's own status (the request reached it). A call that failed before it left (offline, no token: no status) adds nothing, so a stopped read never claims frames that did not leave.
+- Source: review of the time machine mount (frames were counted before the request went out).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (a second box call that never left keeps the count at 40; a first one that never left reports nothing; an answered outline error counts and an unanswered one does not) failed first, then passed (46).

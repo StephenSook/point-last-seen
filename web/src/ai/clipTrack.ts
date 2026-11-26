@@ -217,6 +217,20 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
   const spent = (): { sent?: TrackSent } => (sent > 0 ? { sent: { frames: sent, outlineFrames: maskFramesSent } } : {});
   const stop = (message: string): TrackReadOutcome => ({ kind: "refused", message: sent === 0 ? message : stoppedMessage(message, sent), ...spent() });
   const fail = (reason: "max_tokens" | "invalid"): TrackReadOutcome => ({ kind: "failed", reason, ...spent() });
+  // A call counts as sent once the service answered it: a reply, or an error that carries the service's status. One
+  // that failed before it left (offline, no token) sent nothing.
+  const answered = (e: unknown) => typeof (e as { customErrorData?: { status?: unknown } } | null)?.customErrorData?.status === "number";
+  const call = async (send: () => Promise<TrackReply>, count: () => void): Promise<TrackReply> => {
+    let reply: TrackReply;
+    try {
+      reply = await send();
+    } catch (e) {
+      if (answered(e)) count();
+      throw e;
+    }
+    count();
+    return reply;
+  };
   const deleted = () => !!r.stillCurrent && !r.stillCurrent();
   const halt = (): string | null => (deleted() ? MEDIA_DELETED : r.killCloud() ? PAUSED : null);
   // The clip's record from the server, read again before every call and after the last reply: it must still hold
@@ -260,8 +274,7 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
     for (const part of chunks(frames, TRACK_BOX_FRAMES_PER_CALL)) {
       const why = await checked();
       if (why) return stop(why);
-      sent += part.length;
-      const reply = await deps.boxes(trackParts(part, false));
+      const reply = await call(() => deps.boxes(trackParts(part, false)), () => (sent += part.length));
       if (deleted()) return stop(MEDIA_DELETED);
       reported &&= reply.inferenceSource !== undefined;
       onDevice ||= reply.inferenceSource === "on_device";
@@ -280,8 +293,7 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
         const why = await checked();
         if (why) return stop(why);
         try {
-          maskFramesSent += part.length;
-          const reply = await deps.masks(trackParts(part, true));
+          const reply = await call(() => deps.masks(trackParts(part, true)), () => (maskFramesSent += part.length));
           if (deleted()) return stop(MEDIA_DELETED);
           if (reply.finishReason === "MAX_TOKENS") continue;
           for (const [t, m] of parseMaskReply(reply.text, part.map((f) => f.t)) ?? []) masks.set(t, m);
