@@ -284,8 +284,8 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
         }
       }
     }
-    // Once more before anything is handed back.
-    const last = halt();
+    // After the last reply: the consent and the reading once more from the server, then the delete and the pause.
+    const last = await checked();
     if (last) return stop(last);
     const track: Track = {
       version: CLIP_TRACK_VERSION,

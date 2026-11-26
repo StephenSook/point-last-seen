@@ -3311,3 +3311,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `readClipTrack` sends every refusal through one helper. Before the first model call it keeps the reason with "Nothing was sent."; once frames have left, `stoppedMessage` gives the reason, then "The read stopped. N frames of the clip had already been sent to the cloud." with the real count of distinct frames sent (one frame is singular).
 - Source: review of the track read (a refusal after frames had left said nothing was sent).
 - Verified: new cases in `src/ai/clipTrack.test.ts` (the wording for 40 frames and for 1; a consent withdrawn between box calls says 40 frames had left) failed first, then passed; the media-deleted-during-outlines case now expects the 10 frames already sent (41).
+
+### fix(web): the track read checks with the server once more after the last reply
+- What: After the last box or outline reply, `readClipTrack` reads the clip's record from the server again (three consents, not expired, a finished reading), then checks the media delete and the pause, before it returns a track. A pause during the outline calls now stops the whole read (it used to keep the boxes).
+- Source: review of the track read (consent and reading were not checked after the final reply).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (a reading gone after the last reply; a pause during the last check; both say 10 frames had left) failed first, then passed (43).

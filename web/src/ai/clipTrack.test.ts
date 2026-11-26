@@ -354,4 +354,26 @@ describe("a read that stops after frames left says how many", () => {
       message: "The consent record for this clip was deleted. The read stopped. 40 frames of the clip had already been sent to the cloud.",
     });
   });
+
+  it("checks the consent and the reading with the server once more after the last reply", async () => {
+    const { deps, req, calls } = setup({ withMasks: false });
+    let reads = 0;
+    deps.confirmReading = async () => (++reads <= 2 ? stored() : stored({ reading: null }));
+    expect(await readClipTrack(req, deps)).toEqual({
+      kind: "refused",
+      message: "This clip has no reading yet. The read stopped. 10 frames of the clip had already been sent to the cloud.",
+    });
+    expect([calls.length, reads]).toEqual([1, 3]);
+  });
+
+  it("returns no track when reading is paused during the last check", async () => {
+    let checks = 0;
+    const { deps, req } = setup({ withMasks: false });
+    const confirm = deps.confirmReading;
+    deps.confirmReading = async (sha) => (++checks, confirm(sha));
+    expect(await readClipTrack({ ...req, killCloud: () => checks >= 3 }, deps)).toEqual({
+      kind: "refused",
+      message: "Clip reading is paused right now. The read stopped. 10 frames of the clip had already been sent to the cloud.",
+    });
+  });
 });
