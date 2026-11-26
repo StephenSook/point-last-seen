@@ -3291,3 +3291,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `firestore.rules`: `clipTracks` allows `get` (not `list`) to a member only while the clip's `clipReadings` record exists with a non-null reading, so a deleted reading hides its track at once, before the delete trigger removes it. The check is one shared function, `hasClipReading`, also used by the create rule.
 - Source: review of the track rules (a track stayed readable after its reading was deleted, until the trigger ran).
 - Verified: new case in `functions/test/rules/clipTracks.test.ts` (readable with the reading; refused as a list; refused once the reading is null or deleted) failed first (the read succeeded), then passed (7).
+
+### fix(web): a stored track is read from the server, never from this device's cache
+- What: `findClipTrack` uses `getDocFromServer`, so a track deleted on the server (or hidden because its reading was deleted) cannot come back from the offline cache. Offline, the read fails, and the card then shows the clearest frame.
+- Source: review of the track reader (the offline cache could bring back a deleted track).
+- Verified: new `src/data/clipTrackServer.test.ts` (the read goes to the server only) failed first (it read through `getDoc`), then passed; `src/data/clipTrack.test.ts` unchanged and green (8 across both files).

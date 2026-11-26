@@ -4,7 +4,7 @@
 // Firestore holds no list inside a list, so each outline is stored as a flat [y, x, y, x, ...] list.
 
 import type { RouteRecord } from "@pls/engine";
-import { doc, getDoc, serverTimestamp, setDoc, type FieldValue, type Firestore } from "firebase/firestore";
+import { doc, getDocFromServer, serverTimestamp, setDoc, type FieldValue, type Firestore } from "firebase/firestore";
 import type { Box2d, BoxSource, Mask, Track, TrackEntry } from "../extras/timemachine/types";
 
 type StoredEntry = { t: number; box: number[]; source: BoxSource; mask?: number[] };
@@ -81,7 +81,8 @@ export async function writeClipTrack(db: Firestore, incidentId: string, d: ClipT
   await setDoc(trackRef(db, incidentId, d.sha256), d);
 }
 
+/** The track as the server holds it now, never a cached copy (a deleted track must not come back from this device). */
 export async function findClipTrack(db: Firestore, incidentId: string, sha256: string): Promise<StoredClipTrack | null> {
-  const snap = await getDoc(trackRef(db, incidentId, sha256));
+  const snap = await getDocFromServer(trackRef(db, incidentId, sha256));
   return snap.exists() ? clipTrackFromDoc(snap.data()) : null;
 }
