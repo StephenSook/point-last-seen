@@ -3295,3 +3295,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `recordInference` takes an optional trace name (default `hybrid-inference`), so the clip track read records as `clip_track` with the same route-only attributes and latency metric.
 - Source: the clip time machine plan (performance trace clip_track).
 - Verified: new case in `src/telemetry/trace.test.ts` failed first (the name was fixed), then passed (4).
+
+### feat(web): the time machine's results and receipt line come from the clip's reading
+- What: `src/camera/timeMachine.ts`: `timeMachineResults` gives three rows from the reading (first seen, clearest frame, last seen, as M:SS; no leaving-edge row, since the reading's edge can be wrong), `keyFrameOf` gives the clearest frame's second and box (null for a box that is not 4 numbers in order on 0 to 1000), and `trackSentLine` gives the receipt line "N frames of the clip left this laptop for the cloud."
+- Source: the clip time machine plan (results rows and the receipt line).
+- Verified: `src/camera/timeMachine.test.ts` (4) failed first (module missing), then passed.
