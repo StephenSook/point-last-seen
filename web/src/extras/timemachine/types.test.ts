@@ -13,4 +13,10 @@ describe("the time machine contract", () => {
     const row: TimeMachineResult = { id: "first_seen", label: "First seen 0:04", timeS: 4 };
     expect([track.entries[0]?.box.length, tick.source, row.timeS]).toEqual([4, "video", 4]);
   });
+
+  it("lets an entry carry the person's outline, [y, x] points on 0 to 1000, and lets it be left out", () => {
+    const outlined: TrackEntry = { t: 2, box: [600, 650, 1000, 780], source: "cloud", mask: [[600, 700], [650, 780], [1000, 770], [1000, 655]] };
+    const boxOnly: TrackEntry = { t: 3, box: [550, 700, 1000, 840], source: "cloud" };
+    expect([outlined.mask?.length, outlined.mask?.[0], boxOnly.mask]).toEqual([4, [600, 700], undefined]);
+  });
 });
