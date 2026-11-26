@@ -3550,3 +3550,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `web/e2e/timeMachine.spec.ts` (tagged @quota: it starts one real practice search): /judge, Try a practice search, then "Clips read for this search" and Open the time machine. It checks that the only clip fetched is the practice clip (the blurred copy, by SHA-256) from the practice search's own copy, that the stored track needs no read (no Track the person) and its box shows at the clearest frame, that the 3D view is at least 560 px wide at 1440, that the page keeps 55 frames a second or more while the clip plays, that axe finds nothing in the panel, and that the whole visit made no request to an AI host.
 - Source: the clip time machine plan (the deployed e2e).
 - Verified: typecheck clean; the practice-quota guard (`src/practiceQuota.test.ts`) accepts it; first run is against the deploy that carries the practice clip copy.
+
+### test(web): the deployed time machine check proves the copied track is there
+- What: `web/e2e/timeMachine.spec.ts` also asserts the time machine panel does not say "No track was read for this clip.": with "Track the person" gone from the stored list, the check for no such button no longer proved a stored track, and the clearest frame's box shows without one too.
+- Source: the deployed run of 2026-11-26 15:50 UTC (its stored track was proved by a server read instead).
+- Verified: added after that run, so it runs on the next live run; typecheck clean and the practice-quota guard passes. The run itself passed (12.5 s) and the server read of that practice search showed the track (10 entries).

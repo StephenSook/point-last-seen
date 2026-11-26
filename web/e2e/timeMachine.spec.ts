@@ -26,7 +26,9 @@ test("a practice search opens the practice clip's time machine with its stored t
   const clipFetches = requests.filter((u) => u.includes("firebasestorage.googleapis.com") && u.includes("clips%2F"));
   expect(clipFetches.length).toBeGreaterThan(0);
   for (const u of clipFetches) expect(u).toContain(`clips%2F${incident}%2F${PRACTICE_CLIP}.mp4`);
-  // A stored track: no offer to read one, and the box is on the clock at the clearest frame.
+  // A stored track: the panel does not say there is none (a clip without one says "No track was read for this
+  // clip."), no read is offered, and the box is on the clock at the clearest frame.
+  await expect(panel.getByText("No track was read for this clip.", { exact: false })).toHaveCount(0);
   await expect(panel.getByRole("button", { name: "Track the person" })).toHaveCount(0);
   await panel.getByRole("button", { name: /^Clearest frame / }).click();
   await expect(panel.getByTestId("clip-track-box")).toBeVisible({ timeout: 10_000 });
