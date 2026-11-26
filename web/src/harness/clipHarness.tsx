@@ -53,8 +53,10 @@ const TRACK: TrackView = {
 const slowTriage = params.get("slowtriage") === "1";
 let finishTriage: (() => void) | null = null;
 // ?track=slow: the track read answers only on "Track finishes", and the page records whether the job was still
-// current then.
+// current then. ?slowread=1: the sighting read answers only on "Read finishes".
+const slowRead = params.get("slowread") === "1";
 let finishTrack: (() => void) | null = null;
+let finishRead: (() => void) | null = null;
 
 function Harness() {
   const [camera, setCamera] = useState<LatLon | null>(null);
@@ -65,6 +67,8 @@ function Harness() {
   const [calls, setCalls] = useState(0);
   // "Media deleted" stands for a delete of this search's media, from this seat or announced by another.
   const [revocation, setRevocation] = useState(0);
+  // "Turn the time machine off" stands for Remote Config turning time_machine_enabled off while the post is open.
+  const [machineOn, setMachineOn] = useState(true);
   const [trackCalls, setTrackCalls] = useState(0);
   const [trackCurrent, setTrackCurrent] = useState("");
   return (
@@ -83,6 +87,7 @@ function Harness() {
           setAsked(input);
           setHow(JSON.stringify(h));
           setCalls((n) => n + 1);
+          if (slowRead) await new Promise<void>((resolve) => (finishRead = resolve));
           return answer;
         }}
         onConfirm={(o, input) => {
@@ -91,7 +96,7 @@ function Harness() {
         }}
         onClose={() => {}}
         revocation={revocation}
-        timeMachine={trackMode !== null}
+        timeMachine={trackMode !== null && machineOn}
         onTrack={trackMode ? async (_o, _input, h) => {
           setTrackCalls((n) => n + 1);
           if (trackMode === "slow") {
@@ -109,6 +114,12 @@ function Harness() {
       </button>
       <button type="button" onClick={() => finishTrack?.()}>
         Track finishes
+      </button>
+      <button type="button" onClick={() => finishRead?.()}>
+        Read finishes
+      </button>
+      <button type="button" onClick={() => setMachineOn(false)}>
+        Turn the time machine off
       </button>
       <pre data-testid="track-calls">{trackCalls}</pre>
       <pre data-testid="track-current">{trackCurrent}</pre>

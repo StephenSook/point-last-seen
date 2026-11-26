@@ -363,3 +363,12 @@ test("a delete while the time machine is open closes it and the clip with it", a
   await expect(page.getByTestId("clip-time-machine")).toHaveCount(0);
   await expect(page.locator("video")).toHaveCount(0);
 });
+
+test("turning the time machine off while the sighting is read starts no track read", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1&slowread=1");
+  await page.getByRole("button", { name: "Turn the time machine off" }).click();
+  await page.getByRole("button", { name: "Read finishes" }).click();
+  await expect(page.getByRole("region", { name: "Camera sighting" })).toBeVisible();
+  await expect(page.getByTestId("track-calls")).toHaveText("0");
+  await expect(page.getByRole("button", { name: "Open the time machine" })).toHaveCount(0);
+});

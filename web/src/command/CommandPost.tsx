@@ -8,7 +8,7 @@ import { deviceState as readDeviceState, downloadDeviceModel, type DeviceState }
 import { PHOTO_READ_TIMEOUT_MS, readPhotoOnDevice } from "../ai/photoCues";
 import { readDebriefSheetOnDevice, SHEET_READ_TIMEOUT_MS } from "../ai/debriefSheetRead";
 import { bytesToBase64, confirmPhotoConsent, loadPhotos, loadPhotosOrError, photoReadingDoc, photoStillStored, saveIfStillStored, savePhotoReading, sha256Hex, subscribePhotoReadingIds, uploadPhoto } from "../data/photos";
-import { clipReadDeps, readClip, type ClipReadOutcome } from "../ai/clipRead";
+import { clipReadDeps, PAUSED, readClip, type ClipReadOutcome } from "../ai/clipRead";
 import { readClipTrack, TRACK_FRAME_MAX_SIDE } from "../ai/clipTrack";
 import { confirmClipReading, firestoreClipIo } from "../data/clips";
 import { clipTrackDoc, findClipTrack, writeClipTrack } from "../data/clipTrack";
@@ -20,6 +20,7 @@ import { CameraClipPanel, TRACK_FAILED, type ClipRead, type TrackView } from "..
 import type { ClipIntakeInput, ReadHow } from "../camera/ClipIntake";
 import { FRAME_OPTS } from "../ai/frameCheck";
 import { clipDurationS, jpegAt, sampleFrames } from "../camera/frames";
+import { trackPaused } from "../camera/timeMachine";
 import { triageClip, triageRoute, type TriageResult } from "../camera/triage";
 import { toStandardJpeg } from "../photos/jpeg";
 import { PhotoTray, type TrayPhoto } from "../photos/PhotoTray";
@@ -807,11 +808,14 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     let durationS: number | null = null;
     try {
       durationS = await clipDurationS(clip);
+      // Remote Config as it is now: a pause or the time machine turned off since the read began stops the job here,
+      // and readClipTrack asks again before every model call.
+      if (trackPaused(rcNow.current)) return { status: "failed", message: PAUSED, durationS };
       const stored = await findClipTrack(pls.db, incidentId, read.sha256).catch(() => null);
       if (stored) return { status: "ready", track: stored.track, durationS };
       if (!uid) return { status: "failed", message: TRACK_FAILED, durationS };
       const o = await readClipTrack(
-        { sha256: read.sha256, model: rc.cloudModelWeb, durationS, window: how.window ?? { startS: 0, endS: durationS }, frameS: 1 / 30, killCloud: () => rcNow.current.killCloud, stillCurrent: how.stillCurrent, withMasks: true },
+        { sha256: read.sha256, model: rc.cloudModelWeb, durationS, window: how.window ?? { startS: 0, endS: durationS }, frameS: 1 / 30, killCloud: () => trackPaused(rcNow.current), stillCurrent: how.stillCurrent, withMasks: true },
         {
           confirmReading: (sha) => confirmClipReading(pls.db, incidentId, sha),
           frameJpeg: (atS) => jpegAt(clip, atS, TRACK_FRAME_MAX_SIDE),

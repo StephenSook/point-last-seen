@@ -33,3 +33,8 @@ export function keyFrameOf(r: Reading): { timeS: number; box: Box2d } | null {
 export function trackSentLine(frames: number): string {
   return `${frames} frame${frames === 1 ? "" : "s"} of the clip left this laptop for the cloud.`;
 }
+
+/** Read live before each track call: clip reading is paused, or the time machine was turned off since the read began. */
+export function trackPaused(rc: { killCloud: boolean; timeMachineEnabled: boolean }): boolean {
+  return rc.killCloud || !rc.timeMachineEnabled;
+}

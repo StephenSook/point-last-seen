@@ -51,6 +51,9 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
   const [note, setNote] = useState<string | null>(null);
   const [deleted, setDeleted] = useState(false);
   const clip = useMemo(() => (read ? new Blob([read.input.bytes as BlobPart], { type: read.input.mimeType }) : null), [read]);
+  // The flag as it is now, not as it was when a read was pressed.
+  const machineOn = useRef(timeMachine);
+  machineOn.current = timeMachine;
   // This panel owns the read and the track job after the form is gone: a delete of the search's media (or closing
   // the panel) moves the epoch, which clears the card and the time machine and drops any result still on its way.
   const epoch = useRef(0);
@@ -86,7 +89,7 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
           if (o.kind !== "read" || at !== epoch.current) return o;
           setDeleted(false);
           setRead({ o, input });
-          if (onTrack && timeMachine) {
+          if (onTrack && machineOn.current) {
             const current = () => at === epoch.current && (how?.stillCurrent?.() ?? true);
             setTrack({ status: "reading" });
             onTrack(o, input, { ...how, stillCurrent: current }).then(
