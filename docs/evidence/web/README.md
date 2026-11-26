@@ -20,3 +20,17 @@ version and reports), not a join code.
 The clip itself is kept outside this repository, which takes no video files; it was made for the App Store
 review. Its SHA-256 lets anyone holding a copy check it is this recording:
 `26b4ad8149c9258375b64b2d0dbefc00b0440fcb4b557f35e17b04a2c1923ac6`
+
+## A sighting note read with the network off, 2026-11-26
+
+`2026-11-26-note-read-offline-devtools.jpg` (2268 x 1290) is one window capture of Chrome 158 showing the deployed
+command post (commit 5d59d16d) on `drill-test-1`, signed in as command, beside DevTools. The Network panel has
+Offline selected, and every request in its list is "(failed)": the `/version.json` probe fetched just before the
+click on Read the note, then the Firestore, `cleardot.gif` and telemetry retries during the read. The open
+"What ran" receipt says "Ran: on this device (reported by the SDK)." and "Sent: no text or image left this device."
+The note is made up; the sighting was never saved.
+
+The full record, `2026-11-26-note-read-offline-devtools.json`, has all four reads and every request in their
+windows. None went to an AI host. One CORS preflight to Remote Config's realtime host got through 9.6 s after
+the second read, because DevTools' Offline setting does not stop preflights. The screenshot's SHA-256:
+`0da0300fede3c42d8e499e448bca43df93561a945531155f4079d94a0f1a46bd`
