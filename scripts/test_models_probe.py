@@ -52,5 +52,5 @@ def test_every_model_named_by_remote_config_or_the_allow_list_is_checked():
     assert all(i.startswith("gemini-") for i in ids)
 
 
-def test_the_probe_retires_after_judging():
-    assert not mo.retired(date(2026, 12, 17)) and mo.retired(date(2026, 12, 18))
+def test_the_probe_retires_after_winners_are_announced():
+    assert not mo.retired(date(2026, 12, 22)) and mo.retired(date(2026, 12, 23))

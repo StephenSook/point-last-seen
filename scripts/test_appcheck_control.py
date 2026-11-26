@@ -33,9 +33,10 @@ def test_config_comes_from_hosting_init_json():
     assert cfg == {"apiKey": "k", "projectId": "p"}
 
 
-def test_the_daily_probe_retires_after_judging():
+def test_the_daily_probe_retires_after_winners_are_announced():
     assert not ac.retired(date(2026, 12, 16))
-    assert ac.retired(date(2026, 12, 18))
+    assert not ac.retired(date(2026, 12, 22))
+    assert ac.retired(date(2026, 12, 23))
 
 
 def test_a_200_counts_only_with_a_non_empty_answer():
