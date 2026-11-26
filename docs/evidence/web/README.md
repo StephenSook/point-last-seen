@@ -34,3 +34,23 @@ The full record, `2026-11-26-note-read-offline-devtools.json`, has all four read
 windows. None went to an AI host. One CORS preflight to Remote Config's realtime host got through 9.6 s after
 the second read, because DevTools' Offline setting does not stop preflights. The screenshot's SHA-256:
 `0da0300fede3c42d8e499e448bca43df93561a945531155f4079d94a0f1a46bd`
+
+## A box for every second of a clip: spike, 2026-11-26
+
+`2026-11-26-clip-track-spike.json` asks whether the cloud model can box the person for each second of a clip
+(a separate read on the window triage flagged), and whether this laptop's model can box the same frames. Six
+clips were used: the team's own night porch clip (training drill) and five Pexels stock clips with actors. The
+truth was written from frame stills before any model call, and every box was graded by eye on the frame at its
+second.
+
+- Cloud track: no clip reached the 70% pass line. The team clip scored 0% and 33% over two runs; the stock clips
+  63%, 53%, 1 of 2 seconds, 17% and 0%. The boxes barely move from second to second.
+- On this laptop: 0 of 70 frames matched the cloud box at IoU 0.5 or more.
+- The sighting read's single key-frame box was on the person in 4 of 6 clips, the team clip included, and its
+  first and last seen were within 1 s on all 6.
+- The track schema first tried (a pattern on the time, bounds on every number, a 121-item cap) was refused as
+  "too many states for serving"; integer seconds with no bounds was accepted. A 4096-token output cap returned
+  HTTP 500 on the team clip; 2048 worked.
+
+`2026-11-26-clip-track-spike-doorbell.jpg` is the team clip's sheet: cyan is cloud run 1, magenta run 2, yellow
+the on-device box. Its SHA-256: `1bf58f5ef78636fe6721d9ca740bfc47d207a8cde4fb11d97d952c2f69980150`
