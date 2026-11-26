@@ -73,8 +73,10 @@ is missing.
   laptop's built-in model in Chrome for the note, photo and clip-frame reads; on-device first, then Gemini in the
   cloud, for plan wording); on iPhone, Apple's Foundation Models on the device, called directly as Firebase iOS SDK 13
   directs, and Gemini in the cloud through Firebase AI Logic; on Android, Firebase AI Logic's on-device
-  path (Gemini Nano on a Pixel 10: two notes read on the phone, `docs/TEST-MATRIX.md`) and cloud model. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that allows only
-  the listed models and bounds each reply.
+  path (Gemini Nano on a Pixel 10: two notes read on the phone, `docs/TEST-MATRIX.md`) and cloud model. Four server prompt templates, all locked, and `cloudGuard`, a blocking function that checks every
+  `generateContent` call: it allows only the listed models and bounds each reply. Streaming calls skip it by
+  Google's design, and the iPhone's cloud report read streams, so that read is bounded by App Check, the limit of 20
+  calls a minute per user and the $25 Gemini spend cap instead (`docs/SECURITY.md`, rows 9, 11 and 12).
 - Firebase: App Check (reCAPTCHA Enterprise on the web, App Attest on iPhone, Play Integrity on Android), enforced on
   AI Logic, Firestore and Storage; anonymous Auth with custom claims; Firestore and Cloud Storage behind security
   rules; Cloud Functions (joining, judge sandboxes, media deletion, drill retention, push notices); Remote Config;
