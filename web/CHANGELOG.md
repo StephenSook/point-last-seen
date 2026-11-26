@@ -3306,3 +3306,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `trackFrameTimes` keeps the extra last frame only when its label is at or after the window's first whole second and at or before its end. A 9.2 to 9.4 s window no longer sends a frame labelled 9 (which the stored-track reader then refused); it has no frame, so the read fails before any call.
 - Source: review of the track read (a narrow window labelled its only frame before the window).
 - Verified: new cases in `src/ai/clipTrack.test.ts` (9.2 to 9.4 s gives no frame; such a read fails with no call) failed first, then passed (39).
+
+### fix(web): a track read that stops after frames left says how many
+- What: `readClipTrack` sends every refusal through one helper. Before the first model call it keeps the reason with "Nothing was sent."; once frames have left, `stoppedMessage` gives the reason, then "The read stopped. N frames of the clip had already been sent to the cloud." with the real count of distinct frames sent (one frame is singular).
+- Source: review of the track read (a refusal after frames had left said nothing was sent).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (the wording for 40 frames and for 1; a consent withdrawn between box calls says 40 frames had left) failed first, then passed; the media-deleted-during-outlines case now expects the 10 frames already sent (41).

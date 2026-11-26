@@ -13,6 +13,7 @@ import {
   TRACK_MASK_FRAMES_PER_CALL,
   trackFrameTimes,
   trackParts,
+  stoppedMessage,
   type TrackReadDeps,
   type TrackReadRequest,
 } from "./clipTrack";
@@ -308,7 +309,10 @@ describe("readClipTrack checks again before every call", () => {
       current = false;
       return masks(p);
     };
-    expect(await readClipTrack({ ...req, stillCurrent: () => current }, deps)).toEqual({ kind: "refused", message: "This search's clips and photos were deleted. Nothing was sent." });
+    expect(await readClipTrack({ ...req, stillCurrent: () => current }, deps)).toEqual({
+      kind: "refused",
+      message: "This search's clips and photos were deleted. The read stopped. 10 frames of the clip had already been sent to the cloud.",
+    });
   });
 
   it("fails, and does not throw, when a frame cannot be taken", async () => {
@@ -330,5 +334,24 @@ describe("readClipTrack checks again before every call", () => {
     const { deps, req, calls } = setup({ durationS: 30, record: stored({ durationS: 30 }) });
     expect(await readClipTrack({ ...req, window: { startS: 9.2, endS: 9.4 } }, deps)).toEqual({ kind: "failed", reason: "invalid" });
     expect(calls).toEqual([]);
+  });
+});
+
+describe("a read that stops after frames left says how many", () => {
+  it("words the stop with the frames already sent, one or many", () => {
+    expect(stoppedMessage("The consent record for this clip was deleted. Nothing was sent.", 40)).toBe(
+      "The consent record for this clip was deleted. The read stopped. 40 frames of the clip had already been sent to the cloud.",
+    );
+    expect(stoppedMessage("Clip reading is paused right now.", 1)).toBe("Clip reading is paused right now. The read stopped. 1 frame of the clip had already been sent to the cloud.");
+  });
+
+  it("says how many frames left when a consent is withdrawn between box calls", async () => {
+    const { deps, req } = setup({ durationS: 45.2, withMasks: false, record: stored({ durationS: 45 }) });
+    let reads = 0;
+    deps.confirmReading = async () => (++reads < 3 ? stored({ durationS: 45 }) : null);
+    expect(await readClipTrack(req, deps)).toEqual({
+      kind: "refused",
+      message: "The consent record for this clip was deleted. The read stopped. 40 frames of the clip had already been sent to the cloud.",
+    });
   });
 });

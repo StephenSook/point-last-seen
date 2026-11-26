@@ -147,6 +147,12 @@ export function parseMaskReply(text: string, sent: readonly number[]): Map<numbe
 
 export const NO_READING = "This clip has no reading yet. Nothing was sent.";
 
+/** A refusal after frames left: the reason, then how many frames had already been sent (never "Nothing was sent."). */
+export function stoppedMessage(reason: string, framesSent: number): string {
+  const why = reason.replace(/ ?Nothing was sent\.$/, "");
+  return `${why} The read stopped. ${framesSent} frame${framesSent === 1 ? "" : "s"} of the clip had already been sent to the cloud.`;
+}
+
 /** A finished reading: a sighting the parser accepts, or a no-sighting. */
 function completedReading(r: StoredClipReading["reading"]): boolean {
   if (r == null) return false;
@@ -201,25 +207,36 @@ function chunks<T>(xs: readonly T[], n: number): T[][] {
  * server first, the cloud pause is read before every call, and a delete since the read began discards the reply.
  */
 export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): Promise<TrackReadOutcome> {
-  const halted = (): TrackReadOutcome | null =>
-    r.stillCurrent && !r.stillCurrent() ? { kind: "refused", message: MEDIA_DELETED } : r.killCloud() ? { kind: "refused", message: PAUSED } : null;
-  // The clip's record from the server, read again before every call: it must still hold the three consents,
-  // not have expired, and already carry the clip's reading (a track never comes before its sighting).
-  const gate = async (): Promise<{ record: StoredClipReading } | { stop: TrackReadOutcome }> => {
+  // Distinct frames that have left in a box call; every refusal after the first call says how many.
+  let sent = 0;
+  const stop = (message: string): TrackReadOutcome => ({ kind: "refused", message: sent === 0 ? message : stoppedMessage(message, sent) });
+  const deleted = () => !!r.stillCurrent && !r.stillCurrent();
+  const halt = (): string | null => (deleted() ? MEDIA_DELETED : r.killCloud() ? PAUSED : null);
+  // The clip's record from the server, read again before every call and after the last reply: it must still hold
+  // the three consents, not have expired, and carry the clip's finished reading (a track never comes before its sighting).
+  const gate = async (): Promise<{ record: StoredClipReading } | { stop: string }> => {
     let record: StoredClipReading | null;
     try {
       record = await deps.confirmReading(r.sha256);
     } catch {
-      return { stop: { kind: "refused", message: CONSENT_UNCONFIRMED } };
+      return { stop: CONSENT_UNCONFIRMED };
     }
     const c = record?.consent;
-    if (!record || !(record.expiresAtMs > deps.nowMs()) || !c?.personInClip || !c.footageOwner || !c.cloudProcessing) return { stop: { kind: "refused", message: CONSENT_GONE } };
-    if (!completedReading(record.reading)) return { stop: { kind: "refused", message: NO_READING } };
+    if (!record || !(record.expiresAtMs > deps.nowMs()) || !c?.personInClip || !c.footageOwner || !c.cloudProcessing) return { stop: CONSENT_GONE };
+    if (!completedReading(record.reading)) return { stop: NO_READING };
     return { record };
   };
-  if (halted()) return halted()!;
+  const checked = async (): Promise<string | null> => {
+    const h = halt();
+    if (h) return h;
+    const ok = await gate();
+    return "stop" in ok ? ok.stop : halt();
+  };
+
+  const h0 = halt();
+  if (h0) return stop(h0);
   const first = await gate();
-  if ("stop" in first) return first.stop;
+  if ("stop" in first) return stop(first.stop);
   // The record keeps no window, so the caller's window is held to the stored clip's length (whole seconds, plus one).
   const window = { startS: r.window.startS, endS: Math.min(r.window.endS, r.durationS, first.record.durationS + 1) };
 
@@ -234,12 +251,11 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
     let reported = true;
     let onDevice = false;
     for (const part of chunks(frames, TRACK_BOX_FRAMES_PER_CALL)) {
-      if (halted()) return halted()!;
-      const ok = await gate();
-      if ("stop" in ok) return ok.stop;
-      if (halted()) return halted()!;
+      const why = await checked();
+      if (why) return stop(why);
+      sent += part.length;
       const reply = await deps.boxes(trackParts(part, false));
-      if (r.stillCurrent && !r.stillCurrent()) return { kind: "refused", message: MEDIA_DELETED };
+      if (deleted()) return stop(MEDIA_DELETED);
       reported &&= reply.inferenceSource !== undefined;
       onDevice ||= reply.inferenceSource === "on_device";
       if (reply.finishReason === "MAX_TOKENS") return { kind: "failed", reason: "max_tokens" };
@@ -249,22 +265,18 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
     }
     const t1 = deps.nowMs();
 
-    // Outlines: only frames that got a box, a few at a time; a failed call drops only its own outlines. A withdrawn
-    // consent or a delete stops the whole read; the pause stops asking for outlines.
+    // Outlines: only frames that got a box, a few at a time; a failed call drops only its own outlines.
     const masks = new Map<number, Mask>();
     let maskFramesSent = 0;
     if (r.withMasks) {
       const has = new Set(boxed.map((e) => e.t));
       for (const part of chunks(frames.filter((f) => has.has(f.t)), TRACK_MASK_FRAMES_PER_CALL)) {
-        if (r.stillCurrent && !r.stillCurrent()) return { kind: "refused", message: MEDIA_DELETED };
-        if (r.killCloud()) break;
-        const ok = await gate();
-        if ("stop" in ok) return ok.stop;
-        if (halted()) break;
+        const why = await checked();
+        if (why) return stop(why);
         try {
           maskFramesSent += part.length;
           const reply = await deps.masks(trackParts(part, true));
-          if (r.stillCurrent && !r.stillCurrent()) return { kind: "refused", message: MEDIA_DELETED };
+          if (deleted()) return stop(MEDIA_DELETED);
           if (reply.finishReason === "MAX_TOKENS") continue;
           for (const [t, m] of parseMaskReply(reply.text, part.map((f) => f.t)) ?? []) masks.set(t, m);
         } catch {
@@ -273,7 +285,8 @@ export async function readClipTrack(r: TrackReadRequest, deps: TrackReadDeps): P
       }
     }
     // Once more before anything is handed back.
-    if (halted()) return halted()!;
+    const last = halt();
+    if (last) return stop(last);
     const track: Track = {
       version: CLIP_TRACK_VERSION,
       window: { startS: window.startS, endS: Math.min(window.endS, r.durationS) },
