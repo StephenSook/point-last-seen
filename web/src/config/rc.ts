@@ -11,6 +11,8 @@ export const RC_DEFAULTS = {
   sighting_template_id: "pls-sighting-note-v1",
   /** The server prompt template for the consented cloud read of a family photo. */
   photo_template_id: "pls-photo-cues-v1",
+  /** false hides the clip time machine; the sighting card and the person-in-view band stay. */
+  time_machine_enabled: true,
 } as const;
 
 export type WebRc = {
@@ -18,6 +20,7 @@ export type WebRc = {
   killCloud: boolean;
   sightingTemplateId: string;
   photoTemplateId: string;
+  timeMachineEnabled: boolean;
   /** Where cloud_model_web came from: the fetched config ("remote") or the in-app default. */
   cloudModelSource?: "remote" | "default" | "static";
   /** When Remote Config last answered a fetch (ms since 1970), or null when it never has. */
@@ -55,6 +58,7 @@ export function parseRc(values: Partial<Record<keyof typeof RC_DEFAULTS, string>
     killCloud: bool(values.kill_cloud, d.kill_cloud),
     sightingTemplateId: templateId(values.sighting_template_id, d.sighting_template_id),
     photoTemplateId: templateId(values.photo_template_id, d.photo_template_id),
+    timeMachineEnabled: bool(values.time_machine_enabled, d.time_machine_enabled),
   };
 }
 

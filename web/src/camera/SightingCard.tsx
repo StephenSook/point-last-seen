@@ -6,6 +6,9 @@ import { lastSeenMs, type CameraSightingInput, type RouteRecord } from "@pls/eng
 import { useEffect, useState } from "react";
 import { receiptLines } from "../ai/receipt";
 import { ClipBand } from "../extras/clip/ClipBand";
+import type { TrackView } from "./CameraClipPanel";
+import { ClipTimeMachine } from "./ClipTimeMachine";
+import { trackSentLine } from "./timeMachine";
 
 const POINTS = ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"];
 
@@ -82,11 +85,18 @@ type Props = {
   /** Where the read ran and what it sent, for the "What ran" receipt (absent: no receipt). */
   route?: RouteRecord | null;
   sentBytes?: number;
+  /** The clip's track for the time machine (absent: no track read was asked for). */
+  track?: TrackView | null;
+  /** Remote Config time_machine_enabled. */
+  timeMachine?: boolean;
 };
 
-export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed, cached, clip, durationS = null, route = null, sentBytes }: Props) {
+export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed, cached, clip, durationS = null, route = null, sentBytes, track = null, timeMachine = false }: Props) {
   // The second the clip is shown at; null while it is hidden.
   const [frameS, setFrameS] = useState<number | null>(null);
+  const [machineOpen, setMachineOpen] = useState(false);
+  const machineS = track && track.status !== "reading" && track.durationS ? track.durationS : durationS;
+  const canOpen = clip !== null && timeMachine && track?.status !== "reading" && !!machineS;
   const keyS = seconds(reading.keyFrame.time);
   const f = cardFacts(reading, clipStartMs, bearingDeg, colorSuppressed);
   return (
@@ -105,14 +115,25 @@ export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed
               <p key={l} className="small">{l}</p>
             ))}
           <p className="small">{CLIP_STORED_LINE}</p>
+          {track?.status === "ready" && track.framesSent !== undefined && <p className="small">{trackSentLine(track.framesSent)}</p>}
         </details>
       )}
+      {track?.status === "reading" && <p className="muted small" role="status">Tracking the person in the clip.</p>}
+      {track?.status === "failed" && <p className="muted small" role="status">{track.message}</p>}
       {clip && (
         <button type="button" className="btn ghost" aria-pressed={frameS === keyS} onClick={() => setFrameS((v) => (v === keyS ? null : keyS))}>
           See the frame
         </button>
       )}
       {clip && frameS !== null && <Frame clip={clip} atS={frameS} box={frameS === keyS ? reading.keyFrame.box2d : null} />}
+      {canOpen && (
+        <button type="button" className="btn ghost" aria-pressed={machineOpen} onClick={() => setMachineOpen((v) => !v)}>
+          Open the time machine
+        </button>
+      )}
+      {canOpen && machineOpen && clip && machineS && (
+        <ClipTimeMachine clip={clip} durationS={machineS} reading={reading} track={track?.status === "ready" ? track.track : null} />
+      )}
     </section>
   );
 }

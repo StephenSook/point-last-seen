@@ -297,3 +297,47 @@ test("a confirm that turned the elevation layer off says why where command confi
   await expect(page.getByRole("status")).toHaveText("Confirmed. Prior rebuilt as v8. Rebuilt without downhill and level ground: the new start is outside the mapped segments.");
 });
 
+
+test("after a read, the receipt counts the track's frames and the time machine opens with the box on its clock", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await card.getByText("What ran", { exact: true }).click();
+  await expect(card).toContainText("6 frames of the clip left this laptop for the cloud.");
+  await card.getByRole("button", { name: "Open the time machine" }).click();
+  const tm = card.getByTestId("clip-time-machine");
+  await expect(tm.getByRole("region", { name: "Clip time machine" })).toBeVisible({ timeout: 30_000 });
+  await tm.getByRole("button", { name: "Clearest frame 0:04" }).click();
+  const video = tm.locator("video");
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => Math.round(v.currentTime * 10) / 10), { timeout: 10_000 }).toBe(4);
+  // At 4 s the fixed track's box spans x 500 to 700 and y 400 to 600 of 1000.
+  await expect(tm.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 50%; height: 20%; width: 20%/);
+  await page.screenshot({ path: test.info().outputPath("time-machine.png"), fullPage: true });
+});
+
+test("a track that could not be read says so, and the time machine still opens on the clearest frame", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=fail");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await expect(card.getByRole("status")).toHaveText("The person's track could not be read. The time machine shows the clearest frame.");
+  await card.getByRole("button", { name: "Open the time machine" }).click();
+  const tm = card.getByTestId("clip-time-machine");
+  await expect(tm.getByRole("region", { name: "Clip time machine" })).toBeVisible({ timeout: 30_000 });
+  await tm.getByRole("button", { name: "Clearest frame 0:04" }).click();
+  await expect(tm.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 30%; height: 20%; width: 40%/, { timeout: 10_000 });
+});
+
+test("with the time machine off there is no time machine button", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read");
+  await expect(page.getByRole("region", { name: "Camera sighting" }).getByRole("button", { name: "Open the time machine" })).toHaveCount(0);
+});
+
+test("when the 3D view cannot load, the time machine says so and keeps the clip with its box", async ({ page }) => {
+  await page.route(/\/extras\/timemachine\/TimeMachine\.tsx/, (route) => route.abort());
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await card.getByRole("button", { name: "Open the time machine" }).click();
+  const tm = card.getByTestId("clip-time-machine");
+  await expect(tm.getByRole("status")).toHaveText("The 3D view could not load. The clip and the person's box are still shown here.", { timeout: 30_000 });
+  await expect(tm.locator("video")).toHaveCount(1);
+  // The panel around the card is still there, not torn down by the failed import.
+  await expect(page.getByRole("button", { name: "Confirm sighting" })).toBeVisible();
+});

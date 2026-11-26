@@ -6,7 +6,7 @@ import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { ClipReadOutcome } from "../ai/clipRead";
 import type { TriageResult } from "../camera/triage";
-import { CameraClipPanel } from "../camera/CameraClipPanel";
+import { CameraClipPanel, TRACK_FAILED, type TrackView } from "../camera/CameraClipPanel";
 import type { ClipIntakeInput } from "../camera/ClipIntake";
 import { segmentChoices, segmentContaining, type LatLon } from "../map/geo";
 import "../theme/fonts.css";
@@ -40,6 +40,15 @@ const TRIAGE: Record<string, TriageResult> = {
   flagged: { kind: "flagged", window: { startS: 1, endS: 5 }, windows: [], latencyMs: 5 },
 };
 const triage = params.get("triage");
+// ?track=1: the time machine is on and the track read answers with a fixed track that walks the box right across
+// the 6 s test clip; ?track=fail: the track read fails.
+const trackMode = params.get("track");
+const TRACK: TrackView = {
+  status: "ready",
+  durationS: 6,
+  framesSent: 6,
+  track: { version: "track-v1", window: { startS: 0, endS: 6 }, entries: [0, 1, 2, 3, 4, 5].map((t) => ({ t, box: [400, 100 + 100 * t, 600, 300 + 100 * t] as const, source: "cloud" as const })) },
+};
 // ?slowtriage=1: triage answers only on "Triage finishes", so a delete can land while it runs.
 const slowTriage = params.get("slowtriage") === "1";
 let finishTriage: (() => void) | null = null;
@@ -54,7 +63,7 @@ function Harness() {
   // "Media deleted" stands for a delete of this search's media, from this seat or announced by another.
   const [revocation, setRevocation] = useState(0);
   return (
-    <main style={{ width: 340, padding: 16 }}>
+    <main style={{ width: trackMode ? 1100 : 340, padding: 16 }}>
       <p className="drill">Synthetic test grid and clip, not drill data.</p>
       <CameraClipPanel
         camera={camera}
@@ -77,6 +86,8 @@ function Harness() {
         }}
         onClose={() => {}}
         revocation={revocation}
+        timeMachine={trackMode !== null}
+        onTrack={trackMode ? async () => (trackMode === "fail" ? { status: "failed", message: TRACK_FAILED, durationS: 6 } : TRACK) : undefined}
       />
       <button type="button" onClick={() => setRevocation((n) => n + 1)}>
         Media deleted

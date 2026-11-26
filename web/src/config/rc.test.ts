@@ -3,7 +3,13 @@ import { RC_DEFAULTS, parseRc } from "./rc";
 
 describe("Remote Config", () => {
   it("sets in-app defaults only for the keys the web reads", () => {
-    expect(RC_DEFAULTS).toEqual({ cloud_model_web: "gemini-3.5-flash-lite", kill_cloud: false, sighting_template_id: "pls-sighting-note-v1", photo_template_id: "pls-photo-cues-v1" });
+    expect(RC_DEFAULTS).toEqual({ cloud_model_web: "gemini-3.5-flash-lite", kill_cloud: false, sighting_template_id: "pls-sighting-note-v1", photo_template_id: "pls-photo-cues-v1", time_machine_enabled: true });
+  });
+
+  it("shows the clip time machine unless time_machine_enabled is false", () => {
+    expect(parseRc({}).timeMachineEnabled).toBe(true);
+    expect(parseRc({ time_machine_enabled: "false" }).timeMachineEnabled).toBe(false);
+    expect(parseRc({ time_machine_enabled: "maybe" }).timeMachineEnabled).toBe(true);
   });
 
   it("every value the web parses has a reader in web code (wired, not just parsed)", () => {

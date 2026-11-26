@@ -4,12 +4,21 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { ClipReadOutcome } from "../ai/clipRead";
+import type { Track } from "../extras/timemachine/types";
 import type { LatLon } from "../map/geo";
 import { ClipIntake, type ClipIntakeInput, type ReadHow } from "./ClipIntake";
 import type { TriageResult } from "./triage";
 import { SightingCard } from "./SightingCard";
 
 export type ClipRead = Extract<ClipReadOutcome, { kind: "read" }>;
+
+/** The clip's track for the time machine: being read, read or stored (framesSent only for a fresh read), or not read. */
+export type TrackView =
+  | { status: "reading" }
+  | { status: "ready"; track: Track; durationS: number; framesSent?: number }
+  | { status: "failed"; message: string; durationS: number | null };
+
+export const TRACK_FAILED = "The person's track could not be read. The time machine shows the clearest frame.";
 
 type Props = {
   camera: LatLon | null;
@@ -23,10 +32,15 @@ type Props = {
   onClose: () => void;
   /** Changes whenever this search's media is deleted; the clip form then drops every consent given. */
   revocation?: number;
+  /** After a read: the clip's track, from the store or a new read on the same consented window. */
+  onTrack?: (read: ClipRead, input: ClipIntakeInput, how: ReadHow) => Promise<TrackView>;
+  /** Remote Config time_machine_enabled: whether the card offers the time machine. */
+  timeMachine?: boolean;
 };
 
-export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onTriage, onConfirm, onClose, revocation }: Props) {
+export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamera, onRead, onTriage, onConfirm, onClose, revocation, onTrack, timeMachine = false }: Props) {
   const [read, setRead] = useState<{ o: ClipRead; input: ClipIntakeInput } | null>(null);
+  const [track, setTrack] = useState<TrackView | null>(null);
   const [sent, setSent] = useState<number | null>(null);
   // The version the server acknowledged; a queued local write moves the local version at once.
   const [acked, setAcked] = useState<number | null>(null);
@@ -47,7 +61,13 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
         onTriage={onTriage}
         onRead={async (input, how) => {
           const o = await onRead(input, how);
-          if (o.kind === "read") setRead({ o, input });
+          if (o.kind === "read") {
+            setRead({ o, input });
+            if (onTrack && timeMachine) {
+              setTrack({ status: "reading" });
+              onTrack(o, input, how ?? {}).then(setTrack, () => setTrack({ status: "failed", message: TRACK_FAILED, durationS: null }));
+            }
+          }
           return o;
         }}
         onClose={onClose}
@@ -88,6 +108,8 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
         durationS={read.input.durationS}
         route={read.o.route}
         sentBytes={read.o.sentBytes}
+        track={track}
+        timeMachine={timeMachine}
       />
       {sent === null ? (
         <div className="row">
