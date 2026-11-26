@@ -1,0 +1,724 @@
+{
+ "label": "Measurement only. Five clips are Pexels stock footage with actors (not a real case; never shown as a missing person in the film or on a judged page). One is the team's own night porch clip, filmed for the training drill.",
+ "what": "A spike, before building: can the cloud model give a box around the person for every second of a clip (a per-second track), read in a separate call on the window on-device triage flagged; and can this laptop's built-in model box the same frames?",
+ "date": "2026-11-26",
+ "runAtUtc": "04:06Z to 04:24Z",
+ "model": "gemini-3.5-flash-lite (the web's cloud_model_web default) through the Firebase AI Logic web SDK, ONLY_IN_CLOUD, with an App Check debug token and a signed-in user; on-device boxes through the same SDK with ONLY_ON_DEVICE (Chrome's built-in model, model folder 2025.8.8.1141)",
+ "method": [
+  "A local measurement page on a dev server (127.0.0.1), not committed: dev pages may not build cloud models (web/src/harness/noCloud.test.ts). It reused the app's own triage, sighting read and frame helpers and wrote nothing (no clip record, upload or event).",
+  "Browser: Google Chrome 158.0.8127.38 in an isolated profile (its own user data folder) on this Mac (macOS 27.0, Apple M5 Pro).",
+  "Clips: the team clip as stored for the app (9 s, 1920 x 1080, plates and house numbers pixelated); the five stock clips re-encoded at 1280 px on the long side, as in 2026-11-18-clipread-stock.json. The clips are not in this repository; each one's SHA-256 is below.",
+  "Window: the app's on-device triage ran first on each clip; it flagged every clip with one window covering the whole clip, so each cloud call read the whole clip.",
+  "Each clip got the app's current sighting read (one call) and the track read (one call; two on the team clip). The track prompt asked for one entry per second while one adult is visible: t and box2d [yMin, xMin, yMax, xMax] on 0 to 1000.",
+  "On-device: the frame at each second the first cloud run boxed, read on this laptop with a prompt asking for box2d, then compared with the cloud box by intersection over union (IoU).",
+  "Judging: the truth was written at 2026-11-26T03:56:33Z from frame stills, before any model call. Each box was then drawn on the frame at that whole second (frame index = second x fps, extracted with ffmpeg) and graded by eye: HIT: the box sits on the person and holds most of their visible body. PARTIAL: it overlaps the person but holds less than half. MISS: it is off the person, or there is no box while a person is visible. FALSE: a box on a second with nobody visible. The share is HIT seconds over the seconds a person is in view."
+ ],
+ "schema": {
+  "first": "track items {t: string matching MM:SS, box2d: 4 integers with minimum 0 and maximum 1000}, at most 121 items, maxOutputTokens 4096",
+  "firstResult": "refused on all 12 calls: 8 x HTTP 400 \"The specified schema produces a constraint that has too many states for serving\", 4 x HTTP 500 \"Internal error encountered\" (the two 8 MB clips)",
+  "served": "track items {t: integer (whole seconds), box2d: 4 integers with no bounds}, no item cap; bounds, order and count are left to code",
+  "outputCap": "with the served schema, maxOutputTokens 4096 gave HTTP 500 on the team clip (3 of 3 calls at 4096 on that clip, across both schemas); 2048 worked on all 6 calls made with it (5 clips); the smallest clip was read once at 4096 and worked. Replies used 149 to 862 output tokens, 41 to 50 per boxed second, so 2048 covers about 40 to 50 s of track."
+ },
+ "calls": {
+  "budget": 30,
+  "used": 26,
+  "sightingReads": 6,
+  "trackFirstSchema": 12,
+  "trackServedSchema": 8,
+  "failed": 13,
+  "http429": 0,
+  "note": "the 8 served-schema calls are the scored runs (7) plus one diagnosis call at 4096 on the team clip that failed with 500"
+ },
+ "clips": [
+  {
+   "id": "doorbell",
+   "label": "Team's porch camera at night: one person walks away along the sidewalk (training drill, filmed by the team)",
+   "stock": false,
+   "sha256": "28fffd2082fd48ea50709b94c8d37b823d2613dc5997adffda1117136483ddfb",
+   "durationS": 9.0,
+   "light": "night, street lights",
+   "people": 1,
+   "truth": {
+    "firstSeenS": 0.0,
+    "lastSeenS": 8.97,
+    "exit": "away_from_camera"
+   },
+   "triage": {
+    "result": "flagged",
+    "window": {
+     "startS": 0,
+     "endS": 9
+    },
+    "frameCheck": [
+     {
+      "atS": 8.5,
+      "reply": "{\"personVisible\": true}",
+      "source": "on_device"
+     }
+    ]
+   },
+   "sightingRead": {
+    "firstSeen": "00:00",
+    "lastSeen": "00:08",
+    "firstSeenErrorS": 0,
+    "lastSeenErrorS": 0,
+    "exitEdge": "left",
+    "exitRight": false,
+    "keyFrame": {
+     "time": "00:04",
+     "box2d": [
+      597,
+      787,
+      995,
+      909
+     ]
+    },
+    "keyFrameBox": "HIT",
+    "ms": 14721
+   },
+   "trackRuns": [
+    {
+     "seconds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+     ],
+     "firstS": 0,
+     "lastS": 8,
+     "distinctBoxes": 8,
+     "grades": {
+      "0": "MISS",
+      "1": "PARTIAL",
+      "2": "MISS",
+      "3": "MISS",
+      "4": "MISS",
+      "5": "MISS",
+      "6": "MISS",
+      "7": "MISS",
+      "8": "PARTIAL"
+     },
+     "hit": 0,
+     "visibleSeconds": 9,
+     "hitShare": 0.0,
+     "partial": 2,
+     "falseBoxes": 0,
+     "ms": 11314,
+     "outputTokens": 391,
+     "maxOutputTokens": 2048,
+     "finishReason": "STOP"
+    },
+    {
+     "seconds": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+     ],
+     "firstS": 2,
+     "lastS": 8,
+     "distinctBoxes": 7,
+     "grades": {
+      "0": "MISS",
+      "1": "MISS",
+      "2": "HIT",
+      "3": "HIT",
+      "4": "MISS",
+      "5": "MISS",
+      "6": "MISS",
+      "7": "PARTIAL",
+      "8": "HIT"
+     },
+     "hit": 3,
+     "visibleSeconds": 9,
+     "hitShare": 0.33,
+     "partial": 1,
+     "falseBoxes": 0,
+     "ms": 11151,
+     "outputTokens": 315,
+     "maxOutputTokens": 2048,
+     "finishReason": "STOP"
+    }
+   ],
+   "trackFirstLastErrorS": [
+    {
+     "first": 0,
+     "last": 0
+    },
+    {
+     "first": 2,
+     "last": 0
+    }
+   ],
+   "onDevice": {
+    "frames": 9,
+    "saidNoPerson": 0,
+    "iouWithCloudMedian": 0.196,
+    "iouWithCloudMax": 0.317,
+    "framesAtIou05OrMore": 0,
+    "msMedian": 2157,
+    "msFirst": 35914
+   }
+  },
+  {
+   "id": "stock-29055706",
+   "label": "Stock clip: a man in black walks away down a sunny path",
+   "stock": true,
+   "sha256": "0527dc2ebdee51f4ea0d92ef78aa199f47c6111e79d95b259c4a8d7e5c6d695f",
+   "durationS": 19.7,
+   "light": "day",
+   "people": 1,
+   "truth": {
+    "firstSeenS": 0.0,
+    "lastSeenS": 19.7,
+    "exit": "away_from_camera"
+   },
+   "triage": {
+    "result": "flagged",
+    "window": {
+     "startS": 0,
+     "endS": 19.7
+    },
+    "frameCheck": [
+     {
+      "atS": 1.5,
+      "reply": "{\"personVisible\": true}",
+      "source": "on_device"
+     }
+    ]
+   },
+   "sightingRead": {
+    "firstSeen": "00:00",
+    "lastSeen": "00:19",
+    "firstSeenErrorS": 0,
+    "lastSeenErrorS": 0,
+    "exitEdge": "away_from_camera",
+    "exitRight": true,
+    "keyFrame": {
+     "time": "00:05",
+     "box2d": [
+      211,
+      391,
+      1000,
+      579
+     ]
+    },
+    "keyFrameBox": "HIT",
+    "ms": 7586
+   },
+   "trackRuns": [
+    {
+     "seconds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+     ],
+     "firstS": 0,
+     "lastS": 19,
+     "distinctBoxes": 2,
+     "grades": {
+      "0": "FALSE",
+      "1": "HIT",
+      "2": "HIT",
+      "3": "HIT",
+      "4": "HIT",
+      "5": "HIT",
+      "6": "HIT",
+      "7": "HIT",
+      "8": "HIT",
+      "9": "HIT",
+      "10": "HIT",
+      "11": "HIT",
+      "12": "HIT",
+      "13": "PARTIAL",
+      "14": "PARTIAL",
+      "15": "PARTIAL",
+      "16": "MISS",
+      "17": "PARTIAL",
+      "18": "MISS",
+      "19": "MISS"
+     },
+     "hit": 12,
+     "visibleSeconds": 19,
+     "hitShare": 0.63,
+     "partial": 4,
+     "falseBoxes": 1,
+     "ms": 7390,
+     "outputTokens": 862,
+     "maxOutputTokens": 2048,
+     "finishReason": "STOP"
+    }
+   ],
+   "trackFirstLastErrorS": [
+    {
+     "first": 0,
+     "last": 0
+    }
+   ],
+   "onDevice": {
+    "frames": 20,
+    "saidNoPerson": 0,
+    "iouWithCloudMedian": 0.261,
+    "iouWithCloudMax": 0.415,
+    "framesAtIou05OrMore": 0,
+    "msMedian": 2008,
+    "msFirst": 1983
+   }
+  },
+  {
+   "id": "stock-14289740",
+   "label": "Stock clip: a woman in a teal jacket walks away past a wooden house, overcast day",
+   "stock": true,
+   "sha256": "8c65132687a811527e0f80930f1839fda04e2ffee1755dce4fa6d4627b271676",
+   "durationS": 14.3,
+   "light": "day, overcast",
+   "people": 1,
+   "truth": {
+    "firstSeenS": 0.0,
+    "lastSeenS": 14.3,
+    "exit": "away_from_camera"
+   },
+   "triage": {
+    "result": "flagged",
+    "window": {
+     "startS": 0,
+     "endS": 14.3
+    },
+    "frameCheck": [
+     {
+      "atS": 11,
+      "reply": "{\"personVisible\": true}",
+      "source": "on_device"
+     }
+    ]
+   },
+   "sightingRead": {
+    "firstSeen": "00:00",
+    "lastSeen": "00:13",
+    "firstSeenErrorS": 0,
+    "lastSeenErrorS": -1,
+    "exitEdge": "right",
+    "exitRight": false,
+    "keyFrame": {
+     "time": "00:05",
+     "box2d": [
+      266,
+      730,
+      864,
+      839
+     ]
+    },
+    "keyFrameBox": "MISS",
+    "ms": 13245
+   },
+   "trackRuns": [
+    {
+     "seconds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+     ],
+     "firstS": 0,
+     "lastS": 13,
+     "distinctBoxes": 3,
+     "grades": {
+      "0": "HIT",
+      "1": "HIT",
+      "2": "HIT",
+      "3": "MISS",
+      "4": "MISS",
+      "5": "MISS",
+      "6": "MISS",
+      "7": "MISS",
+      "8": "MISS",
+      "9": "HIT",
+      "10": "HIT",
+      "11": "HIT",
+      "12": "HIT",
+      "13": "HIT",
+      "14": "MISS"
+     },
+     "hit": 8,
+     "visibleSeconds": 15,
+     "hitShare": 0.53,
+     "partial": 0,
+     "falseBoxes": 0,
+     "ms": 13860,
+     "outputTokens": 659,
+     "maxOutputTokens": 2048,
+     "finishReason": "STOP"
+    }
+   ],
+   "trackFirstLastErrorS": [
+    {
+     "first": 0,
+     "last": -1
+    }
+   ],
+   "onDevice": {
+    "frames": 14,
+    "saidNoPerson": 0,
+    "iouWithCloudMedian": 0.0,
+    "iouWithCloudMax": 0.158,
+    "framesAtIou05OrMore": 0,
+    "msMedian": 2165,
+    "msFirst": 2103
+   }
+  },
+  {
+   "id": "stock-9424222",
+   "label": "Stock clip: a person in pink walks out through a glass door, close to the camera",
+   "stock": true,
+   "sha256": "5a4da53d58646e70da851a34120d9d9b1c7d2a1bdb60e37296bf83bc2e04a11c",
+   "durationS": 5.14,
+   "light": "day, indoor by a glass door",
+   "people": 1,
+   "truth": {
+    "firstSeenS": 1.3,
+    "lastSeenS": 3.9,
+    "exit": "left"
+   },
+   "triage": {
+    "result": "flagged",
+    "window": {
+     "startS": 0,
+     "endS": 5.138467
+    },
+    "frameCheck": [
+     {
+      "atS": 4,
+      "reply": "{\"personVisible\": true}",
+      "source": "on_device"
+     }
+    ]
+   },
+   "sightingRead": {
+    "firstSeen": "00:01",
+    "lastSeen": "00:03",
+    "firstSeenErrorS": 0,
+    "lastSeenErrorS": 0,
+    "exitEdge": "left",
+    "exitRight": true,
+    "keyFrame": {
+     "time": "00:02",
+     "box2d": [
+      0,
+      0,
+      1000,
+      662
+     ]
+    },
+    "keyFrameBox": "HIT",
+    "ms": 2709
+   },
+   "trackRuns": [
+    {
+     "seconds": [
+      1,
+      2,
+      3
+     ],
+     "firstS": 1,
+     "lastS": 3,
+     "distinctBoxes": 3,
+     "grades": {
+      "1": "FALSE",
+      "2": "HIT",
+      "3": "PARTIAL"
+     },
+     "hit": 1,
+     "visibleSeconds": 2,
+     "hitShare": 0.5,
+     "partial": 1,
+     "falseBoxes": 1,
+     "ms": 2461,
+     "outputTokens": 149,
+     "maxOutputTokens": 4096,
+     "finishReason": "STOP"
+    }
+   ],
+   "trackFirstLastErrorS": [
+    {
+     "first": 0,
+     "last": 0
+    }
+   ],
+   "onDevice": {
+    "frames": 3,
+    "saidNoPerson": 1,
+    "iouWithCloudMedian": 0.197,
+    "iouWithCloudMax": 0.203,
+    "framesAtIou05OrMore": 0,
+    "msMedian": 2065,
+    "msFirst": 1854
+   }
+  },
+  {
+   "id": "stock-35705187",
+   "label": "Stock clip: two people walk away across a snowy lot at dusk, filmed from a porch",
+   "stock": true,
+   "sha256": "f53fb2451bd1982b79c919548e6f7149c7c2d9bda7897e317cb77a2c858d60d1",
+   "durationS": 12.05,
+   "light": "dusk, snow, street lights",
+   "people": 2,
+   "truth": {
+    "firstSeenS": 0.0,
+    "lastSeenS": 12.05,
+    "exit": "away_from_camera"
+   },
+   "triage": {
+    "result": "flagged",
+    "window": {
+     "startS": 0,
+     "endS": 12.045367
+    },
+    "frameCheck": [
+     {
+      "atS": 7,
+      "reply": "{\"personVisible\": true}",
+      "source": "on_device"
+     }
+    ]
+   },
+   "sightingRead": {
+    "firstSeen": "00:00",
+    "lastSeen": "00:11",
+    "firstSeenErrorS": 0,
+    "lastSeenErrorS": -1,
+    "exitEdge": "unknown",
+    "exitRight": false,
+    "keyFrame": {
+     "time": "00:05",
+     "box2d": [
+      634,
+      359,
+      761,
+      418
+     ]
+    },
+    "keyFrameBox": "HIT",
+    "ms": 5318
+   },
+   "trackRuns": [
+    {
+     "seconds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+     ],
+     "firstS": 0,
+     "lastS": 11,
+     "distinctBoxes": 1,
+     "grades": {
+      "0": "MISS",
+      "1": "PARTIAL",
+      "2": "PARTIAL",
+      "3": "MISS",
+      "4": "MISS",
+      "5": "MISS",
+      "6": "PARTIAL",
+      "7": "PARTIAL",
+      "8": "PARTIAL",
+      "9": "PARTIAL",
+      "10": "PARTIAL",
+      "11": "PARTIAL",
+      "12": "MISS"
+     },
+     "hit": 0,
+     "visibleSeconds": 13,
+     "hitShare": 0.0,
+     "partial": 8,
+     "falseBoxes": 0,
+     "ms": 5611,
+     "outputTokens": 590,
+     "maxOutputTokens": 2048,
+     "finishReason": "STOP"
+    }
+   ],
+   "trackFirstLastErrorS": [
+    {
+     "first": 0,
+     "last": -1
+    }
+   ],
+   "onDevice": {
+    "frames": 12,
+    "saidNoPerson": 0,
+    "iouWithCloudMedian": 0.0,
+    "iouWithCloudMax": 0.041,
+    "framesAtIou05OrMore": 0,
+    "msMedian": 2109,
+    "msFirst": 2169
+   }
+  },
+  {
+   "id": "stock-4121893",
+   "label": "Stock clip: a person in dark clothes walks away down a lit street at night",
+   "stock": true,
+   "sha256": "9cd2cda77cc20c4eeba278b9138dd357db654a7b79665e344cb89c959ea39e9e",
+   "durationS": 11.56,
+   "light": "night, street and shop lights",
+   "people": 1,
+   "truth": {
+    "firstSeenS": 0.0,
+    "lastSeenS": 11.56,
+    "exit": "away_from_camera"
+   },
+   "triage": {
+    "result": "flagged",
+    "window": {
+     "startS": 0,
+     "endS": 11.56
+    },
+    "frameCheck": [
+     {
+      "atS": 11,
+      "reply": "{\"personVisible\": true}",
+      "source": "on_device"
+     }
+    ]
+   },
+   "sightingRead": {
+    "firstSeen": "00:00",
+    "lastSeen": "00:11",
+    "firstSeenErrorS": 0,
+    "lastSeenErrorS": 0,
+    "exitEdge": "away_from_camera",
+    "exitRight": true,
+    "keyFrame": {
+     "time": "00:10",
+     "box2d": [
+      112,
+      418,
+      486,
+      507
+     ]
+    },
+    "keyFrameBox": "MISS",
+    "ms": 4471
+   },
+   "trackRuns": [
+    {
+     "seconds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+     ],
+     "firstS": 0,
+     "lastS": 11,
+     "distinctBoxes": 12,
+     "grades": {
+      "0": "HIT",
+      "1": "HIT",
+      "2": "PARTIAL",
+      "3": "MISS",
+      "4": "MISS",
+      "5": "MISS",
+      "6": "MISS",
+      "7": "MISS",
+      "8": "MISS",
+      "9": "MISS",
+      "10": "MISS",
+      "11": "MISS"
+     },
+     "hit": 2,
+     "visibleSeconds": 12,
+     "hitShare": 0.17,
+     "partial": 1,
+     "falseBoxes": 0,
+     "ms": 4178,
+     "outputTokens": 494,
+     "maxOutputTokens": 2048,
+     "finishReason": "STOP"
+    }
+   ],
+   "trackFirstLastErrorS": [
+    {
+     "first": 0,
+     "last": 0
+    }
+   ],
+   "onDevice": {
+    "frames": 12,
+    "saidNoPerson": 0,
+    "iouWithCloudMedian": 0.246,
+    "iouWithCloudMax": 0.294,
+    "framesAtIou05OrMore": 0,
+    "msMedian": 2024,
+    "msFirst": 2026
+   }
+  }
+ ],
+ "doorbellSheet": {
+  "file": "docs/evidence/web/2026-11-26-clip-track-spike-doorbell.jpg",
+  "sha256": "1bf58f5ef78636fe6721d9ca740bfc47d207a8cde4fb11d97d952c2f69980150",
+  "shows": "The team clip, one tile per second (0 to 9 s): cyan box = cloud run 1, magenta = cloud run 2, yellow = on-device box. Tile labels give the second, the frame index and which runs gave a box."
+ },
+ "passLine": "Set before the run: the cloud box contains the person on at least 70% of seconds on N-1 of N clips (5 of 6).",
+ "result": {
+  "cloudTrack": "FAIL. No clip reached 70%: team clip 0% and 33% (two runs), stock 63%, 53%, 50% (1 of 2 seconds), 17% and 0%. The boxes barely move: 2 distinct boxes over 20 seconds on one clip, 1 over 12 on another; on the team clip both runs drift smoothly while the person walks out of them.",
+  "cutRule": "Met: the cloud boxes miss the person on most seconds of 3 clips (the team clip, 35705187, 4121893).",
+  "onDevice": "FAIL. 0 of 70 frames reached IoU 0.5 with the cloud box (median 0.163); most on-device boxes were wide strips off the person. About 2 s per frame after a first read of 35.9 s.",
+  "stillGood": "The sighting read's single key-frame box was on the person on 4 of 6 clips, the team clip included. Its first and last seen were within 1 s of the truth on all 6 (counting whole seconds). Its exit edge was right on 3 of 6 (the team clip said left; the person walks away along the sidewalk and never leaves the frame)."
+ },
+ "notMeasured": [
+  "Any other model (the track read is fixed to the web's clip model)",
+  "Clips longer than 20 s",
+  "Daytime footage from the team's own camera"
+ ],
+ "n": "6 clips; one or two track reads each; single observations"
+}
