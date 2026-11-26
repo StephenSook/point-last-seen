@@ -302,7 +302,7 @@ test("after a read, the receipt counts the track's frames and the time machine o
   await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
   const card = page.getByRole("region", { name: "Camera sighting" });
   await card.getByText("What ran", { exact: true }).click();
-  await expect(card).toContainText("6 frames of the clip left this laptop for the cloud.");
+  await expect(card).toContainText("6 frames of the clip left this laptop for the cloud. 6 of them were sent again for the outlines.");
   await card.getByRole("button", { name: "Open the time machine" }).click();
   const tm = card.getByTestId("clip-time-machine");
   await expect(tm.getByRole("region", { name: "Clip time machine" })).toBeVisible({ timeout: 30_000 });
@@ -371,4 +371,22 @@ test("turning the time machine off while the sighting is read starts no track re
   await expect(page.getByRole("region", { name: "Camera sighting" })).toBeVisible();
   await expect(page.getByTestId("track-calls")).toHaveText("0");
   await expect(page.getByRole("button", { name: "Open the time machine" })).toHaveCount(0);
+});
+
+test("a track read that fails after frames left still says what was sent", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=failsent");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await expect(card.getByRole("status")).toHaveText("The person's track could not be read. The time machine shows the clearest frame.");
+  await card.getByText("What ran", { exact: true }).click();
+  await expect(card).toContainText("6 frames of the clip left this laptop for the cloud.");
+});
+
+test("a sighting read before says only the sighting was not sent again, and the track read's frames are still counted", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=cached&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await expect(card).toContainText("The sighting was read before; the clip was not sent again for it.");
+  await card.getByText("What ran", { exact: true }).click();
+  await expect(card).toContainText("Sent for the sighting: nothing now; it came from an earlier read of the same clip.");
+  await expect(card).toContainText("6 frames of the clip left this laptop for the cloud. 6 of them were sent again for the outlines.");
+  await expect(card).not.toContainText("Read before, not sent again.");
 });

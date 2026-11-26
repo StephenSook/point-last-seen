@@ -29,9 +29,11 @@ export function keyFrameOf(r: Reading): { timeS: number; box: Box2d } | null {
   return y0 < y1 && x0 < x1 ? { timeS: secondsOf(r.keyFrame.time), box: [y0, x0, y1, x1] } : null;
 }
 
-/** The track read's receipt line: exactly what left the laptop. */
-export function trackSentLine(frames: number): string {
-  return `${frames} frame${frames === 1 ? "" : "s"} of the clip left this laptop for the cloud.`;
+/** The track read's receipt line: exactly what left the laptop, including the frames sent again for the outlines. */
+export function trackSentLine(frames: number, outlineFrames = 0): string {
+  const base = `${frames} frame${frames === 1 ? "" : "s"} of the clip left this laptop for the cloud.`;
+  if (outlineFrames <= 0) return base;
+  return `${base} ${outlineFrames} of them ${outlineFrames === 1 ? "was" : "were"} sent again for the outlines.`;
 }
 
 /** Read live before each track call: clip reading is paused, or the time machine was turned off since the read began. */

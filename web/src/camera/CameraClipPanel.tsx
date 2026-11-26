@@ -4,6 +4,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ClipReadOutcome } from "../ai/clipRead";
+import type { TrackSent } from "../ai/clipTrack";
 import type { Track } from "../extras/timemachine/types";
 import type { LatLon } from "../map/geo";
 import { ClipIntake, type ClipIntakeInput, type ReadHow } from "./ClipIntake";
@@ -12,11 +13,14 @@ import { SightingCard } from "./SightingCard";
 
 export type ClipRead = Extract<ClipReadOutcome, { kind: "read" }>;
 
-/** The clip's track for the time machine: being read, read or stored (framesSent only for a fresh read), or not read. */
+/**
+ * The clip's track for the time machine: being read, read or stored, or not read. `sent` is what this seat's track
+ * read sent to the cloud (absent for a stored track, or when nothing left before it stopped).
+ */
 export type TrackView =
   | { status: "reading" }
-  | { status: "ready"; track: Track; durationS: number; framesSent?: number }
-  | { status: "failed"; message: string; durationS: number | null };
+  | { status: "ready"; track: Track; durationS: number; sent?: TrackSent }
+  | { status: "failed"; message: string; durationS: number | null; sent?: TrackSent };
 
 export const TRACK_FAILED = "The person's track could not be read. The time machine shows the clearest frame.";
 export const MEDIA_DELETED_NOTICE = "This search's clips and photos were deleted. Give the consents again to read a clip.";

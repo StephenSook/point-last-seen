@@ -3375,3 +3375,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `readClipTrack`'s refused and failed outcomes carry `sent: { frames, outlineFrames }` once any frame has left (distinct frames for the boxes, and how many were sent again for outlines), so a receipt can state what left before the stop. Nothing is added when the read stops before its first call.
 - Source: review of the time machine mount (sends before a later failure were not reported).
 - Verified: updated and new expectations in `src/ai/clipTrack.test.ts` (a token-cap stop, a broken reply and a refused call after 10 frames; a delete during the outline calls after 10 plus 6; three stops after 10 or 40) failed first, then passed (44).
+
+### fix(web): the receipt counts the outline frames, and a cached sighting no longer speaks for the track
+- What: The receipt line counts the frames sent again for the outlines ("10 frames of the clip left this laptop for the cloud. 10 of them were sent again for the outlines.") and appears for every track read that sent frames, a failed or stopped one included. A sighting read before now says "The sighting was read before; the clip was not sent again for it." and "Sent for the sighting: nothing now; ...", so it no longer reads as if the track read sent nothing.
+- Source: review of the time machine mount (the receipt left out the outline sends; the cached line covered the track read too).
+- Verified: new harness cases (a failed read after 6 frames still lists them; a cached sighting with a track read) failed first on the old card, then passed; the receipt case now expects the outline count; `trackSentLine` outline cases failed first, then passed (clip harness 33, timeMachine 6).

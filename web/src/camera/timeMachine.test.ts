@@ -37,3 +37,11 @@ describe("trackPaused", () => {
     expect(trackPaused({ killCloud: false, timeMachineEnabled: false })).toBe(true);
   });
 });
+
+describe("trackSentLine with outlines", () => {
+  it("counts the frames sent again for the outlines", () => {
+    expect(trackSentLine(10, 10)).toBe("10 frames of the clip left this laptop for the cloud. 10 of them were sent again for the outlines.");
+    expect(trackSentLine(10, 1)).toBe("10 frames of the clip left this laptop for the cloud. 1 of them was sent again for the outlines.");
+    expect(trackSentLine(1, 0)).toBe("1 frame of the clip left this laptop for the cloud.");
+  });
+});

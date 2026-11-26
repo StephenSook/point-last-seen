@@ -28,6 +28,7 @@ const params = new URLSearchParams(location.search);
 // ?outcome=failed-early: the read fails before any consent record exists; failed-late: after one was written.
 const outcomes: Record<string, ClipReadOutcome> = {
   read: FIXED,
+  cached: { ...FIXED, cached: true, sentBytes: 0 },
   "failed-early": { kind: "failed", recorded: false },
   "failed-late": { kind: "failed", recorded: true },
 };
@@ -46,7 +47,7 @@ const trackMode = params.get("track");
 const TRACK: TrackView = {
   status: "ready",
   durationS: 6,
-  framesSent: 6,
+  sent: { frames: 6, outlineFrames: 6 },
   track: { version: "track-v1", window: { startS: 0, endS: 6 }, entries: [0, 1, 2, 3, 4, 5].map((t) => ({ t, box: [400, 100 + 100 * t, 600, 300 + 100 * t] as const, source: "cloud" as const })) },
 };
 // ?slowtriage=1: triage answers only on "Triage finishes", so a delete can land while it runs.
@@ -103,6 +104,7 @@ function Harness() {
             await new Promise<void>((resolve) => (finishTrack = resolve));
             setTrackCurrent(String(h.stillCurrent?.() ?? "unset"));
           }
+          if (trackMode === "failsent") return { status: "failed", message: TRACK_FAILED, durationS: 6, sent: { frames: 6, outlineFrames: 0 } };
           return trackMode === "fail" ? { status: "failed", message: TRACK_FAILED, durationS: 6 } : TRACK;
         } : undefined}
       />

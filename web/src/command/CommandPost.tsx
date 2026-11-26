@@ -824,14 +824,14 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
           nowMs: () => Date.now(),
         },
       );
-      if (o.kind === "refused") return { status: "failed", message: o.message, durationS };
-      if (o.kind === "failed") return { status: "failed", message: TRACK_FAILED, durationS };
+      if (o.kind === "refused") return { status: "failed", message: o.message, durationS, ...(o.sent ? { sent: o.sent } : {}) };
+      if (o.kind === "failed") return { status: "failed", message: TRACK_FAILED, durationS, ...(o.sent ? { sent: o.sent } : {}) };
       traced(o.route);
       if (sink) recordInference(o.route, sink, "clip_track");
       // The track is shown at once, not after the server acknowledges the write (offline, that waits for the link
       // to come back); it is shown even when it could not be stored, and the next seat then reads its own.
       void writeClipTrack(pls.db, incidentId, clipTrackDoc({ sha256: read.sha256, track: o.track, model: rc.cloudModelWeb, route: o.route, framesSent: o.framesSent, uid })).catch(() => undefined);
-      return { status: "ready", track: o.track, durationS, framesSent: o.framesSent };
+      return { status: "ready", track: o.track, durationS, sent: { frames: o.framesSent, outlineFrames: o.maskFramesSent } };
     } catch {
       return { status: "failed", message: TRACK_FAILED, durationS };
     }
