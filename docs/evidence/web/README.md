@@ -54,3 +54,20 @@ second.
 
 `2026-11-26-clip-track-spike-doorbell.jpg` is the team clip's sheet: cyan is cloud run 1, magenta run 2, yellow
 the on-device box. Its SHA-256: `1bf58f5ef78636fe6721d9ca740bfc47d207a8cde4fb11d97d952c2f69980150`
+
+## The same clips as frames: spike 2, 2026-11-26
+
+`2026-11-26-clip-track-frames-spike.json` sends the clip as one JPEG per second (taken on this laptop from the
+same consented window), all in one request with "t=<second>" before each frame, on gemini-3.5-flash-lite.
+
+- The box followed the person on every second it was in view: the team clip 9 of 9 (two runs, which agree at
+  IoU 0.85 to 0.98), the man in black 19 of 19 (with no box on the black first frame, which is right), the night
+  street 12 of 12. That passes the same 70% line the video path failed.
+- An outline per frame (a 16-point polygon) landed on the person in 9 of 9 frames of the team clip, at about 6
+  frames per call.
+- gemini-3.8-flash answered HTTP 500 on 4 of 4 calls and was not used.
+
+`2026-11-26-clip-track-frames-doorbell.jpg` (boxes; SHA-256
+`400c33942c3d10b0ddac1f5eaa9aa16a063baa87eb64f06999b4a62bcfd77c34`) and
+`2026-11-26-clip-track-frames-doorbell-masks.jpg` (outlines; SHA-256
+`f1fab9e8e1d28e019e0ee365b7f17ad888db3f2e88e904d4558412302420362a`) are the team clip's sheets.
