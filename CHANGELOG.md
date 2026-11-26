@@ -5,6 +5,8 @@ Newest first. Each entry gives what changed, its source and how it was verified.
 
 ## 2026-11-26
 
+- `docs/TEST-MATRIX.md` has a web on-device row for the sighting note read with Chrome DevTools set to Offline on the deployed command post (build 5d59d16d, test drill): 4 reads, each on this laptop as the SDK reported, the same four fields each time, 10.4 to 19.2 s, no request to an AI host in the saved windows, one Remote Config realtime preflight through after read 2. Evidence: `docs/evidence/web/2026-11-26-note-read-offline-devtools.json` and `.jpg`. Source: review (the 2026-11-21 offline row's evidence had no screenshot showing the network was off). Verified: the row's figures against the evidence file, `web/src/ai/sightingText.ts:44` still sets `ONLY_ON_DEVICE`; `scripts/test_test_matrix.py` and `hygiene_guard.py --public` pass.
+
 - `docs/TEST-MATRIX.md` has a Google Pixel 10 cloud row: one clip read through the server template `pls-clip-read-v1` with the published `android-judge-9` file (`point-last-seen-family-8f7bc689.apk`), `inferenceSource` IN_CLOUD in 9,080 ms, App Check by Play Integrity. Evidence: `docs/evidence/android/pixel-10-judge-9-cloud-clip-read-2026-11-26.md`. Source: review (the Pixel had on-device rows only). Verified: the PLS-PROBE log line and `OK (1 test)` from the run, the installed `base.apk` hash on the phone; `scripts/ci-local.sh --gates` (with `scripts/test_test_matrix.py`) and `hygiene_guard.py --public` pass.
 
 ## 2026-11-25
