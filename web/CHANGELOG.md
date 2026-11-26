@@ -3370,3 +3370,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `trackCameraClip` hands the read track to the card at once and stores it without waiting: Firestore's write waits for the server's acknowledgement, so a link lost after Gemini answered left the card on "Tracking the person in the clip." until the link came back. A write that fails is still dropped quietly; the next seat reads its own track.
 - Source: review of the time machine mount (a lost link after the reply stranded the card).
 - Verified: the write is no longer awaited (`void writeClipTrack(...).catch(...)`, CommandPost.tsx); typecheck clean. CommandPost has no unit harness, so this one is checked by reading, not by a new test.
+
+### fix(web): a track read that stops says what it had already sent
+- What: `readClipTrack`'s refused and failed outcomes carry `sent: { frames, outlineFrames }` once any frame has left (distinct frames for the boxes, and how many were sent again for outlines), so a receipt can state what left before the stop. Nothing is added when the read stops before its first call.
+- Source: review of the time machine mount (sends before a later failure were not reported).
+- Verified: updated and new expectations in `src/ai/clipTrack.test.ts` (a token-cap stop, a broken reply and a refused call after 10 frames; a delete during the outline calls after 10 plus 6; three stops after 10 or 40) failed first, then passed (44).
