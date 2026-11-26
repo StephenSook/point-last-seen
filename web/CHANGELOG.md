@@ -3400,3 +3400,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `ExtrasBoundary`'s message is now "This panel could not load or cannot run in this browser. Reconnect and reload the page, or open it in a browser with WebGL2." Before, it blamed the link even when the cause was a browser without WebGL2.
 - Source: audit of the web lane (the boundary message named only the network).
 - Verified: `e2e/extras/boundary.spec.ts` (2) updated to the new text failed first, then passed.
+
+### fix(web): the 3D view's clock follows a paused seek too
+- What: `bindVideo` (src/extras/timemachine/clock.ts) follows a seek made with the player's own controls while it is paused: it marks the seeks it starts itself, and any other "seeked" while paused (and not mid-jump) sets the clock to the player's time. Before, only played frames moved the clock, so the 3D view and the box stayed at the old time. `ClipTimeMachine` drops its own listener for this, so both views use the one rule.
+- Source: review of the time machine mount (a paused native seek left a stale box; the same gap was in bindVideo).
+- Verified: new case in `src/extras/timemachine/clock.test.ts` (a paused seek by the player moves the clock; the binding's own seek does not tick twice; a seek while playing waits for frames) failed first, then passed (time machine units 53); the clip harness paused-seek case still passes through bindVideo (36); extras time machine e2e 5.

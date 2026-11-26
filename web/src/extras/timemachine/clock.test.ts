@@ -130,6 +130,24 @@ describe("the time machine clock", () => {
     expect(video.key(" ")).toBe(false);
   });
 
+  it("follows a seek made with the player's own controls while paused, and not its own seeks", () => {
+    const { clock, video, ticks, unbind } = bindFakeVideo();
+    video.pause();
+    video.currentTime = 4;
+    video.finishSeek();
+    expect(ticks).toEqual([{ timeS: 4, source: "video" }]);
+
+    clock.set(6, "scene");
+    video.finishSeek();
+    expect(ticks).toEqual([{ timeS: 4, source: "video" }, { timeS: 6, source: "scene" }]);
+
+    void video.play();
+    video.currentTime = 8;
+    video.finishSeek();
+    expect(ticks.at(-1)).toEqual({ timeS: 6, source: "scene" });
+    unbind();
+  });
+
   it("runs only the latest queued seek after the current seek finishes", () => {
     const { clock, video, unbind } = bindFakeVideo();
     clock.set(2, "scene");

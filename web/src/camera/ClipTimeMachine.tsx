@@ -86,16 +86,8 @@ export function ClipTimeMachine({ clip, durationS, reading, track }: Props) {
   }, [clip]);
   const clock = useMemo(() => createClock({ durationS }), [durationS]);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
+  // bindVideo also follows a seek made with the player's own controls while it is paused.
   useEffect(() => (video ? bindVideo(clock, video) : undefined), [clock, video]);
-  // The player's own controls can seek while it is paused, and no frame plays then: the clock follows the seek.
-  useEffect(() => {
-    if (!video) return;
-    const onSeeked = () => {
-      if (video.paused && clock.now().source !== "tween") clock.set(video.currentTime, "video");
-    };
-    video.addEventListener("seeked", onSeeked);
-    return () => video.removeEventListener("seeked", onSeeked);
-  }, [clock, video]);
   const segments = useMemo(() => (track ? linkTrack(track.entries) : []), [track]);
   const keyFrame = keyFrameOf(reading);
   const results = useMemo(() => timeMachineResults(reading), [reading]);
