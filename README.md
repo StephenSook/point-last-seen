@@ -57,8 +57,8 @@ drill at Kennesaw Mountain was cancelled on 2026-11-23, so none of these was use
   This follows Firebase iOS SDK 13.0.0, which removed the SDK's own `SystemLanguageModel` and `HybridModel` and says to
   use `ai.geminiLanguageModel(name:)` directly with Apple's Foundation Models framework (`FirebaseAI/CHANGELOG.md`,
   lines 69 to 74 at tag 13.2.0, the version this app pins); `ios/PLS/AI/ModelSessionFactory.swift` does exactly that.
-- When no model reads a note or report, nothing is sent. The web receipt says "No model was asked: fixed wording
-  from code." and "Sent: nothing.", the iPhone reads the report with fixed rules and marks it "Read by the phone's
+- When no model reads a note or report, no text or image is sent to a model. The web receipt says "No model was
+  asked: fixed wording from code." and "Sent: no text or image.", the iPhone reads the report with fixed rules and marks it "Read by the phone's
   rules. No model.", and the web and Android forms ask for the fields by hand.
 - Speech: the iPhone app speaks an assignment change in a cloud voice from Firebase AI Logic and falls back to the
   phone's own system voice. No app calls a speech recognizer, and the repository's rules gate refuses one on every
