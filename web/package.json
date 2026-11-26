@@ -13,18 +13,21 @@
   },
   "dependencies": {
     "@pls/engine": "0.1.0",
+    "@react-three/fiber": "9.8.2",
     "animejs": "4.5.0",
     "firebase": "13.4.0",
     "maplibre-gl": "6.19.0",
     "pmtiles": "4.5.0",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "three": "0.187.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.65.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@types/three": "0.187.0",
     "@vitejs/plugin-react": "6.3.0",
     "axe-core": "4.14.0",
     "typescript": "6.0.3",
