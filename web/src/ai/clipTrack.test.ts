@@ -31,6 +31,8 @@ describe("trackFrameTimes", () => {
     expect(trackFrameTimes({ startS: 0, endS: 11.56 }, 11.56, 1 / 25).map((f) => f.t).slice(-2)).toEqual([10, 11]);
     // A window that holds no whole second and whose last frame rounds past it gives no frames.
     expect(trackFrameTimes({ startS: 9.5, endS: 9.6 }, 9.6, 1 / 30)).toEqual([]);
+    // 9.2 to 9.4 s: the last frame (9.367 s) would be labelled 9, before the window's first whole second, so it is left out.
+    expect(trackFrameTimes({ startS: 9.2, endS: 9.4 }, 30, 1 / 30)).toEqual([]);
   });
 
   it("starts at the window's first whole second and never passes the clip", () => {
@@ -321,6 +323,12 @@ describe("readClipTrack checks again before every call", () => {
   it("fails a window that holds no frame", async () => {
     const { deps, req, calls } = setup();
     expect(await readClipTrack({ ...req, durationS: 9.6, window: { startS: 9.5, endS: 9.6 } }, deps)).toEqual({ kind: "failed", reason: "invalid" });
+    expect(calls).toEqual([]);
+  });
+
+  it("fails a window whose only frame would fall before it, before any call", async () => {
+    const { deps, req, calls } = setup({ durationS: 30, record: stored({ durationS: 30 }) });
+    expect(await readClipTrack({ ...req, window: { startS: 9.2, endS: 9.4 } }, deps)).toEqual({ kind: "failed", reason: "invalid" });
     expect(calls).toEqual([]);
   });
 });

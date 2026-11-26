@@ -67,8 +67,9 @@ export function trackFrameTimes(window: ClipWindow, durationS: number, frameS: n
   for (let t = Math.max(0, Math.ceil(window.startS)); t < end; t++) out.push({ t, atS: t });
   const lastAtS = end - frameS;
   const lastT = out.at(-1)?.t ?? Number.NEGATIVE_INFINITY;
-  // Its label must stay inside the window, so a last frame that rounds past the window's end is left out.
-  if (lastAtS > lastT + 0.5 && lastAtS >= window.startS && Math.round(lastAtS) <= end) out.push({ t: Math.round(lastAtS), atS: lastAtS });
+  // Its label must stay inside the window (from its first whole second to its end), or the frame is left out.
+  const label = Math.round(lastAtS);
+  if (lastAtS > lastT + 0.5 && label >= Math.max(0, Math.ceil(window.startS)) && label <= end) out.push({ t: label, atS: lastAtS });
   return out;
 }
 

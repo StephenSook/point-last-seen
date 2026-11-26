@@ -3301,3 +3301,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `clipTrackFromDoc` refuses a stored track with a box number outside 0 to 1000 or not a whole number, a box with its corners out of order, an outline point outside 0 to 1000, a window that starts below 0 or does not end after it starts, or an entry outside its window. The rules check entries by count only, so this check stands in for them on read.
 - Source: review of the track reader (boxes and times were not checked when a track was read back).
 - Verified: five new cases in `src/data/clipTrack.test.ts` failed first, then passed (13 across both files).
+
+### fix(web): every track frame label lies inside its window
+- What: `trackFrameTimes` keeps the extra last frame only when its label is at or after the window's first whole second and at or before its end. A 9.2 to 9.4 s window no longer sends a frame labelled 9 (which the stored-track reader then refused); it has no frame, so the read fails before any call.
+- Source: review of the track read (a narrow window labelled its only frame before the window).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (9.2 to 9.4 s gives no frame; such a read fails with no call) failed first, then passed (39).
