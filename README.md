@@ -11,6 +11,8 @@ Its Measured block shows where stored report reads and plan wording ran and the 
 `scripts/measured_export.py` from the route records each read and plan stores and from AI Logic's token counts
 (`web/public/evidence/measured.json`).
 
+**Demo video:** https://www.youtube.com/watch?v=AkhgNpcHbbw
+
 ## What it does
 
 Searchers send field reports from places with no signal. Their own phone reads each report with an on-device model,
