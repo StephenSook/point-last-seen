@@ -57,6 +57,9 @@ let finishTriage: (() => void) | null = null;
 // current then. ?slowread=1: the sighting read answers only on "Read finishes".
 const slowRead = params.get("slowread") === "1";
 let finishTrack: (() => void) | null = null;
+// ?ack=slowfail: Confirm's write is refused only on "Ack fails", so a delete can land before the refusal.
+const slowAckFail = params.get("ack") === "slowfail";
+let failAck: (() => void) | null = null;
 let finishRead: (() => void) | null = null;
 
 function Harness() {
@@ -93,7 +96,8 @@ function Harness() {
         }}
         onConfirm={(o, input) => {
           setConfirmed(JSON.stringify({ sha256: o.sha256, bearingDeg: o.bearingDeg, camera: input.camera }));
-          return { version: 8, ack: Promise.resolve(), ...(new URLSearchParams(location.search).has("note") ? { note: "Rebuilt without downhill and level ground: the new start is outside the mapped segments." } : {}) };
+          const ack = slowAckFail ? new Promise<void>((_resolve, reject) => (failAck = () => reject(new Error("refused")))) : Promise.resolve();
+          return { version: 8, ack, ...(new URLSearchParams(location.search).has("note") ? { note: "Rebuilt without downhill and level ground: the new start is outside the mapped segments." } : {}) };
         }}
         onClose={() => {}}
         revocation={revocation}
@@ -116,6 +120,9 @@ function Harness() {
       </button>
       <button type="button" onClick={() => finishTrack?.()}>
         Track finishes
+      </button>
+      <button type="button" onClick={() => failAck?.()}>
+        Ack fails
       </button>
       <button type="button" onClick={() => finishRead?.()}>
         Read finishes

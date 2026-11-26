@@ -3430,3 +3430,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `readClipTrack` counts a box or outline call's frames as sent after the call returns, or when it fails with the service's own status (the request reached it). A call that failed before it left (offline, no token: no status) adds nothing, so a stopped read never claims frames that did not leave.
 - Source: review of the time machine mount (frames were counted before the request went out).
 - Verified: new cases in `src/ai/clipTrack.test.ts` (a second box call that never left keeps the count at 40; a first one that never left reports nothing; an answered outline error counts and an unanswered one does not) failed first, then passed (46).
+
+### fix(web): a Confirm refused after a delete stays off the next card
+- What: A delete of the search's media also retires any Confirm still waiting on its write (`CameraClipPanel` moves its latest-Confirm counter), so a refusal that arrives after the delete no longer shows "The sighting was not saved. Try again." on the next clip's card.
+- Source: review of the time machine mount (a late refused write set the next card's error).
+- Verified: new harness case (Confirm, delete, the write is refused, a new clip is read: no alert on its card) failed first, then passed (clip harness 37).

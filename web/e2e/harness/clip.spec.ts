@@ -431,3 +431,18 @@ test("a 3D view that breaks while running says so, keeps the clip, and reports t
   await expect(tm.locator("video")).toHaveCount(1);
   await expect.poll(() => errors.some((m) => m.includes("the view broke"))).toBe(true);
 });
+
+test("a Confirm refused after a delete does not show on the next clip's card", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&ack=slowfail");
+  await page.getByRole("button", { name: "Confirm sighting" }).click();
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  await page.getByRole("button", { name: "Ack fails" }).click();
+  // The form after a delete starts empty: the clip is picked again and the consents given again.
+  await page.getByLabel("Clip", { exact: true }).setInputFiles(CLIP);
+  await page.getByLabel("Clip starts at").fill("2026-11-22T14:05:00");
+  for (const c of ["The person in the clip", "The owner of the footage", "Cloud reading"]) await page.getByLabel(c).check();
+  await page.getByRole("button", { name: "Read clip" }).click();
+  await expect(page.getByRole("region", { name: "Camera sighting" })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Confirm sighting" })).toBeVisible();
+});

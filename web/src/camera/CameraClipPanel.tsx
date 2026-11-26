@@ -66,6 +66,8 @@ export function CameraClipPanel({ camera, cameraSegmentId, choices, onPlaceCamer
     if (revocation === lastRevocation.current) return;
     lastRevocation.current = revocation;
     epoch.current++;
+    // A Confirm still waiting on its write no longer belongs to any card: its late result is dropped.
+    latest.current++;
     if (read) setDeleted(true);
     setRead(null);
     setTrack(null);
