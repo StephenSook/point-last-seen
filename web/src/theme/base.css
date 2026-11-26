@@ -234,6 +234,8 @@ button, input, select { font: inherit; color: inherit; }
 /* In the panel the 3D view takes its column's full width; its results sit under it as buttons. */
 .clip-tm .tm-results { flex: 1 1 100%; }
 .clip-tm-status { display: grid; gap: 6px; justify-items: start; margin-bottom: 12px; }
+/* Full size, so the box's percentages stay on the picture; clipped above the player's controls band. */
+.clip-box-layer { position: absolute; inset: 0; clip-path: inset(0 0 44px 0); pointer-events: none; }
 .tm-fallback-results { display: grid; gap: 4px; margin: 8px 0 0; padding-inline-start: 1.5rem; }
 @media (max-width: 900px) { .clip-tm { grid-template-columns: minmax(0, 1fr); } }
 fieldset.facing, fieldset.consents { border: 0; padding: 0; margin: 0; display: grid; gap: 2px; }

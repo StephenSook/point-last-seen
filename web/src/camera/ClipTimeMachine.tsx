@@ -127,13 +127,16 @@ export function ClipTimeMachine({ clip, durationS, reading, track, onClose, stat
       <div className="clip-tm" data-testid="clip-time-machine">
         <div className="clip-frame">
           {url && <video ref={setVideo} src={url} muted playsInline preload="auto" controls aria-label="The clip, on the time machine's clock" />}
-          {box && (
-            <div
-              className="clip-box"
-              data-testid="clip-track-box"
-              style={{ top: `${box[0] / 10}%`, left: `${box[1] / 10}%`, height: `${(box[2] - box[0]) / 10}%`, width: `${(box[3] - box[1]) / 10}%` }}
-            />
-          )}
+          {/* The box is drawn on the picture only, never over the player's own controls along the bottom. */}
+          <div className="clip-box-layer">
+            {box && (
+              <div
+                className="clip-box"
+                data-testid="clip-track-box"
+                style={{ top: `${box[0] / 10}%`, left: `${box[1] / 10}%`, height: `${(box[2] - box[0]) / 10}%`, width: `${(box[3] - box[1]) / 10}%` }}
+              />
+            )}
+          </div>
         </div>
         {video && (
           <ViewBoundary results={results} clock={clock}>

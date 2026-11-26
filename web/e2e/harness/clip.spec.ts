@@ -484,4 +484,14 @@ test.describe("the open time machine is a wide panel over the post", () => {
     await page.keyboard.press("Escape");
     await expect(panel).toHaveCount(0);
   });
+
+  test("the person's box is kept out of the player's own controls", async ({ page }) => {
+    await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+    await page.getByRole("region", { name: "Camera sighting" }).getByRole("button", { name: "Open the time machine" }).click();
+    const layer = page.getByTestId("clip-time-machine").locator(".clip-box-layer");
+    await expect(layer).toHaveCount(1);
+    const style = await layer.evaluate((l) => ({ clip: getComputedStyle(l).clipPath, events: getComputedStyle(l).pointerEvents }));
+    expect(style.clip).toContain("44px");
+    expect(style.events).toBe("none");
+  });
 });
