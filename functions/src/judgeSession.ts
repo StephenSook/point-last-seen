@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Auth } from "firebase-admin/auth";
 import { Timestamp, type DocumentData, type DocumentReference, type Firestore } from "firebase-admin/firestore";
 import { HttpsError, type FunctionsErrorCode } from "firebase-functions/v2/https";
+import { logIncidentId } from "./logId.js";
 import { practiceReading, practiceTrack, type ClipStore } from "./practiceClip.js";
 
 /** The label every practice incident carries, shown wherever the drill label is shown. */
@@ -109,7 +110,7 @@ async function copyPracticeClips(seed: DocumentReference, to: DocumentReference,
     try {
       const [reading, track] = await Promise.all([seed.collection("clipReadings").doc(sha).get(), seed.collection("clipTracks").doc(sha).get()]);
       // Every skip says why in the log, so a practice search with no clip is never a silent one.
-      const log = (fields: Record<string, string>) => console.log(JSON.stringify({ event: "startJudgeSession", incidentId: to.id, ...fields }));
+      const log = (fields: Record<string, string>) => console.log(JSON.stringify({ event: "startJudgeSession", incidentId: logIncidentId(to.id), ...fields }));
       const r = reading.exists ? practiceReading(reading.data()!, sha, path, attemptEnds, Math.max(nowMs, Date.now())) : { skip: "no_reading" };
       if ("skip" in r) {
         log({ practice_clip_skipped: r.skip });
@@ -121,7 +122,7 @@ async function copyPracticeClips(seed: DocumentReference, to: DocumentReference,
       copied = true;
       await writeDocs([{ ref: to.collection("clipReadings").doc(sha), data: r.data }, ...("data" in t ? [{ ref: to.collection("clipTracks").doc(sha), data: t.data }] : [])]);
     } catch {
-      console.log(JSON.stringify({ event: "startJudgeSession", incidentId: to.id, clip: "not_copied" }));
+      console.log(JSON.stringify({ event: "startJudgeSession", incidentId: logIncidentId(to.id), clip: "not_copied" }));
       if (copied) await store.remove(path).catch(() => undefined);
     }
   }
@@ -260,7 +261,7 @@ export async function handleStartJudgeSession(db: Firestore, auth: Auth, uid: st
     throw e;
   }
   await settle({ setupReady: true });
-  console.log(JSON.stringify({ event: "startJudgeSession", incidentId: buildId, seed: cfg.seedIncidentId }));
+  console.log(JSON.stringify({ event: "startJudgeSession", incidentId: logIncidentId(buildId), seed: cfg.seedIncidentId }));
   return giveCommand(db, auth, uid, buildId, nowMs, cfg.beforeClaims);
 }
 

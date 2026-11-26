@@ -3530,3 +3530,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `docs/TEST-MATRIX.md`'s clip track row cites `web/src/ai/clipTrack.ts` at the line that now holds `InferenceMode.ONLY_IN_CLOUD` (the outline cap's constant moved it).
 - Source: the test-matrix check (every row cites a live code line).
 - Verified: `scripts/test_test_matrix.py` failed on the old line, then passed.
+
+### fix(functions): logs name a practice search by a short hash, never by its visitor's uid
+- What: A judge practice search's id is `judge-{visitor uid}-{random}`, so writing it to a log line put the visitor's Firebase uid in Cloud Logging. `functions/src/logId.ts` (`logIncidentId`) logs such an id as `judge#` plus the first 12 hex of its SHA-256 (the same for every line about that practice search); any other incident id is logged as it is. It is used in startJudgeSession's three log lines (the skip reasons, the clip not copied, and the session started), in deleteClipOnConsentEnd (which a practice search's copied clip now reaches at its end) and in deleteIncidentMediaNow.
+- Source: review of the judge practice search logs (the sandbox id carries the visitor's uid).
+- Verified: new `functions/test/logId.test.ts` (a judge id becomes a hash with no uid in it, the same each time; a drill id stays) and a judgeSession case (no log line of a session start holds the uid or the sandbox id; a judge# hash is there) failed on the previous code, then passed; functions typecheck clean.

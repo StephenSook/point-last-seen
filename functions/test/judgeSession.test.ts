@@ -508,6 +508,25 @@ describe("startJudgeSession and the practice clip", () => {
     }
   });
 
+  it("never writes the visitor's uid to the log, only a short hash of the practice search's id", async () => {
+    const logged: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => void logged.push(args.map(String).join(" ")));
+    try {
+      await seedClip(CLIP, { consent: { personInClip: MARK, footageOwner: MARK, cloudProcessing: MARK, publicUse: null } });
+      const uid = await freshUid();
+      const { store } = fakeStore();
+      const { incidentId } = await handleStartJudgeSession(admin.db, admin.auth, uid, NOW, clipCfg(store));
+      expect(logged.length).toBeGreaterThan(0);
+      for (const line of logged) {
+        expect(line).not.toContain(uid);
+        expect(line).not.toContain(incidentId);
+      }
+      expect(logged.some((l) => /judge#[0-9a-f]{12}/.test(l))).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("keeps a track entry whose outline has more than 16 points, without the outline", async () => {
     const long = Array.from({ length: 34 }, (_, i) => 100 + i);
     await seedClip(CLIP, {}, { entries: [{ t: 1, box: [100, 200, 900, 400], source: "cloud", mask: long }, ENTRY] });

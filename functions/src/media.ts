@@ -3,6 +3,7 @@ import type { getStorage } from "firebase-admin/storage";
 import { HttpsError } from "firebase-functions/v2/https";
 import type { Auth } from "firebase-admin/auth";
 import { assertCurrentCommand } from "./authz.js";
+import { logIncidentId } from "./logId.js";
 
 type Bucket = ReturnType<ReturnType<typeof getStorage>["bucket"]>;
 const MEDIA_PREFIXES = ["clips", "photos", "packs"] as const;
@@ -148,7 +149,7 @@ export async function handleDeleteMedia(db: Firestore, users: Pick<Auth, "getUse
     await Promise.all(docs.map(d => d.delete()));
     deleted += docs.length;
   }
-  console.log(JSON.stringify({ event: "deleteIncidentMediaNow", incidentId, deleted }));
+  console.log(JSON.stringify({ event: "deleteIncidentMediaNow", incidentId: logIncidentId(incidentId), deleted }));
   return { deleted };
 }
 
