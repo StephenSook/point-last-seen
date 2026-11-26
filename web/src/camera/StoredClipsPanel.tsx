@@ -112,17 +112,32 @@ export function StoredClipsPanel({ revocation, timeMachine, canTrack, load, open
               {here?.status === "loading" && <p className="muted small" role="status">Loading the clip.</p>}
               {here?.status === "failed" && <p className="muted small" role="status">{CLIP_NOT_LOADED}</p>}
               {here?.status === "ready" && (
-                <>
-                  {tv?.status === "reading" && <p className="muted small" role="status">Tracking the person in the clip.</p>}
-                  {tv?.status === "failed" && <p className="muted small" role="status">{tv.message}</p>}
-                  {tv && tv.status !== "reading" && tv.sent && <p className="small">{trackSentLine(tv.sent.frames, tv.sent.outlineFrames)}</p>}
-                  {!tv && canTrack && onTrack && (
-                    <button type="button" className="btn" onClick={() => track(c, here)}>
-                      Track the person
-                    </button>
-                  )}
-                  <ClipTimeMachine clip={here.clip} durationS={here.durationS} reading={c.sighting} track={tv?.status === "ready" ? tv.track : null} />
-                </>
+                <ClipTimeMachine
+                  clip={here.clip}
+                  durationS={here.durationS}
+                  reading={c.sighting}
+                  track={tv?.status === "ready" ? tv.track : null}
+                  onClose={() => {
+                    epoch.current++;
+                    setOpened(null);
+                  }}
+                  status={
+                    tv?.status === "reading" ? (
+                      <p className="muted small" role="status">Tracking the person in the clip.</p>
+                    ) : tv?.status === "failed" ? (
+                      <>
+                        <p className="muted small" role="status">{tv.message}</p>
+                        {tv.sent && <p className="small">{trackSentLine(tv.sent.frames, tv.sent.outlineFrames)}</p>}
+                      </>
+                    ) : tv?.sent ? (
+                      <p className="small">{trackSentLine(tv.sent.frames, tv.sent.outlineFrames)}</p>
+                    ) : !tv && canTrack && onTrack ? (
+                      <button type="button" className="btn" onClick={() => track(c, here)}>
+                        Track the person
+                      </button>
+                    ) : null
+                  }
+                />
               )}
             </li>
           );

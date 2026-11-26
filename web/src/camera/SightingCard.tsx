@@ -132,7 +132,7 @@ export function SightingCard({ reading, clipStartMs, bearingDeg, colorSuppressed
         </button>
       )}
       {canOpen && machineOpen && clip && machineS && (
-        <ClipTimeMachine clip={clip} durationS={machineS} reading={reading} track={track?.status === "ready" ? track.track : null} />
+        <ClipTimeMachine clip={clip} durationS={machineS} reading={reading} track={track?.status === "ready" ? track.track : null} onClose={() => setMachineOpen(false)} />
       )}
     </section>
   );

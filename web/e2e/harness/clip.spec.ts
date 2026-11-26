@@ -304,7 +304,7 @@ test("after a read, the receipt counts the track's frames and the time machine o
   await card.getByText("What ran", { exact: true }).click();
   await expect(card).toContainText("6 frames of the clip left this laptop for the cloud. 6 of them were sent again for the outlines.");
   await card.getByRole("button", { name: "Open the time machine" }).click();
-  const tm = card.getByTestId("clip-time-machine");
+  const tm = page.getByTestId("clip-time-machine");
   await expect(tm.getByRole("region", { name: "Clip time machine" })).toBeVisible({ timeout: 30_000 });
   await tm.getByRole("button", { name: "Clearest frame 0:04" }).click();
   const video = tm.locator("video");
@@ -319,7 +319,7 @@ test("a track that could not be read says so, and the time machine still opens o
   const card = page.getByRole("region", { name: "Camera sighting" });
   await expect(card.getByRole("status")).toHaveText("The person's track could not be read. The time machine shows the clearest frame.");
   await card.getByRole("button", { name: "Open the time machine" }).click();
-  const tm = card.getByTestId("clip-time-machine");
+  const tm = page.getByTestId("clip-time-machine");
   await expect(tm.getByRole("region", { name: "Clip time machine" })).toBeVisible({ timeout: 30_000 });
   await tm.getByRole("button", { name: "Clearest frame 0:04" }).click();
   await expect(tm.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 30%; height: 20%; width: 40%/, { timeout: 10_000 });
@@ -335,7 +335,7 @@ test("when the 3D view cannot load, the time machine says so and keeps the clip 
   await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
   const card = page.getByRole("region", { name: "Camera sighting" });
   await card.getByRole("button", { name: "Open the time machine" }).click();
-  const tm = card.getByTestId("clip-time-machine");
+  const tm = page.getByTestId("clip-time-machine");
   await expect(tm.getByRole("status")).toHaveText("The 3D view could not load. The clip and the person's box are still shown here.", { timeout: 30_000 });
   await expect(tm.locator("video")).toHaveCount(1);
   // The panel around the card is still there, not torn down by the failed import.
@@ -359,7 +359,8 @@ test("a delete while the time machine is open closes it and the clip with it", a
   const card = page.getByRole("region", { name: "Camera sighting" });
   await card.getByRole("button", { name: "Open the time machine" }).click();
   await expect(page.getByTestId("clip-time-machine").locator("video")).toHaveCount(1);
-  await page.getByRole("button", { name: "Media deleted" }).click();
+  // The delete comes from elsewhere (another seat, or the photo tray) while the panel covers the post.
+  await page.getByRole("button", { name: "Media deleted" }).dispatchEvent("click");
   await expect(page.getByTestId("clip-time-machine")).toHaveCount(0);
   await expect(page.locator("video")).toHaveCount(0);
 });
@@ -396,7 +397,7 @@ test("when the 3D view cannot load, the result buttons still move the clip and i
   await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
   const card = page.getByRole("region", { name: "Camera sighting" });
   await card.getByRole("button", { name: "Open the time machine" }).click();
-  const tm = card.getByTestId("clip-time-machine");
+  const tm = page.getByTestId("clip-time-machine");
   await expect(tm.getByRole("status")).toHaveText("The 3D view could not load. The clip and the person's box are still shown here.", { timeout: 30_000 });
   await tm.getByRole("button", { name: "Clearest frame 0:04" }).click();
   await expect.poll(() => tm.locator("video").evaluate((v: HTMLVideoElement) => Math.round(v.currentTime * 10) / 10), { timeout: 10_000 }).toBe(4);
@@ -407,14 +408,14 @@ test("a seek with the clip's own controls while paused moves the box with it", a
   await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
   const card = page.getByRole("region", { name: "Camera sighting" });
   await card.getByRole("button", { name: "Open the time machine" }).click();
-  const video = card.getByTestId("clip-time-machine").locator("video");
+  const video = page.getByTestId("clip-time-machine").locator("video");
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState), { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
   await video.evaluate((v: HTMLVideoElement) => {
     v.pause();
     v.currentTime = 2;
   });
   // At 2 s the fixed track's box spans x 300 to 500 and y 400 to 600 of 1000.
-  await expect(card.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 30%; height: 20%; width: 20%/, { timeout: 10_000 });
+  await expect(page.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 30%; height: 20%; width: 20%/, { timeout: 10_000 });
 });
 
 test("a 3D view that breaks while running says so, keeps the clip, and reports the error", async ({ page }) => {
@@ -426,7 +427,7 @@ test("a 3D view that breaks while running says so, keeps the clip, and reports t
   await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
   const card = page.getByRole("region", { name: "Camera sighting" });
   await card.getByRole("button", { name: "Open the time machine" }).click();
-  const tm = card.getByTestId("clip-time-machine");
+  const tm = page.getByTestId("clip-time-machine");
   await expect(tm.getByRole("status")).toHaveText("The 3D view stopped working. The clip and the person's box are still shown here.", { timeout: 30_000 });
   await expect(tm.locator("video")).toHaveCount(1);
   await expect.poll(() => errors.some((m) => m.includes("the view broke"))).toBe(true);
@@ -445,4 +446,42 @@ test("a Confirm refused after a delete does not show on the next clip's card", a
   await expect(page.getByRole("region", { name: "Camera sighting" })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Confirm sighting" })).toBeVisible();
+});
+
+test.describe("the open time machine is a wide panel over the post", () => {
+  test("at 1440 wide the clip and a 3D block of at least 560 px sit side by side, and Close returns to the card", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+    const open = page.getByRole("region", { name: "Camera sighting" }).getByRole("button", { name: "Open the time machine" });
+    await open.click();
+    const panel = page.getByRole("dialog", { name: "Time machine" });
+    await expect(panel.getByRole("region", { name: "Clip time machine" })).toBeVisible({ timeout: 30_000 });
+    const video = (await panel.locator("video").boundingBox())!;
+    const stage = (await panel.locator(".tm-stage").boundingBox())!;
+    expect(stage.width).toBeGreaterThanOrEqual(560);
+    expect(video.width).toBeGreaterThanOrEqual(480);
+    expect(video.x + video.width).toBeLessThanOrEqual(stage.x + 1);
+    await expect(panel.getByRole("button", { name: "Clearest frame 0:04" })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath("time-machine-1440.png") });
+    await panel.getByRole("button", { name: "Close" }).click();
+    await expect(panel).toHaveCount(0);
+    await expect(open).toBeFocused();
+  });
+
+  test("on a phone it stacks with no sideways scroll, and Escape closes it", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+    await page.getByRole("region", { name: "Camera sighting" }).getByRole("button", { name: "Open the time machine" }).click();
+    const panel = page.getByRole("dialog", { name: "Time machine" });
+    await expect(panel.getByRole("region", { name: "Clip time machine" })).toBeVisible({ timeout: 30_000 });
+    const video = (await panel.locator("video").boundingBox())!;
+    const stage = (await panel.locator(".tm-stage").boundingBox())!;
+    expect(video.x).toBeGreaterThanOrEqual(0);
+    expect(video.x + video.width).toBeLessThanOrEqual(390);
+    expect(stage.y).toBeGreaterThanOrEqual(video.y + video.height - 1);
+    expect(await panel.evaluate((p) => p.scrollWidth <= p.clientWidth)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath("time-machine-390.png") });
+    await page.keyboard.press("Escape");
+    await expect(panel).toHaveCount(0);
+  });
 });
