@@ -2,13 +2,14 @@
 // instance per app, on the Gemini Developer API, with App Check tokens.
 
 import type { FirebaseApp } from "firebase/app";
-import { getAI, getGenerativeModel, getTemplateGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel, type InferenceSource, type TemplateRequest } from "firebase/ai";
+import { getAI, getGenerativeModel, getTemplateGenerativeModel, GoogleAIBackend, type AI, type GenerativeModel, type InferenceSource, type Part, type TemplateRequest } from "firebase/ai";
 import { REPLY_TIMEOUT_MS, wordingOnDeviceParams, wordingParams, type ChoiceTeams, type WordingDeps } from "./replanWording";
 import { photoParams, type PhotoDeps } from "./photoCues";
 import { debriefSheetParams, type SheetDeps } from "./debriefSheetRead";
 import { sightingTextParams, type SightingTextDeps } from "./sightingText";
 import { clipCloudParams, clipParts, type ClipWindow } from "./clipRead";
 import { frameCheckParams } from "./frameCheck";
+import { clipTrackParams, type TrackReply } from "./clipTrack";
 
 let instance: AI | undefined;
 
@@ -136,6 +137,19 @@ export function clipGeneratorFor(model: ImageModel): ClipGenerate {
 /** The consented cloud read of one camera clip (ONLY_IN_CLOUD). */
 export function clipCloudGenerator(ai: AI, model: string): ClipGenerate {
   return clipGeneratorFor(getGenerativeModel(ai, clipCloudParams(model), { timeout: CLIP_TIMEOUT_MS }));
+}
+
+/** One call of the clip's track read: the parts as given; the finish reason says whether the reply hit its cap. */
+export function trackGeneratorFor(model: ImageModel): (parts: Part[]) => Promise<TrackReply> {
+  return async (parts) => {
+    const r = await model.generateContent(parts);
+    return { text: r.response.text(), finishReason: r.response.candidates?.[0]?.finishReason ?? null, inferenceSource: r.response.inferenceSource };
+  };
+}
+
+/** The clip's track read (ONLY_IN_CLOUD): boxes, or outlines when `withMask`. */
+export function clipTrackGenerator(ai: AI, model: string, withMask: boolean): (parts: Part[]) => Promise<TrackReply> {
+  return trackGeneratorFor(getGenerativeModel(ai, clipTrackParams(model, withMask), { timeout: CLIP_TIMEOUT_MS }));
 }
 
 export function frameGeneratorFor(model: ImageModel): (jpegBase64: string) => Promise<{ text: string; inferenceSource?: string }> {

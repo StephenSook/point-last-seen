@@ -3251,3 +3251,68 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `docs/evidence/web/2026-11-26-clip-track-frames-spike.json` and the team clip's two sheets (boxes, outlines); the evidence README describes them. With one JPEG per second in one request (text first, "t=<second>" before each 960 px frame, box_2d with a label, thinking MINIMAL, a 2048 cap), gemini-3.5-flash-lite boxed the person on every second in view: team clip 9 of 9 in two runs, stock 19 of 19 and 12 of 12. A 16-point outline landed on the person in 9 of 9 team-clip frames. gemini-3.8-flash answered HTTP 500 on 4 of 4 calls.
 - Source: the clip time machine plan (second spike after the video path failed).
 - Verified: 10 calls (36 of a 42-call budget in all), no 429; every box and outline checked on the frame at its second; the sheets' SHA-256 in the JSON and README match the committed files; JSON parses; scripts/ci-local.sh --gates exit 0; web unit tests pass; hygiene guard --public ok.
+
+### feat(web): read a clip's track from one frame per second
+- What: `ai/clipTrack.ts` reads a box around the walking person for each second of the flagged window, in the cloud, from JPEGs this laptop takes from the clip (960 px; the instruction first, then "t=<second>" before each frame; up to 40 frames a call), plus the clip's last frame when it is more than half a second past the last whole second. A reply that breaks a rule (not JSON, a time not sent, times out of order, a box off 0 to 1000 or with its corners swapped, more entries than frames) or stops at its 2048-token cap fails the whole track; a box not labelled a person is left out. An optional second read asks for outlines six frames at a time, and a failed outline call leaves its boxes. The clip's three consents are read from the server first, the cloud pause before every call, and a delete during the read discards it; only an error's status number is kept. `clipTrackParams` sets cloud only, the track schema (no bounds, patterns or item caps, which the serving side refused) and the cap, and no thinking level; `client.ts` adds `trackGeneratorFor` and `clipTrackGenerator`. Nothing calls it yet.
+- Source: the clip time machine plan, revised by the frames spike (docs/evidence/web/2026-11-26-clip-track-frames-spike.json).
+- Verified: `src/ai/clipTrack.test.ts` (26) and the new `trackGeneratorFor` cases in `client.test.ts` failed first (module and functions missing), then passed; the AI tests (234) pass; typecheck clean; rules gate ok.
+
+### feat(web): store a clip's track beside its reading
+- What: `data/clipTrack.ts` writes a track once to `incidents/{id}/clipTracks/{sha256}` (the clip's own SHA-256, like its reading) with its version, window, entries, model, route, the frames sent, the writer and a server time, and reads it back. Each outline is stored as a flat [y, x, y, x, ...] list, since Firestore holds no list inside a list; a stored document that is not this version, has a box that is not 4 numbers, an odd outline, times out of order or an unknown source reads as no track. Nothing writes it yet.
+- Source: the clip time machine plan (the track is its own record, so a bad track never touches the sighting).
+- Verified: `src/data/clipTrack.test.ts` (7: the flat outline, the key set, the round trip, five unreadable documents) failed first (module missing), then passed; typecheck clean.
+
+### feat(rules): a clip's track is written once, after its reading, and read by members
+- What: `firestore.rules` adds `incidents/{id}/clipTracks/{sha256}`: every member reads it; command or family of an open search creates it once, only when the clip's reading is already stored (a track never comes before its sighting), with exactly its fields (version `track-v1`, this clip's SHA-256, a window with endS past startS, at most 121 entries, a model name, a web route record, 1 to 121 frames sent, the writer's own uid, server time); nobody updates it; command deletes it. Each entry's box and outline are checked by the client on write and on read.
+- Source: the clip time machine plan (the track's own record and rules).
+- Verified: `functions/test/rules/clipTracks.test.ts` (6) failed first (no matching allow statement), then passed; a route naming another platform was let through by the shared route check until the rule pinned `platform == 'web'`; scripts/ci-local.sh --rules exit 0 (398 tests).
+
+### feat(functions): a clip's track is deleted with its reading and its media
+- What: `functions/src/media.ts` adds `deleteTrackForReading` (the clip-hash and incident-id checks of `deleteClipForReading`), adds `clipTracks` to the documents `deleteIncidentMediaNow` removes, and makes the ended-sandbox sweep delete each ended sandbox's tracks with its files (a failed track delete leaves the sandbox to the next run, like a held file). `functions/src/index.ts`: `deleteClipOnConsentEnd` also deletes the clip's track, so a track never outlives the consent record it came from.
+- Source: the clip time machine plan (privacy: the media delete removes the track).
+- Verified: new cases in `functions/test/media.test.ts` (the sweep takes an ended sandbox's tracks and leaves a live sandbox's and a drill's; a deleted reading takes only its own clip's track; bad ids touch nothing) and `functions/test/deleteMedia.test.ts` (command's delete takes I1's track, not I2's) failed first (function missing, count 5), then passed; an existing count in deleteMedia.test.ts now includes the track (5 to 6); functions typecheck clean; scripts/ci-local.sh --rules exit 0 (401).
+
+### fix(web): the track's extra last frame stays inside its window
+- What: `trackFrameTimes` adds the clip's last frame only when its rounded second is at or before the window's end, so no frame is sent labelled past the window (an 11.56 s window no longer gets a frame labelled 12). A 9.0 s clip still gets t=9.
+- Source: review of the track read (frame labels past the window).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (11.56 s ends at 11; a window holding no frame gives none) failed first, then passed (28).
+
+### fix(web): a track reply needs one entry per frame sent
+- What: `parseTrackReply` refuses a reply whose `track` has fewer entries than the frames sent, an empty one included (a null box still says nobody is in that frame). Before, a finished reply with a short or empty track passed as a track with no boxes.
+- Source: review of the track read (a short reply read as an empty track).
+- Verified: new case in `src/ai/clipTrack.test.ts` (an empty and a one-entry reply for two frames) failed first, then passed; two existing cases now send exactly the frames they answer (29).
+
+### fix(web): the track read checks consent and a finished reading before every call
+- What: `readClipTrack` reads the clip's record from the server before every box call and every outline call, and stops when a consent is gone, the record expired, or the record holds no finished reading (a sighting the parser accepts, or a no-sighting); nothing is sent for a clip with no reading. The window is held to the stored clip's length plus one second (the record keeps no window). Frames are taken inside the error boundary, so a frame that cannot be taken fails the read instead of throwing; a window with no frame fails before any call; the media-delete and pause checks run once more before a track is handed back.
+- Source: review of the track read (consent checked once, before frames were taken; a null reading let through; a track returned after a delete).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (a consent withdrawn between box calls and before an outline call; no stored reading; a reading that is neither; a sighting reading; a window past the stored length; a frame that cannot be taken; a window with no frame) failed first, then passed; the default fixture's reading is now a no-sighting and the 45.2 s cases store a 45 s clip (38).
+
+### fix(rules): a clip's track is read one at a time, only while its reading is stored
+- What: `firestore.rules`: `clipTracks` allows `get` (not `list`) to a member only while the clip's `clipReadings` record exists with a non-null reading, so a deleted reading hides its track at once, before the delete trigger removes it. The check is one shared function, `hasClipReading`, also used by the create rule.
+- Source: review of the track rules (a track stayed readable after its reading was deleted, until the trigger ran).
+- Verified: new case in `functions/test/rules/clipTracks.test.ts` (readable with the reading; refused as a list; refused once the reading is null or deleted) failed first (the read succeeded), then passed (7).
+
+### fix(web): a stored track is read from the server, never from this device's cache
+- What: `findClipTrack` uses `getDocFromServer`, so a track deleted on the server (or hidden because its reading was deleted) cannot come back from the offline cache. Offline, the read fails, and the card then shows the clearest frame.
+- Source: review of the track reader (the offline cache could bring back a deleted track).
+- Verified: new `src/data/clipTrackServer.test.ts` (the read goes to the server only) failed first (it read through `getDoc`), then passed; `src/data/clipTrack.test.ts` unchanged and green (8 across both files).
+
+### fix(web): a stored track's boxes, outlines and times are checked on read
+- What: `clipTrackFromDoc` refuses a stored track with a box number outside 0 to 1000 or not a whole number, a box with its corners out of order, an outline point outside 0 to 1000, a window that starts below 0 or does not end after it starts, or an entry outside its window. The rules check entries by count only, so this check stands in for them on read.
+- Source: review of the track reader (boxes and times were not checked when a track was read back).
+- Verified: five new cases in `src/data/clipTrack.test.ts` failed first, then passed (13 across both files).
+
+### fix(web): every track frame label lies inside its window
+- What: `trackFrameTimes` keeps the extra last frame only when its label is at or after the window's first whole second and at or before its end. A 9.2 to 9.4 s window no longer sends a frame labelled 9 (which the stored-track reader then refused); it has no frame, so the read fails before any call.
+- Source: review of the track read (a narrow window labelled its only frame before the window).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (9.2 to 9.4 s gives no frame; such a read fails with no call) failed first, then passed (39).
+
+### fix(web): a track read that stops after frames left says how many
+- What: `readClipTrack` sends every refusal through one helper. Before the first model call it keeps the reason with "Nothing was sent."; once frames have left, `stoppedMessage` gives the reason, then "The read stopped. N frames of the clip had already been sent to the cloud." with the real count of distinct frames sent (one frame is singular).
+- Source: review of the track read (a refusal after frames had left said nothing was sent).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (the wording for 40 frames and for 1; a consent withdrawn between box calls says 40 frames had left) failed first, then passed; the media-deleted-during-outlines case now expects the 10 frames already sent (41).
+
+### fix(web): the track read checks with the server once more after the last reply
+- What: After the last box or outline reply, `readClipTrack` reads the clip's record from the server again (three consents, not expired, a finished reading), then checks the media delete and the pause, before it returns a track. A pause during the outline calls now stops the whole read (it used to keep the boxes).
+- Source: review of the track read (consent and reading were not checked after the final reply).
+- Verified: new cases in `src/ai/clipTrack.test.ts` (a reading gone after the last reply; a pause during the last check; both say 10 frames had left) failed first, then passed (43).
