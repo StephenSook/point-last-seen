@@ -3290,3 +3290,8 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `functions/src/media.ts` adds `deleteTrackForReading` (the clip-hash and incident-id checks of `deleteClipForReading`), adds `clipTracks` to the documents `deleteIncidentMediaNow` removes, and makes the ended-sandbox sweep delete each ended sandbox's tracks with its files (a failed track delete leaves the sandbox to the next run, like a held file). `functions/src/index.ts`: `deleteClipOnConsentEnd` also deletes the clip's track, so a track never outlives the consent record it came from.
 - Source: the clip time machine plan (privacy: the media delete removes the track).
 - Verified: new cases in `functions/test/media.test.ts` (the sweep takes an ended sandbox's tracks and leaves a live sandbox's and a drill's; a deleted reading takes only its own clip's track; bad ids touch nothing) and `functions/test/deleteMedia.test.ts` (command's delete takes I1's track, not I2's) failed first (function missing, count 5), then passed; an existing count in deleteMedia.test.ts now includes the track (5 to 6); functions typecheck clean; scripts/ci-local.sh --rules exit 0 (401).
+
+### feat(web): a model-call trace can carry its own name
+- What: `recordInference` takes an optional trace name (default `hybrid-inference`), so the clip track read records as `clip_track` with the same route-only attributes and latency metric.
+- Source: the clip time machine plan (performance trace clip_track).
+- Verified: new case in `src/telemetry/trace.test.ts` failed first (the name was fixed), then passed (4).
