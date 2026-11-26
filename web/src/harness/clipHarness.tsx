@@ -52,6 +52,9 @@ const TRACK: TrackView = {
 // ?slowtriage=1: triage answers only on "Triage finishes", so a delete can land while it runs.
 const slowTriage = params.get("slowtriage") === "1";
 let finishTriage: (() => void) | null = null;
+// ?track=slow: the track read answers only on "Track finishes", and the page records whether the job was still
+// current then.
+let finishTrack: (() => void) | null = null;
 
 function Harness() {
   const [camera, setCamera] = useState<LatLon | null>(null);
@@ -62,6 +65,8 @@ function Harness() {
   const [calls, setCalls] = useState(0);
   // "Media deleted" stands for a delete of this search's media, from this seat or announced by another.
   const [revocation, setRevocation] = useState(0);
+  const [trackCalls, setTrackCalls] = useState(0);
+  const [trackCurrent, setTrackCurrent] = useState("");
   return (
     <main style={{ width: trackMode ? 1100 : 340, padding: 16 }}>
       <p className="drill">Synthetic test grid and clip, not drill data.</p>
@@ -87,7 +92,14 @@ function Harness() {
         onClose={() => {}}
         revocation={revocation}
         timeMachine={trackMode !== null}
-        onTrack={trackMode ? async () => (trackMode === "fail" ? { status: "failed", message: TRACK_FAILED, durationS: 6 } : TRACK) : undefined}
+        onTrack={trackMode ? async (_o, _input, h) => {
+          setTrackCalls((n) => n + 1);
+          if (trackMode === "slow") {
+            await new Promise<void>((resolve) => (finishTrack = resolve));
+            setTrackCurrent(String(h.stillCurrent?.() ?? "unset"));
+          }
+          return trackMode === "fail" ? { status: "failed", message: TRACK_FAILED, durationS: 6 } : TRACK;
+        } : undefined}
       />
       <button type="button" onClick={() => setRevocation((n) => n + 1)}>
         Media deleted
@@ -95,6 +107,11 @@ function Harness() {
       <button type="button" onClick={() => finishTriage?.()}>
         Triage finishes
       </button>
+      <button type="button" onClick={() => finishTrack?.()}>
+        Track finishes
+      </button>
+      <pre data-testid="track-calls">{trackCalls}</pre>
+      <pre data-testid="track-current">{trackCurrent}</pre>
       <pre data-testid="confirmed">{confirmed}</pre>
       <pre data-testid="how">{how}</pre>
       <pre data-testid="calls">{calls}</pre>

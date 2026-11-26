@@ -341,3 +341,25 @@ test("when the 3D view cannot load, the time machine says so and keeps the clip 
   // The panel around the card is still there, not torn down by the failed import.
   await expect(page.getByRole("button", { name: "Confirm sighting" })).toBeVisible();
 });
+
+test("a delete while the track is read clears the card, and the late track neither brings it back nor counts as current", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=slow");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await expect(card.getByText("Tracking the person in the clip.")).toBeVisible();
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  await expect(card).toHaveCount(0);
+  await expect(page.getByText("This search's clips and photos were deleted. Give the consents again to read a clip.")).toBeVisible();
+  await page.getByRole("button", { name: "Track finishes" }).click();
+  await expect(page.getByTestId("track-current")).toHaveText("false");
+  await expect(card).toHaveCount(0);
+});
+
+test("a delete while the time machine is open closes it and the clip with it", async ({ page }) => {
+  await fillAndRead(page, "/harness/clip.html?outcome=read&track=1");
+  const card = page.getByRole("region", { name: "Camera sighting" });
+  await card.getByRole("button", { name: "Open the time machine" }).click();
+  await expect(page.getByTestId("clip-time-machine").locator("video")).toHaveCount(1);
+  await page.getByRole("button", { name: "Media deleted" }).click();
+  await expect(page.getByTestId("clip-time-machine")).toHaveCount(0);
+  await expect(page.locator("video")).toHaveCount(0);
+});
