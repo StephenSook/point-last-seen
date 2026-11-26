@@ -2,7 +2,7 @@
 page (https://firebase.google.com/docs/ai-logic/models) and exits 1 if any model named by remoteconfig.template.json
 or shared/constants/models.json is missing, is in the Shutdown stage, or has a shutdown date on or before the end
 of judging. A model can be withdrawn earlier than its documented date, so this page check is paired with a full
-signed call run on the Mac (scripts/appcheck_control.py). Retires itself after 2026-12-17.
+signed call run on the Mac (scripts/appcheck_control.py). Retires itself after 2026-12-22.
 
 Usage: python3 -I scripts/models_probe.py
 """
@@ -15,7 +15,7 @@ from pathlib import Path
 
 PAGE = "https://firebase.google.com/docs/ai-logic/models"
 JUDGING_ENDS = date(2026, 12, 17)
-RETIRE_AFTER = date(2026, 12, 17)
+RETIRE_AFTER = date(2026, 12, 22)
 FLOOR = 10  # the page listed 24 model records on 2026-11-18
 DATE = r"[A-Z][a-z]+ \d{1,2}, \d{4}"
 RECORD = re.compile(rf"(gemini-[a-z0-9.\-]+) Release date: (?:{DATE}|---) Release stage: ([A-Za-z][A-Za-z ]*?) "

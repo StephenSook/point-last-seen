@@ -2,7 +2,7 @@
 every 5 minutes) through Firestore REST with the site's public API key, and exits 1 if the bucket lifecycle rule
 is missing, the sweep has failed twice in a row, or its heartbeat is over 20 minutes old. With the CI debug token
 (APPCHECK_DEBUG_TOKEN_CI) it sends an App Check token too, so the read keeps working once App Check is enforced on
-Firestore; the token is never printed. Retires itself after 2026-12-17 (judging ends Dec 16).
+Firestore; the token is never printed. Retires itself after 2026-12-22 (judging ends Dec 16; winners Dec 21).
 
 Usage: python3 -I scripts/media_probe.py
 """
@@ -16,7 +16,7 @@ from datetime import date, datetime, timezone
 SITE = "https://buildhybridai-2026-yg3m.web.app"
 WEB_APP_ID = "1:593239421521:web:5aeaabe9c07bf3db587e70"  # public; init.json has no appId
 STALE_MIN = 20  # four missed 5-minute runs
-RETIRE_AFTER = date(2026, 12, 17)
+RETIRE_AFTER = date(2026, 12, 22)
 
 
 def evaluate(d, now: datetime) -> list[str]:

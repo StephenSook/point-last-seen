@@ -3,7 +3,7 @@
 key, and exits 1 when fewer than 10 of the day's searches are left, so the team hears before a judge is refused. It
 never starts a session. With the CI debug token (APPCHECK_DEBUG_TOKEN_CI) it sends an App Check token, since App
 Check is enforced on Firestore; the token is never printed. The day's cap is read from functions/src/judgeSession.ts.
-A failed read is a failure, never a pass. Retires itself after 2026-12-17 (judging ends Dec 16).
+A failed read is a failure, never a pass. Retires itself after 2026-12-22 (judging ends Dec 16; winners Dec 21).
 
 Usage: python3 -I scripts/judge_quota_probe.py
 """
@@ -19,7 +19,7 @@ from pathlib import Path
 SITE = "https://buildhybridai-2026-yg3m.web.app"
 WEB_APP_ID = "1:593239421521:web:5aeaabe9c07bf3db587e70"  # public; init.json has no appId
 MIN_LEFT = 10
-RETIRE_AFTER = date(2026, 12, 17)
+RETIRE_AFTER = date(2026, 12, 22)
 SOURCE = Path(__file__).resolve().parents[1] / "functions/src/judgeSession.ts"
 
 

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "sourceUrl": "https://firebase.google.com/docs/ai-logic/models",
-  "readOn": "2026-11-18",
-  "rereadBy": "2026-11-28",
+  "readOn": "2026-11-26",
+  "rereadBy": "2026-12-22",
   "note": "Every model id named in source must be listed under models; an id under banned shuts down before judging ends (2026-12-16) and fails the rules gate anywhere outside docs.",
   "models": [
     {

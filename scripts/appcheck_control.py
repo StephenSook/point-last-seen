@@ -30,7 +30,7 @@ SITE = os.environ.get("PLS_SITE") or "https://buildhybridai-2026-yg3m.web.app"
 MODEL = "gemini-3.5-flash-lite"
 REFUSAL = "Firebase App Check token is invalid."
 WEB_APP_ID = "1:593239421521:web:5aeaabe9c07bf3db587e70"  # public; init.json has no appId
-RETIRE_AFTER = date(2026, 12, 17)  # judging ends 2026-12-16
+RETIRE_AFTER = date(2026, 12, 22)  # judging ends 2026-12-16; winners are announced 2026-12-21
 PROMPT = {"contents": [{"role": "user", "parts": [{"text": "Reply with the single word ok."}]}], "generationConfig": {"maxOutputTokens": 8}}
 
 

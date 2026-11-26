@@ -39,7 +39,7 @@ Names and places only; no value is in this repository.
 
 | Name | Where it is kept | Used by | Revoke by |
 |---|---|---|---|
-| `APPCHECK_DEBUG_TOKEN_CI` | GitHub Actions repository secret; registered on the web app as the App Check debug token "ci-probe revoke 2026-12-17" (2026-11-18) | The daily probe's `--ci` step. The script prints no token; Actions masks the secret | 2026-12-17, after judging ends |
+| `APPCHECK_DEBUG_TOKEN_CI` | GitHub Actions repository secret; registered on the web app as the App Check debug token "ci-probe revoke 2026-12-17" (2026-11-18) | The daily probe's `--ci` step, and the media and judge-quota probes' App Check token. The scripts print no token; Actions masks the secret | 2026-12-23, after the probes retire on 2026-12-22 (its name in the console still says 2026-12-17) |
 | Local web debug token | macOS Keychain on the builder's Mac (`pls-appcheck-debug-token-web`) | `scripts/appcheck_control.py` and live checks run by hand | 2026-12-17 |
 
 ## The checklist, row by row
