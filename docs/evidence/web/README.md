@@ -96,3 +96,13 @@ changed.
 - Cloud Logging holds it in `firebasetelemetry.googleapis.com/events` (insertId `lok76keh21hx`, ERROR, TypeError, one
   error group). Its message reads "message removed": the page sends the error's name and stack, never its text.
 - Not measured in this run: whether the Crashlytics code downloads only after the first error.
+
+### Re-read with the judge-page consent: 2026-11-26
+
+A judge practice search copies the practice clip only when the seed's reading carries the "Public use, film or judge
+page" consent, which the first seed did not tick, and a read record cannot take a new consent. So on drill-dev-1 (the
+practice search seed) and drill-judge-1, only the practice clip's reading was deleted (its file and track went with it
+through the delete trigger) and the clip was read again with all four consents. The `reseed` section of
+`2026-11-26-clip-track-seeds.json` has the before and after counts: drill-dev-1's other media is unchanged, and both
+drills now hold the reading with all four consents, a 10-entry track and the clip. One practice search started from the
+deployed /judge page then copied the clip and its track and opened the time machine with no AI request.

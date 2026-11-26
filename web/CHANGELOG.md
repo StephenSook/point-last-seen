@@ -3545,3 +3545,18 @@ Commits before this file (gate, config, events, merge lanes, offline check, vers
 - What: `docs/evidence/web/2026-11-26-crashlytics-planted.json` and its README section: one TypeError planted on the deployed command post (52b60551) was sent 1,581 ms later to clienttelemetry.googleapis.com/v1/logs (HTTP 200) and is in Cloud Logging's firebasetelemetry events log (insertId lok76keh21hx, ERROR, one error group) with its message removed. Not measured here: whether the Crashlytics code loads only after the first error.
 - Source: the web lane's deploy check (the write-up's Crashlytics claim needed a recorded run).
 - Verified: the run's own upload capture, and the Cloud Logging entry read back with gcloud logging read (read-only); the file holds no key or token (grep).
+
+### test(web): the deployed time machine in a judge's practice search
+- What: `web/e2e/timeMachine.spec.ts` (tagged @quota: it starts one real practice search): /judge, Try a practice search, then "Clips read for this search" and Open the time machine. It checks that the only clip fetched is the practice clip (the blurred copy, by SHA-256) from the practice search's own copy, that the stored track needs no read (no Track the person) and its box shows at the clearest frame, that the 3D view is at least 560 px wide at 1440, that the page keeps 55 frames a second or more while the clip plays, that axe finds nothing in the panel, and that the whole visit made no request to an AI host.
+- Source: the clip time machine plan (the deployed e2e).
+- Verified: typecheck clean; the practice-quota guard (`src/practiceQuota.test.ts`) accepts it; first run is against the deploy that carries the practice clip copy.
+
+### test(web): the deployed time machine check proves the copied track is there
+- What: `web/e2e/timeMachine.spec.ts` also asserts the time machine panel does not say "No track was read for this clip.": with "Track the person" gone from the stored list, the check for no such button no longer proved a stored track, and the clearest frame's box shows without one too.
+- Source: the deployed run of 2026-11-26 15:50 UTC (its stored track was proved by a server read instead).
+- Verified: added after that run, so it runs on the next live run; typecheck clean and the practice-quota guard passes. The run itself passed (12.5 s) and the server read of that practice search showed the track (10 entries).
+
+### docs(web): the practice clip re-read with the judge-page consent on the seed and judges' drills
+- What: `docs/evidence/web/2026-11-26-clip-track-seeds.json` gains a `reseed` section and its README a note: on drill-dev-1 and drill-judge-1 only the practice clip's reading was deleted (file and track through the delete trigger) and the clip read again with all four consents. Before and after counts show drill-dev-1's other media unchanged; both drills hold the reading with all four consents, a 10-entry track and the clip; one practice search from /judge then copied them and opened the time machine with no AI request.
+- Source: the practice clip copy's judge-page consent rule (review of the judge practice search copy).
+- Verified: every count and field read from the server with read-only REST before the delete, after the delete (all 404) and after each re-read; the practice search's log line and records read back the same way; the file holds no key or token.
