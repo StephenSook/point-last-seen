@@ -12,7 +12,9 @@ import { handleDeleteMyAccount } from "./account.js";
 import { handleRotateJoinCode } from "./codes.js";
 import { guardLogLine, guardRequest } from "./cloudGuard.js";
 import { handleJoin, type JoinRequest } from "./join.js";
-import { bucketCopier, deleteEndedSandboxes, handleStartJudgeSession, JUDGE_SEED_INCIDENT, JUDGE_SESSION_TIMEOUT_S, JUDGE_SESSIONS_PER_DAY } from "./judgeSession.js";
+import { logIncidentId } from "./logId.js";
+import { bucketClipStore } from "./practiceClip.js";
+import { deleteEndedSandboxes, handleStartJudgeSession, JUDGE_SEED_INCIDENT, JUDGE_SESSION_TIMEOUT_S, JUDGE_SESSIONS_PER_DAY } from "./judgeSession.js";
 import { deleteClipForReading, deletePhotoConsentForObject, deleteTrackForReading, handleDeleteMedia, runMediaSweep } from "./media.js";
 import { handleRemoveMember } from "./members.js";
 import { handleFamilyQuestion, handlePlanCreated, handleSearchState } from "./notify.js";
@@ -51,7 +53,7 @@ export const deleteClipOnConsentEnd = onDocumentDeleted(
     const { incidentId, sha256 } = event.params;
     const deleted = await deleteClipForReading(getStorage().bucket(), incidentId, sha256);
     const track = await deleteTrackForReading(getFirestore(), incidentId, sha256);
-    console.log(JSON.stringify({ event: "deleteClipOnConsentEnd", incidentId, deleted, track }));
+    console.log(JSON.stringify({ event: "deleteClipOnConsentEnd", incidentId: logIncidentId(incidentId), deleted, track }));
   },
 );
 
@@ -97,7 +99,7 @@ export const startJudgeSession = onCall(
   { enforceAppCheck: true, region: "us-central1", maxInstances: 5, timeoutSeconds: JUDGE_SESSION_TIMEOUT_S },
   request => handleStartJudgeSession(getFirestore(), getAuth(), request.auth?.uid ?? null, Date.now(), {
     seedIncidentId: JUDGE_SEED_INCIDENT, perDay: JUDGE_SESSIONS_PER_DAY,
-    copyClip: bucketCopier(getStorage().bucket()),
+    clipStore: bucketClipStore(getStorage().bucket()),
   }),
 );
 

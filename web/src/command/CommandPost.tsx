@@ -18,7 +18,7 @@ import { countMedia, deleteMediaNow } from "../data/media";
 import { travelBearingFromInputs } from "../data/cameraSighting";
 import { cameraConfirmWrites, familyCameraConfirmWrites } from "../prior/cameraPrior";
 import { sightingConfirmWrites, sightingNewLkp } from "../prior/sightingPrior";
-import { CameraClipPanel, TRACK_FAILED, type ClipRead, type TrackView } from "../camera/CameraClipPanel";
+import { CameraClipPanel, TRACK_FAILED, TRACK_TOO_LONG, type ClipRead, type TrackView } from "../camera/CameraClipPanel";
 import type { ClipIntakeInput, ReadHow } from "../camera/ClipIntake";
 import { FRAME_OPTS } from "../ai/frameCheck";
 import { clipDurationS, jpegAt, sampleFrames } from "../camera/frames";
@@ -823,7 +823,7 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
       },
     );
     if (o.kind === "refused") return { status: "failed", message: o.message, durationS, ...(o.sent ? { sent: o.sent } : {}) };
-    if (o.kind === "failed") return { status: "failed", message: TRACK_FAILED, durationS, ...(o.sent ? { sent: o.sent } : {}) };
+    if (o.kind === "failed") return { status: "failed", message: o.reason === "too_long" ? TRACK_TOO_LONG : TRACK_FAILED, durationS, ...(o.sent ? { sent: o.sent } : {}) };
     traced(o.route);
     if (sink) recordInference(o.route, sink, "clip_track");
     // The track is shown at once, not after the server acknowledges the write (offline, that waits for the link
@@ -853,14 +853,6 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
     const durationS = await clipDurationS(clip);
     const stored = await findClipTrack(pls.db, incidentId, c.record.sha256).catch(() => null);
     return { clip, durationS, track: stored?.track ?? null };
-  };
-  // "Track the person" on a stored clip: the whole clip (its record keeps no window), on its stored consent.
-  const trackStoredClip = async (c: StoredClip, clip: Blob, durationS: number, stillCurrent: () => boolean): Promise<TrackView> => {
-    try {
-      return await readAndStoreTrack(c.record.sha256, clip, durationS, { startS: 0, endS: durationS }, stillCurrent);
-    } catch {
-      return { status: "failed", message: TRACK_FAILED, durationS };
-    }
   };
   // On-device triage (P-39): only with this laptop's model (the gate), frames decoded here; a
   // result that sends nothing is traced (never stored). Unmeasured on a real built-in model.
@@ -1097,10 +1089,8 @@ function Post({ pls, incidentId }: { pls: Pls; incidentId: string }) {
               <StoredClipsPanel
                 revocation={tray.epoch}
                 timeMachine={rc.timeMachineEnabled}
-                canTrack={!!incident && !closedHere}
                 load={() => listStoredClips(pls.db, incidentId)}
                 openClip={openStoredClip}
-                onTrack={trackStoredClip}
               />
             </>
           )}

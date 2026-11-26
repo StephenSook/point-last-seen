@@ -1,0 +1,27 @@
+{
+  "what": "One planted uncaught error on the deployed command post, to show the web app's crash reports reach Crashlytics with the error's text removed.",
+  "site": "https://buildhybridai-2026-yg3m.web.app (commit 52b60551)",
+  "how": "Google Chrome driven by Playwright opened the site with the App Check debug token, waited 3 s, then added a script (a blob: URL) that throws a TypeError from a function named crashlyticsLiveTestError on the next tick. Nothing else was done on the page.",
+  "plantedAtUtc": "2026-11-26T09:06:01.267Z",
+  "upload": {
+    "request": "POST https://clienttelemetry.googleapis.com/v1/logs",
+    "status": 200,
+    "msAfterPlant": 1581
+  },
+  "cloudLogging": {
+    "logName": "firebasetelemetry.googleapis.com/events",
+    "resourceType": "firebasetelemetry.googleapis.com/App",
+    "insertId": "lok76keh21hx",
+    "timestamp": "2026-11-26T09:06:01.278Z",
+    "receivedAt": "2026-11-26T09:06:02.841766532Z",
+    "severity": "ERROR",
+    "exceptionType": "TypeError",
+    "exceptionMessage": "message removed",
+    "firstFrameFunction": "crashlyticsLiveTestError",
+    "firstFrameSource": "a blob: URL on https://buildhybridai-2026-yg3m.web.app",
+    "errorGroups": 1
+  },
+  "alsoLogged": "A DEBUG entry in the same log at the same timestamp (the SDK's own event, text only).",
+  "notMeasured": "Whether the Crashlytics SDK code was downloaded only after the error: the run's pattern for that file did not match its built name, so this run does not show it.",
+  "read": "The entries were read with gcloud logging read (read-only) about 2 minutes after the plant."
+}

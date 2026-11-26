@@ -11,6 +11,7 @@ import {
   readClipTrack,
   TRACK_BOX_FRAMES_PER_CALL,
   TRACK_MASK_FRAMES_PER_CALL,
+  TRACK_MAX_FRAMES,
   trackFrameTimes,
   trackParts,
   stoppedMessage,
@@ -105,6 +106,19 @@ describe("parseTrackReply", () => {
 });
 
 describe("parseMaskReply", () => {
+  it("drops an outline of more than 16 points and keeps one of 16", () => {
+    const pts = (n: number) => Array.from({ length: n }, (_, i) => [100 + i, 200 + i]);
+    const text = JSON.stringify({
+      track: [
+        { t: 0, label: "person", box_2d: [1, 1, 9, 9], mask: pts(16) },
+        { t: 1, label: "person", box_2d: [1, 1, 9, 9], mask: pts(17) },
+      ],
+    });
+    const m = parseMaskReply(text, [0, 1]);
+    expect([...(m?.keys() ?? [])]).toEqual([0]);
+    expect(m?.get(0)).toHaveLength(16);
+  });
+
   it("keeps an outline of at least 3 points inside 0 to 1000, and drops a bad one", () => {
     const text = JSON.stringify({
       track: [
@@ -417,5 +431,22 @@ describe("frames count as sent only once the service answered", () => {
     } });
     // 12 s gives 13 frames (0 to 11, and the last frame labelled 12); the first outline call of 6 was answered.
     expect(o.kind === "refused" && o.sent).toEqual({ frames: 13, outlineFrames: 6 });
+  });
+});
+
+describe("the track's frame cap", () => {
+  it("refuses a window of more than 121 frames before taking or sending any", async () => {
+    const { deps, req, calls } = setup({ durationS: 130, record: stored({ durationS: 130 }) });
+    let frames = 0;
+    deps.frameJpeg = async () => (frames++, "x");
+    expect(await readClipTrack(req, deps)).toEqual({ kind: "failed", reason: "too_long" });
+    expect([calls, frames]).toEqual([[], 0]);
+    expect(TRACK_MAX_FRAMES).toBe(121);
+  });
+
+  it("reads a window of exactly 121 frames", async () => {
+    const { deps, req } = setup({ durationS: 120, record: stored({ durationS: 120 }), withMasks: false });
+    const o = await readClipTrack(req, deps);
+    expect(o.kind === "read" && o.framesSent).toBe(121);
   });
 });

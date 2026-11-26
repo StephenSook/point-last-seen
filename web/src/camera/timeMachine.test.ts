@@ -32,9 +32,14 @@ describe("trackSentLine", () => {
 
 describe("trackPaused", () => {
   it("stops the track read when clip reading is paused or the time machine is turned off", () => {
-    expect(trackPaused({ killCloud: false, timeMachineEnabled: true })).toBe(false);
-    expect(trackPaused({ killCloud: true, timeMachineEnabled: true })).toBe(true);
-    expect(trackPaused({ killCloud: false, timeMachineEnabled: false })).toBe(true);
+    expect(trackPaused({ killCloud: false, timeMachineEnabled: true, fetchedAtMs: 1 })).toBe(false);
+    expect(trackPaused({ killCloud: true, timeMachineEnabled: true, fetchedAtMs: 1 })).toBe(true);
+    expect(trackPaused({ killCloud: false, timeMachineEnabled: false, fetchedAtMs: 1 })).toBe(true);
+  });
+
+  it("stops it until Remote Config has answered once, so a fresh tab never reads under the in-app defaults", () => {
+    expect(trackPaused({ killCloud: false, timeMachineEnabled: true, fetchedAtMs: null })).toBe(true);
+    expect(trackPaused({ killCloud: false, timeMachineEnabled: true })).toBe(true);
   });
 });
 

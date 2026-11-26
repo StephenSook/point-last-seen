@@ -87,10 +87,15 @@ type Props = {
 // side on a wide screen, stacked on a phone. Close (or Escape) returns to the card, and focus goes back to where it was.
 export function ClipTimeMachine({ clip, durationS, reading, track, onClose, status }: Props) {
   const close = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
   const closeNow = useRef(onClose);
   closeNow.current = onClose;
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // Everything else on the page is inert while the panel is open: focus and clicks stay in it, and assistive
+    // technology reads only it. Only what this panel made inert is restored.
+    const madeInert = [...document.body.children].filter((el) => el !== panel.current && !el.hasAttribute("inert"));
+    for (const el of madeInert) el.setAttribute("inert", "");
     close.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") closeNow.current();
@@ -98,6 +103,7 @@ export function ClipTimeMachine({ clip, durationS, reading, track, onClose, stat
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
+      for (const el of madeInert) el.removeAttribute("inert");
       opener?.focus();
     };
   }, []);
@@ -118,7 +124,7 @@ export function ClipTimeMachine({ clip, durationS, reading, track, onClose, stat
   const { timeS } = useSyncExternalStore(clock.subscribe, clock.now, clock.now);
   const box: Box2d | null = segments.length > 0 ? boxAt(segments, timeS) : keyFrame && Math.abs(timeS - keyFrame.timeS) <= 0.5 ? keyFrame.box : null;
   return createPortal(
-    <div className="clip-tm-panel" role="dialog" aria-label="Time machine">
+    <div ref={panel} className="clip-tm-panel" role="dialog" aria-modal="true" aria-label="Time machine">
       <div className="clip-tm-head">
         <h2 className="label">Time machine</h2>
         <button ref={close} type="button" className="btn" onClick={() => closeNow.current()}>

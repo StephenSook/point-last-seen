@@ -22,26 +22,18 @@ test("a clip read before opens its time machine with its stored track and asks f
   await tm.getByRole("button", { name: "Clearest frame 0:04" }).click();
   await expect(tm.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 50%; height: 20%; width: 20%/, { timeout: 10_000 });
   await expect(page.getByRole("button", { name: "Track the person" })).toHaveCount(0);
-  await expect(page.getByTestId("tracks")).toHaveText("0");
 });
 
-test("a clip with no track opens on its clearest frame, and Track the person reads one and says what it sent", async ({ page }) => {
+test("a clip with no track opens on its clearest frame and sends nothing: no new track read is offered", async ({ page }) => {
   await page.goto("/harness/stored-clips.html?track=none");
   const clips = list(page);
   await clips.getByRole("button", { name: "Open the time machine" }).click();
-  await expect(page.getByTestId("clip-time-machine").locator("video")).toHaveCount(1);
-  await page.getByRole("dialog", { name: "Time machine" }).getByRole("button", { name: "Track the person" }).click();
-  await expect(page.getByRole("dialog", { name: "Time machine" })).toContainText("6 frames of the clip left this laptop for the cloud. 6 of them were sent again for the outlines.");
-  await expect(page.getByTestId("tracks")).toHaveText("1");
+  const panel = page.getByRole("dialog", { name: "Time machine" });
+  await expect(panel.locator("video")).toHaveCount(1);
+  await expect(panel).toContainText("No track was read for this clip. The time machine shows its clearest frame.");
   await expect(page.getByRole("button", { name: "Track the person" })).toHaveCount(0);
-});
-
-test("a closed search offers no new track read", async ({ page }) => {
-  await page.goto("/harness/stored-clips.html?track=none&closed=1");
-  const clips = list(page);
-  await clips.getByRole("button", { name: "Open the time machine" }).click();
-  await expect(page.getByTestId("clip-time-machine").locator("video")).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Track the person" })).toHaveCount(0);
+  await panel.getByRole("button", { name: "Clearest frame 0:04" }).click();
+  await expect(panel.getByTestId("clip-track-box")).toHaveAttribute("style", /top: 40%; left: 30%; height: 20%; width: 40%/, { timeout: 10_000 });
 });
 
 test("with the time machine off, or no clip read, there is no list", async ({ page }) => {
