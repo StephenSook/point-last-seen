@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLIP_TIMEOUT_MS, PRIVATE_REQUEST_OPTIONS, clipGeneratorFor, debriefSheetGeneratorFor, frameGeneratorFor, generatorFor, photoGeneratorFor, photoTemplateGeneratorFor, templateGeneratorFor } from "./client";
+import { CLIP_TIMEOUT_MS, PRIVATE_REQUEST_OPTIONS, clipGeneratorFor, debriefSheetGeneratorFor, trackGeneratorFor, frameGeneratorFor, generatorFor, photoGeneratorFor, photoTemplateGeneratorFor, templateGeneratorFor } from "./client";
 import { clipParts } from "./clipRead";
 
 describe("generatorFor", () => {
@@ -91,5 +91,20 @@ describe("photoTemplateGeneratorFor", () => {
     const gen = photoTemplateGeneratorFor({ generateContent: (async (r: unknown) => { sent = r; return { response: { text: () => "{}", inferenceSource: "in_cloud" } }; }) as never }, "pls-photo-cues-v1");
     expect(await gen("QUJD")).toEqual({ text: "{}", inferenceSource: "in_cloud" });
     expect(sent).toEqual({ templateId: "pls-photo-cues-v1", templateVariables: { mimeType: "image/jpeg", imageData: "QUJD" } });
+  });
+});
+
+describe("trackGeneratorFor", () => {
+  it("sends the parts as given and returns the text, the finish reason and where it ran", async () => {
+    let sent: unknown;
+    const gen = trackGeneratorFor({ generateContent: (async (p: unknown) => { sent = p; return { response: { text: () => "{}", inferenceSource: "in_cloud", candidates: [{ finishReason: "MAX_TOKENS" }] } }; }) as never });
+    const parts = [{ type: "text" as const, text: "t=0" }];
+    expect(await gen(parts)).toEqual({ text: "{}", finishReason: "MAX_TOKENS", inferenceSource: "in_cloud" });
+    expect(sent).toBe(parts);
+  });
+
+  it("gives no finish reason when the SDK returns none", async () => {
+    const gen = trackGeneratorFor({ generateContent: (async () => ({ response: { text: () => "{}" } })) as never });
+    expect(await gen([])).toEqual({ text: "{}", finishReason: null, inferenceSource: undefined });
   });
 });
